@@ -1,0 +1,14 @@
+{
+  "_comment": "NAND2 gate equivalents per Yosys internal gate type ($_<TYPE>_ after `abc -g`). Pinned: a change here is a change to every score.",
+  "NOT": 0.667,
+  "NAND": 1.0,
+  "NOR": 1.0,
+  "AND": 1.333,
+  "OR": 1.333,
+  "ANDNOT": 1.333,
+  "ORNOT": 1.333,
+  "XOR": 2.0,
+  "XNOR": 2.0,
+  "MUX": 2.333,
+  "BUF": 0.0
+}

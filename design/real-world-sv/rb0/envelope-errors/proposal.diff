@@ -1,0 +1,73 @@
+--- extractors/sv/extract.py
++++ extractors/sv/extract.py (proposed)
+@@ -27331,12 +27331,48 @@
+     nodes = []
+     for code, message, line, col in errors:
+         node = unsupported(None, None, "SlangAnalysis:" + code, message[:UNSUPPORTED_TEXT_LIMIT])
++        if line is not None:
++            node["span"] = {"line": line, "col": col, "end_line": line, "end_col": col}
++        nodes.append(node)
++    return nodes
++
++
++def _slang_error_list(comp, sm):
++    """The ERROR diagnostics of the default-point compilation (parse, preprocessor, elaboration: what
++    `getAllDiagnostics()` holds; the analysis pass has its own list): `(code, message, line, col)`,
++    sorted, duplicates removed. Fails closed: if the list cannot be built the error is `FrontendFailed`."""
++    try:
++        engine = _slang_driver().diagEngine
++        found = set()
++        for d in comp.getAllDiagnostics():
++            if not d.isError():
++                continue
++            try:
++                where = "%s:%s" % (os.path.basename(str(sm.getFileName(d.location))), sm.getLineNumber(d.location))
++                line, col = sm.getLineNumber(d.location), sm.getColumnNumber(d.location)
++            except Exception:
++                where, line, col = "?", None, None
++            found.add((_slang_diag_name(d), "%s: %s" % (where, " ".join(engine.formatMessage(d).split())), line, col))
++        return sorted(found, key=lambda f: (f[2] or 0, f[3] or 0, f[0], f[1]))
++    except Exception as exc:  # noqa: BLE001
++        return [("FrontendFailed", "slang's diagnostics could not be listed: %s: %s"
++                 % (type(exc).__name__, str(exc)[:200]), None, None)]
++
++
++def _slang_error_nodes(errors):
++    """One `Unsupported` per slang error, kind `SlangError:<slang code>` (the twin of `SlangAnalysis:<code>`)."""
++    nodes = []
++    for code, message, line, col in errors[:20]:
++        node = unsupported(None, None, "SlangError:" + code, message[:UNSUPPORTED_TEXT_LIMIT])
+         if line is not None:
+             node["span"] = {"line": line, "col": col, "end_line": line, "end_col": col}
+         nodes.append(node)
+     return nodes
+ 
+ 
++_SYM_PROBED = False        # set by main(): `--probe-points` was given, so every point has its own verdict
++
++
+ def _top_is_parametric(module):
+     return any(p.get("kind") == "ParameterDecl" for p in module.get("params", []))
+ 
+@@ -31686,6 +31722,12 @@
+                           % (code, line, message), file=sys.stderr)
+                 if analysis and not _top_is_parametric(module):
+                     module["others"].extend(_slang_analysis_nodes(analysis))
++                # slang's ELABORATION/parse errors (decided 2026-10-31/11-01: "if slang says the program is illegal,
++                # reject it"): the envelope of an illegal program must not look like a legal one. Same split as the
++                # analysis errors: a top with parameters is judged per POINT by the probe sidecar's `frontend_errors`
++                # (when probe points were asked for); every other envelope carries the errors as loud nodes.
++                if nerr and (not _top_is_parametric(module) or not _SYM_PROBED):
++                    module["others"].extend(_slang_error_nodes(_slang_error_list(comp, sm)))
+         except Exception as exc:
+             module = internal_error(exc)
+         # F3: the definitions the top instantiates (none: unchanged envelope).
+@@ -32072,6 +32114,8 @@
+                 raise ExtractError("--min-typ-max min/max is not admitted in symbolic mode")
+             points = (parse_probe_points(args.probe_points)
+                       if args.probe_points is not None else None)
++            global _SYM_PROBED
++            _SYM_PROBED = points is not None
+             out = process_symbolic(args.top, args.sources, args.incdirs,
+                                    args.out)
+             print(out)

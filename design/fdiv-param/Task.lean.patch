@@ -1,0 +1,49 @@
+--- a/svgolf/SvGolf/Task.lean
++++ b/svgolf/SvGolf/Task.lean
+@@ -211,4 +211,46 @@
+ 
+ end CombTask
+ 
++/-! ## Two-parameter combinational tasks -/
++
++/-- A combinational svGolf task for a TWO-parameter design family
++`sem : Nat → Nat → Design2` (the `name.sem` constant that `load_design_sv2` defines for a
++module with two `parameter`s, in declaration order): the parameter range, the interface at each
++parameter pair, and the function the outputs must compute. A `CombTask` with one more
++parameter; everything else (`Interface`, `Unclocked`, `Terminates2`, `Computes`) is the same
++statement, taken at each point. -/
++structure CombTask2 where
++  /-- The parameter pairs the statement covers ("for every `N`, `M` in range"). -/
++  inRange : Nat → Nat → Prop
++  /-- The input ports at parameters `(N, M)`: (name, width), in port order. -/
++  inputs : Nat → Nat → List Sig
++  /-- The output ports at parameters `(N, M)`: (name, width), in port order. -/
++  outputs : Nat → Nat → List Sig
++  /-- The function: known input values ↦ known output values. -/
++  fn : (N M : Nat) → Vals ((inputs N M).map Prod.snd) → Vals ((outputs N M).map Prod.snd)
++
++namespace CombTask2
++
++/-- The task at one parameter pair `(N, M)`, as a fixed-size `CombTask` (whose own parameter is
++ignored and taken at `0`): the statement at a point IS `CombTask.SatisfiedAt` of this, so every
++proof helper of `SvGolf/Comb.lean` applies to it unchanged. -/
++def atPoint (t : CombTask2) (N M : Nat) : CombTask where
++  inRange K := K = 0
++  inputs _ := t.inputs N M
++  outputs _ := t.outputs N M
++  fn _ := t.fn N M
++
++/-- The statement at one parameter pair: interface; no clocked process and termination;
++function (`CombTask.SatisfiedAt` of `atPoint`, at its parameter `0`). -/
++def SatisfiedAt (t : CombTask2) (N M : Nat) (d : Design2) : Prop :=
++  (t.atPoint N M).StatementFixed d
++
++/-- **The challenge statement** for a two-parameter design family
++`sem : Nat → Nat → Design2` (a `load_design_sv2` constant `name.sem`): the design satisfies the
++task at every parameter pair in range. -/
++def Statement (t : CombTask2) (sem : Nat → Nat → Design2) : Prop :=
++  ∀ N M, t.inRange N M → t.SatisfiedAt N M (sem N M)
++
++end CombTask2
++
+ end SvGolf

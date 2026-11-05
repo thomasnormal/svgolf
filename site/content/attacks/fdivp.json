@@ -1,0 +1,37 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "const_nan": "Always outputs the canonical quiet NaN.",
+  "div_op": "The reference with its division steps replaced by the banned run-time `/` and `%`.",
+  "rm_pin": "Adds a rounding-mode input that is never read.",
+  "status_flag": "Adds an `inexact` output next to `q`.",
+  "wide_q": "The reference with `q` one bit wider, its top bit always 0."
+ },
+ "attacks": {
+  "dsh_sticky_short": "The reference with the denormalizer's sticky test two bits short: wrong on some subnormal results.",
+  "dsh_wrap64": "The reference with the denormalizing shift taken modulo 64: right at the scoring format, wrong for exponent widths of 7 and more.",
+  "ew_narrow": "The reference with an exponent register that is too narrow when the precision is large: right at the scoring format, wrong elsewhere.",
+  "ftz": "The reference flushing subnormal results to zero.",
+  "inc_tie_odd": "The reference rounding exact ties to the odd neighbour.",
+  "newton_f_minus2": "The Newton reference with two fraction bits fewer in its working precision.",
+  "newton_ge1_const": "The Newton reference whose correction always adds 1.",
+  "newton_ni_minus1": "The Newton reference with one Newton step fewer: right at small precisions only.",
+  "newton_no_ge2": "The Newton reference whose correction stops one short: wrong only where the estimate is two below the quotient, and right on every pair of binary16.",
+  "newton_r0_off": "The Newton reference with a wrong constant in its initial reciprocal: right at some precisions only.",
+  "newton_rnz_no2mb": "The Newton reference whose sticky bit forgets one remainder: wrong only on rare exact quotients, and right on every pair of binary16.",
+  "newton_rnz_nomb": "The Newton reference whose sticky bit forgets the other remainder, taking some exact quotients for inexact ones.",
+  "ovf_late": "The reference testing for overflow one step too late, so the all-ones exponent keeps its fraction.",
+  "rr_sticky_dropped": "The reference with a sticky bit that ignores the division's last remainder.",
+  "zero_by_zero_inf": "The reference returning infinity for ±0 / ±0 instead of NaN.",
+  "srt_qds_t2_d0": "The SRT reference with one wrong constant in its digit-selection table: right below precision 5, where the bad table cell is never reached.",
+  "srt_qds_t1_d0": "The SRT reference with another wrong selection constant: right below precision 5.",
+  "srt_qds_tm_d7": "The SRT reference with a wrong selection constant for negative digits: right below precision 5.",
+  "srt_no_corr": "The SRT reference without its final correction, so a negative remainder leaves the quotient one too high.",
+  "srt_drop_carry": "The SRT reference with one carry of its carry-save remainder dropped.",
+  "srt_no_cin": "The SRT reference that forgets the +1 of a negated divisor multiple.",
+  "srt_sticky_sign": "The SRT reference whose sticky bit takes every negative remainder for an exact quotient.",
+  "srt_stages_m1": "The SRT reference with one stage, two quotient bits, fewer.",
+  "srt_otfc_um": "The SRT reference whose on-the-fly conversion takes one digit's decremented quotient from the wrong register.",
+  "srt_otfc_digit": "The SRT reference whose on-the-fly conversion appends the wrong bits for the digit -1."
+ }
+}

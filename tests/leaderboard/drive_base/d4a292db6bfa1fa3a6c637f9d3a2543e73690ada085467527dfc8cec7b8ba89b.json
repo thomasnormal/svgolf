@@ -1,0 +1,95 @@
+{
+  "assisted_by": [
+    "Claude (Anthropic)"
+  ],
+  "canonical_sha256": "e0e932a3ae8a04ac79f407e839b2394287dc32d493b7f699d3001872b580dde0",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "78961f5e80d10eb189ab9991db9bfe6878a3c6f6b696b2c3d193cf1942954418",
+    "files": {
+      "check.py": "0e5ba6c2908545d91af8c6a0da73f1939ec0895251f2adf0d19673b0efb9e92a",
+      "check/Comparator.lean": "dd2ad2174c045b5f2c5eb82fd5f6dff128dc25603ab993c71f841bb2e7258d10",
+      "check/SvEval.lean": "25a7b735e0e55ef979fb1a1fc03415f5c1094626c0fc5e0d7683376cfecb5663",
+      "check/envelope.py": "085007f73ce0add12530f9785fcb7b80b0f5eccc7920893b84c1b5a06fbe5ad1",
+      "check/postsynth.py": "c9d281ee1b22fa8cc23a5d365cf8dbf0f2d5356313597fb54c7ca32f77b7bea0",
+      "lakefile.toml": "3583830f357106c4888a17eada9475676d1bb4f84d45000cd5abb27cf3f82672",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "b567da095af5f0ea228bd20637a7844ddf7d0151ae38973803eec87e58c9e925",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "1df6baf35071055f046e3d43c7b84dacb2debf28b8cf588caa40a96693ee8210",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/score.py": "c892c3c5d1d1258b591fa4df845bd5290d377c40e662b88f5b86fc27b6baaa9e",
+      "score/srcgate.py": "cce9ba353b8d35639da14200b066e8b55d74a77f11d22acb1893f0c49e7fda82",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "ae67a107cbf97140edc6d3dd1f60f394f6195eea",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "svgolf_revision": "ae67a107cbf97140edc6d3dd1f60f394f6195eea",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "add_n.lean",
+      "sha256": "36523075f925418eea52fa54a8a1e708394da291bbb7d592d09344509bf1669b"
+    },
+    "sv": {
+      "name": "add_n.sv",
+      "sha256": "6579283e86a83926c68dbaa616514d26e83f7ede393aad333cafb7af3cc47ec5"
+    }
+  },
+  "notes": "reference solution",
+  "player": "svgolf-reference",
+  "postsynth": {
+    "mismatches": 0,
+    "point": "N=16",
+    "salted": false,
+    "seed": "efb7fed387c86cbde7b7cbe59b98c582ced6221ee1d114f9cea95c25f5dcd877",
+    "vectors": 4132
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 10.3,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.Known2"
+    ],
+    "lines": 509,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": false
+  },
+  "record_hash": "d4a292db6bfa1fa3a6c637f9d3a2543e73690ada085467527dfc8cec7b8ba89b",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 112.0,
+    "area_mge": 112000,
+    "depth": 33,
+    "gates": {
+      "NAND": 48,
+      "XOR": 32
+    },
+    "num_gates": 80,
+    "rtlil_sha256": "0699af350c19ae28f07e4abd195e746ea9888b6ce94feeb0a43f52c15a0a6622",
+    "scoring_point": {
+      "N": 16
+    },
+    "top": "add_n"
+  },
+  "submitted_at": "2026-10-29",
+  "task": "add"
+}

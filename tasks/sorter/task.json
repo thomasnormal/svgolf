@@ -1,0 +1,134 @@
+{
+  "name": "sorter",
+  "title": "Streaming sorter, clocked: N unsigned W-bit values in on consecutive in_valid cycles, the same values out ascending (duplicates kept) on N out_valid cycles, within a declared latency",
+  "status": "ready",
+  "_status": [
+    "The status block of PLAN4.md section 1, as of 11/04 (Gate 5, the sorter line):",
+    "trusted statement: complete    run2 proof: complete    checker: complete",
+    "post-synthesis: complete       E transport: pending (Gate 4)",
+    "Statement txtask-v1 (StreamTask, C8); proof reference/sorter_ins.lean (lat = 2N, every N, W >= 1, through SvGolf.StreamTask.satisfiedAt_of_phases); check.py accepts it (stream-family, the clocked score and post-synthesis at (3,4) and (8,8)); the seven attacks of tests/sorter/attacks/ fail at solution and are each wrong at post-synthesis (tests/expected.json)."
+  ],
+  "kind": "stream-family",
+  "_kind_comment": "check.py's kind for a StreamTask statement (C8). Like tx-family it names a clock and a latency function: the goal is Statement design.sem lat ∧ lat 8 8 = n, n from the proof file's `-- svgolf-latency: n` line. `protocol` names the stream ports and `count`, the parameter that is the number of values per transaction (Spec.lean's `count p := p.1`).",
+  "top": "sorter",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    },
+    {
+      "name": "W",
+      "range": "1 <= W"
+    }
+  ],
+  "_range_comment": "Spec.lean's `task.inRange` also requires N*W < 2^31 (C10): a design that buffers the whole stream declares N*W bits, and every such width stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
+  "ports": {
+    "inputs": [
+      {
+        "name": "clk",
+        "width": "1"
+      },
+      {
+        "name": "rst",
+        "width": "1"
+      },
+      {
+        "name": "start",
+        "width": "1"
+      },
+      {
+        "name": "in_valid",
+        "width": "1"
+      },
+      {
+        "name": "in_data",
+        "width": "W"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "out_valid",
+        "width": "1"
+      },
+      {
+        "name": "out_data",
+        "width": "W"
+      }
+    ]
+  },
+  "clock": "clk",
+  "reset": {
+    "port": "rst",
+    "level": 1
+  },
+  "_clock_comment": "The one clock (rising edge; the source gate's clocked rules) and the synchronous, active-high reset, held at least one cycle (C1).",
+  "protocol": {
+    "contract": "StreamTask",
+    "start": "start",
+    "in_valid": "in_valid",
+    "in_data": "in_data",
+    "out_valid": "out_valid",
+    "out_data": "out_data",
+    "count": "N",
+    "_comment": "Informative copy of Spec.lean's `task` (C1, C2, C8, SvGolf/TaskSeq.lean): `start` a one-cycle pulse raised only when Idle (no start yet, or the previous start's N outputs emitted); in_valid = 1 exactly at the N entries after a start, carrying the values, 0 otherwise; no gaps, no backpressure. out_valid known at every cycle after the release and 0 before the first start; from each start to the next, exactly N cycles with out_valid = 1, the last within lat cycles of the edge that samples start, whose out_data values in order are the input sorted ascending (unsigned), duplicates kept. The reference's latency is 2N."
+  },
+  "statement": {
+    "module": "tasks.sorter.Spec",
+    "constant": "SvGolf.Tasks.Sorter.Statement",
+    "_comment": "Of type (Nat -> Nat -> Design2) -> (Nat -> Nat -> Nat) -> Prop: the design family sem N W and the latency function lat N W."
+  },
+  "banlist": {
+    "operators": [],
+    "_comment": "No banlist: comparisons are the task, and nothing else would build a sorter for free. The score prices the schedule (cells, comparators, cycles)."
+  },
+  "probe_points": [
+    "N=1,W=1",
+    "N=1,W=8",
+    "N=2,W=1",
+    "N=2,W=4",
+    "N=3,W=1",
+    "N=3,W=4",
+    "N=4,W=8",
+    "N=8,W=8"
+  ],
+  "scoring": {
+    "params": {
+      "N": 8,
+      "W": 8
+    },
+    "depth_budget": null,
+    "_comment": "C7 as for matmul: area = sky130 A0' um^2 including the flops; time = n x the register-to-register period, n the declared latency at this point. (8, 8): eight byte-wide values, small enough for exhaustive-ish post-synthesis checking and a fast ls-sv trace, large enough that the O(N) cell array, a sorting network with serial-parallel buffers and the latency/area trade-off between them are all visible (the reference: 81 flops, n = 16)."
+  },
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "postsynth": {
+    "points": [
+      {
+        "N": 3,
+        "W": 4
+      },
+      {
+        "N": 8,
+        "W": 8
+      }
+    ],
+    "seeds": 3,
+    "reset_cycles": 1,
+    "txns": 24,
+    "time_limit_s": 900,
+    "_comment": "As matmul's proposal for the clocked post-synthesis check, with oracle.py's stream transactions: per seed a randomized start state, reset for 1 cycle, then txns(params, seed) with Idle observed (the gap counts from the entry after the snapshot showing the previous transaction's N-th output), and the free values on in_data whenever in_valid = 0. Binding: (i) the netlist against ls-sv, out_valid every cycle and out_data where out_valid = 1; (ii) the emitted values of each transaction against oracle.py's good. Field names follow matmul's package; the checker defines the final ones."
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/sorter_ins.sv",
+      "lean": "reference/sorter_ins.lean",
+      "note": "The insertion-cell array (cell sort) adapted from andrewpeck/cell-sort (MIT; provenance and every change in the file header): N cells, each comparing the broadcast input with its own value and its upper neighbour's, shifting out through cell 0 when in_valid = 0; a valid token per cell; latency 2N (out_valid = 1 exactly at the snapshots s+N+1 .. s+2N; PLAN4.md Gate 5)."
+    }
+  ]
+}

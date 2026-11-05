@@ -1,0 +1,14 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "drop_top": "Off by one: every row after the first drops its top term.",
+  "kronecker_mul": "The right function through the integer multiplier on bit-spread operands, using the banned run-time `*`.",
+  "only_n16": "Correct only at the scoring width N = 16, zero elsewhere.",
+  "or_accumulate": "Accumulates the rows with OR instead of XOR.",
+  "plus_xor": "The right function, with each row's XOR written as a one-bit run-time `+`, which is banned.",
+  "reversed_p": "Delivers the result bits in reverse order (coefficient k at `p[2N-2-k]`).",
+  "top_shift": "The top N - 1 output bits are read from the wrong position.",
+  "wide_out": "The output `p` is 2N bits wide instead of 2N - 1."
+ },
+ "attacks": {}
+}

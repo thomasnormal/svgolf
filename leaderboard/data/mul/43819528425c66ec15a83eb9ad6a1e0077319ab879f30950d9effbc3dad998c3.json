@@ -1,0 +1,227 @@
+{
+  "assisted_by": [
+    "Claude (Anthropic)"
+  ],
+  "canonical_sha256": "35cd59047177145d5e16417d3a3c83a8a1af93e6936861a066e8e0255461e40f",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "feb7f93fc6cf3616188385b89746864754db456d3ee083783a05ea37a5a477ce",
+    "files": {
+      "check.py": "39c941b123901302d59f2a14c80f32c8ff02a7b4eed59d39d008695e4cddb146",
+      "check/Comparator.lean": "3145eb578ca71e452eff05a398e8ad04673e6c72ca5343b234cb22e2cefe65a6",
+      "check/SvEval.lean": "56ff5eb23b7c7b12b849b057fa563cc96c917c61c287649847dea7c7fbf22620",
+      "check/envelope.py": "a202d502616f4d1ef319306d40bfc61f933348fe7d89837e5435cc5d612e83d1",
+      "check/postsynth.py": "8680ecb8e709c4553b8c37a9678176d99cfe2ef0c2e5cda097eae077e62247e3",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "8cbd7d8b040cd3d769328d3b636ef3254d0290adc181d61dbfc0e616d50a3ded",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "ad60672f15668edd60f5b0eeb67d822c6905bafa42ddcc6babc76f3d7c7a3b08",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ppa.py": "1743956fac3ef4bc80cf84c63b2b44c249236c67844070139fe56578e369115e",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "ca4932f99fc572a310301a53f3eb61669e0f643053aca28a85250d28d75670e4",
+      "score/srcgate.py": "58fd766f4c2a7e7523b137f74b2d83b7921a512e770f4c0297b725f14cb7b9a6",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "78450d734064b702c1584d26735578487b3d2f61",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "svgolf_revision": "78450d734064b702c1584d26735578487b3d2f61",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "mul_n_byhand.lean",
+      "sha256": "445bd80b2b11ed3241bb50215fbbdb46d17f5037408c26aaefa406799a50a8f2"
+    },
+    "sv": {
+      "name": "mul_n_byhand.sv",
+      "sha256": "66686a9d4c60cc9484a7fc673c5a8e2b73f30e25f9f6ddaccccbf3d51bf3bd23"
+    }
+  },
+  "notes": "reference solution",
+  "player": "svgolf-reference",
+  "postsynth": {
+    "full_vectors": 330,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "N=16",
+    "salted": false,
+    "seed": "e974c638bdaa84e5072bbf8010b2471d30464c2c7a0d11f0350a517a4f1077ec",
+    "vectors": 330
+  },
+  "ppa": {
+    "area_e4um2_sky130": 82904512,
+    "area_um2_sky130": 8290.4512,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 269,
+      "inv_1": 1,
+      "mux2_1": 2,
+      "nand2_1": 672,
+      "nor2b_1": 1,
+      "or2_1": 1,
+      "xnor2_1": 3,
+      "xor2_1": 459
+    },
+    "cells_sky130": 1408,
+    "constants": false,
+    "critical": {
+      "cells": 87,
+      "edge": "r",
+      "output": "p[30]"
+    },
+    "delay_ps_sky130": 10907,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.144,
+      "worst_transition_ratio": 0.178
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+      "area_e4um2_sky130_mapped_v1": 86445408,
+      "area_um2_sky130_mapped_v1": 8644.5408,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 44,
+        "edge": "f",
+        "output": "p[31]"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "a2111oi_0": 1,
+        "a21o_1": 3,
+        "a21oi_1": 13,
+        "a22o_1": 4,
+        "a22oi_1": 8,
+        "a31oi_1": 1,
+        "and2_0": 89,
+        "and3_1": 2,
+        "and4_1": 2,
+        "inv_1": 32,
+        "maj3_1": 203,
+        "nand2_1": 152,
+        "nand2b_1": 6,
+        "nand3_1": 8,
+        "nand4_1": 11,
+        "nor2_1": 23,
+        "nor3_1": 1,
+        "o21a_1": 1,
+        "o21ai_0": 10,
+        "o22ai_1": 1,
+        "or2_0": 7,
+        "or3_1": 1,
+        "xnor2_1": 49,
+        "xnor3_1": 180,
+        "xor2_1": 21,
+        "xor3_1": 5
+      },
+      "mapped_cells_sky130_v1": 834,
+      "mapped_delay_sky130_v1": 16391,
+      "mapped_inverters_sky130_v1": 32,
+      "mapped_levels_sky130_v1": 45,
+      "netlist_sha256": "1ccdbdca0e2a7ecfb3a31eba8981e1de24e254931abf04e8ad4174fdf9fe5e41",
+      "ppa_mapped_pins_sha256": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v1",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "1743956fac3ef4bc80cf84c63b2b44c249236c67844070139fe56578e369115e",
+      "rtlil_sha256": "1c37f1d4fe0b4ceae577abaa09b4aef630e8c297aa0d0543b2a94911801e21e8",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "netlist_sha256": "57ce50c4b62767ed364613bef11a6e4d8154722d0daeb6975594ece98921aadc",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "1743956fac3ef4bc80cf84c63b2b44c249236c67844070139fe56578e369115e",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 1408,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "dea76e7e7e8ea1319b86d0885ae7b02c653cec63c1b22dc42d8c7a0cb4f35eee",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 88
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 6.76,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.Comb2",
+      "LeanModels.Sv.Known2"
+    ],
+    "lines": 1385,
+    "tactics": [
+      "decide",
+      "grind",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": false
+  },
+  "record_hash": "43819528425c66ec15a83eb9ad6a1e0077319ab879f30950d9effbc3dad998c3",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 1962.576,
+    "area_mge": 1962576,
+    "depth": 88,
+    "gates": {
+      "AND": 269,
+      "ANDNOT": 1,
+      "MUX": 2,
+      "NAND": 672,
+      "NOT": 1,
+      "OR": 1,
+      "XNOR": 3,
+      "XOR": 459
+    },
+    "num_gates": 1408,
+    "rtlil_sha256": "1c37f1d4fe0b4ceae577abaa09b4aef630e8c297aa0d0543b2a94911801e21e8",
+    "scoring_point": {
+      "N": 16
+    },
+    "top": "mul_n"
+  },
+  "submitted_at": "2026-11-04",
+  "task": "mul"
+}

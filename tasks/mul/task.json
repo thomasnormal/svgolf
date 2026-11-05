@@ -1,0 +1,116 @@
+{
+  "name": "mul",
+  "title": "N-bit unsigned multiplier: p = a * b on 2N bits, without run-time arithmetic operators",
+  "status": "ready",
+  "kind": "comb-family",
+  "top": "mul_n",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "a",
+        "width": "N"
+      },
+      {
+        "name": "b",
+        "width": "N"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "p",
+        "width": "2*N"
+      }
+    ]
+  },
+  "statement": {
+    "module": "tasks.mul.Spec",
+    "constant": "SvGolf.Tasks.Mul.Statement"
+  },
+  "banlist": {
+    "operators": [
+      "+",
+      "-",
+      "*",
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "Yosys's alumacc merges + chains into the same $macc cell as *, so every arithmetic operator is banned at run time; constant arithmetic (parameters, genvar indices) stays allowed."
+  },
+  "probe_points": [
+    "N=1",
+    "N=2",
+    "N=3",
+    "N=4",
+    "N=8",
+    "N=16",
+    "N=32"
+  ],
+  "scoring": {
+    "params": {
+      "N": 16
+    },
+    "depth_budget": null
+  },
+  "backstop_points": [
+    {
+      "N": 1
+    },
+    {
+      "N": 2
+    },
+    {
+      "N": 8
+    },
+    {
+      "N": 16
+    }
+  ],
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "postsynth": {
+    "random": 200,
+    "light_vectors": 40,
+    "time_limit_s": 900,
+    "_comment": "The checker's postsynth stage (README.md, `postsynth` in the task.json table): the fixed corners (130 vectors at N = 16), the harvested comparison constants and 200 seeded random vectors in FULL mode. Small because ls-sv's `run2` is slow on these multipliers: 120 ms per vector (both schedules) on the heap tree `mul_tree_h`, 130 ms on the array reference, 358 ms on `mul_wallace`, 500 ms on the 3076-process `mul_tree` (measured 10/30, one core), so the full stage takes 41 s, 44 s, 119 s and 166 s. The LIGHT mode (the local default) runs `light_vectors` = 40 of them (all-0, all-1, a few walking vectors, the first random ones): about 5 s on the array reference and 20 s on `mul_tree`, the slowest."
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/mul_n.sv",
+      "lean": "reference/mul_n.lean",
+      "note": "proved with the sv_comb tactics (sv_structure, sv_equations) and LeanModels.Sv.CombLib: the intended workflow, see PROVING.md"
+    },
+    {
+      "sv": "reference/mul_n_byhand.sv",
+      "lean": "reference/mul_n_byhand.lean",
+      "note": "the same design (byte-identical to the first), proved with no tactic: the measured baseline of the proof effort"
+    },
+    {
+      "sv": "reference/mul_tree.sv",
+      "lean": "reference/mul_tree.lean",
+      "note": "a log-depth carry-save TREE (the N partial-product rows are the leaves of a binary heap, the internal nodes are 4:2 compressors, two rows of 3:2 counters, or just pair two leaves; ripple final adder), parametric in N, proved with the sv_comb tactics (sv_structure, sv_equations) and the plain-Lean arithmetic in the file: see PROVING.md, section 8"
+    },
+    {
+      "sv": "reference/mul_wallace.sv",
+      "lean": "reference/mul_wallace.lean",
+      "note": "a WALLACE tree as a tape of rows: one 2-D array holds the N partial products and a zero dummy row, carry-save adder g reads the three oldest live rows 3g, 3g+1, 3g+2 and appends its sum and carry rows (the queue form of Wallace's reduction by threes, N-1 adders of 3:2 counters); ripple final adder on the last two rows; parametric in N, proved with the sv_comb tactics (sv_structure, sv_equations) and the plain-Lean arithmetic in the file: see PROVING.md, section 9"
+    },
+    {
+      "sv": "reference/mul_tree_h.sv",
+      "lean": "reference/mul_tree_h.lean",
+      "note": "a log-depth carry-save TREE whose H = ceil(N/2) leaves each hold TWO partial-product rows (a carry-save pair), every internal node a 4:2 compressor, ripple final adder; H is a `localparam integer H = (N + 1) / 2;`, which the sv_comb tactics read as one more named constant of N (PROVING.md, section 4); parametric in N, proved with the sv_comb tactics (sv_structure, sv_equations) and the plain-Lean arithmetic in the file: see PROVING.md, section 10"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+Goldens of the byte-identity test of the `--ppa` wiring (WP-X3, tests/checker/test_ppa_wiring.py, tests/run.py `references`).
+
+They are the NORMALIZED results (tests/checker/byte_identity.py: machine- and run-dependent leaves masked, every key kept) of the
+checker as it was BEFORE the wiring: svgolf-prep 49677a12 ("svgolf: record the maintainers' decisions ..."), check.py unmodified, on a
+clean worktree of that commit, 2026-10-31, Yosys 0.53, Verilator 5.042, through the Lean slot:
+
+  python3.12 check.py tasks/add      tasks/add/reference/add_n.sv      tasks/add/reference/add_n.lean      --postsynth full --no-trusted-build --json OUT   -> add_full
+  python3.12 check.py tasks/add      tasks/add/reference/add_n.sv      --unproved --postsynth full --no-trusted-build --json OUT                          -> add_unproved
+  python3.12 check.py tasks/aes_sbox tasks/aes_sbox/reference/sbox_bp.sv tasks/aes_sbox/reference/sbox_bp.lean --postsynth full --no-trusted-build --json OUT -> aes_sbox_full
+  python3.12 check.py tasks/aes_sbox tasks/aes_sbox/reference/sbox_bp.sv --unproved --postsynth full --no-trusted-build --json OUT                      -> aes_sbox_unproved
+
+  python3.12 -c 'import json,byte_identity as bi; print(bi.render(json.load(open("OUT"))), end="")' > <task>_<kind>.baseline.json
+
+Re-record only after a deliberate change of a deterministic field of the result (the pinned flow, the postsynth record, the
+extractor's probe points ...): UPDATE_GOLDEN=1 python3.12 tests/checker/test_ppa_wiring.py rewrites the two `unproved` files from the
+current checker; the `full` files need a real run as above.
+
+RE-RECORDED, 2026-10-31 (WP-B review round): the two `full` files gained the keys the comparator's report gained, and nothing
+else (diffed against the previous goldens: `stages.comparator.result.imports` - the direct imports Lean recorded for
+Submission.Design and Submission.Solution - and `toolchain_modules` and `replay`, the last two masked as BUILD_VOLATILE: functions
+of the proof file and the ls-sv build). Same four-line recipe as above for the `full` ones, on the WP-B checker (`--ppa off`,
+`--postsynth full`, `--no-trusted-build`); every other leaf is the baseline checker's, byte for byte. The `unproved` files do not run
+the comparator and are unchanged.
+
+AXIOM ORDER, 2026-11-03 (sv_comb `*`): the comparator lists the axioms in the order its walk of the dependency closure meets
+them, and that order is not stable: after the ls-sv change that added `*` to the sv_comb fragment, two check.py runs of
+`add_n` on ONE checkout reported [Quot.sound, Classical.choice, propext] and [propext, Quot.sound, Classical.choice] (the
+golden had [Quot.sound, propext, Classical.choice]). byte_identity.py now compares that list as a set (`ORDER_VOLATILE`:
+sorted on both sides), and the `axioms` lists of the two `full` files are written sorted; nothing else changed.

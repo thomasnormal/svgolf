@@ -1,0 +1,1609 @@
+{
+ "schema": "x7e/1",
+ "modules": {
+  "ClmulNested": {
+   "decls": [
+    {
+     "line": 40,
+     "decl": "load_sv",
+     "heartbeats": 23785323
+    },
+    {
+     "line": 45,
+     "decl": "sem_eq",
+     "heartbeats": 6114236
+    },
+    {
+     "line": 55,
+     "decl": "coeff_eq",
+     "heartbeats": 101335
+    },
+    {
+     "line": 62,
+     "decl": "getLsbD_ofBits",
+     "heartbeats": 307484
+    },
+    {
+     "line": 72,
+     "decl": "out",
+     "heartbeats": 2790209
+    },
+    {
+     "line": 133,
+     "decl": "statement",
+     "heartbeats": 1346361
+    },
+    {
+     "line": 143,
+     "decl": "statement_E0",
+     "heartbeats": 2383169
+    }
+   ],
+   "tactics": [
+    {
+     "label": "sv_loop_sem",
+     "heartbeats": 5516040
+    },
+    {
+     "label": "sv_loop_rows",
+     "heartbeats": 246970
+    },
+    {
+     "label": "statement.0:iface",
+     "heartbeats": 233869
+    },
+    {
+     "label": "statement.1:procs",
+     "heartbeats": 25494
+    },
+    {
+     "label": "statement.2:decls",
+     "heartbeats": 134604
+    },
+    {
+     "label": "statement.3:decls",
+     "heartbeats": 73569
+    },
+    {
+     "label": "statement.4:decls",
+     "heartbeats": 64251
+    },
+    {
+     "label": "statement.5:frag_ok",
+     "heartbeats": 702148
+    },
+    {
+     "label": "statement_E0.0:iface",
+     "heartbeats": 226707
+    },
+    {
+     "label": "statement_E0.1:procs",
+     "heartbeats": 25426
+    },
+    {
+     "label": "statement_E0.2:decls",
+     "heartbeats": 118582
+    },
+    {
+     "label": "statement_E0.3:decls",
+     "heartbeats": 73729
+    },
+    {
+     "label": "statement_E0.4:decls",
+     "heartbeats": 63761
+    },
+    {
+     "label": "statement_E0.5:declWidth",
+     "heartbeats": 154303
+    },
+    {
+     "label": "statement_E0.6:notInput",
+     "heartbeats": 139542
+    },
+    {
+     "label": "statement_E0.7:frag_ok",
+     "heartbeats": 1274193
+    },
+    {
+     "label": "statement_E0.8:inputsNodup",
+     "heartbeats": 101063
+    }
+   ],
+   "errors": [],
+   "module_total": 37461822,
+   "sum_decls": 36828117
+  },
+  "Loop2": {
+   "decls": [
+    {
+     "line": 75,
+     "decl": "int32",
+     "heartbeats": 11287
+    },
+    {
+     "line": 79,
+     "decl": "InInt32",
+     "heartbeats": 18244
+    },
+    {
+     "line": 83,
+     "decl": "int32_eq",
+     "heartbeats": 298358
+    },
+    {
+     "line": 95,
+     "decl": "int32_of_inInt32",
+     "heartbeats": 406828
+    },
+    {
+     "line": 102,
+     "decl": "int32_zero",
+     "heartbeats": 24475
+    },
+    {
+     "line": 105,
+     "decl": "int32_natCast",
+     "heartbeats": 109132
+    },
+    {
+     "line": 110,
+     "decl": "int32_inInt32",
+     "heartbeats": 464654
+    },
+    {
+     "line": 116,
+     "decl": "iter32",
+     "heartbeats": 67567
+    },
+    {
+     "line": 123,
+     "decl": "iter32_eq",
+     "heartbeats": 356385
+    },
+    {
+     "line": 138,
+     "decl": "TripSchema",
+     "heartbeats": 42614
+    },
+    {
+     "line": 146,
+     "decl": "toList",
+     "heartbeats": 12334
+    },
+    {
+     "line": 150,
+     "decl": "length_toList",
+     "heartbeats": 24413
+    },
+    {
+     "line": 154,
+     "decl": "getElem_toList",
+     "heartbeats": 65498
+    },
+    {
+     "line": 159,
+     "decl": "arith",
+     "heartbeats": 68333
+    },
+    {
+     "line": 163,
+     "decl": "arith_count",
+     "heartbeats": 10555
+    },
+    {
+     "line": 166,
+     "decl": "arith_value",
+     "heartbeats": 51797
+    },
+    {
+     "line": 170,
+     "decl": "toList_arith",
+     "heartbeats": 167998
+    },
+    {
+     "line": 175,
+     "decl": "toList_arith_one",
+     "heartbeats": 45073
+    },
+    {
+     "line": 183,
+     "decl": "Agrees",
+     "heartbeats": 66018
+    },
+    {
+     "line": 193,
+     "decl": "Agrees.unique",
+     "heartbeats": 217541
+    },
+    {
+     "line": 216,
+     "decl": "guard",
+     "heartbeats": 16152
+    },
+    {
+     "line": 222,
+     "decl": "HeaderAgrees",
+     "heartbeats": 23384
+    },
+    {
+     "line": 229,
+     "decl": "HeaderAgrees.unique",
+     "heartbeats": 89641
+    },
+    {
+     "line": 246,
+     "decl": "Cmp",
+     "heartbeats": 413054
+    },
+    {
+     "line": 252,
+     "decl": "Cmp.holds",
+     "heartbeats": 52316
+    },
+    {
+     "line": 260,
+     "decl": "Cmp.sign",
+     "heartbeats": 46891
+    },
+    {
+     "line": 266,
+     "decl": "Cmp.bound",
+     "heartbeats": 74304
+    },
+    {
+     "line": 274,
+     "decl": "Cmp.holds_iff",
+     "heartbeats": 606174
+    },
+    {
+     "line": 278,
+     "decl": "ascCount",
+     "heartbeats": 50543
+    },
+    {
+     "line": 283,
+     "decl": "ascCount_run",
+     "heartbeats": 374658
+    },
+    {
+     "line": 294,
+     "decl": "ascCount_exit",
+     "heartbeats": 511145
+    },
+    {
+     "line": 307,
+     "decl": "canonCount",
+     "heartbeats": 170854
+    },
+    {
+     "line": 321,
+     "decl": "canonCount_sound",
+     "heartbeats": 2866257
+    },
+    {
+     "line": 368,
+     "decl": "headerAgrees_canon",
+     "heartbeats": 243296
+    },
+    {
+     "line": 395,
+     "decl": "Cmp.op",
+     "heartbeats": 30858
+    },
+    {
+     "line": 403,
+     "decl": "guard_canon",
+     "heartbeats": 274761
+    },
+    {
+     "line": 420,
+     "decl": "procStepDelta2_inc",
+     "heartbeats": 137223
+    },
+    {
+     "line": 426,
+     "decl": "procStepDelta2_dec",
+     "heartbeats": 95320
+    },
+    {
+     "line": 432,
+     "decl": "procStepDelta2_add",
+     "heartbeats": 52072
+    },
+    {
+     "line": 439,
+     "decl": "canonCount_up",
+     "heartbeats": 234835
+    },
+    {
+     "line": 451,
+     "decl": "canonCount_down",
+     "heartbeats": 258383
+    },
+    {
+     "line": 463,
+     "decl": "canonCount_none",
+     "heartbeats": 36390
+    },
+    {
+     "line": 470,
+     "decl": "ascCount_one",
+     "heartbeats": 106446
+    },
+    {
+     "line": 476,
+     "decl": "ascCount_one_add",
+     "heartbeats": 117286
+    },
+    {
+     "line": 482,
+     "decl": "canonCount_lt_one",
+     "heartbeats": 254809
+    },
+    {
+     "line": 494,
+     "decl": "canonCount_le_one",
+     "heartbeats": 322269
+    },
+    {
+     "line": 505,
+     "decl": "canonCount_ge_dec",
+     "heartbeats": 731094
+    },
+    {
+     "line": 518,
+     "decl": "vals_lookup_bindVal_self",
+     "heartbeats": 93205
+    },
+    {
+     "line": 524,
+     "decl": "vals_lookup_bindVal_ne",
+     "heartbeats": 53944
+    },
+    {
+     "line": 532,
+     "decl": "Cmp.ofOp?",
+     "heartbeats": 65895
+    },
+    {
+     "line": 541,
+     "decl": "Cmp.ofOp?_eq",
+     "heartbeats": 215145
+    },
+    {
+     "line": 545,
+     "decl": "boundAt?",
+     "heartbeats": 129350
+    },
+    {
+     "line": 555,
+     "decl": "boundAt?_sound",
+     "heartbeats": 423595
+    },
+    {
+     "line": 580,
+     "decl": "headerSchema",
+     "heartbeats": 280356
+    },
+    {
+     "line": 597,
+     "decl": "headerSchema_agrees",
+     "heartbeats": 298746
+    },
+    {
+     "line": 625,
+     "decl": "TripSchema2",
+     "heartbeats": 45747
+    },
+    {
+     "line": 634,
+     "decl": "toList",
+     "heartbeats": 71803
+    },
+    {
+     "line": 639,
+     "decl": "HeaderAgrees",
+     "heartbeats": 24705
+    },
+    {
+     "line": 649,
+     "decl": "HeaderAgrees.unique",
+     "heartbeats": 76272
+    },
+    {
+     "line": 675,
+     "decl": "Denotes",
+     "heartbeats": 26162
+    },
+    {
+     "line": 680,
+     "decl": "DenotesL",
+     "heartbeats": 26725
+    },
+    {
+     "line": 685,
+     "decl": "DenotesL.nil",
+     "heartbeats": 153601
+    },
+    {
+     "line": 691,
+     "decl": "DenotesL.cons",
+     "heartbeats": 522880
+    },
+    {
+     "line": 701,
+     "decl": "Denotes.block",
+     "heartbeats": 270277
+    },
+    {
+     "line": 709,
+     "decl": "Denotes.weaken",
+     "heartbeats": 50147
+    },
+    {
+     "line": 716,
+     "decl": "Denotes.assignSlice",
+     "heartbeats": 311073
+    },
+    {
+     "line": 742,
+     "decl": "Covered",
+     "heartbeats": 7749
+    },
+    {
+     "line": 747,
+     "decl": "subAll_pos",
+     "heartbeats": 252769
+    },
+    {
+     "line": 760,
+     "decl": "readsViol_covered",
+     "heartbeats": 192128
+    },
+    {
+     "line": 779,
+     "decl": "mem_listMayW",
+     "heartbeats": 161066
+    },
+    {
+     "line": 791,
+     "decl": "GuardIn",
+     "heartbeats": 37761
+    },
+    {
+     "line": 800,
+     "decl": "GuardIn.assign",
+     "heartbeats": 259101
+    },
+    {
+     "line": 813,
+     "decl": "GuardIn.list",
+     "heartbeats": 321509
+    },
+    {
+     "line": 832,
+     "decl": "GuardIn.block",
+     "heartbeats": 78550
+    },
+    {
+     "line": 844,
+     "decl": "GuardIn.admits",
+     "heartbeats": 291626
+    },
+    {
+     "line": 863,
+     "decl": "sig",
+     "heartbeats": 23747
+    },
+    {
+     "line": 867,
+     "decl": "set_set",
+     "heartbeats": 215750
+    },
+    {
+     "line": 876,
+     "decl": "set_self",
+     "heartbeats": 168198
+    },
+    {
+     "line": 887,
+     "decl": "vrows",
+     "heartbeats": 66560
+    },
+    {
+     "line": 893,
+     "decl": "width_vrows",
+     "heartbeats": 106161
+    },
+    {
+     "line": 899,
+     "decl": "width_insertAt",
+     "heartbeats": 262040
+    },
+    {
+     "line": 903,
+     "decl": "width_resizeU",
+     "heartbeats": 60522
+    },
+    {
+     "line": 907,
+     "decl": "insertAt_full",
+     "heartbeats": 357422
+    },
+    {
+     "line": 929,
+     "decl": "SingleComb",
+     "heartbeats": 52004
+    },
+    {
+     "line": 944,
+     "decl": "combIndices",
+     "heartbeats": 243403
+    },
+    {
+     "line": 948,
+     "decl": "edgeIndices",
+     "heartbeats": 345283
+    },
+    {
+     "line": 952,
+     "decl": "resetIndices",
+     "heartbeats": 388904
+    },
+    {
+     "line": 956,
+     "decl": "pass",
+     "heartbeats": 171410
+    },
+    {
+     "line": 965,
+     "decl": "settle",
+     "heartbeats": 669198
+    },
+    {
+     "line": 979,
+     "decl": "cycle",
+     "heartbeats": 123731
+    },
+    {
+     "line": 991,
+     "decl": "snapshot",
+     "heartbeats": 50454
+    },
+    {
+     "line": 1000,
+     "decl": "terminates",
+     "heartbeats": 70109
+    },
+    {
+     "line": 1009,
+     "decl": "runs",
+     "heartbeats": 283917
+    },
+    {
+     "line": 1030,
+     "decl": "forValuesFuel2_go_arith",
+     "heartbeats": 1120504
+    },
+    {
+     "line": 1057,
+     "decl": "forValuesFuel2_of_agrees",
+     "heartbeats": 437672
+    },
+    {
+     "line": 1083,
+     "decl": "mem_drvWinsList",
+     "heartbeats": 154703
+    },
+    {
+     "line": 1094,
+     "decl": "WritesOnly",
+     "heartbeats": 13228
+    },
+    {
+     "line": 1098,
+     "decl": "WritesOnly.block",
+     "heartbeats": 67130
+    },
+    {
+     "line": 1105,
+     "decl": "driversOk_single",
+     "heartbeats": 187644
+    },
+    {
+     "line": 1118,
+     "decl": "forValuesFuel2_upto",
+     "heartbeats": 424757
+    },
+    {
+     "line": 1140,
+     "decl": "forFuel2_upto",
+     "heartbeats": 1501022
+    },
+    {
+     "line": 1155,
+     "decl": "forValues2_upto",
+     "heartbeats": 97264
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 26059647,
+   "sum_decls": 23124143
+  },
+  "Loop2Clmul": {
+   "decls": [
+    {
+     "line": 38,
+     "decl": "tripExpr",
+     "heartbeats": 44630
+    },
+    {
+     "line": 44,
+     "decl": "clmulTrip",
+     "heartbeats": 87367
+    },
+    {
+     "line": 50,
+     "decl": "clmulBody",
+     "heartbeats": 14896
+    },
+    {
+     "line": 54,
+     "decl": "clmulDecls",
+     "heartbeats": 54355
+    },
+    {
+     "line": 62,
+     "decl": "cx",
+     "heartbeats": 67593
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 316503,
+   "sum_decls": 268841
+  },
+  "Loop2E": {
+   "decls": [
+    {
+     "line": 38,
+     "decl": "DenotesE",
+     "heartbeats": 30934
+    },
+    {
+     "line": 44,
+     "decl": "DenotesLE",
+     "heartbeats": 31931
+    },
+    {
+     "line": 50,
+     "decl": "DenotesE.congr",
+     "heartbeats": 84727
+    },
+    {
+     "line": 56,
+     "decl": "DenotesLE.congr",
+     "heartbeats": 86635
+    },
+    {
+     "line": 64,
+     "decl": "execBody_block",
+     "heartbeats": 27797
+    },
+    {
+     "line": 69,
+     "decl": "execBodyList_nil",
+     "heartbeats": 42473
+    },
+    {
+     "line": 73,
+     "decl": "execBodyList_cons",
+     "heartbeats": 35974
+    },
+    {
+     "line": 78,
+     "decl": "execBodyOpt_none",
+     "heartbeats": 41261
+    },
+    {
+     "line": 82,
+     "decl": "execBodyOpt_some",
+     "heartbeats": 22645
+    },
+    {
+     "line": 88,
+     "decl": "DenotesE.block",
+     "heartbeats": 33570
+    },
+    {
+     "line": 93,
+     "decl": "DenotesLE.nil",
+     "heartbeats": 28819
+    },
+    {
+     "line": 97,
+     "decl": "DenotesLE.cons",
+     "heartbeats": 112412
+    },
+    {
+     "line": 105,
+     "decl": "staticWin_ident",
+     "heartbeats": 111337
+    },
+    {
+     "line": 110,
+     "decl": "staticWin_slice",
+     "heartbeats": 116475
+    },
+    {
+     "line": 115,
+     "decl": "view_writeWin_decl",
+     "heartbeats": 73435
+    },
+    {
+     "line": 125,
+     "decl": "DenotesE.assignSliceE",
+     "heartbeats": 93092
+    },
+    {
+     "line": 135,
+     "decl": "DenotesE.assignE",
+     "heartbeats": 120144
+    },
+    {
+     "line": 148,
+     "decl": "DenotesE.ite",
+     "heartbeats": 253827
+    },
+    {
+     "line": 166,
+     "decl": "Stmt2.frag_denE",
+     "heartbeats": 655858
+    },
+    {
+     "line": 205,
+     "decl": "Denotes.toE",
+     "heartbeats": 66389
+    },
+    {
+     "line": 216,
+     "decl": "listStaticB_of",
+     "heartbeats": 115350
+    },
+    {
+     "line": 224,
+     "decl": "Stmt2.frag_static",
+     "heartbeats": 161467
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 2856637,
+   "sum_decls": 2346552
+  },
+  "Loop2Frag": {
+   "decls": [
+    {
+     "line": 51,
+     "decl": "Denotes.congr",
+     "heartbeats": 66684
+    },
+    {
+     "line": 58,
+     "decl": "DenotesL.congr",
+     "heartbeats": 68359
+    },
+    {
+     "line": 64,
+     "decl": "Denotes.assignE",
+     "heartbeats": 434525
+    },
+    {
+     "line": 77,
+     "decl": "Denotes.ite",
+     "heartbeats": 2051930
+    },
+    {
+     "line": 105,
+     "decl": "exprOk",
+     "heartbeats": 30266
+    },
+    {
+     "line": 109,
+     "decl": "mutual",
+     "heartbeats": 340225
+    },
+    {
+     "line": 132,
+     "decl": "mutual",
+     "heartbeats": 317199
+    },
+    {
+     "line": 156,
+     "decl": "Stmt2.listFragOk_iff",
+     "heartbeats": 194092
+    },
+    {
+     "line": 162,
+     "decl": "Stmt2.listStep_append",
+     "heartbeats": 114678
+    },
+    {
+     "line": 169,
+     "decl": "mutual",
+     "heartbeats": 563505
+    },
+    {
+     "line": 197,
+     "decl": "mutual",
+     "heartbeats": 469920
+    },
+    {
+     "line": 236,
+     "decl": "mutual",
+     "heartbeats": 909106
+    },
+    {
+     "line": 276,
+     "decl": "exprOk_mem",
+     "heartbeats": 74493
+    },
+    {
+     "line": 282,
+     "decl": "Stmt2.frag_den",
+     "heartbeats": 627417
+    },
+    {
+     "line": 318,
+     "decl": "GuardIn.ifStmt",
+     "heartbeats": 283810
+    },
+    {
+     "line": 346,
+     "decl": "Stmt2.frag_guard",
+     "heartbeats": 344096
+    },
+    {
+     "line": 363,
+     "decl": "Stmt2.frag_writes",
+     "heartbeats": 146775
+    },
+    {
+     "line": 381,
+     "decl": "initLoop",
+     "heartbeats": 53557
+    },
+    {
+     "line": 386,
+     "decl": "listStep_range",
+     "heartbeats": 131235
+    },
+    {
+     "line": 393,
+     "decl": "vrows_step_set",
+     "heartbeats": 99079
+    },
+    {
+     "line": 400,
+     "decl": "initLoop.meaning",
+     "heartbeats": 24606
+    },
+    {
+     "line": 405,
+     "decl": "initLoop.row",
+     "heartbeats": 32192
+    },
+    {
+     "line": 410,
+     "decl": "initLoop_step",
+     "heartbeats": 107553
+    },
+    {
+     "line": 415,
+     "decl": "width_initLoop_row",
+     "heartbeats": 305417
+    },
+    {
+     "line": 420,
+     "decl": "initLoop_idem",
+     "heartbeats": 94780
+    },
+    {
+     "line": 431,
+     "decl": "loop1_rows",
+     "heartbeats": 83838
+    },
+    {
+     "line": 445,
+     "decl": "loop1_single",
+     "heartbeats": 477609
+    },
+    {
+     "line": 458,
+     "decl": "loop1_admits",
+     "heartbeats": 207133
+    },
+    {
+     "line": 471,
+     "decl": "loop1_writes",
+     "heartbeats": 419714
+    },
+    {
+     "line": 482,
+     "decl": "rows_nest",
+     "heartbeats": 81183
+    },
+    {
+     "line": 494,
+     "decl": "forValues2_up",
+     "heartbeats": 4815326
+    },
+    {
+     "line": 537,
+     "decl": "toNat_add_natCast",
+     "heartbeats": 383002
+    },
+    {
+     "line": 542,
+     "decl": "le_add_natCast",
+     "heartbeats": 60795
+    },
+    {
+     "line": 545,
+     "decl": "forValues2_slt",
+     "heartbeats": 46694
+    },
+    {
+     "line": 552,
+     "decl": "forValues2_sle",
+     "heartbeats": 57667
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 26964419,
+   "sum_decls": 14518460
+  },
+  "Loop2Rows": {
+   "decls": [
+    {
+     "line": 23,
+     "decl": "valE",
+     "heartbeats": 160528
+    },
+    {
+     "line": 36,
+     "decl": "simpleExpr",
+     "heartbeats": 135037
+    },
+    {
+     "line": 44,
+     "decl": "evalPure2_valE",
+     "heartbeats": 2077716
+    },
+    {
+     "line": 74,
+     "decl": "sig_set_self",
+     "heartbeats": 16313
+    },
+    {
+     "line": 79,
+     "decl": "sig_set_ne",
+     "heartbeats": 22250
+    },
+    {
+     "line": 86,
+     "decl": "here",
+     "heartbeats": 123920
+    },
+    {
+     "line": 101,
+     "decl": "BoundAll",
+     "heartbeats": 17583
+    },
+    {
+     "line": 105,
+     "decl": "BoundAll.set",
+     "heartbeats": 42365
+    },
+    {
+     "line": 112,
+     "decl": "SingleBody",
+     "heartbeats": 12273
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 2810510,
+   "sum_decls": 2607985
+  },
+  "Loop2Sem": {
+   "decls": [
+    {
+     "line": 25,
+     "decl": "envVal",
+     "heartbeats": 36502
+    },
+    {
+     "line": 29,
+     "decl": "envVal_of_lookup",
+     "heartbeats": 26004
+    },
+    {
+     "line": 33,
+     "decl": "envVal_bindVal_ne",
+     "heartbeats": 25857
+    },
+    {
+     "line": 38,
+     "decl": "lookup_isSome_bindVal_ne",
+     "heartbeats": 33818
+    },
+    {
+     "line": 43,
+     "decl": "toNat_natCast_add",
+     "heartbeats": 173325
+    },
+    {
+     "line": 46,
+     "decl": "sem_single",
+     "heartbeats": 462165
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 915169,
+   "sum_decls": 757671
+  },
+  "Loop2Slot": {
+   "decls": [
+    {
+     "line": 40,
+     "decl": "valE_congr",
+     "heartbeats": 62815
+    },
+    {
+     "line": 47,
+     "decl": "agree_set_both",
+     "heartbeats": 219989
+    },
+    {
+     "line": 55,
+     "decl": "Stmt2.frag_local",
+     "heartbeats": 772984
+    },
+    {
+     "line": 98,
+     "decl": "Stmt2.frag_targets",
+     "heartbeats": 538153
+    },
+    {
+     "line": 136,
+     "decl": "ReadWin.name_of_overlaps",
+     "heartbeats": 74231
+    },
+    {
+     "line": 143,
+     "decl": "sens_of_read",
+     "heartbeats": 110554
+    },
+    {
+     "line": 154,
+     "decl": "settled_of_quiet",
+     "heartbeats": 184134
+    },
+    {
+     "line": 177,
+     "decl": "SingleE",
+     "heartbeats": 94243
+    },
+    {
+     "line": 194,
+     "decl": "triggered_cases",
+     "heartbeats": 143561
+    },
+    {
+     "line": 201,
+     "decl": "triggered_self",
+     "heartbeats": 56090
+    },
+    {
+     "line": 208,
+     "decl": "closes_nil",
+     "heartbeats": 87333
+    },
+    {
+     "line": 217,
+     "decl": "closes_next",
+     "heartbeats": 123944
+    },
+    {
+     "line": 227,
+     "decl": "step_active",
+     "heartbeats": 307115
+    },
+    {
+     "line": 238,
+     "decl": "slot",
+     "heartbeats": 369493
+    },
+    {
+     "line": 257,
+     "decl": "open_next",
+     "heartbeats": 121666
+    },
+    {
+     "line": 268,
+     "decl": "start_active",
+     "heartbeats": 55511
+    },
+    {
+     "line": 273,
+     "decl": "behaves",
+     "heartbeats": 414204
+    },
+    {
+     "line": 292,
+     "decl": "closeOf_slot",
+     "heartbeats": 134490
+    },
+    {
+     "line": 304,
+     "decl": "runCfg_inv",
+     "heartbeats": 226798
+    },
+    {
+     "line": 315,
+     "decl": "exists_behaves",
+     "heartbeats": 142797
+    },
+    {
+     "line": 325,
+     "decl": "post_eq_pre",
+     "heartbeats": 166179
+    },
+    {
+     "line": 334,
+     "decl": "pre_view",
+     "heartbeats": 221971
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 5526396,
+   "sum_decls": 4628255
+  },
+  "LoopTask": {
+   "decls": [],
+   "tactics": [],
+   "errors": [],
+   "module_total": null,
+   "sum_decls": 0
+  },
+  "LoopTaskE": {
+   "decls": [
+    {
+     "line": 36,
+     "decl": "loopInv_view",
+     "heartbeats": 279787
+    },
+    {
+     "line": 55,
+     "decl": "singleE_frag",
+     "heartbeats": 431900
+    },
+    {
+     "line": 77,
+     "decl": "sampleE",
+     "heartbeats": 67754
+    },
+    {
+     "line": 84,
+     "decl": "sampleE_eq",
+     "heartbeats": 23441
+    },
+    {
+     "line": 87,
+     "decl": "holdAllS_sampleE",
+     "heartbeats": 391260
+    },
+    {
+     "line": 101,
+     "decl": "CombTask.satisfiedAt_obs_of_frag",
+     "heartbeats": 1862665
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 3499570,
+   "sum_decls": 3056807
+  },
+  "ObsComb": {
+   "decls": [],
+   "tactics": [],
+   "errors": [],
+   "module_total": null,
+   "sum_decls": 0
+  },
+  "ObsCombE": {
+   "decls": [],
+   "tactics": [],
+   "errors": [],
+   "module_total": null,
+   "sum_decls": 0
+  },
+  "PopCount": {
+   "decls": [
+    {
+     "line": 33,
+     "decl": "load_sv",
+     "heartbeats": 192942
+    },
+    {
+     "line": 36,
+     "decl": "spec",
+     "heartbeats": 209234
+    },
+    {
+     "line": 44,
+     "decl": "trip",
+     "heartbeats": 27337
+    },
+    {
+     "line": 49,
+     "decl": "body",
+     "heartbeats": 17775
+    },
+    {
+     "line": 52,
+     "decl": "decls",
+     "heartbeats": 43771
+    },
+    {
+     "line": 56,
+     "decl": "sem_eq",
+     "heartbeats": 3862531
+    },
+    {
+     "line": 61,
+     "decl": "out",
+     "heartbeats": 1078618
+    },
+    {
+     "line": 89,
+     "decl": "statement",
+     "heartbeats": 847705
+    },
+    {
+     "line": 98,
+     "decl": "statement_E0",
+     "heartbeats": 1491704
+    }
+   ],
+   "tactics": [
+    {
+     "label": "sv_loop_sem",
+     "heartbeats": 3554266
+    },
+    {
+     "label": "sv_loop_rows",
+     "heartbeats": 181895
+    },
+    {
+     "label": "statement.0:iface",
+     "heartbeats": 252534
+    },
+    {
+     "label": "statement.1:procs",
+     "heartbeats": 21838
+    },
+    {
+     "label": "statement.2:decls",
+     "heartbeats": 81503
+    },
+    {
+     "label": "statement.3:decls",
+     "heartbeats": 40827
+    },
+    {
+     "label": "statement.4:decls",
+     "heartbeats": 37757
+    },
+    {
+     "label": "statement.5:frag_ok",
+     "heartbeats": 340064
+    },
+    {
+     "label": "statement_E0.0:iface",
+     "heartbeats": 246037
+    },
+    {
+     "label": "statement_E0.1:procs",
+     "heartbeats": 21880
+    },
+    {
+     "label": "statement_E0.2:decls",
+     "heartbeats": 70515
+    },
+    {
+     "label": "statement_E0.3:decls",
+     "heartbeats": 40417
+    },
+    {
+     "label": "statement_E0.4:decls",
+     "heartbeats": 37530
+    },
+    {
+     "label": "statement_E0.5:declWidth",
+     "heartbeats": 115925
+    },
+    {
+     "label": "statement_E0.6:notInput",
+     "heartbeats": 93153
+    },
+    {
+     "label": "statement_E0.7:frag_ok",
+     "heartbeats": 581812
+    },
+    {
+     "label": "statement_E0.8:inputsNodup",
+     "heartbeats": 154626
+    }
+   ],
+   "errors": [],
+   "module_total": 8105846,
+   "sum_decls": 7771617
+  },
+  "PriEnc": {
+   "decls": [
+    {
+     "line": 35,
+     "decl": "load_sv",
+     "heartbeats": 210298
+    },
+    {
+     "line": 38,
+     "decl": "spec",
+     "heartbeats": 221373
+    },
+    {
+     "line": 46,
+     "decl": "trip",
+     "heartbeats": 53511
+    },
+    {
+     "line": 52,
+     "decl": "body",
+     "heartbeats": 17493
+    },
+    {
+     "line": 55,
+     "decl": "decls",
+     "heartbeats": 43770
+    },
+    {
+     "line": 59,
+     "decl": "sem_eq",
+     "heartbeats": 4867267
+    },
+    {
+     "line": 64,
+     "decl": "hi",
+     "heartbeats": 96663
+    },
+    {
+     "line": 70,
+     "decl": "hi_spec",
+     "heartbeats": 710224
+    },
+    {
+     "line": 83,
+     "decl": "hi_eq",
+     "heartbeats": 465822
+    },
+    {
+     "line": 98,
+     "decl": "out",
+     "heartbeats": 1899588
+    },
+    {
+     "line": 127,
+     "decl": "statement",
+     "heartbeats": 801448
+    },
+    {
+     "line": 136,
+     "decl": "statement_E0",
+     "heartbeats": 1401352
+    }
+   ],
+   "tactics": [
+    {
+     "label": "sv_loop_sem",
+     "heartbeats": 4355515
+    },
+    {
+     "label": "sv_loop_rows",
+     "heartbeats": 382413
+    },
+    {
+     "label": "statement.0:iface",
+     "heartbeats": 205746
+    },
+    {
+     "label": "statement.1:procs",
+     "heartbeats": 21823
+    },
+    {
+     "label": "statement.2:decls",
+     "heartbeats": 81505
+    },
+    {
+     "label": "statement.3:decls",
+     "heartbeats": 40788
+    },
+    {
+     "label": "statement.4:decls",
+     "heartbeats": 37734
+    },
+    {
+     "label": "statement.5:frag_ok",
+     "heartbeats": 331050
+    },
+    {
+     "label": "statement_E0.0:iface",
+     "heartbeats": 198961
+    },
+    {
+     "label": "statement_E0.1:procs",
+     "heartbeats": 21870
+    },
+    {
+     "label": "statement_E0.2:decls",
+     "heartbeats": 70468
+    },
+    {
+     "label": "statement_E0.3:decls",
+     "heartbeats": 40376
+    },
+    {
+     "label": "statement_E0.4:decls",
+     "heartbeats": 37549
+    },
+    {
+     "label": "statement_E0.5:declWidth",
+     "heartbeats": 115931
+    },
+    {
+     "label": "statement_E0.6:notInput",
+     "heartbeats": 93185
+    },
+    {
+     "label": "statement_E0.7:frag_ok",
+     "heartbeats": 580490
+    },
+    {
+     "label": "statement_E0.8:inputsNodup",
+     "heartbeats": 107716
+    }
+   ],
+   "errors": [],
+   "module_total": 11978367,
+   "sum_decls": 10788809
+  },
+  "SeqTask": {
+   "decls": [],
+   "tactics": [],
+   "errors": [],
+   "module_total": null,
+   "sum_decls": 0
+  },
+  "TaskV2": {
+   "decls": [],
+   "tactics": [],
+   "errors": [],
+   "module_total": null,
+   "sum_decls": 0
+  },
+  "X7Hb": {
+   "decls": [],
+   "tactics": [],
+   "errors": [],
+   "module_total": null,
+   "sum_decls": 0
+  },
+  "XorSum": {
+   "decls": [
+    {
+     "line": 21,
+     "decl": "bx",
+     "heartbeats": 67036
+    },
+    {
+     "line": 27,
+     "decl": "foldl_xor",
+     "heartbeats": 211633
+    },
+    {
+     "line": 40,
+     "decl": "andBit_known",
+     "heartbeats": 262452
+    },
+    {
+     "line": 53,
+     "decl": "xorBit_known",
+     "heartbeats": 267473
+    }
+   ],
+   "tactics": [],
+   "errors": [],
+   "module_total": 910878,
+   "sum_decls": 808594
+  }
+ },
+ "summary": {
+  "designs": {
+   "ClmulNested": {
+    "load_sv": 23785323,
+    "elaboration_sem_eq": 6114236,
+    "of_which_sv_loop_sem": 5516040,
+    "arithmetic": 3199028,
+    "of_which_sv_loop_rows": 246970,
+    "definitions": 0,
+    "interface_progress_conjuncts": 903113,
+    "fragment_check_sv_frag_ok": 1274193,
+    "slot_application_rest": 205863,
+    "statement_E0": 2383169,
+    "run2_statement": 1346361,
+    "run2_frag_ok": 702148,
+    "run2_conjuncts": 531787,
+    "arithmetic_library_Loop2Clmul_XorSum": 1227381,
+    "E_route_proof_total": 12923814
+   },
+   "PriEnc": {
+    "load_sv": 210298,
+    "elaboration_sem_eq": 4867267,
+    "of_which_sv_loop_sem": 4355515,
+    "arithmetic": 3172297,
+    "of_which_sv_loop_rows": 382413,
+    "definitions": 336147,
+    "interface_progress_conjuncts": 686056,
+    "fragment_check_sv_frag_ok": 580490,
+    "slot_application_rest": 134806,
+    "statement_E0": 1401352,
+    "run2_statement": 801448,
+    "run2_frag_ok": 331050,
+    "run2_conjuncts": 387596,
+    "E_route_proof_total": 9777063
+   },
+   "PopCount": {
+    "load_sv": 192942,
+    "elaboration_sem_eq": 3862531,
+    "of_which_sv_loop_sem": 3554266,
+    "arithmetic": 1078618,
+    "of_which_sv_loop_rows": 181895,
+    "definitions": 298117,
+    "interface_progress_conjuncts": 780083,
+    "fragment_check_sv_frag_ok": 581812,
+    "slot_application_rest": 129809,
+    "statement_E0": 1491704,
+    "run2_statement": 847705,
+    "run2_frag_ok": 340064,
+    "run2_conjuncts": 434459,
+    "E_route_proof_total": 6730970
+   }
+  },
+  "library_module_totals": {
+   "Loop2": 26059647,
+   "Loop2Rows": 2810510,
+   "Loop2Sem": 915169,
+   "Loop2Frag": 26964419,
+   "Loop2E": 2856637,
+   "Loop2Slot": 5526396,
+   "LoopTaskE": 3499570,
+   "Loop2Clmul": 316503,
+   "XorSum": 910878
+  }
+ }
+}

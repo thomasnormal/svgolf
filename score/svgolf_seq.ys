@@ -1,0 +1,35 @@
+# svGolf PINNED scoring flow for CLOCKED designs, stage 2 of 2: SYNTHESIS AND
+# MEASUREMENT (Yosys + ABC). The combinational flow (svgolf.ys) plus ONE line,
+# `dfflegalize`, after `synth`. Do not edit: a change here is a change to every
+# sequential score. score.py (`--seq`) fills the @NAME@ placeholders and records
+# this file's sha256 (`script_sha256`) in every result; the combinational flow,
+# its file and its hashes are untouched.
+#
+#   @RTLIL@    the canonical RTLIL from stage 1 (canon.ys, shared)
+#   @TOP@      the task's top module
+#   @STAT@     output file for `stat -json` (cell counts by type)
+#   @LTP@      output file for `ltp -noff` (longest topological path)
+#   @NETLIST@  output file: the scored netlist (gates and $_DFF_P_ flops)
+#
+# `dfflegalize -cell $_DFF_P_ x`: every flip-flop becomes the plain rising-edge
+# D flip-flop with NO initial value (contract C1: synchronous active-high reset,
+# no initial values). Synchronous reset and clock enable stop being absorbed
+# into a flop cell and become gates that ABC sees and the GE table prices: the
+# sky130_fd_sc_hd library has no synchronous-reset flop, so this is what a
+# sky130 mapping builds too (dfxtp_1 plus logic). An initialized flop ("x" =
+# no init allowed) and an asynchronous reset (no $_DFF_PN0_ in the cell set)
+# are Yosys ERRORS: the design is not scored. `abc` runs WITHOUT `-dff`
+# (retiming would change the register structure that the proof is about).
+#
+# Area: gates and flops weighted by ge_seq.json. Depth: `ltp -noff`, which
+# excludes the flops from the graph, so it is the number of gates on the
+# longest combinational path between any two of {input port, flop Q, flop D,
+# output port}: the clock-period proxy.
+read_rtlil @RTLIL@
+synth -flatten -top @TOP@
+dfflegalize -cell $_DFF_P_ x
+abc -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX
+opt_clean
+tee -q -o @STAT@ stat -json
+tee -q -o @LTP@ ltp -noff
+write_verilog -noattr -noexpr @NETLIST@

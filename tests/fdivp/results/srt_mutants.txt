@@ -1,0 +1,54 @@
+# Deliberate mutants of tests/fdivp/baselines/fdivp_srt.sv (sha256 f7b6aaa1...ceac4, gate S1), 2026-11-04
+# Re-derived from S0's ten on the S1 text (one substitution each); the three table mutants change the same entries,
+# now leaves of the ?: trees. Each: run_v.py 2 P --sv MUTANT for P = 2..12 (every pair, Verilator against oracle.h).
+# Per-P mismatch counts, then the change. Every mutant is caught (nonzero total).
+
+m_drop_carry P2:20 P3:88 P4:248 P5:1496 P6:3076 P7:23820 P8:48832 P9:380864 P10:780292 P11:6092332 P12:12479688
+  total pairs 357913856 mismatches 19810756
+  <       assign wc[k+1] = {cy[k][RW-4:3], g1[k], 5'b00000};
+  >       assign wc[k+1] = {cy[k][RW-4:4], 1'b0, g1[k], 5'b00000};
+
+m_no_cin P2:72 P3:296 P4:1080 P5:4704 P6:16776 P7:74724 P8:266760 P9:1196744 P10:4262408 P11:19142868 P12:68171864
+  total pairs 357913856 mismatches 93138296
+  <       assign wc[k+1] = {cy[k][RW-4:3], g1[k], 5'b00000};
+  >       assign wc[k+1] = {cy[k][RW-4:3], 1'b0, 5'b00000};
+
+m_no_corr P2:0 P3:28 P4:184 P5:856 P6:3632 P7:14572 P8:56676 P9:226156 P10:906864 P11:3557436 P12:14227592
+  total pairs 357913856 mismatches 18993996
+  <   assign qq  = rs[RW-1] ? um[N] : u[N];
+  >   assign qq  = u[N];
+
+m_otfc_digit P2:20 P3:64 P4:308 P5:1756 P6:7672 P7:43480 P8:190396 P9:931928 P10:3795580 P11:17766252 P12:71702408
+  total pairs 357913856 mismatches 94439864
+  <       assign uq0[k] = (g1[k] & ~g2[k]) | (gm[k] & ~g0[k]);
+  >       assign uq0[k] = (g1[k] & ~g2[k]);
+
+m_otfc_um P2:0 P3:40 P4:212 P5:2344 P6:8420 P7:49292 P8:168160 P9:904436 P10:3342232 P11:16408580 P12:61231244
+  total pairs 357913856 mismatches 82114960
+  <       assign ums[k] = g1[k] ? u[k][P-1:0] : um[k][P-1:0];
+  >       assign ums[k] = g0[k] ? u[k][P-1:0] : um[k][P-1:0];
+
+m_qds_t1_d0 P2:0 P3:0 P4:0 P5:24 P6:100 P7:688 P8:2036 P9:11604 P10:45528 P11:220040 P12:859356
+  total pairs 357913856 mismatches 1139376
+  <                     : (da[1] ? (da[0] ? 7'd70 : 7'd70) : (da[0] ? 7'd68 : 7'd68));
+  >                     : (da[1] ? (da[0] ? 7'd70 : 7'd70) : (da[0] ? 7'd68 : 7'd66));
+
+m_qds_t2_d0 P2:0 P3:0 P4:0 P5:20 P6:12 P7:612 P8:724 P9:12540 P10:16324 P11:214180 P12:281316
+  total pairs 357913856 mismatches 525728
+  <                     : (da[1] ? (da[0] ? 7'd81 : 7'd80) : (da[0] ? 7'd78 : 7'd76));
+  >                     : (da[1] ? (da[0] ? 7'd81 : 7'd80) : (da[0] ? 7'd78 : 7'd75));
+
+m_qds_tm_d7 P2:0 P3:0 P4:0 P5:20 P6:36 P7:312 P8:284 P9:3632 P10:9016 P11:63884 P12:174180
+  total pairs 357913856 mismatches 251364
+  <   assign tm = da[2] ? (da[1] ? (da[0] ? 7'd41 : 7'd42) : (da[0] ? 7'd44 : 7'd46))
+  >   assign tm = da[2] ? (da[1] ? (da[0] ? 7'd38 : 7'd42) : (da[0] ? 7'd44 : 7'd46))
+
+m_stages_m1 P2:84 P3:424 P4:1900 P5:7976 P6:32692 P7:132284 P8:532184 P9:2134800 P10:8551312 P11:34229380 P12:136965756
+  total pairs 357913856 mismatches 182588792
+  <   localparam integer N  = H + 1;                      // radix-4 digits
+  >   localparam integer N  = H;                      // radix-4 digits
+
+m_sticky_sign P2:0 P3:32 P4:112 P5:492 P6:1844 P7:7520 P8:28104 P9:112444 P10:448644 P11:1759296 P12:7028764
+  total pairs 357913856 mismatches 9387252
+  <   assign rnz = |rs;
+  >   assign rnz = ~rs[RW-1] & (|rs);

@@ -1,0 +1,8 @@
+KeccakF-{200,400,800,1600}-IntermediateValues.txt: unmodified copies of
+https://raw.githubusercontent.com/XKCP/XKCP/master/tests/TestVectors/KeccakF-<b>-IntermediateValues.txt
+fetched 2026-10-30 (the Keccak team's XKCP repository, https://github.com/XKCP/XKCP). Read only by validate.py and
+make_vectors.py (parsed as numbers); no code from them is executed.
+LICENSE: the part of XKCP's LICENSE (commit 5585d0213203c0c5b2dfdf3b34f5da9275abc3e7, checked 2026-11-05)
+that covers these files, copied verbatim: its first two paragraphs. The rest of that file gives the terms of
+named exceptions (other source files), and it allows a partial redistribution to leave out the portions that
+are no longer relevant.

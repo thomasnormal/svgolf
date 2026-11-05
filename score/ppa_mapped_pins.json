@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Pins of flow A1' (score/ppa.py, WP-X4): the canonical RTLIL of the pinned flow mapped by a real `abc -liberty` run onto sky130_fd_sc_hd,",
+    "then weighed exactly as A0' is (same liberty, same STA, same timing setup, same constants policy: ppa_pins.json). The Yosys script is",
+    "score/ppa_mapped.ys (its sha256 is recorded beside this file's). Everything a mapped number depends on besides the canonical RTLIL and the",
+    "code is in these two files, the liberty, and the tool builds named here. Change any of them and `ppa_mapped_version` must change.",
+    "A1' NEVER replaces A0': the fields have their own names (area_um2_sky130_mapped_v1, mapped_delay_sky130_v1, ...), their own version and",
+    "their own hashes, and neither flow is official. Study: design/ppa/sky130.md (WP-X1, variant `u`); what it claims: score/PPA.md."
+  ],
+  "ppa_mapped_version": "sky130_a1_v1",
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "tools": {
+    "_comment": "The builds the pinned numbers were measured with. ppa.py RECORDS the live versions in every mapped block and never refuses another build (the pinned flow of score.py does not either); tests/run.py and score/test_ppa.py compare the goldens against them and fail when they differ, so a different build is a loud difference, not a silent one. ABC is built into Yosys: its banner is read from the Yosys log.",
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)"
+  },
+  "_timeout_comment": "The mapping run of one design may take at most yosys_timeout_s (wall clock); a design whose mapping takes longer has `mapped: {available: false, reason: ...timed out...}` and nothing else changes. The pinned flow of score.py has its own limit; 900 s is far above the longest mapping measured on the 24 reference, baseline and idiom designs (a few seconds).",
+  "yosys_timeout_s": 900,
+  "script": {
+    "file": "ppa_mapped.ys",
+    "abc_script": "strash; &get -n; &fraig -x; &put; scorr; dc2; dretime; strash; &get -n; &dch -f; &nf; &put",
+    "_comment": "abc_script is documentation (the .ys file is the pin and its text is checked against this string by test_ppa.py): Yosys 0.53's default for `abc -liberty` without -constr, written out."
+  },
+  "equivalence": {
+    "vectors": 2048,
+    "seed": "svgolf-ppa-mapped/1",
+    "_comment": "Before a mapped netlist is weighed it is simulated, bit-parallel through the liberty's own cell functions, against the scored netlist on `vectors` input vectors (vector 0 all zeros, vector 1 all ones, the rest SHA-256(seed || k) bits) and must agree on every output bit. A sample, not a proof: it catches a mapper or reader defect that changes the function broadly, and nothing narrower."
+  }
+}

@@ -1,0 +1,18 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "inverse_sbox": "The inverse S-box (the decryption table) instead of the S-box.",
+  "no_constant": "Forgets the affine constant `0x63`, so every output is off by that XOR.",
+  "one_entry": "A table with one wrong entry: `S(0x53) = 0xec` instead of `0xed`.",
+  "reversed_bits": "The right circuit fed the input bits in reverse order.",
+  "undriven_bit": "Output bit `y[0]` is never assigned.",
+  "wrong_names": "The right circuit on ports named `a` and `s` instead of `x` and `y`.",
+  "x_default": "A correct table with an unreachable `default` that assigns `x`."
+ },
+ "attacks": {
+  "case_missing_nodefault": "A table missing one entry and its `default`, so synthesis infers a latch.",
+  "case_missing_x": "A table that sends one input to a `default` of `x`, which Yosys may fill with any value.",
+  "unique_case_partial": "A `unique case` table missing one entry, which Yosys may then fill with any value.",
+  "unique_zero_ge": "A correct S-box followed by a `unique case` arm that never matches, which lets Yosys replace the output with a constant (0 GE)."
+ }
+}

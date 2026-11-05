@@ -1,0 +1,69 @@
+{
+  "_comment": [
+    "Pins of the PPA columns (score/ppa.py, WP-X2). Everything a number depends on besides the scored netlist and the code is here;",
+    "ppa.py records this file's sha256 (ppa_pins_sha256) beside the liberty's. Change anything here and `ppa_version` must change.",
+    "Flow A0' (sky130_a0_v3, the RANKED sky130 score: decided 11/03 'sky as the default', 11/04 'add the repair step everywhere (buffering)',",
+    "11/04 the input drive chosen per task, default buf_8, and every load pin read per edge, as OpenSTA reads it):",
+    "the PINNED `abc -g` scored netlist of score/score.py (unchanged), each Yosys gate re-expressed as ONE sky130_fd_sc_hd _1 cell, then",
+    "REPAIRED by BUFFERING ONLY (the `repair` section: a balanced buffer tree on every net whose load or transition is over its driver's",
+    "limits, primary inputs, flop Q nets and output bits included, and the tie cell replicated; no cell is resized), weighed by the",
+    "liberty: area = sum of cell areas (um^2), delay = a graph-based NLDM static timing analysis (ps), unit depth = gates on the longest",
+    "path of the scored netlist (equal to `ltp -noff`, before the repair), every primary input driven by the task's input drive (task.json",
+    "`input_drive`, one of timing.input_drive.allowed, default timing.input_drive.default). A netlist the repair cannot make legal (a load over a",
+    "max_capacitance, a transition over a max_transition, a timing read outside a table's characterized range) is REJECTED (nothing is",
+    "extrapolated). No wires. Study: design/ppa/sky130.md (WP-X1); the repair: score/PPA.md."
+  ],
+  "ppa_version": "sky130_a0_v3",
+  "liberty": {
+    "file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "cell_prefix": "sky130_fd_sc_hd__",
+    "corner": "tt_025C_1v80",
+    "sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "bytes": 12800135,
+    "git_blob_sha1": "619938b51b2b52bf572e3abd4479fa78202704dc",
+    "orfs_commit": "6c6fc7e21b2d0b5b88b1a52d0a5860ea4d88e9e5",
+    "url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/6c6fc7e21b2d0b5b88b1a52d0a5860ea4d88e9e5/flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "units": {"time": "1ns", "capacitance": "pf", "voltage": "1V"},
+    "licence_note": "Not vendored. The file has no header; upstream SkyWater PDK repositories are Apache-2.0, the ORFS platform directory carries no licence file of its own (design/ppa/sky130.md section 1). Fetch at the pinned hash (python3.12 score/ppa.py --fetch-liberty)."
+  },
+  "timing": {
+    "pi_slew_ps": 50,
+    "input_drive": {
+      "default": "sky130_fd_sc_hd__buf_8",
+      "allowed": ["sky130_fd_sc_hd__buf_1", "sky130_fd_sc_hd__buf_2", "sky130_fd_sc_hd__buf_4", "sky130_fd_sc_hd__buf_6",
+                  "sky130_fd_sc_hd__buf_8", "sky130_fd_sc_hd__buf_12", "sky130_fd_sc_hd__buf_16",
+                  "sky130_fd_sc_hd__inv_1", "sky130_fd_sc_hd__inv_2", "sky130_fd_sc_hd__inv_4", "sky130_fd_sc_hd__inv_6",
+                  "sky130_fd_sc_hd__inv_8", "sky130_fd_sc_hd__inv_12", "sky130_fd_sc_hd__inv_16",
+                  "sky130_fd_sc_hd__dfxtp_1"],
+      "_comment": "The cell driving every primary input that is read (sky130_a0_v3): the task's `input_drive` (task.json; a name outside `allowed` is a task-configuration error), else `default`. A buffer or inverter is that cell, its input the ideal pi_slew_ps ramp at 0, its output at the input net's real load, its WHOLE delay counted: a real cell in front of every input (OpenSTA with one explicit instance per input agrees to 1 fs; OpenSTA's set_driving_cell is another model, it adds only delay(load) - delay(0), for buf_1 58.7 ps less on a rising input and 72.8 ps on a falling one); sky130_fd_sc_hd__dfxtp_1 is that flop's CLK->Q rising_edge arc read at the ideal clock's pi_slew_ps ramp, its Q pin's limits (a register drives the inputs). The drive is audited like any driver and its budget is what the repair holds an input net to. The default buf_8 (11/04 measurement over the 36 ranked rows: no order or frontier differs from buf_1's; it adds 73 to 192 ps to a combinational design where buf_1 adds 70 to 1,276) stands for an on-chip bus or register driving the block."
+    },
+    "po_load_ff": 10,
+    "wires": "none",
+    "_comment": "Every primary input that is read is the output of the task's input drive (input_drive) at the input net's real load, whose own input is an ideal ramp of pi_slew_ps arriving at 0, the drive's whole delay counted (a real cell per input, not OpenSTA's set_driving_cell); the ideal clock's transition is pi_slew_ps too; a load pin presents its rise_capacitance to a rising transition and its fall_capacitance to a falling one (max_capacitance and the repair take the larger edge); every primary-output BIT carries po_load_ff; no wire capacitance or resistance; every NLDM table is read inside its characterized grid only (a read outside it rejects the netlist); T = latest output arrival over both edges (clocked: the latest output arrival or flop D arrival + setup)."
+  },
+  "repair": {
+    "_comment": "The repair (sky130_a0_v2 and v3, `buffer_trees_v1`, implemented in score/ppa.py itself: no external tool) of the A0' cell netlist before it is weighed. The netlist is weighed (flops cut out; inputs driven by the task's timing.input_drive; every output bit a separate po_load) and every net whose load is over its driver's max_capacitance or the largest load of its tables, or whose transition is over a max_transition (its driver's or a pin it reaches, default_max_transition where none is declared), gets a BALANCED BUFFER TREE: its loads (cell pins, output bits, flop D pins) in a stable order (cell instance, then output port and bit, then flop, names in natural order) are split into contiguous groups balanced by capacitance (a pin at the larger of its rise_capacitance and fall_capacitance), level by level from the loads up, each level the cell of `buffers` and group count of least total area such that every group's load is within that cell's BUDGET, each group then driven by the smallest (area, then name) cell of `buffers` whose budget holds it, until the driver's own load is within its budget. A cell's budget is the largest load, within its max_capacitance and its tables' characterized loads, at which its output transition stays within min(its max_transition, the library's default_max_transition) for every input transition up to that default (the primary inputs' input drive: at the pinned input ramp; a flop's Q: at the ideal clock's ramp), so a tree is legal by construction. The netlist is weighed again and the repair repeated (a net made illegal only by a slow input waits for its input's repair; a tree still illegal is rebuilt at half its budgets) until no violation is left, at most `max_rounds` rounds; a netlist still illegal is REJECTED with the nets named. No cell is resized and no gate is restructured. The constants' tie cell (`constants`) is replicated, one per group of loads within its output's max_capacitance. The repaired netlist is written as structural Verilog (the trees and tie cells visible, a comment per tree), read back, simulated against the A0' netlist on `equivalence` (every output bit and flop D net, flop Q nets driven as inputs; a difference is a defect of the repair, never a number) and weighed.",
+    "method": "buffer_trees_v1",
+    "buffers": ["buf_1", "buf_2", "buf_4", "buf_6", "buf_8", "buf_12", "buf_16"],
+    "max_rounds": 32,
+    "equivalence": {"vectors": 2048, "seed": "svgolf-ppa-repair/1"}
+  },
+  "gates": {
+    "_comment": "Yosys abc -g gate -> sky130 cell, generic pin -> cell pin, generic output Y -> cell output pin. ANDNOT(A,B) = A & ~B = nor2b(A := B, B_N := A); ORNOT(A,B) = A | ~B = nand2b(A_N := A, B := B): one 6.256 um^2 cell each.",
+    "NOT":    {"cell": "inv_1",    "pins": {"A": "A"},                    "out": "Y"},
+    "NAND":   {"cell": "nand2_1",  "pins": {"A": "A", "B": "B"},          "out": "Y"},
+    "NOR":    {"cell": "nor2_1",   "pins": {"A": "A", "B": "B"},          "out": "Y"},
+    "AND":    {"cell": "and2_1",   "pins": {"A": "A", "B": "B"},          "out": "X"},
+    "OR":     {"cell": "or2_1",    "pins": {"A": "A", "B": "B"},          "out": "X"},
+    "XOR":    {"cell": "xor2_1",   "pins": {"A": "A", "B": "B"},          "out": "X"},
+    "XNOR":   {"cell": "xnor2_1",  "pins": {"A": "A", "B": "B"},          "out": "Y"},
+    "MUX":    {"cell": "mux2_1",   "pins": {"A": "A0", "B": "A1", "S": "S"}, "out": "X"},
+    "ANDNOT": {"cell": "nor2b_1",  "pins": {"A": "B_N", "B": "A"},        "out": "Y"},
+    "ORNOT":  {"cell": "nand2b_1", "pins": {"A": "A_N", "B": "B"},        "out": "Y"}
+  },
+  "constants": {
+    "cell": "conb_1",
+    "policy": "replicated_within_max_capacitance",
+    "_comment": "The scored netlist keeps constants as literals (the abstract flow prices them at 0). Policy (sky130_a0_v2): if any constant drives an output bit, a cell pin or a flop D pin, the netlist has conb_1 tie cells, as FEW as hold every constant load within the max_capacitance of the output that drives it (LO for 0, HI for 1; the loads split into balanced groups as the repair's buffer trees are): one for an ordinary design, more for, e.g., hundreds of constant output bits. A tie cell has no delay effect (no timing arcs: its transition is not checked, its load is)."
+  }
+}

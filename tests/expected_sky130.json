@@ -1,0 +1,95 @@
+{
+ "_comment": [
+  "Golden values of the EXTRA sky130 columns (outside every record hash, PLAN2 WP-X stage 2). energy: score/energy.py (energy_version sky130_energy_v1) on the REPAIRED netlist the ranked score weighs (ppa_version sky130_a0_v3: the pinned comb flow's scored netlist at the point, repaired by buffering only (buffer trees, replicated tie cells), inputs driven by the task's input drive, the default sky130_fd_sc_hd__buf_8 for every design here), public salt (official seeds from salt 'public'), pinned liberty sha256 ef34f999...; re-measured, every entry, by score/test_energy.py (`UPDATE_GOLDEN=1 python3.12 score/test_energy.py` re-records them). Clocked (counter fixture): the svgolf_seq.ys netlist of tests/seq_counter/reference/cnt.sv, repaired likewise."
+ ],
+ "energy": {
+  "add/add_n@N=16": {
+   "energy_activity_sky130_v1": 730.775,
+   "energy_glitch_sky130_v1": 877.944,
+   "glitch_factor": 1.195,
+   "leakage_sky130_v1": 0.239
+  },
+  "add/add_n_kogge_stone@N=16": {
+   "energy_activity_sky130_v1": 895.878,
+   "energy_glitch_sky130_v1": 1111.834,
+   "glitch_factor": 1.238,
+   "leakage_sky130_v1": 0.294
+  },
+  "add/add_n_sklansky@N=16": {
+   "energy_activity_sky130_v1": 814.168,
+   "energy_glitch_sky130_v1": 1004.796,
+   "glitch_factor": 1.229,
+   "leakage_sky130_v1": 0.242
+  },
+  "add/cmp_carry@N=16": {
+   "energy_activity_sky130_v1": 1042.252,
+   "energy_glitch_sky130_v1": 1372.844,
+   "glitch_factor": 1.315,
+   "leakage_sky130_v1": 0.357
+  },
+  "clmul/clmul_n@N=16": {
+   "energy_activity_sky130_v1": 4516.464,
+   "energy_glitch_sky130_v1": 4831.195,
+   "glitch_factor": 1.062,
+   "leakage_sky130_v1": 1.116
+  },
+  "mul/dadda_ks_16@N=16": {
+   "energy_activity_sky130_v1": 9074.821,
+   "energy_glitch_sky130_v1": 16727.269,
+   "glitch_factor": 1.825,
+   "leakage_sky130_v1": 4.019
+  },
+  "mul/dadda_rc_16@N=16": {
+   "energy_activity_sky130_v1": 8519.564,
+   "energy_glitch_sky130_v1": 14617.917,
+   "glitch_factor": 1.699,
+   "leakage_sky130_v1": 4.009
+  },
+  "mul/mul_n@N=16": {
+   "energy_activity_sky130_v1": 8603.21,
+   "energy_glitch_sky130_v1": 37599.836,
+   "glitch_factor": 4.344,
+   "leakage_sky130_v1": 4.127
+  },
+  "mul/mul_tree@N=16": {
+   "energy_activity_sky130_v1": 8821.062,
+   "energy_glitch_sky130_v1": 16902.632,
+   "glitch_factor": 1.903,
+   "leakage_sky130_v1": 4.241
+  },
+  "mul/mul_tree_h@N=16": {
+   "energy_activity_sky130_v1": 8797.747,
+   "energy_glitch_sky130_v1": 16848.745,
+   "glitch_factor": 1.902,
+   "leakage_sky130_v1": 4.228
+  },
+  "mul/mul_wallace@N=16": {
+   "energy_activity_sky130_v1": 9014.862,
+   "energy_glitch_sky130_v1": 16066.97,
+   "glitch_factor": 1.766,
+   "leakage_sky130_v1": 4.38
+  },
+  "mul/yosys_mul@N=16": {
+   "energy_activity_sky130_v1": 8920.63,
+   "energy_glitch_sky130_v1": 16323.89,
+   "glitch_factor": 1.811,
+   "leakage_sky130_v1": 4.306
+  },
+  "seq/cnt@N=16": {
+   "clock_pins_fj": 636.925,
+   "clock_tree_buffers": 5,
+   "clock_tree_fj": 207.982,
+   "energy_cycle_sky130_v1": 926.692,
+   "flops": 16,
+   "leakage_sky130_v1": 0.273
+  },
+  "seq/cnt@N=8": {
+   "clock_pins_fj": 318.462,
+   "clock_tree_buffers": 3,
+   "clock_tree_fj": 115.489,
+   "energy_cycle_sky130_v1": 515.738,
+   "flops": 8,
+   "leakage_sky130_v1": 0.133
+  }
+ }
+}

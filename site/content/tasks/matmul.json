@@ -1,0 +1,11 @@
+{
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `preview_note` is a preview's status line (why it is not ranked yet); `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "title": "N × N matrix multiplication, clocked",
+ "subtitle": "Multiply two signed N × N matrices, wrapping at AccW bits, behind a start/done handshake.",
+ "preview_note": "The statement is being revised to cover the outputs on the wire and unknown values at reset; submissions are not ranked until then.",
+ "banlist_note": "No operator is banned, `*` included: the task is the schedule (how many multipliers, how many cycles, how short a cycle), and the score prices it.",
+ "references": {
+  "matmul_g1": "N × N parallel multiply-accumulate units and one step counter: A and B are captured into shift registers at `start`, and `done` rises N steps later (latency N)."
+ },
+ "baselines": {}
+}

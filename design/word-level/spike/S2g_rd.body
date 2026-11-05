@@ -1,0 +1,56 @@
+
+/-! ## The reads of the new nodes (`inst_rd`'s arms): `RdOK` at EVERY context -/
+
+section rd
+variable {σ : String → Int} {E : IEnv} {elems : List (String × Nat)}
+
+theorem ie_addsub_cases (b : BinOp) (hb : b = .add ∨ b = .sub) (ctx : Option Nat) (l r : PExpr) :
+    (∃ c, instExpr2 E elems ctx (.binary (.m0 b) l r) =
+      .binary b (fitExpr2 E elems c l) (fitExpr2 E elems c r)) ∨
+    (∃ w c, instExpr2 E elems ctx (.binary (.m0 b) l r) =
+      .resize w (.binary b (fitExpr2 E elems c l) (fitExpr2 E elems c r))) := by
+  cases ctx with
+  | none =>
+      refine Or.inl ?_
+      rcases hb with rfl | rfl <;> (unfold instExpr2; exact ⟨_, rfl⟩)
+  | some w =>
+      by_cases h : (ctxOpWidth2 E elems l r).getD w ≤ w
+      · exact Or.inl ⟨some w, by rcases hb with rfl | rfl <;> simp [instExpr2, h]⟩
+      · exact Or.inr ⟨w, some ((ctxOpWidth2 E elems l r).getD w),
+          by rcases hb with rfl | rfl <;> simp [instExpr2, h]⟩
+
+/-- a marker over a non-propagating, non-constant operand is always `resize` over an instantiation of it -/
+theorem ie_resize_cases {e : PExpr} (hcp : e.ctxPropagates = false) (hcl : e.constLeaf = false)
+    (hng : ∀ (env : IEnv) (m w : Nat), (PExpr.resize m e).negGenvarWidened env w = none)
+    (ctx : Option Nat) (m : Nat) :
+    ∃ x c, instExpr2 E elems ctx (.resize m e) = .resize x (instExpr2 E elems c e) := by
+  cases ctx with
+  | none => exact ⟨m, selfWidth2 E elems e, by simp [instExpr2]⟩
+  | some cw =>
+      rcases hs : selfWidth2 E elems e with _ | sw
+      · exact ⟨cw, none, by simp [instExpr2, hs]⟩
+      · by_cases h : sw < cw
+        · exact ⟨cw, some sw, by simp [instExpr2, hs, h, hcp, hng]⟩
+        · exact ⟨cw, some sw, by simp [instExpr2, hs, h, hcl]⟩
+
+end rd
+
+/-! ## The truncation marker `Resize3[(a + b)]` (envelope of `addw3.sv`): an arithmetic node under a marker WIDER
+than the context is lowered at its OWN width and then truncated -/
+
+section trunc
+variable {E : IEnv} {elems : List (String × Nat)}
+
+theorem ie_resize_trunc {e : PExpr} (hcl : e.constLeaf = false) {W cw : Nat}
+    (hs : selfWidth2 E elems e = some W) (h : ¬ W < cw) (m : Nat) :
+    instExpr2 E elems (some cw) (.resize m e) = .resize cw (instExpr2 E elems (some W) e) := by
+  simp [instExpr2, hs, h, hcl]
+
+/-- … and the same marker with the context WIDER than the node (a design whose widths coincide with the
+default point only at the default point): the marker is transparent, the carry survives -/
+theorem ie_resize_widen {e : PExpr} (hcp : e.ctxPropagates = true) {W cw : Nat}
+    (hs : selfWidth2 E elems e = some W) (h : W < cw) (m : Nat) :
+    instExpr2 E elems (some cw) (.resize m e) = instExpr2 E elems (some cw) e := by
+  simp [instExpr2, hs, h, hcp]
+
+end trunc

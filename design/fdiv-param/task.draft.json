@@ -1,0 +1,140 @@
+{
+  "name": "fdivp",
+  "title": "IEEE 754 division, parametric in the format (exponent width W, precision P), round to nearest even",
+  "status": "draft",
+  "kind": "comb-family",
+  "top": "fdiv",
+  "parameters": [
+    {
+      "name": "W",
+      "range": "2 <= W"
+    },
+    {
+      "name": "P",
+      "range": "2 <= P"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "a",
+        "width": "W+P"
+      },
+      {
+        "name": "b",
+        "width": "W+P"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "q",
+        "width": "W+P"
+      }
+    ]
+  },
+  "statement": {
+    "module": "tasks.fdivp.Spec",
+    "constant": "SvGolf.Tasks.FdivP.Statement"
+  },
+  "banlist": {
+    "operators": [
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "The divider bans run-time division and remainder (the operator that IS the task); ** for safety. + - * and comparisons stay allowed."
+  },
+  "probe_points": [
+    "W=2,P=2",
+    "W=2,P=3",
+    "W=3,P=2",
+    "W=3,P=4",
+    "W=4,P=5",
+    "W=5,P=11",
+    "W=8,P=8",
+    "W=8,P=24"
+  ],
+  "scoring": {
+    "params": {
+      "W": 5,
+      "P": 11
+    },
+    "depth_budget": null
+  },
+  "backstop_points": [
+    {
+      "W": 2,
+      "P": 2
+    },
+    {
+      "W": 5,
+      "P": 11
+    },
+    {
+      "W": 8,
+      "P": 24
+    }
+  ],
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "_bv_decide_comment": "The svGolf rules allow bv_decide on fixed-size subgoals in principle and this task is fixed-size, but bv_decide runs an external SAT solver (cadical) and the checker does not support external solvers (decided 2026-11-01), so check.py refuses allow_bv_decide: true (an infrastructure error); svgolf/README.md, 'bv_decide'. Proofs use propext, Classical.choice, Quot.sound only.",
+  "time_limit_s": 3600,
+  "postsynth": {
+    "random": 4000,
+    "corners": {
+      "a": [
+        "0x0000",
+        "0x8000",
+        "0x0001",
+        "0x8001",
+        "0x03FF",
+        "0x0400",
+        "0x3C00",
+        "0xBC00",
+        "0x3BFF",
+        "0x7BFF",
+        "0xFBFF",
+        "0x7C00",
+        "0xFC00",
+        "0x7C01",
+        "0x7E00",
+        "0xFE00",
+        "0x4000",
+        "0x3FFF"
+      ],
+      "b": [
+        "0x0000",
+        "0x8000",
+        "0x0001",
+        "0x8001",
+        "0x03FF",
+        "0x0400",
+        "0x3C00",
+        "0xBC00",
+        "0x3BFF",
+        "0x7BFF",
+        "0xFBFF",
+        "0x7C00",
+        "0xFC00",
+        "0x7C01",
+        "0x7E00",
+        "0xFE00",
+        "0x4000",
+        "0x3FFF"
+      ]
+    },
+    "_comment": "Corner lists are fixed hex strings for the 16-bit scoring point (5, 11); a different scoring point needs its own corner lists. The 18 x 18 special operand pairs are those of fdiv16."
+  },
+  "oracle": "oracle.py",
+  "references": [],
+  "draft_reference": {
+    "sv": "reference/fdiv.sv",
+    "lean": "reference/fdiv.partial.lean",
+    "note": "the parametric draft design (design/fdiv-param/fdiv_param.sv, gate 4): validated by simulation, NOT proved"
+  },
+  "_comment_draft": "DRAFT for tasks/fdivp/task.json (NOT registered). Needs: a CombTask2-free or CombTask2 Spec (design/fdiv-param/Spec*.lean), a format-general oracle.py (spec/validate/oracle.py Fmt/div_exact), a proved reference (WP-H2+), `tactics_probe_text` generalized to n parameters, README 'kind' row."
+}

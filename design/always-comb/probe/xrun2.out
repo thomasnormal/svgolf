@@ -1,0 +1,91 @@
+	Top level design units:
+		tb
+xcelium> source <xcelium-install>/tools/xcelium/files/xmsimrc
+xcelium> run
+DUT p_local
+CYCLE 0 a=0 b=0 c=0 y=0
+CYCLE 1 a=0 b=0 c=1 y=0
+CYCLE 2 a=0 b=0 c=x y=0
+CYCLE 3 a=0 b=1 c=0 y=0
+CYCLE 4 a=0 b=1 c=1 y=1
+CYCLE 5 a=0 b=1 c=x y=x
+CYCLE 6 a=0 b=x c=0 y=0
+CYCLE 7 a=0 b=x c=1 y=x
+CYCLE 8 a=0 b=x c=x y=x
+CYCLE 9 a=1 b=0 c=0 y=0
+CYCLE 10 a=1 b=0 c=1 y=1
+CYCLE 11 a=1 b=0 c=x y=x
+CYCLE 12 a=1 b=1 c=0 y=0
+CYCLE 13 a=1 b=1 c=1 y=0
+CYCLE 14 a=1 b=1 c=x y=0
+CYCLE 15 a=1 b=x c=0 y=0
+CYCLE 16 a=1 b=x c=1 y=x
+CYCLE 17 a=1 b=x c=x y=x
+CYCLE 18 a=x b=0 c=0 y=0
+CYCLE 19 a=x b=0 c=1 y=x
+CYCLE 20 a=x b=0 c=x y=x
+CYCLE 21 a=x b=1 c=0 y=0
+CYCLE 22 a=x b=1 c=1 y=x
+CYCLE 23 a=x b=1 c=x y=x
+CYCLE 24 a=x b=x c=0 y=0
+CYCLE 25 a=x b=x c=1 y=x
+CYCLE 26 a=x b=x c=x y=x
+DUT p_partial
+CYCLE 0 c=0 a=0 b=0 y=0x
+CYCLE 1 c=0 a=0 b=1 y=1x
+CYCLE 2 c=0 a=1 b=0 y=0x
+CYCLE 3 c=0 a=1 b=1 y=1x
+CYCLE 4 c=1 a=0 b=0 y=10
+CYCLE 5 c=1 a=0 b=1 y=10
+CYCLE 6 c=1 a=1 b=0 y=11
+CYCLE 7 c=1 a=1 b=1 y=11
+CYCLE 8 c=x a=0 b=0 y=01
+CYCLE 9 c=x a=0 b=1 y=11
+CYCLE 10 c=x a=1 b=0 y=01
+CYCLE 11 c=x a=1 b=1 y=11
+CYCLE 12 c=z a=0 b=0 y=01
+CYCLE 13 c=z a=0 b=1 y=11
+CYCLE 14 c=z a=1 b=0 y=01
+CYCLE 15 c=z a=1 b=1 y=11
+DUT p_rowwrite
+CYCLE 0 c=0 a=10 b=01 y=01
+CYCLE 1 c=0 a=1x b=0z y=0z
+CYCLE 2 c=0 a=x1 b=1x y=1x
+CYCLE 3 c=1 a=10 b=01 y=10
+CYCLE 4 c=1 a=1x b=0z y=1x
+CYCLE 5 c=1 a=x1 b=1x y=x1
+CYCLE 6 c=x a=10 b=01 y=01
+CYCLE 7 c=x a=1x b=0z y=0z
+CYCLE 8 c=x a=x1 b=1x y=1x
+CYCLE 9 c=z a=10 b=01 y=01
+CYCLE 10 c=z a=1x b=0z y=0z
+CYCLE 11 c=z a=x1 b=1x y=1x
+DUT p_widthext
+CYCLE 0 c=0 a=0 y=1111
+CYCLE 1 c=0 a=1 y=1111
+CYCLE 2 c=0 a=x y=1111
+CYCLE 3 c=1 a=0 y=0000
+CYCLE 4 c=1 a=1 y=0001
+CYCLE 5 c=1 a=x y=000x
+CYCLE 6 c=x a=0 y=1111
+CYCLE 7 c=x a=1 y=1111
+CYCLE 8 c=x a=x y=1111
+CYCLE 9 c=z a=0 y=1111
+CYCLE 10 c=z a=1 y=1111
+CYCLE 11 c=z a=x y=1111
+DUT p_tern_ctx
+CYCLE 0 a=0 c=0 y=0000
+CYCLE 1 a=0 c=1 y=1111
+CYCLE 2 a=0 c=x y=xxxx
+CYCLE 3 a=0 c=z y=xxxx
+CYCLE 4 a=1 c=0 y=0000
+CYCLE 5 a=1 c=1 y=1110
+CYCLE 6 a=1 c=x y=xxx0
+CYCLE 7 a=1 c=z y=xxx0
+CYCLE 8 a=x c=0 y=0000
+CYCLE 9 a=x c=1 y=111x
+CYCLE 10 a=x c=x y=xxxx
+CYCLE 11 a=x c=z y=xxxx
+Simulation complete via $finish(1) at time 79 NS + 0
+./probe2.sv:131     $finish;
+xcelium> exit

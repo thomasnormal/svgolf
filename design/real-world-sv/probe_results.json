@@ -1,0 +1,1064 @@
+{
+ "add_n": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "c01_gen_unpacked_chain": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: Assign: assign target 'acc[0]' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "c02_gen_packed2d_chain": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: ConversionExpression:Explicit: (2*N-1)'(a)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "c03_gen_bitlevel_coeff": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "c04_gen_bitlevel_noif": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "c05_proc_for_compound": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nc05_proc_for_compound.sv:5:11: run-time index in `b[i]`: a signed 32-bit index addresses -2147483648..2147483647, outside the "
+ },
+ "c06_proc_for_plain": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nc06_proc_for_plain.sv:6:11: run-time index in `b[i]`: a signed 32-bit index addresses -2147483648..2147483647, outside the dec"
+ },
+ "c07_proc_triangular": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nc07_proc_triangular.sv:6:33: run-time index in `p[k]`: a signed 32-bit index addresses -2147483648..2147483647, outside the de"
+ },
+ "c08_function_loop": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nc08_function_loop.sv:6:11: run-time index in `y[i]`: a signed 32-bit index addresses -2147483648..2147483647, outside the decl"
+ },
+ "c09_hazard3_named_block": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nc09_hazard3_named_block.sv:7:53: run-time index in `b[i]`: a signed 32-bit index addresses -2147483648..2147483647, outside th"
+ },
+ "c10_ternary_xor_expr_fixed": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "c11_xor_reduction_per_bit": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: GenerateDecl:Var: generate-local declaration 'ap'\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "c12_karatsuba_instances": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=1: ArraySel:partial-overhang: part select [0, 1] (element offsets) is partly outside its dimension of 1 elements: IEEE 1800-2023 §11.5.1 reads x "
+ },
+ "f01_proc_for_noindex": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/f01_proc_for_noindex/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "f02_while_loop": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at {'N': 16}: f02_while_loop.sv:0: ERROR: While loops are only allowed in constant functions!"
+ },
+ "f03_case_default_ok": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f04_unique_case": {
+  "accepted": false,
+  "stage": "source",
+  "in_fragment": null,
+  "message": "the design text is refused (the extractor and Yosys would read different programs, or give it different meanings):\nf04_unique_case.sv:3:5: `unique` qualifier (Yosys reads it as full_case/parallel_case, a synthesis don't-care; ls-sv runs the first matching arm)"
+ },
+ "f05_casez_prio": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: CaseStatement:WildcardJustZ: casez (r)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f06_always_star": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: TimedStatement:ImplicitEventControl: always @* y = a & b;\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rul"
+ },
+ "f07_blocklocal_decl": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/f07_blocklocal_decl/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "f08_ssa_module_temps": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f09_compound_assign": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: AssignmentExpression:compound: y ^= b;\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f10_pkg_enum_import_body": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at {'N': 16}: f10_pkg_enum_import_body.sv:5: ERROR: syntax error, unexpected TOK_PACKAGESEP, expe"
+ },
+ "f11_pkg_const_func": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at {'N': 16}: f11_pkg_const_func.sv:4: ERROR: syntax error, unexpected TOK_ID"
+ },
+ "f12_packed_struct_local": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: Assign: assign target 's' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f13_bit_int_ports": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f14_signed_ports": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: PortSymbol:signed: a\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f15_concat_target_add": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f16_sizecast_add": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: ConversionExpression:Explicit: (N+1)'(a)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f17_wire_init_netlist": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/f17_wire_init_netlist/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "f18_unpacked_param_size": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: ElementSelect:default-point-index: pp[N-1]\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f19_unpacked_literal_size": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f20_submodule_instance": {
+  "accepted": false,
+  "stage": "source",
+  "in_fragment": null,
+  "message": "the design text is refused (the extractor and Yosys would read different programs, or give it different meanings):\nf20_submodule_instance.sv:1:46: preprocessor-skipped text (SkippedTokens)\nf20_submodule_instance.sv:6:10: preprocessor-skipped text (SkippedTokens)"
+ },
+ "f21_replication_mask": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f22_clog2_localparam_width": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f23_gen_if_in_for": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f24_gen_for_step2": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/f24_gen_for_step2/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "f25_countones": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: CallExpression: $countones(a)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f26_dyn_part_select": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nf26_dyn_part_select.sv:2:14: run-time index in `a[s +: 4]`: a 4-bit index addresses 0..18, outside the declared range [15:0] ("
+ },
+ "f27_runtime_shift": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f28_rotate_doubled": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f29_log_shifter_gen": {
+  "accepted": false,
+  "stage": "extract",
+  "in_fragment": null,
+  "message": "top module `t` must have exactly the parameters ['N'] (the scoring script overrides them by name); it has ['N', 'L']"
+ },
+ "f30_mul_op": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f31_xnor_op": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f32_gray_enc": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f33_gray_dec_gen": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f34_bitrev_gen": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f35_genvar_local_decl": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: GenerateDecl:Var: generate-local declaration 'w'\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "f36_always_latch": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/f36_always_latch/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "f37_param_typed_poly": {
+  "accepted": false,
+  "stage": "extract",
+  "in_fragment": null,
+  "message": "top module `t` must have exactly the parameters ['N'] (the scoring script overrides them by name); it has ['N', 'POLY']"
+ },
+ "f38_ternary_chain": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f39_parity_reduce_gen": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "f40_unary_minus_mask": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g01_gen_unlabeled_explicit": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g02_nonansi_untyped_param": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/g02_nonansi_untyped_param/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "g03_output_reg_always_comb": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g04_clmul_control_skewed": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys `check` at {'N': 16}: Drivers conflicting with a constant 1'0 driver:\nslang analysis error MultipleContAssigns at g04_cl"
+ },
+ "g05_case_begin_end_arms": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g06_if_else_nested": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g07_localparam_ternary": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/g07_localparam_ternary/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "g08_rot_const_params": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/g08_rot_const_params/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "g09_case_generate": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: GenerateBlockSymbol:unconditional: begin : n16\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "g10_func_in_localparam": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at {'N': 16}: g10_func_in_localparam.sv:6: ERROR: syntax error, unexpected TOK_ID"
+ },
+ "g11_signed_shift_cast": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g12_halfslice_nonlit": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g13_gen_bound_half": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g14_idx_product": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g15_packed3d": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g16_sized_localparam_const": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g17_simple_typedef_alias": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/g17_simple_typedef_alias/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "g18_decl_initializer": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g19_always_ff_unclocked": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g20_signed_compare_cast": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g21_tristate": {
+  "accepted": false,
+  "stage": "source",
+  "in_fragment": null,
+  "message": "the design text is refused (the extractor and Yosys would read different programs, or give it different meanings):\ng21_tristate.sv:2:23: x/z literal \"'z\" (an x or z bit is a don't-care that Yosys resolves freely and drops from comparisons, and an unknown value to ls-sv: the proved and the scored cir"
+ },
+ "g22_a_plus_b_cmp_ok": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g23_addsub_selfdet_cmp": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "g24_assign_func_loop_gen_ref_bits": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k01_const_decl": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k02_dot_star_ports": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k03_dot_name_ports": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k04_pkg_qualified_const": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/k04_pkg_qualified_const/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "k05_pkg_qualified_func": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: CallExpression: pk::f(a)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "k06_pkg_qualified_enum": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: ConversionExpression:Explicit: pk::op_e'(o)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "k07_enum_local": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: ConversionExpression:Explicit: op_e'(o)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "k08_localparam_enum_consts": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k09_immediate_assert": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: ImmediateAssertion:symbolic: assert (N > 0);\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "k10_unpacked_const_index_fixed": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k11_bits_high": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/k11_bits_high/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "k12_interface_port": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at {'N': 16}: ERROR: Assert `modules_.count(module->name) == 0' failed in kernel/rtlil.cc:972."
+ },
+ "k13_typed_struct_unpacked": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at {'N': 16}: k13_typed_struct_unpacked.sv:2: ERROR: Only PACKED supported at this time"
+ },
+ "k14_always_comb_if_chain_assign_vec": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k15_gen_for_nested_3": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k16_dyn_index_inrange": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k17_dyn_index_write": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "k18_partsel_up_const_base": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r01_chacha_assign_param_wrapper": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r02_rot_param_bounds": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/r02_rot_param_bounds/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "r03_comb_ssa_noconcat_fixed": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r04_comb_ssa_concat_param": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/r04_comb_ssa_concat_param/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "r05a_alu_case_basic": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r05b_alu_case_shift": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r05c_alu_case_cmp_result": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r06_cmp_via_wire": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r07_sum3_ci": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r08_sum_concat_operands": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r09_localparam_rot_const": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/r09_localparam_rot_const/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "r10_cellx_instance": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r11_param_child_instance": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r12_recursive_module": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/r12_recursive_module/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "r13_gen_stage_array_param_L": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r14_param_typed_localparam": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r15_shift_by_genvar_const": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r16_xor_chain_gen_acc_if": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r17_ternary_replicated_zero": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "r18_fn_fixed_param_decl_only_no_loops_fixedw": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "s01_untyped_param_ansi": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/s01_untyped_param_ansi/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "s02_nonansi_typed_param": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/s02_nonansi_typed_param/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "s03_ansi_reg_wire_decl": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/s03_ansi_reg_wire_decl/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "s04_rot_fam16": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "s05_rot_localparam_fam16": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "s06_comb_ssa_concat_fam16": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "s07_quarter_round_assign_fam16": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "s08_clmul_control_ok": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "s09_clmul_partsel_targets": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys `check` at {'N': 16}: Drivers conflicting with a constant 1'0 driver:"
+ },
+ "v01_input_wire_param": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/v01_input_wire_param/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "v02_output_wire_param": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/v02_output_wire_param/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "v03_internal_wire_param": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/v03_internal_wire_param/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "v04_internal_logic_param": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "v05_internal_reg_always_comb": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "v06_fixed_implicit_nets": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/v06_fixed_implicit_nets/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "v07_fixed_internal_wire": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/v07_fixed_internal_wire/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "v08_param_implicit_net_port": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design does not load (ls-sv refused it):\n<scratchpad>/stages/v08_param_implicit_net_port/Submission/Design.lean:12:28: error: load_design_sv2: '<scratchpad>"
+ },
+ "v09_param_untyped_logic_ports": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "v10_param_ansi_inputlogic_outputreg": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "v11_wire_logic_internal": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: Assign: assign target 'x' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "v12_input_wire_logic_ports": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: Assign: assign target 'y' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "v13_scalar_wire": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: Assign: assign target 't1' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "v14_scalar_wire_ports": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: Assign: assign target 'y' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "w01_reverse_case": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w02_gen_if_top": {
+  "accepted": false,
+  "stage": "source",
+  "in_fragment": null,
+  "message": "the design text is refused (the extractor and Yosys would read different programs, or give it different meanings):\nw02_gen_if_top.sv:5:5: preprocessor-skipped text (SkippedTokens)"
+ },
+ "w02b_gen_if_top": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w03_ternary_plain_zero_arm": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w04_localparam_integer_half": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w05_genvar_stride_double": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys `check` at {'N': 16}: Wire t.\\y [15] is used but has no driver. (an undriven bit reads as x: ls-sv computes with it, Yos"
+ },
+ "w06_packed2d_gen": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w07_prefix_cell_gen_if_in_loop": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w08_comb_cmp_in_if_cond": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "w09_mul_gate_level_ok": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x01_chacha_assign_chain": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x02_chacha_comb_ssa": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x03_chacha_func_rotl": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at defaults: x03_chacha_func_rotl.sv:3: ERROR: syntax error, unexpected '|', expecting ';'"
+ },
+ "x04_chacha_shiftor_const": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x05_chacha_instances": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x07_sbox_case_small": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x08_sbox_unpacked_localparam": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nYosys cannot read the design at defaults: x08_sbox_unpacked_localparam.sv:2: ERROR: syntax error, unexpected '[', expecting ',"
+ },
+ "x09_sbox_func_xtime": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at default: CallExpression: xtime(x)\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "x10_sbox_netlist_xnor_wireinit": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at default: NetSymbol:net-z: t1 = x[0] ^ x[3]\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "x11_sbox_reverse_gen": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x12_sbox_unique_case": {
+  "accepted": false,
+  "stage": "source",
+  "in_fragment": null,
+  "message": "the design text is refused (the extractor and Yosys would read different programs, or give it different meanings):\nx12_sbox_unique_case.sv:3:5: `unique` qualifier (Yosys reads it as full_case/parallel_case, a synthesis don't-care; ls-sv runs the first matching arm)"
+ },
+ "x13_sbox_casez": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at default: CaseStatement:WildcardJustZ: casez (x[2:0])\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "x14_sbox_submodules_exprports": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x15_sbox_unpacked_wire_rom": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at default: Assign: assign target 'rom[0]' undeclared\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "x20_popcount_loop": {
+  "accepted": false,
+  "stage": "fourstate",
+  "in_fragment": null,
+  "message": "an x or z value can arise in the design at the scoring point (ls-sv computes with it, Yosys resolves it as a don't-care, so the proved and the scored circuits could differ):\nx20_popcount_loop.sv:4:41: run-time index in `a[i]`: a signed 32-bit index addresses -2147483648..2147483647, outside the decl"
+ },
+ "x21_popcount_addtree_assign": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x22_lzc_ifchain": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x24_clz_ternary_tree": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x25_barrel8_stage_concat": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x26_onehot_to_bin": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x27_bin_to_onehot_shift": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x28_cas_pair": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x29_alu_case": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x30_alu_andor_mask": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x31_div_restoring_gen": {
+  "accepted": false,
+  "stage": "design",
+  "in_fragment": null,
+  "message": "the design loads, but ls-sv cannot run it: it contains an unsupported construct (`Design2.hasUnsupported`), so no proof about it can hold. First one, at N=16: GenerateDecl:Var: generate-local declaration 't1'\nRewrite the design without the construct, or add it to ls-sv by PR (README.md, \"Rules\")."
+ },
+ "x32_secded_reduce_masks": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x36_mod5_index_gen": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x37_loop_int_unrolled_by_gen_with_localparam": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": false,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ },
+ "x40_chacha_localparam_width": {
+  "accepted": false,
+  "stage": "unproved",
+  "in_fragment": true,
+  "message": "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design); the proof stages were not run, so the design is not accepted"
+ }
+}

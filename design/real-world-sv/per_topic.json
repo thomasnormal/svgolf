@@ -1,0 +1,42 @@
+[
+ {
+  "topic": "clmul",
+  "styleSummary": "30 entries. Shift-and-XOR accumulate loop in always_comb / always @* / a function (18 entries: `b[i] ? acc ^ (a << i) : acc`, `(a << i) & {2W{b[i]}}`); generate-for partial-product arrays with unpacked pp[N] and XOR chain or tree (ibex, cogs); hand-unrolled 32-term flat XOR (VeeR, Arvern, scarv macro); triangular coefficient loops (cv32e40x); Karatsuba as per-width copies or recursive parameterised modules; Zbc variants by bit reversal plus >>1 or slicing one 2W product; GHASH/CRC relatives (bit-serial FSMs, Easics functions, LFSR mask generators).",
+  "blockers": "Procedural loops (extractor Unsupported + LocalDecl for `int i` + fourstate loop-index + `^=`), size casts `(2*N)'(a)`, unpacked `pp[N]`, replication masks `{N{b[i]}}` (tactics), functions, `always @*`, `wire` (13 Verilog entries), conditional generate for boundary handling in the coefficient form (tactics), module recursion for Karatsuba. In-fragment route: bit-level generate (`pp[i][j] = a[j] & b[i]`) on 2-D packed rows as in the mul_n reference."
+ },
+ {
+  "topic": "arx",
+  "styleSummary": "31 entries. SSA temporaries (a1, d2, ...) as an assign chain or inside always @* / always_comb; rotation by concatenating constant part-selects (dominant) or `(x << n) | (x >> (W-n))` functions; QR as a module instantiated 4 or 8 times (17 entries); tasks/functions with in-place updates (inout args); microcoded or one-round-per-clock sequential wrappers (13 always_ff); Speck/Simon parameterised by word size with ROR/ROL functions; BLAKE G uses a 3-operand add.",
+  "blockers": "Constant part-selects on literal-width signals (`legacy part select` in fixed tasks; workaround: widths via localparam W, x40), `always @*`, functions/tasks, instances (tactics refuse), Verilog-2001 `wire` and non-ANSI headers (secworks, Onyx), sequential wrappers (statement requires unclocked). `assign` chains with `+` and concatenated rotation are accepted once widths are parametric (s07)."
+ },
+ {
+  "topic": "fpdiv",
+  "styleSummary": "37 entries. Bit-serial restoring/non-restoring FSMs with a {rem,quot} shift register (about half), SRT radix-4/16 with carry-save residual and digit-selection ROM, combinational `/` `%` on wide shifted numerators (banned by fdiv16), restoring loops in functions or always_comb, unrolled generate stage chains; FP wrapper: unpack/classify, special-case if-else cascade, leading-zero count by casez/lzc/loop, signed exponent arithmetic with $signed and casts, guard/round/sticky rounding.",
+  "blockers": "Loops inside functions, signed (20 of 37) and `>>>`, size casts (8), casez (3), comparisons in if/?: conditions (33 entries; refused by the tactics, accepted via a one-bit signal), function calls (12), generate-local stage variables (x31), unpacked stage arrays, packages (11), `$clog2` (13), sequential FSMs (19)."
+ },
+ {
+  "topic": "sbox",
+  "styleSummary": "32 entries. 256-arm case LUT (accepted; the sbox_table reference); constant unpacked tables or 256 `assign sbox[8'hNN]` lines; gate netlists (Boyar-Peralta 113/115 gates, Maximov, Calik) written as `wire t = a ^ b;` lines with `~^`; Canright composite field as module trees (20 entries) or package functions with nested loops; round glue (ShiftRows as `+:` wiring, xtime in five spellings, MixColumns loops); SM4/PRESENT/SKINNY via case functions.",
+  "blockers": "`wire` with initializer (BP netlists), functions (Canright, xtime), instances (tactics), unique case / casez, unpacked localparam tables (Yosys 0.53 cannot read them), literal-width part-selects (fixed 8-bit task: legacy part select), `import`. Plain `~^` and `case` tables are fine."
+ },
+ {
+  "topic": "hashround",
+  "styleSummary": "37 entries. Keccak: flat 1600-bit bus sliced `st[64*i +: 64]`, unpacked or packed 3-D lane arrays, `% 5` index arithmetic, rho/pi as tables, RC as case ROM; SHA/MD5: secworks `always @*` SSA with named blocks and local regs, rotations by concatenated part-selects, Ch/Maj/Sigma as functions, message-schedule arrays; CRC/LFSR: Easics flat-XOR function, bit loop, 256-entry byte-LUT unique case, elaboration-time mask generators (Forencich, taxi).",
+  "blockers": "Functions (23), loops (20), unpacked arrays (20), computed `+:` bases (17), non-affine `%`/`*` indices (x36), 3-D packed, `always @*` with local regs (16), literal-width part-selects, `unique case`, imports/typedef."
+ },
+ {
+  "topic": "bitops",
+  "styleSummary": "74 entries. Popcount (accumulate loop, recursive halves, compressor LUT, $countones); clz/ctz/lzc (loop with break or found flag, generate or module trees, recursion, casez); priority encoders (loop, casez, if-chain, tree, ROM from a constant function); barrel shifters (`{x,x} >> s`, log stages with `1 << i`, funnel via reversal); gray (`b ^ (b >> 1)` is in fragment), bit reverse (generate form in fragment), one-hot (OR masks; `1 << s` in fragment), parity `^x` (in fragment); sorting networks (compare-swap on unpacked arrays, pipelines).",
+  "blockers": "Loops (29), `$clog2` widths (40), comparisons in conditions (sort, max), instances and recursion (22 / 5), conditional generate (20), casts (17), dynamic selects, unpacked arrays, `break`/`while` (Yosys cannot read them either)."
+ },
+ {
+  "topic": "arith",
+  "styleSummary": "57 entries. Prefix adders (Kogge-Stone, Brent-Kung, Sklansky) as generate level x bit with generate-if pass-through over `g[level][i]` arrays, or one always_comb with nested for; CLA/CSLA as hierarchical fixed-width modules or uniform blocks; multipliers: `a & {N{b[i]}}` partial products, array rows of FA modules, Booth recoders (reduction on part-selects), Wallace/Dadda mostly hard-wired per width, recursive compressor trees, behavioural `*` in CPU cores.",
+  "blockers": "Conditional generate in loops (21), unpacked arrays sized by LEVELS or N (26), `$clog2` localparams (17), module instances (37) and recursion, signed (13), replication (16), `%`/`**` generate conditions, strides `i = i*2`."
+ },
+ {
+  "topic": "alu",
+  "styleSummary": "33 entries. lowRISC/PULP family: package enum opcode + `unique case`, one shared adder `{a,1'b1} + ({b,1'b0} ^ neg)`, left shift by bit reversal around one right shifter, comparator from adder and sign bits, bitmanip (clmul, cpop); tiny-core Verilog-2001 (picorv32, biriscv, darkriscv): macro opcodes, nested ternaries, one-hot flags, `$signed` and `>>>`; AND-OR masks with replication (VeeR, SERV); struct/enum/type-valued parameters (cva6, cvw).",
+  "blockers": "`unique case` (10), package imports / enums / packed structs (16 / 8 / 7; Yosys cannot read imports), signed (16 of 33) and `>>>`, replication masks (23), macros and includes (8-9), `always @*` (8), casts, struct parameters, sequential variants."
+ }
+]

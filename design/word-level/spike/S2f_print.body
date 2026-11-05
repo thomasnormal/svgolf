@@ -1,0 +1,15 @@
+
+/-! ## What the equation prints: the `ASk.bit` of `t = a + b + cin` (the note's `addw`, context `N + 1`), unfolded by
+the recipe `sv_equations` uses (`Sk.bit`, `accBit`, the accessors) -/
+
+section print
+open CombView in
+example (st : SvState) (N k : Nat) : True := by
+  have : ∃ b : Bool,
+      (ASk.add (.add (.ext (.rd (.whole "a"))) (.ext (.rd (.whole "b")))) (.ext (.rd (.whole "cin")))).bit
+        (fun _ => 0) (fun n => if n = "cin" then 1 else N) (N + 1) st.boolAt k = b := ⟨_, rfl⟩
+  obtain ⟨b, hb⟩ := this
+  simp only [ASk.bit, accBit, ASk.width, Acc.lo, Acc.win, Nat.zero_add, ite_true, String.reduceEq] at hb
+  trace_state
+  trivial
+end print

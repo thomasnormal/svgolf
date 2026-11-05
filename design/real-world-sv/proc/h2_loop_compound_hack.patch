@@ -1,0 +1,80 @@
+--- a/extractors/sv/extract.py	2026-11-01 18:36:58
++++ b/extractors/sv/extract.py	2026-11-01 18:44:43
+@@ -8081,6 +8081,8 @@
+ def _convert_selected_leaf(sm, expression, kind):
+     """Resolve elaboration-selected leaves and a captured compound read."""
+     if _SYM is not None:
++        if kind == "LValueReferenceExpression" and _COMPOUND_READ is not None:
++            return dict(_COMPOUND_READ)
+         return None
+     if kind == "MinTypMaxExpression":
+         return _convert_min_typ_max(sm, expression)
+@@ -21026,8 +21028,16 @@
+         if op in ("Predecrement", "Postdecrement"):
+             return -1
+         return None
+-    if kind != "AssignmentExpression" or getattr(step, "op", None) is not None:
++    if kind != "AssignmentExpression":
+         return None
++    if getattr(step, "op", None) is not None:
++        if not _sym_same_symbol(getattr(step, "left", None), symbol):
++            return None
++        _amt = _literal_integral_value(getattr(step, "right", None))
++        _o = str(getattr(step, "op", "")).split(".")[-1]
++        if _amt is None or _amt <= 0:
++            return None
++        return _amt if _o in ("Add", "Plus") else (-_amt if _o in ("Subtract", "Minus") else None)
+     if not _sym_same_symbol(getattr(step, "left", None), symbol):
+         return None
+     rhs = getattr(step, "right", None)
+@@ -21056,10 +21066,23 @@
+     point and silently becoming stale at another point.
+     """
+     loop_vars = list(getattr(statement, "loopVars", ()))
+-    if len(loop_vars) != 1:
++    _inits = list(getattr(statement, "initializers", ()))
++    if len(loop_vars) == 0 and len(_inits) == 1 and type(_inits[0]).__name__ == "AssignmentExpression":
++        _l = _inits[0].left
++        while type(_l).__name__ == "ConversionExpression":
++            _l = _l.operand
++        if type(_l).__name__ == "NamedValueExpression":
++            symbol = _l.symbol
++            initial = _literal_integral_value(_inits[0].right)
++            if os.environ.get("HACK_ITERS"):
++                open(os.environ["HACK_ITERS"], "a").write(symbol.name + "\n")
++        else:
++            return None
++    elif len(loop_vars) != 1:
+         return None
+-    symbol = loop_vars[0]
+-    initial = _literal_integral_value(getattr(symbol, "initializer", None))
++    else:
++        symbol = loop_vars[0]
++        initial = _literal_integral_value(getattr(symbol, "initializer", None))
+     if initial is None:
+         return None
+     condition = getattr(statement, "stopExpr", None)
+@@ -22578,6 +22601,23 @@
+ 
+ def _convert_compound_assignment(sm, expression, span_node=None):
+     """IEEE 11.4.1: capture selectors once and retain the bound RMW tree."""
++    if (_SYM is not None and not expression.isNonBlocking
++            and BINARY_OPS.get(expression.op) in
++            ("+", "-", "*", "&", "|", "^", "<<", ">>")):
++        global _COMPOUND_READ
++        _lhs = expression.left
++        _tgt, _adm = legacy_blocking_target(sm, _lhs, True)
++        if _adm and _tgt.get("kind") in ("Ident", "SelectTarget", "BitSel", "PartSel", "ArraySel"):
++            _read = convert_expr(sm, _lhs)
++            _prev = _COMPOUND_READ
++            _COMPOUND_READ = _read
++            try:
++                _val = convert_expr(sm, _compound_rhs(expression.right))
++            finally:
++                _COMPOUND_READ = _prev
++            if _val is not None and _val.get("kind") != "Unsupported":
++                return {"kind": "BlockingAssign", "span": node_span(sm, span_node or expression),
++                        "target": _tgt, "value": _val, "compound_desugared": True}
+     if (_SYM is not None or expression.isNonBlocking
+             or BINARY_OPS.get(expression.op) not in
+             ("+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>", "<<<", ">>>")):

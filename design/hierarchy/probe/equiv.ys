@@ -1,0 +1,12 @@
+# WP-I probe: the hierarchical multiplier is the array multiplier of tasks/mul/reference/mul_n.sv (N = 6).
+# Run from the repository root:  yosys -q -s svgolf/design/hierarchy/probe/equiv.ys   (silent = proved)
+read_verilog -sv svgolf/design/hierarchy/probe/mul_h.sv
+read_verilog -sv svgolf/tasks/mul/reference/mul_n.sv
+chparam -set N 6 mul_h
+chparam -set N 6 mul_n
+hierarchy -check
+proc
+flatten
+miter -equiv -flatten -make_assert mul_h mul_n miter
+hierarchy -top miter
+sat -verify -prove-asserts -show-ports miter

@@ -1,0 +1,29 @@
+# svGolf PPA flow A1' (WP-X4): REAL TECHNOLOGY MAPPING of the pinned canonical RTLIL onto sky130_fd_sc_hd. Do not edit: a
+# change here is a change to every mapped number (ppa.py records this file's sha256 as `ppa_mapped_script_sha256` and
+# the version in ppa_mapped_pins.json must change with it). It runs in a FRESH Yosys process (like svgolf.ys) on the canonical
+# RTLIL that stage 1 of the pinned flow (canon.ys) wrote: the very text `svgolf.ys` reads, so layout and renaming noise are
+# zero here as in the default score.
+#
+#   @RTLIL@    the canonical RTLIL (score.py's `rtlil_out`)
+#   @TOP@      the task's top module
+#   @LIBERTY@  the pinned liberty file (ppa.py checks its sha256 before this script runs)
+#   @NETLIST@  output file: the mapped netlist, one sky130 cell instance per gate (`write_verilog -noattr -noexpr`)
+#
+# The ABC script, spelled out (Yosys replaces the commas of `-script +...` by spaces):
+#     strash; &get -n; &fraig -x; &put; scorr; dc2; dretime; strash; &get -n; &dch -f; &nf; &put
+# It is Yosys 0.53's own default script for `abc -liberty` without `-constr` (the default is written out so that a later
+# Yosys cannot change it silently; omitting `-script` gives a byte-identical netlist, checked on all 24 designs of
+# score/tests/ppa/designs.json and idioms.json).
+# The delay-first mapper `&nf` chooses among ALL allowed cells and drive strengths; there is no `-constr`, no `-D` delay
+# target and no `buffer; upsize; dnsize` sizing pass (that is the `s` variant of design/ppa/sky130.md, which costs about
+# +5% area for -9% delay and is not the pinned one). `-dont_use` excludes, by glob, exactly the cells of the policy classes
+# of ppa.py (`POLICY`, every class but "logic": sequential, scan, latch, clock-tree, low-power-flow, physical-only,
+# tri-state, delay and multi-output cells, and the tie cell `conb_*`), so only ordinary combinational cells of every drive
+# strength (`_0` .. `_16`, buf/inv, mux4, xor3, maj3, ...) can appear; ppa.py enforces the same policy again on the mapped
+# netlist. No `hilomap`: constants stay literals in the netlist and ppa.py prices ONE `conb_1` per module if any
+# constant is used (the A0' policy of ppa_pins.json), so both flows treat constants alike.
+read_rtlil @RTLIL@
+synth -flatten -top @TOP@
+abc -liberty @LIBERTY@ -dont_use sky130_fd_sc_hd__lpflow_* -dont_use sky130_fd_sc_hd__fill_* -dont_use sky130_fd_sc_hd__decap_* -dont_use sky130_fd_sc_hd__tap* -dont_use sky130_fd_sc_hd__diode_* -dont_use sky130_fd_sc_hd__probe* -dont_use sky130_fd_sc_hd__macro_sparecell* -dont_use sky130_fd_sc_hd__df* -dont_use sky130_fd_sc_hd__sdf* -dont_use sky130_fd_sc_hd__edf* -dont_use sky130_fd_sc_hd__sedf* -dont_use sky130_fd_sc_hd__dlr* -dont_use sky130_fd_sc_hd__dlx* -dont_use sky130_fd_sc_hd__dlclkp_* -dont_use sky130_fd_sc_hd__sdlclkp_* -dont_use sky130_fd_sc_hd__dly* -dont_use sky130_fd_sc_hd__clk* -dont_use sky130_fd_sc_hd__ebufn_* -dont_use sky130_fd_sc_hd__einvn_* -dont_use sky130_fd_sc_hd__einvp_* -dont_use sky130_fd_sc_hd__fa_* -dont_use sky130_fd_sc_hd__fah* -dont_use sky130_fd_sc_hd__ha_* -dont_use sky130_fd_sc_hd__conb_* -script +strash;,&get,-n;,&fraig,-x;,&put;,scorr;,dc2;,dretime;,strash;,&get,-n;,&dch,-f;,&nf;,&put
+opt_clean -purge
+write_verilog -noattr -noexpr @NETLIST@

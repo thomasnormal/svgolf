@@ -1,0 +1,1626 @@
+#!/usr/bin/env python3.12
+"""svGolf post-synthesis simulation check: ls-sv and the SCORED netlist agree.
+
+The proof is about ls-sv's reading of the design (the envelope the checker's
+`extract` stage wrote, `design.sem` of `load_design_sv2`); the score is about
+the gate netlist the pinned Yosys + ABC flow produced from the same canonical
+text. The source gate makes the two tools read one text, but it cannot make
+them give that text one meaning: where they differ (4-state `x`/`z` in case
+items, `===`, undriven nets, a synthesis don't-care, a Yosys or ls-sv bug),
+the proved circuit and the scored circuit are two circuits. This stage
+compares them vector by vector at the scoring point and rejects the
+submission when they differ anywhere it looks. Its VERDICT does not compare
+against the task's function: the proof already ties ls-sv's reading to it. (An
+ADVISORY smoke check does, below: "FUNCTIONAL SMOKE CHECK".)
+
+  ls-sv     `svgolf-eval` (`check/SvEval.lean`, built in the `trusted`
+            stage): `design.sem` at the point, one fresh one-cycle `run2`
+            per vector under `σ_src` and under `σ_rev`;
+  netlist   Verilator (`verilator --cc --build`, one C++ model per run) on the
+            netlist the scoring run itself wrote (`score/svgolf.ys`'s last
+            line, after `stat` and `ltp`) plus Yosys's `simcells.v`, driven by
+            a small generated C++ harness that reads ALL the vectors and
+            prints one row per vector; first, a fresh Yosys process re-reads
+            that netlist and must count exactly the scored gates by type and
+            the scored depth (so the file simulated IS the netlist scored);
+  RTL       (bug report only) Verilator on the canonical source at the point,
+            a third opinion for the first REPORT_MAX failing vectors.
+
+TWO-STATE NETLIST SIMULATION. Verilator has no `x` and no `z`: every signal is
+0 or 1, so this stage CANNOT SEE an unknown value inside the netlist. (The
+earlier Icarus version printed `x` through it; that is lost, and this says
+what stands in its place.) A netlist of Yosys's gate cells (`simcells.v`:
+`assign Y = A & B;`, `assign Y = S ? B : A;`, each a total Boolean function)
+driven by known inputs can only hold an unknown through an unknown-valued
+CONSTANT or an UNDRIVEN net or pin, and both are refused here:
+  * the netlist text is scanned for an unknown digit in a sized literal
+    (`1'hx`, `4'bz0`): such a netlist is REJECTED on every vector (what the
+    4-state run did by printing `x`), the bug report still showing what a
+    2-state model reads (Verilator gets `--x-assign 0 --x-initial 0` and
+    `randReset(0)`, so an unknown it is handed is a fixed 0, never an
+    unspecified value);
+  * Verilator's lint runs with `-Wall`, every warning FATAL but the two in
+    `NETLIST_WNO`: an undriven net (UNDRIVEN), a gate pin left open
+    (PINMISSING, PINCONNECTEMPTY), a doubly driven net (MULTIDRIVEN), a
+    combinational loop (UNOPTFLAT), a width mismatch and an unknown cell all
+    reject;
+  * the defences upstream stay what they were: the source gate refuses every
+    x/z literal source, the `fourstate` stage refuses undriven or conflicting
+    nets, loops and out-of-range selects, and ls-sv's side of this stage stays
+    4-state, so an `x`/`z` in ls-sv's outputs still rejects.
+What the 2-state model cannot give is a witness for an unknown that the
+netlist computes on its own from known inputs and driven nets; with Yosys
+gate cells there is none to find. A sequential cell (a latch, a flip-flop) is
+refused earlier, by the score (README.md, "Scoring").
+
+BUILD AND RUN. The model is built once per run (`verilator --cc` then `make`,
+about 1.5 s for the runtime plus the model; no compiler cache), concurrently
+with ls-sv's evaluation, from the netlist, `simcells.v` and a generated C++
+harness. The harness reads every vector of one file, `eval()`s the model per
+vector and prints one row of binary strings per vector, then `END <rows>`; a
+nonzero exit, a missing or wrong end marker, a different number of rows than
+vectors, or a row of the wrong shape rejects. A failure of the C++ build
+itself (not of the lint) is an infrastructure error: the toolchain, not the
+design, is broken. About 0.4 microseconds per vector on the 1400-gate
+netlists, so the netlist side no longer limits the vector budget: ls-sv's
+`run2` does.
+
+VECTORS, all deterministic (fully known 0/1 inputs, duplicates dropped):
+  fixed     all-0, all-1, and walking ones and walking zeros on each input
+            with the other inputs all-0 and all-1;
+  corners   the task's `postsynth.corners` (`{port: [values]}`), their
+            cartesian product (a port without values: 0 and all-1);
+  harvest   every comparison cell (`$eq $ne $eqx $nex $lt $le $gt $ge`) of
+            Yosys's coarse design (`proc; flatten; opt -purge`) with a
+            constant operand gives a partial input assignment from the
+            constant's 0/1 bits (x/z bits stay free): the exact bits when the
+            other operand is input-port bits, else the constant on every
+            input wide enough; each assignment, and each
+            compatible pair (up to `harvest_pairs`), with the free bits
+            all-0, all-1 and random twice: a disagreement confined to a
+            region selected by a constant comparison
+            (`a[7:0] == 8'hEF && b == 16'h1234`) is hit although random
+            vectors would hit it with probability 2^-24;
+  random    `postsynth.random` vectors from a PRNG seeded with
+            sha256(salt, task, point, canonical text); the salt is
+            $SVGOLF_POSTSYNTH_SALT (default empty: anyone can reproduce a
+            run; a competition sets a secret salt so that a player cannot
+            predict the vectors). The seed is recorded.
+
+TWO MODES (WP-C2, 10/30): the check runs LIGHT (the default) or FULL.
+  full   everything above, exactly: the task's whole budget (the fixed
+         vectors, the task corners, every harvested constant and compatible
+         pair, `postsynth.random` random vectors). What a competition and
+         the leaderboard's `add` / `verify` run, and what `tests/run.py`
+         pins; it is the only mode a record may be official in.
+  light  a deterministic SUBSET of the full vector set, for local feedback
+         (`check.py`'s default): all-0 and all-1, plus at most Q = (L - 2) / 4
+         vectors from each of four classes, L = `postsynth.light_vectors`
+         (default 256): the walking ones/zeros (evenly spaced), the task
+         corners (evenly spaced), the harvested constants (the 0 and 1 fills
+         of each constant's assignment, then of the pairs), and the seeded
+         random vectors (the FIRST of the full stream, and everything the
+         other classes leave unused). Everything else is the same code and the
+         same verdicts: the netlist read-back, the unknown-literal scan,
+         Verilator's lint, the x/z, schedule and port checks, the bug report
+         with its Verilator-RTL third opinion (built only to illustrate a
+         rejection, in either mode). Because the light set is a subset of the
+         full one with the same seed, a light rejection is a full rejection;
+         what light can miss is a difference that only the dropped vectors
+         reach. The mode ($SVGOLF_POSTSYNTH or `check.py --postsynth`, the
+         flag wins, default light), the vector counts of both modes
+         (`vectors`, `full_vectors`) and the seed are in the record.
+
+VERDICT (fail closed): the submission is REJECTED when an ls-sv run does not
+complete (timeout, unsupported, a bad trace), when any output digit is `x` or
+`z` on either side, when `σ_src` and `σ_rev` disagree, when the port sets
+(direction, name, width) differ, when the netlist does not re-read as the
+scored one, when the netlist has an unknown-valued constant, when Verilator
+cannot lint, compile or run it cleanly (any lint warning outside the waived
+list, a compile error, a nonzero exit, a harness that prints a different number
+of rows than there are vectors or no end marker), when the ls-sv evaluation
+overruns `postsynth.time_limit_s`, or when any output differs between ls-sv
+and the netlist. A missing tool (Verilator, a C++ compiler, `make`, Yosys,
+`svgolf-eval` not built) is an infrastructure error. A rejection carries a
+BUG REPORT: per failing vector the inputs, ls-sv's outputs, the netlist's,
+Verilator-on-RTL's, and which of the three agree.
+
+FUNCTIONAL SMOKE CHECK (ADVISORY; never a verdict). A task may name a Python
+ORACLE in its task.json (`"oracle": "oracle.py"`, a file of the task
+directory defining `oracle(params, inputs) -> outputs`: `params` the point
+this run uses, `inputs` port name -> int, the result output port name -> int
+already masked to the output width). The values ls-sv already computed for the
+vectors above are compared with the oracle's: no new simulator run. The
+result is the record's `functional` object
+
+    {"checked": K, "mismatches": M, "examples": [up to 3 of
+     {"point", "inputs", "expected", "got"}]}      (values as hex strings)
+
+plus `"unchecked": U` and `"note": why` when some vector could not be compared
+(ls-sv gave no known value for it, or the oracle raised, returned the wrong
+ports or an out-of-range value: those are never counted as mismatches), and
+check.py adds ONE `warnings` line when M > 0. It changes no verdict, no field
+and no stage: a design that computes something else than the task's function
+cannot be proved, and this tells a contestant so before the Lean error does.
+The oracles are NOT part of the trusted statement (SvGolf/Task.lean and
+tasks/*/Spec.lean are); a task without an oracle has no `functional` key.
+
+It is sampling, not proof: a disagreement confined to a rare input region
+not selected by a constant comparison can pass (README.md, "Rules").
+
+Standalone (research, baselines; the checker calls `run` itself):
+
+    python3.12 check/postsynth.py --task tasks/<name> DESIGN.sv [--point N=32]
+        [--mode light|full] [--random K] [--third-all] [--keep DIR] [--json OUT]
+
+gates the design, extracts it (`check/envelope.py`, with the point as the only
+probe point), scores it (`score/score.py`, keeping the netlist) and runs the
+check. Exit status 0 =
+agree, 1 = rejected (or the design is refused before the check), 2 =
+infrastructure error.
+"""
+
+import argparse
+import concurrent.futures
+import hashlib
+import itertools
+import json
+import os
+import random
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+sys.dont_write_bytecode = True
+HERE = os.path.dirname(os.path.abspath(__file__))
+SVGOLF = os.path.dirname(HERE)
+sys.path.insert(0, os.path.join(SVGOLF, "score"))
+sys.path.insert(0, HERE)
+import envelope  # noqa: E402
+import sandbox  # noqa: E402  (the scrubbed environment of every child process)
+import score  # noqa: E402
+
+SVEVAL = os.environ.get("SVGOLF_SVEVAL") or os.path.join(SVGOLF, ".lake", "build", "bin",
+                                                         "svgolf-eval")
+# Defaults of a task's `postsynth` block (README.md, the task.json table).
+DEFAULTS = {"random": 1000, "harvest_pairs": 2000, "fuel": 100000, "time_limit_s": 900,
+            "corners": {}, "light_vectors": 256}
+# The two modes (module docstring, "TWO MODES"). `light` is the default of
+# check.py and of this file's own command line; $SVGOLF_POSTSYNTH overrides it
+# and an explicit argument (check.py --postsynth, --mode here) overrides both.
+MODES = ("light", "full")
+DEFAULT_MODE = "light"
+MODE_ENV = "SVGOLF_POSTSYNTH"
+# The clocked kinds' block (`run_clocked`): `points` (None: the scoring point; check.py synthesizes
+# the others), per point `seeds` runs, each `reset_cycles` reset entries, `txns` generator items
+# and `tail` idle entries after the last transaction.
+CLOCKED_KINDS = ("seq-family", "tx-family", "stream-family")
+CLOCKED_DEFAULTS = {"points": None, "seeds": 3, "reset_cycles": 1, "txns": 24, "tail": 3,
+                    "fuel": 100000, "time_limit_s": 900}
+REPORT_MAX = 20      # failing vectors in the bug report (and simulated as RTL)
+CMP_CELLS = {"$eq", "$ne", "$eqx", "$nex", "$lt", "$le", "$gt", "$ge"}
+
+
+class Reject(Exception):
+    def __init__(self, msg, **info):
+        super().__init__(msg)
+        self.msg, self.info = msg, info
+
+
+class InfraError(Exception):
+    pass
+
+
+def resolve_mode(explicit=None, environ=None):
+    """The post-synthesis mode of a run: `explicit` (a flag) if given, else
+    $SVGOLF_POSTSYNTH (empty counts as unset), else `light`. Anything but
+    "light" or "full" is an error, never a silent default: a typo in the
+    variable a competition sets must not turn into the light check."""
+    env = os.environ if environ is None else environ
+    if explicit is not None:
+        src, val = "the postsynth mode argument", explicit
+    elif env.get(MODE_ENV, "") != "":
+        src, val = f"${MODE_ENV}", env[MODE_ENV]
+    else:
+        return DEFAULT_MODE
+    if val not in MODES:
+        raise InfraError(f"{src} is {val!r}, not one of {list(MODES)}")
+    return val
+
+
+def sha256_file(path):
+    with open(path, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def config(task):
+    base = CLOCKED_DEFAULTS if task.get("kind") in CLOCKED_KINDS else DEFAULTS
+    cfg = dict(base)
+    cfg.update({k: v for k, v in (task.get("postsynth") or {}).items() if not k.startswith("_")})
+    unknown = sorted(set(cfg) - set(base))
+    if unknown:
+        raise InfraError(f"task.json `postsynth` has unknown keys {unknown}")
+    if base is CLOCKED_DEFAULTS:
+        bad = [k for k in ("seeds", "reset_cycles", "txns", "tail")
+               if isinstance(cfg[k], bool) or not isinstance(cfg[k], int) or cfg[k] < (k != "tail")]
+        if bad or not isinstance(cfg["points"], (list, type(None))):
+            raise InfraError(f"task.json `postsynth`: {bad or ['points']} out of range")
+        return cfg
+    lv = cfg["light_vectors"]
+    if isinstance(lv, bool) or not isinstance(lv, int) or lv < 6:
+        raise InfraError(f"task.json `postsynth.light_vectors` must be an integer of at least 6, "
+                         f"got {lv!r}")
+    return cfg
+
+
+def tool(name):
+    p = shutil.which(name)
+    if not p:
+        raise InfraError(f"`{name}` is not on PATH (the postsynth stage needs Verilator 5, a C++ "
+                         "compiler, make and Yosys)")
+    return p
+
+
+def verilator_info():
+    """(verilator path, version line, VERILATOR_ROOT). Verilator 5 or newer is
+    required (the harness uses the 5.x model API); the version is recorded."""
+    exe = tool("verilator")
+    try:
+        ver = subprocess.run([exe, "--version"], capture_output=True, text=True, check=True,
+                             timeout=60, env=sandbox.scrubbed_env()).stdout.strip()
+        root = subprocess.run([exe, "--getenv", "VERILATOR_ROOT"], capture_output=True, text=True,
+                              check=True, timeout=60, env=sandbox.scrubbed_env()).stdout.strip()
+    except (subprocess.SubprocessError, OSError) as e:
+        raise InfraError(f"`verilator --version` failed: {e}")
+    m = re.match(r"Verilator (\d+)\.", ver)
+    if not m or int(m.group(1)) < 5:
+        raise InfraError(f"Verilator 5 or newer is required, found {ver!r}")
+    if not root or not os.path.isdir(root):
+        raise InfraError(f"Verilator's VERILATOR_ROOT {root!r} is not a directory")
+    return exe, ver, root
+
+
+def cxx_path():
+    """The C++ compiler Verilator's makefile will use (`c++` unless $CXX)."""
+    return tool(os.environ.get("CXX") or "c++")
+
+
+def simcells():
+    try:
+        dat = subprocess.run([tool("yosys-config"), "--datdir"], capture_output=True, text=True,
+                             check=True, env=sandbox.scrubbed_env()).stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise InfraError(f"`yosys-config --datdir` failed: {e}")
+    path = os.path.join(dat, "simcells.v")
+    if not os.path.isfile(path):
+        raise InfraError(f"no {path} (Yosys's simulation models of its gate cells)")
+    return path
+
+
+def trusted_files():
+    """What this stage executes or reads besides the submission: by content."""
+    return [SVEVAL, os.path.abspath(__file__), simcells()]
+
+
+def tool_paths():
+    """The simulator's files (by metadata, for check.py's integrity tripwire):
+    the Verilator scripts and binaries, its whole VERILATOR_ROOT (the runtime
+    sources and headers every model is compiled against), the C++ compiler and
+    make. Tools that are missing are left out; the stage itself reports them."""
+    out = []
+    for name in ("verilator", "verilator_bin"):
+        p = shutil.which(name)
+        if p:
+            out.append(os.path.realpath(p))
+    try:
+        out.append(verilator_info()[2])
+    except InfraError:
+        pass
+    for name in (os.environ.get("CXX") or "c++", "make"):
+        p = shutil.which(name)
+        if p:
+            out.append(os.path.realpath(p))
+            xc = shutil.which("xcrun")      # macOS: /usr/bin/c++ is a shim for the real one
+            if xc:
+                r = subprocess.run([xc, "--find", name], capture_output=True, text=True,
+                                   env=sandbox.scrubbed_env())
+                if r.returncode == 0 and r.stdout.strip():
+                    out.append(os.path.realpath(r.stdout.strip()))
+    return out
+
+
+# ---------------------------------------------------------------- the netlist
+
+def reread_check(netlist, top, sres, work):
+    """The written netlist IS the scored one: a fresh Yosys process reads it
+    (one gate instance per scored cell) with the cell models as a library and
+    must count exactly the scored gates by type, and the scored depth."""
+    d = os.path.join(work, "reread")
+    os.makedirs(d, exist_ok=True)
+    st, lt = os.path.join(d, "stat.json"), os.path.join(d, "ltp.txt")
+    try:
+        score.run_yosys(score.yosys_bin(), f'read_verilog "{netlist}"\n'
+                        f'read_verilog -lib "{simcells()}"\nhierarchy -top {top}\n'
+                        f'tee -q -o "{st}" stat -json\ntee -q -o "{lt}" ltp -noff\n', d,
+                        reads=[netlist, simcells()])
+        cells = score.parse_stat(st, top)
+        depth = score.parse_ltp(lt)
+    except score.ScoreError as e:
+        raise Reject(f"the scored netlist does not re-read: {e}")
+    got = {}
+    for c, n in cells.items():
+        m = re.fullmatch(r"\\?\$_(\w+?)_", c)
+        got[m.group(1) if m else c] = n
+    want = dict(sres["gates"])
+    # (a clocked netlist's flops re-read as library instances, which `ltp -noff` does not skip: its
+    # depth is cross-checked by the ppa stage instead, which must find the scored `ltp -noff` depth)
+    if got != want or (depth != sres["depth"] and sres.get("flow") != "seq"):
+        raise Reject(f"the netlist file does not re-read as the scored netlist: gates {got}, "
+                     f"depth {depth}; the score has gates {want}, depth {sres['depth']}")
+
+
+PORT_RE = re.compile(r"^\s*(input|output|inout)\s+(?:wire\s+|reg\s+)?(signed\s+)?"
+                     r"(?:\[(-?\d+):(-?\d+)\]\s*)?(\\\S+|[A-Za-z_][\w$]*)\s*;")
+
+
+def netlist_ports(netlist, top):
+    """{(direction, name, width)} of module `top` in Yosys's write_verilog output."""
+    with open(netlist) as fh:
+        txt = fh.read()
+    m = re.search(r"^module\s+\\?" + re.escape(top) + r"\s*\(", txt, re.M)
+    if not m:
+        raise Reject(f"the netlist has no module `{top}`")
+    end = txt.find("endmodule", m.start())
+    ports = set()
+    for ln in txt[m.start():end].splitlines():
+        pm = PORT_RE.match(ln)
+        if pm:
+            d, _, hi, lo, name = pm.groups()
+            w = abs(int(hi) - int(lo)) + 1 if hi is not None else 1
+            ports.add((d, name.lstrip("\\"), w))
+    if any(d == "inout" for d, _, _ in ports):
+        raise Reject("the netlist has an inout port (a combinational task has inputs and outputs)")
+    return ports
+
+
+# ---------------------------------------------------------------- vectors
+
+def fixed_vectors(ins, corners):
+    """all-0, all-1, walking ones/zeros (the others all-0 / all-1), task corners."""
+    full = {n: (1 << w) - 1 for n, w in ins}
+    zero = {n: 0 for n, _ in ins}
+    vs = [dict(zero), dict(full)]
+    for n, w in ins:
+        for b in range(w):
+            for base in (zero, full):
+                v1 = dict(base)
+                v1[n] = 1 << b
+                v0 = dict(base)
+                v0[n] = full[n] ^ (1 << b)
+                vs += [v1, v0]
+    nfixed = len(vs)
+    unknown = sorted(set(corners) - set(full))
+    if unknown:
+        raise InfraError(f"task.json `postsynth.corners` names {unknown}, not input ports")
+    if corners:
+        lists = [[int(x, 0) if isinstance(x, str) else int(x) for x in corners[n]]
+                 if n in corners else [0, full[n]] for n, _ in ins]
+        for combo in itertools.product(*lists):
+            vs.append({n: v & full[n] for (n, _), v in zip(ins, combo)})
+    return vs, nfixed
+
+
+# The fills of one harvested assignment, in the order `harvest_vectors` lists
+# them: the free bits all-0, all-1, random, random. The light mode keeps the
+# first two (`light_select`).
+HARVEST_FILLS = ("0", "1", "r", "r")
+
+
+def harvest_vectors(canon_sv, top, params, ins, work, rng, cap_pairs):
+    """Vectors from the comparison constants of Yosys's coarse design (see the
+    module docstring): `len(HARVEST_FILLS)` consecutive vectors per distinct
+    assignment, the single assignments first, then the compatible pairs.
+    Returns (vectors, number of distinct assignments)."""
+    chp = "".join(f" -chparam {k} {v}" for k, v in params.items())
+    d = os.path.join(work, "harvest")
+    os.makedirs(d, exist_ok=True)
+    js = os.path.join(d, "coarse.json")      # inside the one directory the sandboxed Yosys may write
+    try:
+        score.run_yosys(score.yosys_bin(), f'read_verilog -sv "{canon_sv}"\n'
+                        f'hierarchy -check -top {top}{chp}\nproc\nflatten\nopt -purge\n'
+                        f'write_json "{js}"\n', d, reads=[canon_sv])
+    except score.ScoreError as e:
+        raise Reject(f"Yosys cannot build the coarse design for constant harvesting: {e}")
+    with open(js) as fh:
+        mods = json.load(fh)["modules"]
+    mod = mods.get(top) or next((m for k, m in mods.items() if k.lstrip("\\") == top), None)
+    if mod is None:
+        raise Reject(f"the coarse design has no module `{top}`")
+    width = dict(ins)
+    bitmap = {}
+    for pn, pd in mod["ports"].items():
+        if pd["direction"] == "input" and pn in width:
+            for i, b in enumerate(pd["bits"]):
+                bitmap[b] = (pn, i)
+    assigns = []
+    for c in mod["cells"].values():
+        if c["type"] not in CMP_CELLS:
+            continue
+        a, b = c["connections"].get("A", []), c["connections"].get("B", [])
+        for k, o in ((a, b), (b, a)):
+            # A constant operand: every bit a string. Its 0/1 bits are the
+            # assignment; an x/z bit (a don't-care to Yosys) leaves that input
+            # bit free, so a comparison against `32'hDEAD_BEEz` still steers
+            # vectors into the 2^-28 region it selects.
+            if k and all(isinstance(x, str) for x in k) and any(x in ("0", "1") for x in k):
+                val = [int(x) if x in ("0", "1") else None for x in k]     # LSB first
+                if o and all(x in bitmap for x in o):
+                    asg = {}
+                    for x, v in zip(o, val):
+                        if v is not None:
+                            pn, i = bitmap[x]
+                            asg.setdefault(pn, {})[i] = v
+                    assigns.append(asg)
+                else:
+                    for pn, w in ins:
+                        assigns.append({pn: {i: v for i, v in enumerate(val[:w])
+                                             if v is not None}})
+    uniq = []
+    for a in assigns:
+        if a not in uniq:
+            uniq.append(a)
+
+    def fill(asg):
+        out = []
+        for mode in HARVEST_FILLS:
+            v = {}
+            for pn, w in ins:
+                base = 0 if mode == "0" else ((1 << w) - 1 if mode == "1" else rng.getrandbits(w))
+                for i, bit in asg.get(pn, {}).items():
+                    base = (base & ~(1 << i)) | (bit << i)
+                v[pn] = base
+            out.append(v)
+        return out
+
+    vecs, pairs = [], 0
+    for a in uniq:
+        vecs += fill(a)
+    for i in range(len(uniq)):
+        for j in range(i + 1, len(uniq)):
+            if pairs >= cap_pairs:
+                break
+            m, ok = {pn: dict(dd) for pn, dd in uniq[i].items()}, True
+            for pn, dd in uniq[j].items():
+                for bit, v in dd.items():
+                    if m.setdefault(pn, {}).get(bit, v) != v:
+                        ok = False
+                    m[pn][bit] = v
+            if ok:
+                vecs += fill(m)
+                pairs += 1
+    return vecs, len(uniq)
+
+
+def spread(items, n):
+    """At most `n` of `items`, evenly spaced, the first one always kept."""
+    if n <= 0:
+        return []
+    if len(items) <= n:
+        return list(items)
+    return [items[i * len(items) // n] for i in range(n)]
+
+
+def light_select(fixed, nfixed, harvest, nuniq, rand, total):
+    """The LIGHT vector set (module docstring, "TWO MODES"): a deterministic
+    subset of `fixed + harvest + rand`, at most `total` vectors before the
+    duplicates drop. `fixed` is `fixed_vectors`' list (`nfixed` generic
+    vectors, all-0 and all-1 first, then the task corners), `harvest` is
+    `harvest_vectors`' list with `nuniq` single assignments, `rand` the full
+    random stream. Returns (vectors, counts), counts = the vectors taken per
+    class (`fixed`, `task_corners`, `harvest_vectors`, `random`)."""
+    base = fixed[:2]
+    quota = max(1, (total - len(base)) // 4)
+    walking = spread(fixed[2:nfixed], quota)
+    corners = spread(fixed[nfixed:], quota)
+    f = len(HARVEST_FILLS)
+    blocks = len(harvest) // f
+
+    def zero_one(rng):
+        return [harvest[b * f + j] for b in rng for j in (0, 1)]
+
+    hv = spread(zero_one(range(min(nuniq, blocks))), quota)
+    if len(hv) < quota:
+        hv += spread(zero_one(range(nuniq, blocks)), quota - len(hv))
+    k = max(0, total - len(base) - len(walking) - len(corners) - len(hv))
+    rnd = rand[:k]
+    counts = {"fixed": len(base) + len(walking), "task_corners": len(corners),
+              "harvest_vectors": len(hv), "random": len(rnd)}
+    return base + walking + corners + hv + rnd, counts
+
+
+def dedup(ins, vecs):
+    seen, out = set(), []
+    for v in vecs:
+        k = tuple(v[n] for n, _ in ins)
+        if k not in seen:
+            seen.add(k)
+            out.append(v)
+    return out
+
+
+# ---------------------------------------------------------------- evaluators
+
+def lssv_eval(envl, point_s, ins, vecs, fuel, work, deadline, trace=False):
+    if not os.path.isfile(SVEVAL):
+        raise InfraError(f"{SVEVAL} is not built (`lake build svgolf-eval`, part of check.py's "
+                         "trusted stage)")
+    ld = os.path.join(work, "lssv")        # the one directory the sandboxed evaluator may write
+    os.makedirs(ld, exist_ok=True)
+    vp, op = os.path.join(ld, "lssv.vec"), os.path.join(ld, "lssv.out")
+    with open(vp, "w") as fh:
+        for v in vecs:
+            fh.write(" ".join(f"{n}={v[n]:x}" for n, _ in ins) + "\n")
+    t0 = time.time()
+    try:
+        p = sandbox.run([SVEVAL] + ["--trace"] * trace + [envl, point_s, vp, op, str(fuel)],
+                        sandbox.exec_spec(SVEVAL, read=[os.path.dirname(os.path.abspath(envl)), ld], write=[ld],
+                                          label="svgolf-eval"),
+                        env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None,
+                        cwd=ld, timeout=max(1.0, deadline - time.time()), kind="tool", label="svgolf-eval")
+    except subprocess.TimeoutExpired:
+        raise Reject(f"the ls-sv evaluation of {len(vecs)} vectors did not finish within the "
+                     "task's `postsynth.time_limit_s` (fail closed)")
+    el = time.time() - t0
+    if p.returncode != 0:
+        msg = (p.stderr + p.stdout).strip()[-2000:]
+        # Without vectors, svgolf-eval still prints the instantiated design's
+        # header: an unsupported construct can leave it without the ports.
+        ep, eo = os.path.join(ld, "lssv.empty.vec"), os.path.join(ld, "lssv.empty.out")
+        open(ep, "w").close()
+        q = sandbox.run([SVEVAL, envl, point_s, ep, eo],
+                        sandbox.exec_spec(SVEVAL, read=[os.path.dirname(os.path.abspath(envl)), ld], write=[ld],
+                                          label="svgolf-eval"),
+                        env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None,
+                        cwd=ld, timeout=60, kind="tool", label="svgolf-eval")
+        head = open(eo).read() if q.returncode == 0 and os.path.isfile(eo) else ""
+        if "unsupported=true" in head:
+            raise Reject("ls-sv does not support this design: it loads with an unsupported "
+                         f"node ({head.splitlines()[-2] if len(head.splitlines()) > 1 else head}"
+                         f"), and svgolf-eval cannot run it ({msg[-300:]}). This is an ls-sv "
+                         "limit, not a disagreement: no proof about such a design can hold. "
+                         "Rewrite it without the construct, or add the construct to ls-sv by "
+                         "PR (README.md, \"Rules\").")
+        raise Reject("ls-sv cannot evaluate the design at the scoring point: " + msg)
+    ports, rows, design, timing = set(), {}, None, None
+    with open(op) as fh:
+        for ln in fh:
+            f = ln.split()
+            if not f:
+                continue
+            if f[0] == "PORT":
+                ports.add(({"in": "input", "out": "output"}[f[2]], f[1], int(f[3])))
+            elif f[0] == "DESIGN":
+                design = ln.strip()
+            elif f[0] == "TIME":
+                timing = ln.strip()
+            elif f[0] == "V":
+                bar = f.index("|")
+                rows[int(f[1])] = (dict(x.split("=", 1) for x in f[2:bar]),
+                                   dict(x.split("=", 1) for x in f[bar + 1:]))
+            elif f[0] == "E":
+                rows[int(f[1])] = ("ERROR", " ".join(f[2:]))
+    return ports, [rows.get(i, ("ERROR", "no result")) for i in range(len(vecs))], design, \
+        timing, el
+
+
+# Verilator's lint is run with -Wall and every warning FATAL, minus these two,
+# each of which cannot change a value the harness reads. Everything else
+# rejects (measured on mutated netlists, 2026-10-29: UNDRIVEN, PINMISSING,
+# PINCONNECTEMPTY, MULTIDRIVEN, UNOPTFLAT, WIDTHTRUNC, an unknown cell): a net
+# or a pin nothing drives would be a silent 0 in a 2-state simulator.
+NETLIST_WNO = (
+    # the netlist is `netlist.v` and the cell library `simcells.v`: neither
+    # file is named after its modules, and `\$_AND_ ` could not be a file name
+    "DECLFILENAME",
+    # a design that never reads some input bit: the bit exists, nothing
+    # depends on it (a mutated netlist that drops all uses of `a[15]` is
+    # otherwise rejected)
+    "UNUSEDSIGNAL",
+)
+# The RTL third opinion is the PLAYER'S source; any construct Verilator
+# accepts at all (with warnings) is simulated, because it never decides the
+# verdict, only illustrates a rejection.
+RTL_FLAGS = ("-Wno-fatal", "-Wno-lint", "-Wno-style", "-Wno-DECLFILENAME")
+# Deterministic two-state values for everything Verilog leaves unknown.
+VL_X_FLAGS = ("--x-assign", "0", "--x-initial", "0")
+# One C++ file per run is small (the 1400-gate netlists compile in seconds);
+# -O1 keeps the model fast without the long compile of -Os/-O3. No compiler
+# cache is used (OBJCACHE is emptied below): every run builds from source.
+VL_CFLAGS = "-O1"
+VL_JOBS = os.environ.get("SVGOLF_VERILATOR_JOBS", "2")
+VL_PREFIX = "VNET"
+# Sized literals with an unknown digit (`1'hx`, `4'bz0`, `'bx`): an unknown
+# VALUE in the netlist, which a 2-state simulator would silently turn into a
+# 0 or 1.
+UNKNOWN_LITERAL = re.compile(r"(?<![\w$])\d*\s*'[sS]?[bBoOdDhH]\s*[0-9a-fA-F_]*[xXzZ?]")
+
+HARNESS = r"""// generated by check/postsynth.py -- the Verilator harness of one postsynth run
+#include "%(prefix)s.h"
+#include "verilated.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <type_traits>
+
+// A hex token as little-endian 32-bit words. False unless it is hex and has no
+// bit at or above `width`.
+static bool parse_hex(const char* s, uint32_t* w, int nw, int width) {
+  for (int i = 0; i < nw; ++i) w[i] = 0;
+  const size_t n = strlen(s);
+  if (n == 0) return false;
+  for (size_t i = 0; i < n; ++i) {
+    const char c = s[n - 1 - i];
+    unsigned v;
+    if (c >= '0' && c <= '9') v = c - '0';
+    else if (c >= 'a' && c <= 'f') v = c - 'a' + 10;
+    else if (c >= 'A' && c <= 'F') v = c - 'A' + 10;
+    else return false;
+    if (v == 0) continue;
+    if (4 * i >= (size_t)nw * 32) return false;
+    w[i / 8] |= v << (4 * (i %% 8));
+  }
+  for (int b = width; b < nw * 32; ++b)
+    if ((w[b / 32] >> (b %% 32)) & 1) return false;
+  return true;
+}
+
+static void put_bits(std::string& out, const uint32_t* w, int width) {
+  for (int b = width - 1; b >= 0; --b) out += ((w[b / 32] >> (b %% 32)) & 1) ? '1' : '0';
+}
+
+int main(int argc, char** argv) {
+  if (argc != 2) { fprintf(stderr, "usage: harness VECTORS\n"); return 2; }
+  FILE* fp = fopen(argv[1], "r");
+  if (!fp) { fprintf(stderr, "cannot open %%s\n", argv[1]); return 2; }
+  const std::unique_ptr<VerilatedContext> ctx{new VerilatedContext};
+  ctx->randReset(0);
+  const std::unique_ptr<%(prefix)s> top{new %(prefix)s{ctx.get(), "TOP"}};
+  char tok[4096];
+  std::string out;
+  long rows = 0;
+  for (;;) {
+%(read)s
+%(set)s
+    top->eval();
+%(print)s
+    out += '\n';
+    ++rows;
+    if (out.size() > (1u << 20)) { fwrite(out.data(), 1, out.size(), stdout); out.clear(); }
+  }
+  fwrite(out.data(), 1, out.size(), stdout);
+  printf("END %%ld\n", rows);
+  top->final();
+  return 0;
+}
+"""
+
+
+def ccode_ident(name):
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        raise Reject(f"the port name `{name}` is not a plain identifier (the Verilator harness "
+                     "reads ports by their C++ member names)")
+    return name
+
+
+def harness_cpp(ins, outs, template=HARNESS, **extra):
+    """The C++ main of one run: read every vector (hex words per input, in the
+    order of `ins`), `eval()` the model, print one row of binary strings per
+    outputs in `outs` order, then `END <rows>`. A malformed or short vector is
+    exit status 3 (fail closed)."""
+    read, setl, prl = [], [], []
+    for k, (n, w) in enumerate(ins):
+        n = ccode_ident(n)
+        nw = max(1, (w + 31) // 32)
+        read.append(f"    uint32_t w_{n}[{nw}];\n"
+                    f"    {{ const int r = fscanf(fp, \"%4095s\", tok);\n"
+                    + ("      if (r == EOF) break;\n" if k == 0 else "")
+                    + f"      if (r != 1 || !parse_hex(tok, w_{n}, {nw}, {w})) {{ "
+                    f"fprintf(stderr, \"bad vector token for {n}\\n\"); return 3; }} }}")
+        ty = f"std::remove_reference_t<decltype(top->{n})>"
+        if w <= 32:
+            setl.append(f"    top->{n} = static_cast<{ty}>(w_{n}[0]);")
+        elif w <= 64:
+            setl.append(f"    top->{n} = static_cast<{ty}>(((uint64_t)w_{n}[1] << 32) | w_{n}[0]);")
+        else:
+            setl.append(f"    for (int i = 0; i < {nw}; ++i) top->{n}[i] = w_{n}[i];")
+    for k, (n, w) in enumerate(outs):
+        n = ccode_ident(n)
+        sep = "    out += ' ';\n" if k else ""
+        if w <= 64:
+            prl.append(f"{sep}    {{ const uint64_t v = (uint64_t)top->{n}; "
+                       f"const uint32_t ow[2] = {{(uint32_t)v, (uint32_t)(v >> 32)}}; "
+                       f"put_bits(out, ow, {w}); }}")
+        else:
+            prl.append(f"{sep}    put_bits(out, &top->{n}[0], {w});")
+    return template % {"prefix": VL_PREFIX, "read": "\n".join(read), "set": "\n".join(setl),
+                       "print": "\n".join(prl), **extra}
+
+
+def unknown_literal(netlist):
+    """The first unknown-valued constant in the netlist text, as a description,
+    or None. A 2-state simulator cannot tell it from a 0 or a 1, so `run`
+    rejects every vector of a netlist that has one (what the 4-state Icarus run
+    did by printing `x`), and still evaluates it to show the bug report."""
+    with open(netlist) as fh:
+        for no, ln in enumerate(fh, 1):
+            m = UNKNOWN_LITERAL.search(ln)
+            if m:
+                return f"the unknown-valued constant `{m.group(0).strip()}` (netlist line {no})"
+    return None
+
+
+def run_group(cmd, timeout, spec=None, label=None, **kw):
+    """`subprocess.run(capture_output, text)` that, on a timeout, kills the whole
+    process group (make's compilers, Verilator's perl) and not just the child,
+    so a stuck build leaves nothing running. Raises subprocess.TimeoutExpired.
+    With an active sandbox and a `spec` (check/sandbox) the command runs under it
+    and under the supervisor's limits (memory, output, file size)."""
+    if spec is not None and sandbox.policy().active:
+        return sandbox.run(cmd, spec, env=kw.get("env"), cwd=kw.get("cwd"), timeout=timeout, kind="tool",
+                           label=label)
+    kw.setdefault("env", sandbox.scrubbed_env())     # never the checker's own environment
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                         start_new_session=True, **kw)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        p.communicate()
+        raise
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
+def error_lines(text, limit=1500):
+    """The diagnostics of a build log: the lines that say error, or its tail."""
+    hits = [ln for ln in text.splitlines() if re.search(r"error|not found|no such|fatal", ln,
+                                                        re.IGNORECASE)]
+    return ("\n".join(hits) if hits else text.strip())[-limit:]
+
+
+def vl_env():
+    """Verilator's environment: no compiler cache, a fixed locale."""
+    env = sandbox.scrubbed_env()
+    env["OBJCACHE"] = ""
+    env["LC_ALL"] = "C"
+    return env
+
+
+def vl_build(srcs, top, params, ins, outs, work, tag, timeout, rtl=False, harness=None,
+             xflags=VL_X_FLAGS):
+    """Compile `srcs` (the netlist + cell models, or the RTL) with the harness
+    for `ins`/`outs` into one executable, in two steps. VERILATE
+    (`verilator --cc --exe`: parse, lint, translate to C++): a failure is
+    about the design, so it comes back as (None, seconds, error text) and the
+    caller rejects. COMPILE (`make`: clang on Verilator's own output and the
+    generated harness): a failure there says the toolchain is broken or out of
+    resources, not that the design is wrong, so it raises InfraError.
+    Returns (exe, seconds, None) on success."""
+    vl = verilator_info()[0]
+    cxx = cxx_path()
+    make = tool("make")
+    d = os.path.join(work, f"{tag}_vl")
+    shutil.rmtree(d, ignore_errors=True)
+    os.makedirs(d)
+    tb = os.path.join(d, "harness.cpp")
+    with open(tb, "w") as fh:
+        fh.write(harness_cpp(ins, outs) if harness is None else harness)
+    obj = os.path.join(d, "obj")
+    warn = list(RTL_FLAGS) if rtl else ["-Wall"] + [f"-Wno-{w}" for w in NETLIST_WNO]
+    cmd = ([vl, "--cc", "--exe", "--prefix", VL_PREFIX, "--top-module", top, "--Mdir", obj,
+            "--no-timing", "-CFLAGS", VL_CFLAGS] + list(xflags) + warn
+           + [f"-G{k}={v}" for k, v in params.items()] + [tb]
+           + [os.path.abspath(x) for x in srcs])
+    env = vl_env()
+    env["CXX"] = cxx
+    vspec = mspec = None
+    if sandbox.policy().active:        # WP-S: the translator and the C++ build read the sources, write `d`
+        env = sandbox.tool_env(d, {"OBJCACHE": "", "LC_ALL": "C", "CXX": cxx})
+        reads = [os.path.abspath(x) for x in srcs] + [d]
+        vspec = sandbox.tool_spec([vl], read=reads, write=[d], label="verilator")
+        mspec = sandbox.tool_spec([make, cxx], read=[d], write=[d], label="make (C++ build)")
+    t0 = time.time()
+    try:
+        c = run_group(cmd, timeout, spec=vspec, label="verilator", env=env, cwd=d)
+        if c.returncode != 0:
+            # the first diagnostics are the informative ones
+            return None, time.time() - t0, (f"verilator rejected it (exit {c.returncode}): "
+                                            + (c.stderr + c.stdout).strip()[:1500])
+        m = run_group([make, "-C", obj, "-f", f"{VL_PREFIX}.mk", "-j", VL_JOBS, VL_PREFIX],
+                      timeout, spec=mspec, label="make (C++ build)", env=env)
+    except subprocess.TimeoutExpired:
+        raise InfraError(f"building the Verilator model did not finish within {timeout:.0f}s")
+    el = time.time() - t0
+    exe = os.path.join(obj, VL_PREFIX)
+    if m.returncode != 0 or not os.path.isfile(exe):
+        raise InfraError("the C++ build of the Verilator model failed (toolchain, not design): "
+                         + error_lines(m.stderr + m.stdout))
+    return exe, el, None
+
+
+def vl_run(exe, ins, outs, vecs, work, tag, timeout):
+    """Run a compiled model on `vecs`: (rows [{name: binary string}], seconds,
+    None) or (None, seconds, error text). Fails closed on a nonzero exit, a
+    missing end marker or a row count / row shape that is not exactly the
+    vectors'."""
+    vp = os.path.join(work, f"{tag}.hex")
+    with open(vp, "w") as fh:
+        for v in vecs:
+            fh.write(" ".join(f"{v[n]:x}" for n, _ in ins) + "\n")
+    t0 = time.time()
+    try:
+        # the compiled model is code made from the submission (a `$system` in the RTL would run in it):
+        # it executes itself, reads the vector file and nothing else, starts nothing, writes nothing
+        r = run_group([exe, vp], timeout, spec=sandbox.exec_spec(exe, read=[vp], label="model"), label="model",
+                      env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None)
+    except subprocess.TimeoutExpired:
+        return None, time.time() - t0, f"the Verilator model did not finish within {timeout:.0f}s"
+    el = time.time() - t0
+    lines = r.stdout.splitlines()
+    end = lines[-1].split() if lines else []
+    rows = [ln.split() for ln in lines[:-1]]
+    widths = [w for _, w in outs]
+    if (r.returncode != 0 or end != ["END", str(len(vecs))] or len(rows) != len(vecs)
+            or any(len(x) != len(outs) or any(set(t) - set("01") or len(t) != w
+                                              for t, w in zip(x, widths)) for x in rows)):
+        return None, el, (f"the Verilator model printed {len(rows)} rows for {len(vecs)} vectors "
+                          f"(exit {r.returncode}, end marker {' '.join(end) or 'missing'}): "
+                          f"{(r.stdout[-300:] + r.stderr).strip()[-800:]}")
+    return [dict(zip([n for n, _ in outs], x)) for x in rows], el, None
+
+
+# ---------------------------------------------------------------- the check
+
+def has_xz(s):
+    return bool(re.search(r"[xzXZ]", s))
+
+
+# ---------------------------------------------------------------- the advisory oracle
+
+EXAMPLES_MAX = 3      # mismatching vectors listed in the `functional` object
+
+
+def load_oracle(task_dir, task):
+    """The task's advisory oracle: `(fn, None)`; `(None, None)` when the task
+    names none (or `task_dir` is unknown); `(None, why)` when it names one that
+    cannot be loaded. It is loaded when the check starts, before any submission
+    code runs, and a failure never raises: the check is advisory."""
+    name = task.get("oracle")
+    if not name or not task_dir:
+        return None, None
+    path = os.path.realpath(os.path.join(task_dir, name))
+    tdir = os.path.realpath(task_dir)
+    if os.path.commonpath([path, tdir]) != tdir or not os.path.isfile(path):
+        return None, f"the task's oracle {name!r} is not a file of the task directory"
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(f"svgolf_oracle_{task['name']}", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        fn = getattr(mod, "oracle", None)
+    except Exception as e:     # noqa: BLE001  (advisory: reported, never raised)
+        return None, f"the task's oracle {name!r} does not load: {type(e).__name__}: {str(e)[:150]}"
+    if task.get("kind") in CLOCKED_KINDS:
+        fn = mod       # the clocked check's evaluator: the module (`clocked_oracle`)
+    if not callable(fn) and fn is not mod:
+        return None, f"the task's oracle {name!r} defines no function `oracle(params, inputs)`"
+    return fn, None
+
+
+def clocked_oracle(oracle):
+    """The clocked check's evaluator from `load_oracle`'s pair: BINDING (check (ii)), so a missing
+    one, or one without `txns` and `good` (tx-family, stream-family) / `expect` (seq-family), is an
+    infrastructure error, never a pass."""
+    mod, why = oracle if oracle else (None, "the task names no oracle.py")
+    if mod is None or not all(callable(getattr(mod, f, None)) for f in ("txns",)):
+        raise InfraError(f"the clocked post-synthesis check needs the task's oracle.py with "
+                         f"`txns`: {why or 'it has none'}")
+    return mod
+
+
+def functional_check(oracle, params, point_s, ins, outs, vecs, lrows):
+    """The `functional` object (module docstring) of ls-sv's `lrows` on `vecs`
+    against `oracle` = `load_oracle`'s pair. Pure; never raises. Only a vector
+    on which ls-sv gave known values (σ_src) AND the oracle answered with
+    exactly the output ports, each an int below its width's range, is checked;
+    every other vector is `unchecked`, never a mismatch."""
+    fn, why = oracle
+    widths = dict(outs)
+    checked = mism = unchecked = 0
+    examples = []
+    note = why
+    if fn is None:
+        return {"checked": 0, "mismatches": 0, "examples": [], "unchecked": len(vecs),
+                "note": why or "no oracle"}
+    for v, lr in zip(vecs, lrows):
+        src = lr[0] if isinstance(lr, tuple) and lr and isinstance(lr[0], dict) else None
+        if src is None or any(o not in src or has_xz(src[o]) for o in widths):
+            unchecked += 1     # an ls-sv error or x/z: the stage's own verdicts report it
+            continue
+        try:
+            exp = fn(dict(params), dict(v))
+            if not isinstance(exp, dict) or set(exp) != set(widths):
+                raise ValueError(f"returned {sorted(exp) if isinstance(exp, dict) else exp!r}, "
+                                 f"expected the output ports {sorted(widths)}")
+            for o, w in widths.items():
+                if isinstance(exp[o], bool) or not isinstance(exp[o], int) \
+                        or not 0 <= exp[o] < (1 << w):
+                    raise ValueError(f"{o} = {exp[o]!r} is not an int below 2^{w}")
+        except Exception as e:     # noqa: BLE001  (an oracle fault is "unchecked")
+            unchecked += 1
+            note = note or f"the oracle failed on a vector: {type(e).__name__}: {str(e)[:150]}"
+            continue
+        got = {o: int(src[o], 2) for o in widths}
+        checked += 1
+        if got != exp:
+            mism += 1
+            if len(examples) < EXAMPLES_MAX:
+                examples.append({"point": point_s or "default",
+                                 "inputs": {n: hex(v[n]) for n, _ in ins},
+                                 "expected": {o: hex(exp[o]) for o, _ in outs},
+                                 "got": {o: hex(got[o]) for o, _ in outs}})
+    out = {"checked": checked, "mismatches": mism, "examples": examples}
+    if unchecked:
+        out["unchecked"] = unchecked
+    if note:
+        out["note"] = note
+    return out
+
+
+def functional_warning(functional):
+    """The ONE warning line for a `functional` object with mismatches (else None)."""
+    if not functional or not functional.get("mismatches"):
+        return None
+    e = functional["examples"][0]
+    diff = [o for o in e["expected"] if e["expected"][o] != e["got"][o]]
+    return ("functional: the design disagrees with the task's function on "
+            f"{functional['mismatches']} of {functional['checked']} vectors; first: "
+            + " ".join(f"{k}={v}" for k, v in e["inputs"].items())
+            + " expected " + " ".join(f"{o}={e['expected'][o]}" for o in diff)
+            + " got " + " ".join(f"{o}={e['got'][o]}" for o in diff)
+            + " (an advisory check: the Lean proof is the authority, but a design that "
+            "computes something else cannot have one)")
+
+
+def verdict3(lssv, net, rtl):
+    """Who agrees with whom, for the bug report."""
+    if rtl is None:
+        return "no third opinion"
+    if lssv is None:
+        return ("ls-sv gives no value; Verilator-RTL " + ("agrees" if rtl == net else "DISAGREES")
+                + " with the netlist")
+    if rtl == lssv and rtl != net:
+        return "Verilator-RTL agrees with ls-sv: Yosys reads the design differently"
+    if rtl == net and rtl != lssv:
+        return "Verilator-RTL agrees with the netlist: ls-sv reads the design differently"
+    if rtl == net == lssv:
+        return "all three agree on the values (an x/z or schedule issue)"
+    return "no two of ls-sv, the netlist and Verilator-RTL agree"
+
+
+def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, rng_salt=None,
+        random_count=None, oracle=None, mode=None):
+    """The postsynth check of the design `canon_sv` (the canonical text) whose
+    envelope is `envl` and whose scored netlist (score result `sres`) is
+    `netlist`, at `point` (default: the task's scoring point). Returns the
+    record; raises Reject (with the record in `.info["record"]`) or InfraError.
+    `oracle` is `load_oracle`'s pair: with one, the record gets the advisory
+    `functional` object (module docstring); it never changes the verdict.
+    `mode` is "light" or "full" (None: `resolve_mode`'s default); the record
+    says which ran (`mode`)."""
+    t_start = time.time()
+    cfg = config(task)
+    mode = resolve_mode(mode)
+    top = task["top"]
+    params = ({k: int(v) for k, v in task["scoring"]["params"].items()} if point is None
+              else dict(point))
+    point_s = envelope.point_str(params)
+    salt = os.environ.get("SVGOLF_POSTSYNTH_SALT", "") if rng_salt is None else rng_salt
+    with open(canon_sv, "rb") as fh:
+        canon = fh.read()
+    rec = {"point": point_s or "default", "envelope_sha256": sha256_file(envl),
+           "netlist_sha256": sha256_file(netlist), "sveval_sha256": sha256_file(SVEVAL)
+           if os.path.isfile(SVEVAL) else None, "salted": bool(salt), "fuel": cfg["fuel"],
+           "mode": mode}
+    deadline = t_start + float(cfg["time_limit_s"])
+    try:
+        _, rec["verilator"], _ = verilator_info()
+        cxx_path(), tool("make")
+        t0 = time.time()
+        reread_check(netlist, top, sres, work)
+        xlit = unknown_literal(netlist)
+        if xlit:
+            rec["netlist_unknown_constant"] = xlit
+        rec["t_reread_s"] = round(time.time() - t0, 2)
+        nports = netlist_ports(netlist, top)
+        ins = sorted((n, w) for d, n, w in nports if d == "input")
+        outs = sorted((n, w) for d, n, w in nports if d == "output")
+        if not ins or not outs:
+            raise Reject(f"the netlist has no {'inputs' if not ins else 'outputs'}: {nports}")
+        seed = hashlib.sha256(b"\0".join([salt.encode(), task["name"].encode(),
+                                          point_s.encode(), canon])).hexdigest()
+        rec["seed"] = seed
+        rng = random.Random(seed)
+        fixed, nfixed = fixed_vectors(ins, cfg["corners"])
+        t0 = time.time()
+        harvest, nh = harvest_vectors(canon_sv, top, params, ins, work, rng, cfg["harvest_pairs"])
+        rec["t_harvest_s"] = round(time.time() - t0, 2)
+        k = cfg["random"] if random_count is None else random_count
+        rand = [{n: rng.getrandbits(w) for n, w in ins} for _ in range(k)]
+        full_vecs = dedup(ins, fixed + harvest + rand)
+        rec["outputs"] = [n for n, _ in outs]
+        if mode == "full":
+            vecs = full_vecs
+            rec.update(vectors=len(vecs), fixed=nfixed, task_corners=len(fixed) - nfixed,
+                       harvested_constants=nh, harvest_vectors=len(harvest), random=k)
+        else:
+            # a subset of the full set (same seed, same stream): `light_select`
+            lv, counts = light_select(fixed, nfixed, harvest, nh, rand, int(cfg["light_vectors"]))
+            vecs = dedup(ins, lv)
+            rec.update(vectors=len(vecs), harvested_constants=nh, light_vectors=int(
+                cfg["light_vectors"]), **counts)
+        rec["full_vectors"] = len(full_vecs)
+        if mode == "light":
+            rec["full_counts"] = {"fixed": nfixed, "task_corners": len(fixed) - nfixed,
+                                  "harvest_vectors": len(harvest), "random": k}
+        # The model of the scored netlist is built while ls-sv evaluates (the
+        # build is a few seconds and does not depend on ls-sv's answer; the
+        # `finally` joins it, so nothing keeps writing into `work` after a
+        # rejection). The verdicts keep their order: ls-sv's come first.
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            build = pool.submit(vl_build, [netlist, simcells()], top, {}, ins, outs, work,
+                                "netlist", max(120.0, deadline - time.time()))
+            lports, lrows, design, timing, el = lssv_eval(envl, point_s, ins, vecs, cfg["fuel"],
+                                                          work, deadline)
+            rec.update(lssv_design=design, lssv_timing=timing, t_lssv_s=round(el, 2),
+                       lssv_ms_per_vector=round(1000 * el / len(vecs), 3))
+            errs = [r[1] for r in lrows if r[0] == "ERROR"]
+            if errs and len(errs) == len(lrows) and all(e.startswith("UNSUPPORTED") for e in errs):
+                rec["unsupported_runs"] = len(lrows)
+                raise Reject("ls-sv does not support this design: every one of the "
+                             f"{len(lrows)} runs is UNSUPPORTED ({errs[0][:300]}). This is an "
+                             "ls-sv limit, not a disagreement: the design uses a construct ls-sv "
+                             "cannot evaluate (the `design` stage loads such a design with an "
+                             "unsupported node, and no proof about it can hold). Rewrite it "
+                             "without the construct, or add the construct to ls-sv by PR "
+                             "(README.md, \"Rules\").")
+            if lports != nports:
+                raise Reject("the ports differ: ls-sv has " + str(sorted(lports - nports))
+                             + " where the netlist has " + str(sorted(nports - lports))
+                             + " (direction, name, width)")
+            if oracle is not None and (oracle[0] is not None or oracle[1] is not None):
+                try:
+                    rec["functional"] = functional_check(oracle, params, point_s, ins, outs, vecs,
+                                                         lrows)
+                except Exception as e:     # noqa: BLE001  (advisory: a fault here is no verdict)
+                    rec["functional"] = {"checked": 0, "mismatches": 0, "examples": [],
+                                         "unchecked": len(vecs),
+                                         "note": f"internal error: {type(e).__name__}: {e}"[:200]}
+            exe, el, err = build.result()
+        finally:
+            pool.shutdown(wait=True)
+        rec["t_netlist_build_s"] = round(el, 2)
+        if exe is None:
+            raise Reject(f"the scored netlist does not compile: {err}")
+        nrows, el, err = vl_run(exe, ins, outs, vecs, work, "netlist",
+                                max(60.0, deadline - time.time()))
+        rec["t_netlist_run_s"] = round(el, 3)
+        if nrows is None:
+            raise Reject(f"the scored netlist does not simulate: {err}")
+        bad = []
+        for i, (v, lr, nr) in enumerate(zip(vecs, lrows, nrows)):
+            why = []
+            if lr[0] == "ERROR":
+                why.append(f"ls-sv: {lr[1]}")
+            else:
+                src, rev = lr
+                if src != rev:
+                    why.append("ls-sv: σ_src and σ_rev disagree")
+                for o, _ in outs:
+                    if has_xz(src.get(o, "x")):
+                        why.append(f"ls-sv: {o} has x/z")
+                    if src.get(o) != nr[o]:
+                        why.append(f"{o}: ls-sv != netlist")
+            if xlit:     # the 2-state netlist shows 0/1 where the netlist says x
+                why.append(f"netlist: has {xlit}, read as a fixed 0 or 1 here")
+            if why:
+                bad.append((i, v, lr, nr, why))
+        rec["mismatches"] = len(bad)
+        rtl_model = {}
+
+        def rtl_eval(vs, tag, timeout):
+            """The RTL third opinion on `vs`: (rows or None, error). The model
+            is built once per run and reused."""
+            if "exe" not in rtl_model:
+                t1 = time.time()
+                try:
+                    exe, _, e = vl_build([canon_sv], top, params, ins, outs, work, "rtl",
+                                         timeout, rtl=True)
+                except Reject as r:
+                    exe, e = None, r.msg
+                rec["t_rtl_build_s"] = round(time.time() - t1, 2)
+                rtl_model.update(exe=exe, err=e)
+            if rtl_model["exe"] is None:
+                return None, rtl_model["err"]
+            rows, _, e = vl_run(rtl_model["exe"], ins, outs, vs, work, tag, timeout)
+            return rows, e
+
+        if third_all:
+            t0 = time.time()
+            rtl_all, err = rtl_eval(vecs, "rtl_all", max(60.0, deadline - time.time()))
+            rec["t_rtl_s"] = round(time.time() - t0, 2)
+            if rtl_all is None:
+                rec["verilator_rtl"] = err
+            else:
+                rec["lssv_vs_verilator_rtl"] = sum(1 for lr, rr in zip(lrows, rtl_all)
+                                                   if lr[0] == "ERROR" or lr[0] != rr)
+                rec["netlist_vs_verilator_rtl"] = sum(1 for nr, rr in zip(nrows, rtl_all)
+                                                      if nr != rr)
+        if bad:
+            report = bad[:REPORT_MAX]
+            rtl, err = rtl_eval([b[1] for b in report], "rtl", 120.0)
+            if rtl is None:
+                rec["verilator_rtl"] = f"third opinion unavailable: {err}"
+            rec["report"] = []
+            for j, (i, v, lr, nr, why) in enumerate(report):
+                ls = lr[0] if lr[0] != "ERROR" else None
+                rec["report"].append({
+                    "vector": i, "inputs": {n: hex(v[n]) for n, _ in ins}, "why": why,
+                    "lssv_src": ls, "lssv_rev": lr[1] if ls is not None else None,
+                    "lssv_error": lr[1] if ls is None else None, "netlist": nr,
+                    "verilator_rtl": rtl[j] if rtl else None,
+                    "verdict": verdict3(ls, nr, rtl[j] if rtl else None)})
+            raise Reject(f"{len(bad)} of {len(vecs)} vectors: ls-sv and the scored netlist "
+                         "disagree\n" + bug_report(rec, task, point_s))
+    except Reject as r:
+        rec["seconds"] = round(time.time() - t_start, 2)
+        r.info["record"] = rec
+        raise
+    rec["seconds"] = round(time.time() - t_start, 2)
+    return rec
+
+
+# ---------------------------------------------------------------- the clocked check
+#
+# PLAN4 Gate 2 step 4, for the CLOCKED kinds (`run_clocked`). Per seed, the netlist starts from a
+# randomized state (Verilator `--x-initial unique`, `randSeed`), reset is asserted for
+# `reset_cycles` entries (C1; the other inputs random), then the task's own generator (oracle.py
+# `txns(params, seed, count)`) drives it: for tx-family each transaction's `gap` free entries, its
+# start entry, then its operands held until the netlist's `done` shows 1, so a gap of 0 is C2's
+# back-to-back start (or until `n` cycles have passed: late, the run stops), and `tail` idle
+# entries after the last; for stream-family each transaction's `gap` free entries, its start entry,
+# its `count` values on `in_data` with `in_valid` = 1, then free entries until the netlist has shown
+# the `count`-th `out_valid` = 1 since the start (StreamTask.Idle: the gap counts from the entry after
+# that snapshot; at most `n` cycles after the start, then late), `in_valid` = 0 outside the values;
+# for seq-family the generator's entries verbatim. One entry is one clock
+# period: the inputs with the clock at 0, then the rising edge; the row is the snapshot after it
+# (ls-sv's protocol). The realized stimulus is then ONE `svgolf-eval --trace` run (ls-sv from its
+# own all-x start). Binding, either failing rejects: (i) on the CARED outputs of every cycle the
+# netlist equals ls-sv (under σ_src, which must equal σ_rev), and ls-sv's value is known (an x or z
+# there would be some 0/1 in the 2-state netlist); (ii) the netlist's claimed payload is the task's
+# evaluator's, oracle.py `good(params, txn, result)` (tx-family; stream-family with result
+# `{"out": the values emitted from the start to the next}`) / `expect(params, entries)` (seq-family:
+# the outputs per entry). Cared (C4, C5): tx-family `done` at every cycle from the release, and the
+# payload from a transaction's first `done` to the next start, where `done` must stay 1 (the hold);
+# stream-family `out_valid` at every cycle from the release, 0 before the first start, and
+# `out_data` where `out_valid` = 1; seq-family every output from the first reset entry (SeqTask's
+# claim). The latency (C3): `done` shows 1 / every `out_valid` = 1 is at most `n` cycles after the
+# start entry's snapshot (cycle 0).
+VL_X_CLOCKED = ("--x-assign", "0", "--x-initial", "unique")
+CLOCKED_HARNESS = HARNESS.split("int main(")[0] + r"""// THE CLOCKED HARNESS: argv VECTORS SEED CAP.
+// A line is a kind, then one hex token per input but the clock: `E` one entry, `S` one entry that
+// starts a transaction (its row is cycle 0), `H` the hold: unless the last row shows done = 1,
+// entries of these values until one does, at most CAP rows after the start (then `END <rows> LATE`),
+// `W` one entry unless the last row shows done = 1 (a stream's wait, each with its own values).
+// A row is the line number, then the outputs after the cycle.
+int main(int argc, char** argv) {
+  if (argc != 4) { fprintf(stderr, "usage: harness VECTORS SEED CAP\n"); return 2; }
+  FILE* fp = fopen(argv[1], "r");
+  if (!fp) { fprintf(stderr, "cannot open %%s\n", argv[1]); return 2; }
+  const std::unique_ptr<VerilatedContext> ctx{new VerilatedContext};
+  ctx->randReset(2);
+  ctx->randSeed(atoi(argv[2]));
+  const long cap = atol(argv[3]);
+  const std::unique_ptr<%(prefix)s> top{new %(prefix)s{ctx.get(), "TOP"}};
+  char tok[4096], kind[8];
+  std::string out;
+  long rows = 0, line = -1, since = 0;
+  bool done = false, late = false;
+  while (!late && fscanf(fp, "%%7s", kind) == 1) {
+    ++line;
+%(read)s
+    if (kind[0] == 'W' && done) continue;
+    const bool hold = kind[0] == 'H';
+    for (bool first = true; hold ? !done : first; first = false) {
+      if (hold && since >= cap) { late = true; break; }
+%(set)s
+      top->%(clk)s = 0; top->eval();
+      top->%(clk)s = 1; top->eval();
+      done = %(done)s;
+      since = kind[0] == 'S' ? 0 : since + 1;
+      out += std::to_string(line) + ' ';
+%(print)s
+      out += '\n';
+      ++rows;
+    }
+  }
+  fwrite(out.data(), 1, out.size(), stdout);
+  printf("END %%ld%%s\n", rows, late ? " LATE" : "");
+  top->final();
+  return 0;
+}
+"""
+
+
+def clocked_plan(task, mod, point, seed, cfg, dins, rng):
+    """One seed's stimulus lines [(kind, {input: value})] and the generator's items."""
+    rp, lvl = task["reset"]["port"], int(task["reset"].get("level", 1))
+    def rnd(**kv):
+        return {**{n: rng.getrandbits(w) for n, w in dins}, **kv}
+    lines = [("E", rnd(**{rp: lvl})) for _ in range(cfg["reset_cycles"])]
+    items = mod.txns(dict(point), seed, cfg["txns"])
+    if task["kind"] == "seq-family":
+        return lines + [("E", rnd(**e)) for e in items], items
+    proto = task["protocol"]
+    if task["kind"] == "stream-family":
+        st, iv, dt, n = proto["start"], proto["in_valid"], proto["in_data"], int(point[proto["count"]])
+        for t in items:
+            fr, g = t["free"], t["gap"]
+            if len(t["xs"]) != n or not fr:
+                raise InfraError(f"oracle.py `txns`: a transaction has {len(t['xs'])} values (the count is {n}) "
+                                 f"and {len(fr)} free values")
+            def ent(i, **kv):          # the free values in order and cyclically, in_valid 0
+                return rnd(**{rp: 1 - lvl, st: 0, iv: 0, dt: fr[i % len(fr)], **kv})
+            lines += [("E", ent(i)) for i in range(g)] + [("S", ent(g, **{st: 1}))]
+            lines += [("E", ent(0, **{iv: 1, dt: x})) for x in t["xs"]]
+            lines += [("W", ent(i)) for i in range(g + 1, len(fr))] + [("H", ent(len(fr)))]
+        return lines + [("E", rnd(**{rp: 1 - lvl, st: 0, iv: 0})) for _ in range(cfg["tail"])], items
+    for t in items:
+        idle = {rp: 1 - lvl, proto["start"]: 0}
+        x = {o: t[o] for o in proto["operands"]}
+        lines += [("E", rnd(**f, **idle)) for f in t["free"]]
+        lines += [("S", rnd(**x, **{**idle, proto["start"]: 1})), ("H", rnd(**x, **idle))]
+    return lines + [("E", rnd(**{rp: 1 - lvl, proto["start"]: 0})) for _ in range(cfg["tail"])], items
+
+
+def vl_run_clocked(exe, dins, outs, lines, seed, cap, work, timeout):
+    """The clocked model on `lines`: ([(line, {output: bits})], late, seconds, None) or
+    (None, None, seconds, error). Fails closed like `vl_run`."""
+    vp = os.path.join(work, f"clocked_{seed}.hex")
+    with open(vp, "w") as fh:
+        for k, v in lines:
+            fh.write(k + " " + " ".join(f"{v[n]:x}" for n, _ in dins) + "\n")
+    t0 = time.time()
+    try:
+        r = run_group([exe, vp, str(seed + 1), str(cap)], timeout,   # randSeed(0) would be time-seeded
+                      spec=sandbox.exec_spec(exe, read=[vp], label="model"), label="model",
+                      env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None)
+    except subprocess.TimeoutExpired:
+        return None, None, time.time() - t0, f"the Verilator model did not finish within {timeout:.0f}s"
+    rows = [ln.split() for ln in r.stdout.splitlines()]
+    end = rows.pop() if rows else []
+    ok = (r.returncode == 0 and end[:2] == ["END", str(len(rows))] and end[2:] in ([], ["LATE"])
+          and all(len(x) == len(outs) + 1 and x[0].isdigit() and int(x[0]) < len(lines)
+                  and all(len(t) == w and not set(t) - set("01") for t, (_, w) in zip(x[1:], outs))
+                  for x in rows))
+    if not ok:
+        return None, None, time.time() - t0, (f"the clocked Verilator model printed malformed rows (exit "
+                                              f"{r.returncode}): {(r.stdout[-300:] + r.stderr).strip()[-800:]}")
+    return ([(int(x[0]), dict(zip([n for n, _ in outs], x[1:]))) for x in rows], end[2:] == ["LATE"],
+            time.time() - t0, None)
+
+
+def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports, work, deadline):
+    """One seed: (the record, the failures [(cycle, why)])."""
+    clk, kind, R = task["clock"], task["kind"], cfg["reset_cycles"]
+    ins = sorted((n, w) for d, n, w in nports if d == "input")
+    outs = sorted((n, w) for d, n, w in nports if d == "output")
+    dins = [(n, w) for n, w in ins if n != clk]
+    rng = random.Random(f"{task['name']}/{point_s}/{seed}")
+    lines, items = clocked_plan(task, mod, point, seed, cfg, dins, rng)
+    rows, late, el, err = vl_run_clocked(exe, dins, outs, lines, seed, latency or 0, work,
+                                         max(60.0, deadline - time.time()))
+    if rows is None:
+        raise Reject(f"the scored netlist does not simulate: {err}")
+    stim = [lines[li][1] for li, _ in rows]
+    net = [r for _, r in rows]
+    rec = {"seed": seed, "reset_cycles": R, "cycles": len(stim), "late": late, "t_netlist_run_s": round(el, 3)}
+    lports, lrows, _, _, el = lssv_eval(envl, point_s, ins, [{clk: 0, **e} for e in stim], cfg["fuel"],
+                                        work, deadline, trace=True)
+    rec["t_lssv_s"] = round(el, 2)
+    if lports != nports:
+        raise Reject(f"the ports differ: ls-sv has {sorted(lports)}, the netlist {sorted(nports)}")
+    errs = [r[1] for r in lrows if r[0] == "ERROR"]
+    if errs:
+        raise Reject(f"ls-sv does not complete the run (seed {seed}): {errs[0][:300]}"
+                     + (" (an ls-sv limit: no proof about such a design can hold)" if "UNSUPPORTED" in errs[0] else ""))
+    cares, bad, payload = [set() for _ in stim], [], [n for n, _ in outs]
+    if kind == "tx-family":
+        proto, done = task["protocol"], task["protocol"]["done"]
+        payload = list(proto["payload"])
+        for c in range(R, len(stim)):
+            cares[c].add(done)
+        starts = [c for c in range(R, len(stim)) if stim[c][proto["start"]] == 1]
+        rec["transactions"] = log = []
+        for k, s in enumerate(starts):
+            nxt = starts[k + 1] if k + 1 < len(starts) else len(stim)
+            fd = next((c for c in range(s, nxt) if net[c][done] == "1"), None)
+            log.append({"tag": items[k].get("tag"), "start": s, "first_done": fd,
+                        "latency": None if fd is None else fd - s, "hold": None if fd is None else [fd, nxt - 1],
+                        "samples": 0 if fd is None else nxt - fd})
+            if fd is None or fd - s > latency:
+                bad.append((s, f"transaction {k} ({items[k].get('tag')}): done did not rise within the "
+                            f"declared latency {latency} of its start entry (cycle {s})"))
+                continue
+            for c in range(fd, nxt):
+                cares[c].update(payload)
+                res = {p: int(net[c][p], 2) for p in payload}
+                if net[c][done] != "1":
+                    bad.append((c, f"transaction {k}: done fell at cycle {c}, before the next start"))
+                elif not mod.good(dict(point), items[k], res):
+                    why = getattr(mod, "mismatch", lambda *a: None)(dict(point), items[k], res)
+                    bad.append((c, f"transaction {k}: the payload is not the task's result: {why or res}"))
+    elif kind == "stream-family":
+        proto = task["protocol"]
+        ov, od = proto["out_valid"], proto["out_data"]
+        starts = [c for c in range(R, len(stim)) if stim[c][proto["start"]] == 1]
+        for c in range(R, len(stim)):
+            cares[c].update([ov, od] if net[c][ov] == "1" else [ov])
+            if net[c][ov] == "1" and not (starts and starts[0] <= c):
+                bad.append((c, f"out_valid is 1 at cycle {c}, before the first start"))
+        rec["transactions"] = log = []
+        for k, s in enumerate(starts):
+            nxt, tag = starts[k + 1] if k + 1 < len(starts) else len(stim), items[k].get("tag")
+            got = [c for c in range(s, nxt) if net[c][ov] == "1"]
+            vals = [int(net[c][od], 2) for c in got]
+            log.append({"tag": tag, "start": s, "outputs": len(got), "first_output": got[0] if got else None,
+                        "last_output": got[-1] if got else None, "latency": got[-1] - s if got else None})
+            over = [c for c in got if c - s > latency]
+            if over:
+                bad.append((over[0], f"transaction {k} ({tag}): out_valid is 1 at cycle {over[0]}, {over[0] - s} "
+                            f"cycles after its start entry (cycle {s}): beyond the declared latency {latency}"))
+            elif not mod.good(dict(point), items[k], {"out": vals}):
+                why = getattr(mod, "mismatch", lambda *a: None)(dict(point), items[k], {"out": vals})
+                bad.append((s, f"transaction {k} ({tag}): the emitted values are not the task's: {why or vals}"
+                            + (f"; the run stops: no more outputs within the declared latency {latency}"
+                               if late and k == len(starts) - 1 else "")))
+    else:
+        exp = mod.expect(dict(point), stim)
+        for c in range(len(stim)):
+            if exp[c] is None:
+                continue
+            cares[c].update(payload)
+            got = {o: int(net[c][o], 2) for o in exp[c]}
+            if got != exp[c]:
+                bad.append((c, f"the outputs {got} are not the task's {exp[c]}"))
+    for c, (src, rev) in enumerate(lrows):
+        for o in sorted(cares[c]):
+            if src.get(o) != rev.get(o):
+                bad.append((c, f"ls-sv: σ_src and σ_rev disagree on {o}"))
+            elif has_xz(src.get(o, "x")):
+                bad.append((c, f"ls-sv: {o} is x/z in a cared position ({src.get(o)})"))
+            elif src[o] != net[c][o]:
+                bad.append((c, f"{o}: the netlist ({net[c][o]}) is not ls-sv ({src[o]})"))
+    return rec, sorted(bad)
+
+
+def run_clocked(task, envl, netlist, sres, work, mod, point, latency=None, mode=None):
+    """The clocked check (above) of the scored `netlist` at `point` (a dict), `mod` the task's oracle
+    module (`clocked_oracle`), `latency` the declared n (tx-family). Returns the record; raises Reject
+    (the record in `.info["record"]`) or InfraError."""
+    t_start, cfg, top = time.time(), config(task), task["top"]
+    if task["kind"] not in CLOCKED_KINDS or "reset" not in task:
+        raise InfraError(f"the clocked post-synthesis check covers the kinds {CLOCKED_KINDS} with "
+                         f"a task.json `reset` (this is {task['kind']})")
+    if task["kind"] != "seq-family" and not latency:
+        raise InfraError(f"the clocked post-synthesis check of a {task['kind']} task needs the declared latency")
+    point_s = envelope.point_str(point)
+    rec = {"kind": task["kind"], "point": point_s or "default", "mode": resolve_mode(mode),
+           "netlist_sha256": sha256_file(netlist), "envelope_sha256": sha256_file(envl),
+           "sveval_sha256": sha256_file(SVEVAL) if os.path.isfile(SVEVAL) else None,
+           "fuel": cfg["fuel"], "latency": latency, "oracle_sha256": sha256_file(mod.__file__), "seeds": []}
+    deadline = t_start + float(cfg["time_limit_s"])
+    try:
+        _, rec["verilator"], _ = verilator_info()
+        reread_check(netlist, top, sres, work)
+        xlit = unknown_literal(netlist)
+        if xlit:
+            raise Reject(f"the netlist has {xlit}, which a 2-state simulation reads as a fixed 0 or 1")
+        nports = netlist_ports(netlist, top)
+        ins = sorted((n, w) for d, n, w in nports if d == "input")
+        outs = sorted((n, w) for d, n, w in nports if d == "output")
+        if task["clock"] not in dict(ins):
+            raise Reject(f"the netlist has no clock input `{task['clock']}`")
+        proto, done = task.get("protocol") or {}, "false"
+        if task["kind"] == "tx-family":
+            done = f"top->{ccode_ident(proto['done'])} != 0"
+        elif task["kind"] == "stream-family":      # the count-th out_valid = 1 since the start row
+            done = (f"[&]{{ static long n = 0; n = (kind[0] == 'S' ? 0 : n) + (top->{ccode_ident(proto['out_valid'])}"
+                    f" != 0); return n >= {int(point[proto['count']])}; }}()")
+        harness = harness_cpp([p for p in ins if p[0] != task["clock"]], outs, CLOCKED_HARNESS,
+                              clk=ccode_ident(task["clock"]), done=done)
+        exe, el, err = vl_build([netlist, simcells()], top, {}, ins, outs, work, "clocked",
+                                max(120.0, deadline - time.time()), harness=harness, xflags=VL_X_CLOCKED)
+        rec["t_netlist_build_s"] = round(el, 2)
+        if exe is None:
+            raise Reject(f"the scored netlist does not compile: {err}")
+        bad = []
+        for seed in range(cfg["seeds"]):
+            srec, sbad = clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports,
+                                      work, deadline)
+            rec["seeds"].append(srec)
+            bad += [(seed, c, why) for c, why in sbad]
+        rec["mismatches"] = len(bad)
+        if bad:
+            rec["report"] = [{"seed": s, "cycle": c, "why": w} for s, c, w in bad[:REPORT_MAX]]
+            raise Reject(f"{len(bad)} failures at {point_s or 'default'} (reset for {cfg['reset_cycles']} "
+                         "cycles from a randomized state; cycle = stimulus entry):\n"
+                         + "\n".join(f"  seed {s}, cycle {c}: {w}" for s, c, w in bad[:8]))
+    except Reject as r:
+        rec["seconds"] = round(time.time() - t_start, 2)
+        r.info["record"] = rec
+        raise
+    rec["seconds"] = round(time.time() - t_start, 2)
+    return rec
+
+
+def bug_report(rec, task, point_s):
+    """The rejection, written as the bug report it is."""
+    outs = rec.get("outputs", [])
+
+    def show(d):
+        return " ".join(f"{k}={d[k]}" for k in outs if k in d)
+
+    lines = [f"BUG REPORT (task {task['name']}, point {point_s or 'default'}; envelope sha256 "
+             f"{rec['envelope_sha256'][:16]}, netlist sha256 {rec['netlist_sha256'][:16]}; "
+             f"seed {rec.get('seed', '?')[:16]}). The proof is about ls-sv's reading of the "
+             "design and the score about Yosys's; on these vectors they differ:"]
+    for e in rec.get("report", [])[:5]:
+        lines.append(f"  vector {e['vector']}: " + " ".join(f"{k}={v}" for k, v in
+                                                          e["inputs"].items()))
+        if e["lssv_src"] is not None:
+            lines.append("    ls-sv (σ_src)  " + show(e["lssv_src"]))
+            if e["lssv_rev"] != e["lssv_src"]:
+                lines.append("    ls-sv (σ_rev)  " + show(e["lssv_rev"]))
+        else:
+            lines.append(f"    ls-sv          {e['lssv_error']}")
+        lines.append("    netlist        " + show(e["netlist"]))
+        if e["verilator_rtl"] is not None:
+            lines.append("    Verilator RTL  " + show(e["verilator_rtl"]))
+        lines.append(f"    {'; '.join(e['why'][:4])}. Verdict: {e['verdict']}")
+    more = rec["mismatches"] - min(5, len(rec.get("report", [])))
+    if more > 0:
+        lines.append(f"  ... and {more} more failing vectors (the result's `report` lists "
+                     f"{len(rec.get('report', []))})")
+    lines.append(f"Reproduce: python3.12 check/postsynth.py --task tasks/{task['name']} DESIGN.sv"
+                 + (f" --point {point_s}" if point_s else "")
+                 + (f" --mode {rec['mode']}" if rec.get("mode") else "")
+                 + " --keep DIR (with the same $SVGOLF_POSTSYNTH_SALT); DIR holds the netlist, "
+                 "the vectors and every "
+                 "simulator's output. Is it ls-sv or Yosys that is wrong? File it either way: "
+                 "README.md, \"Rules\".")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------- standalone
+
+def check_design(task_dir, sv, work, point=None, third_all=False, random_count=None, gate=True,
+                 mode=None):
+    """Gate, extract, score (keeping the netlist) and check `sv` for the task
+    at `point` (default: the scoring point). Returns the record; raises
+    Reject / InfraError / envelope.Refused / score.ScoreError.
+
+    `gate=False` is RESEARCH ONLY: the file's text with its comments
+    stripped, but none of the gate's refusals applied, stands in for the
+    canonical text, so a construct the gate refuses (`unique case`) reaches
+    this check, to measure what the check alone would say about it."""
+    mode = resolve_mode(mode)     # a bad $SVGOLF_POSTSYNTH fails before any work
+    task = envelope.load_task(task_dir)
+    params = ({k: int(v) for k, v in task["scoring"]["params"].items()} if point is None
+              else dict(point))
+    # The point itself is the only probe point: the envelope's design does not
+    # depend on the probe points (they only add the sidecar that the checker's
+    # `design` stage cross-checks), and every extra point costs an extraction.
+    pts = [params] if params else []
+    if gate:
+        ex = envelope.extract(sv, task["top"], pts, os.path.join(work, "extract"))
+    else:
+        ex = extract_ungated(sv, task["top"], pts, os.path.join(work, "extract"))
+    netlist = os.path.join(work, "netlist.v")
+    sres = score.score([ex["canonical"]], task["top"], params, gate=False, netlist_out=netlist)
+    rec = run(task, ex["canonical"], ex["envelope"], netlist, sres, work, point=params,
+              third_all=third_all, random_count=random_count,
+              oracle=load_oracle(task_dir, task), mode=mode)
+    rec["score"] = {k: sres[k] for k in ("area_ge", "area_mge", "depth", "gates")}
+    return rec
+
+
+def extract_ungated(sv, top, pts, out_dir):
+    """`envelope.extract` without the source gate's REFUSALS (research only):
+    the gate's comment stripping (`srcgate.strip_comments`) still makes the
+    canonical text, but a construct the gate refuses (`unique case`) passes."""
+    import srcgate
+    with open(sv) as fh:
+        text, _ = srcgate.strip_comments(fh.read())
+    os.makedirs(out_dir, exist_ok=True)
+    canon = os.path.join(out_dir, os.path.basename(sv))
+    with open(canon, "w") as fh:
+        fh.write(text)
+    env = canon + ".json"
+    proc, cmd = envelope.run_extractor(canon, top, pts, env)
+    if proc.returncode != 0 or not os.path.exists(env):
+        raise envelope.Refused("extract", "the extractor refused the design:\n"
+                               + envelope.tail(proc.stderr + proc.stdout))
+    return {"canonical": canon, "envelope": env}
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("design")
+    ap.add_argument("--task", required=True, help="the task directory")
+    ap.add_argument("--point", help="a parameter point, e.g. N=32 (default: the scoring point)")
+    ap.add_argument("--mode", choices=MODES,
+                    help=f"light (a subset of the vectors) or full; default: ${MODE_ENV}, "
+                    f"else {DEFAULT_MODE}")
+    ap.add_argument("--random", type=int, help="override the task's random vector count")
+    ap.add_argument("--third-all", action="store_true",
+                    help="audit: Verilator on the RTL for EVERY vector (ls-sv vs Verilator too)")
+    ap.add_argument("--keep", help="keep the work directory here")
+    ap.add_argument("--no-gate", action="store_true",
+                    help="RESEARCH ONLY: skip the source gate's refusals (comments are "
+                    "still stripped), to see what this check alone says")
+    ap.add_argument("--json", help="also write the record here")
+    args = ap.parse_args(argv)
+    work = os.path.abspath(args.keep) if args.keep else tempfile.mkdtemp(prefix="svgolf-ps-")
+    os.makedirs(work, exist_ok=True)
+    point = envelope.parse_point(args.point) if args.point else None
+    out, code = {}, 0
+    try:
+        out = {"ok": True, "record": check_design(args.task, args.design, work, point,
+                                                  args.third_all, args.random,
+                                                  gate=not args.no_gate, mode=args.mode)}
+    except Reject as r:
+        out, code = {"ok": False, "stage": "postsynth", "error": r.msg,
+                     "record": r.info.get("record")}, 1
+    except envelope.Refused as r:
+        out, code = {"ok": False, "stage": r.stage, "error": r.msg}, 1
+    except score.ScoreError as e:
+        out, code = {"ok": False, "stage": "score", "error": str(e)}, 1
+    except (InfraError, envelope.InfraError) as e:
+        out, code = {"ok": False, "stage": "infrastructure", "error": str(e)}, 2
+    finally:
+        if not args.keep:
+            shutil.rmtree(work, ignore_errors=True)
+    w = functional_warning(((out.get("record") or {}).get("functional")))
+    if w:
+        print(w, file=sys.stderr)
+    text = json.dumps(out, indent=2, sort_keys=True)
+    print(text)
+    if args.json:
+        with open(args.json, "w") as fh:
+            fh.write(text + "\n")
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

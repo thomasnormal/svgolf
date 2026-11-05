@@ -1,0 +1,68 @@
+xor N=1: instantiate 0ms processes=1
+xor N=1: hasUnsupported=false 2ms
+xor N=1: lowerComb=true 3ms
+xor N=2: instantiate 0ms processes=1
+xor N=2: hasUnsupported=false 0ms
+xor N=2: lowerComb=true 1ms
+xor N=4: instantiate 0ms processes=1
+xor N=4: hasUnsupported=false 0ms
+xor N=4: lowerComb=true 0ms
+xor N=8: instantiate 0ms processes=1
+xor N=8: hasUnsupported=false 0ms
+xor N=8: lowerComb=true 0ms
+xor N=16: instantiate 0ms processes=1
+xor N=16: hasUnsupported=false 0ms
+xor N=16: lowerComb=true 0ms
+xor N=32: instantiate 0ms processes=1
+xor N=32: hasUnsupported=false 2ms
+xor N=32: lowerComb=true 1ms
+xor N=64: instantiate 0ms processes=1
+xor N=64: hasUnsupported=false 6ms
+xor N=64: lowerComb=true 1ms
+xor N=126: instantiate 0ms processes=1
+xor N=126: hasUnsupported=false 24ms
+xor N=126: lowerComb=true 1ms
+xor N=127: instantiate 0ms processes=1
+xor N=127: hasUnsupported=true 1ms
+xor N=127: lowerComb=false 0ms
+xor N=200: instantiate 0ms processes=1
+xor N=200: hasUnsupported=true 0ms
+xor N=200: lowerComb=false 0ms
+if N=1: instantiate 0ms processes=1
+if N=1: hasUnsupported=false 2ms
+if N=1: lowerComb=true 1ms
+if N=2: instantiate 0ms processes=1
+if N=2: hasUnsupported=false 1ms
+if N=2: lowerComb=true 0ms
+if N=4: instantiate 0ms processes=1
+if N=4: hasUnsupported=false 1ms
+if N=4: lowerComb=true 0ms
+if N=6: instantiate 0ms processes=1
+if N=6: hasUnsupported=false 0ms
+if N=6: lowerComb=true 1ms
+if N=8: instantiate 0ms processes=1
+if N=8: hasUnsupported=false 0ms
+if N=8: lowerComb=true 1ms
+if N=10: instantiate 0ms processes=1
+if N=10: hasUnsupported=false 0ms
+if N=10: lowerComb=true 3ms
+if N=12: instantiate 0ms processes=1
+if N=12: hasUnsupported=false 0ms
+if N=12: lowerComb=true 10ms
+if N=14: instantiate 0ms processes=1
+if N=14: hasUnsupported=false 1ms
+if N=14: lowerComb=true 37ms
+nested N=1: instantiate 0ms processes=1
+nested N=1: hasUnsupported=false 2ms
+nested N=1: lowerComb=true 0ms
+nested N=2: instantiate 0ms processes=1
+nested N=2: hasUnsupported=false 0ms
+nested N=2: lowerComb=true 1ms
+nested N=3: instantiate 0ms processes=1
+nested N=3: hasUnsupported=false 0ms
+nested N=3: lowerComb=true 34ms
+nested N=4: instantiate 0ms processes=1
+nested N=4: hasUnsupported=false 1ms
+nested N=4: lowerComb=true 88111ms
+nested N=5: instantiate 0ms processes=1
+nested N=5: hasUnsupported=false 20ms

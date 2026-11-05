@@ -1,0 +1,233 @@
+{
+  "task": "sorter",
+  "file": "svgolf/tasks/sorter/Properties.lean",
+  "theorem": "SvGolf.Tasks.Sorter.Properties.statement_iff_properties",
+  "statement": {
+    "decl": "SvGolf.Tasks.Sorter.Statement",
+    "file": "svgolf/tasks/sorter/Spec.lean"
+  },
+  "summary": "A design and its declared latency meet the trusted statement exactly when, for every (N, W) in range, they have all of the properties below. The last four are guarantees the design owes an environment that follows the protocol: after a reset is released, start is raised only while the design is idle, and in_valid is 1, with one input value on in_data, in exactly the N cycles after each start. Lean checks that, together, the properties say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
+  "properties": [
+    {
+      "name": "PARAMS_IN_RANGE",
+      "decl": "SvGolf.Tasks.Sorter.Properties.ParamsInRange",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "range",
+      "text": "The statement covers every count N ≥ 1 of values of every width W ≥ 1, as long as N·W stays below 2^31: the parameters are 32-bit ints, and a design that buffers the whole stream declares N·W bits. One proof covers all of them; the design is scored at N = 8, W = 8."
+    },
+    {
+      "name": "INTERFACE",
+      "decl": "SvGolf.Tasks.Sorter.Properties.Interface",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "The module has exactly the input ports clk, rst, start, in_valid (1 bit each) and in_data (W bits) and exactly the output ports out_valid (1 bit) and out_data (W bits), with these widths, in this order. Nothing is missing and nothing is extra: an extra input could serve as a hidden mode pin, and the checker and the scoring tools drive and read the design by these names and widths."
+    },
+    {
+      "name": "CLOCK_DISCIPLINE",
+      "decl": "SvGolf.Tasks.Sorter.Properties.ClockDiscipline",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "The clock is the input clk: every register is clocked by it, an asynchronous reset (if the design has one) can only be rst, and no logic reads clk as a data signal. Together these make one cycle of Lean's model exactly one rising edge of clk in the real circuit: a clock that is gated, derived from logic, tied off or never driven is ruled out. One consequence to know: the registers have to sit in the top module, because connecting clk to a child instance copies it as data."
+    },
+    {
+      "name": "TERMINATES",
+      "decl": "SvGolf.Tasks.Sorter.Properties.Terminates",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "Whatever order the simulator picks for processes that are ready at the same moment (the schedule), and whatever the environment drives on the inputs, simulating the design completes: every clock cycle settles. A combinational loop that oscillates fails this, and so does a design the tools could not read. It is also what gives the guarantees below their teeth: they are about completed runs, and a design with no completed run would satisfy them without doing anything."
+    },
+    {
+      "name": "LATENCY_AT_LEAST_ONE",
+      "decl": "SvGolf.Tasks.Sorter.Properties.LatencyAtLeastOne",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "Besides the design, a submission declares its latency: the number of cycles it may take to answer a start, as a function of the parameters. It must be at least one cycle. The checker pins its value at the scoring point, and the score uses it (time = latency × clock period), so declaring a larger latency than needed only costs score."
+    },
+    {
+      "name": "OUT_VALID_KNOWN",
+      "decl": "SvGolf.Tasks.Sorter.Properties.OutValidKnown",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, out_valid is a known bit, 0 or 1, in every cycle from the release of the reset on; never x."
+    },
+    {
+      "name": "SILENT_BEFORE_FIRST_START",
+      "decl": "SvGolf.Tasks.Sorter.Properties.SilentBeforeFirstStart",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, out_valid is 0 in every cycle after the release of the reset and before the first start: nothing comes out before there is anything to sort, and nothing left over from before the reset comes out."
+    },
+    {
+      "name": "EMITS_SORTED",
+      "decl": "SvGolf.Tasks.Sorter.Properties.EmitsSorted",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, for every start whose latency window has passed, the values on out_data in the cycles where out_valid is 1, from that start up to the next one, are, in order, exactly the N input values of the transaction sorted ascending as unsigned numbers, duplicates kept. So exactly N values come out; gaps between them are allowed, and out_data may hold anything while out_valid is 0."
+    },
+    {
+      "name": "SILENT_AFTER_LATENCY",
+      "decl": "SvGolf.Tasks.Sorter.Properties.SilentAfterLatency",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, after every start, out_valid is 0 in every cycle more than lat cycles later, up to the next start (the cycle in which start is sampled is cycle 0). With EMITS_SORTED, this says that all N values come out within the declared latency."
+    }
+  ],
+  "definitions": [
+    {
+      "name": "sortAsc",
+      "decl": "SvGolf.Tasks.Sorter.sortAsc",
+      "file": "svgolf/tasks/sorter/Spec.lean",
+      "text": "Insertion sort, ascending as unsigned numbers, duplicates kept: the function of a transaction."
+    },
+    {
+      "name": "insertAsc",
+      "decl": "SvGolf.Tasks.Sorter.insertAsc",
+      "file": "svgolf/tasks/sorter/Spec.lean",
+      "text": "Inserts a value into an ascending list, before the first element it is at most."
+    },
+    {
+      "name": "StreamTask.Rely",
+      "decl": "SvGolf.StreamTask.Rely",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The environment's side of the protocol, up to a horizon: start, in_valid and in_data are driven with known values in every cycle, start is 1 only while the design is idle, and in_valid is 1 exactly in the N cycles after each start."
+    },
+    {
+      "name": "StreamTask.Idle",
+      "decl": "SvGolf.StreamTask.Idle",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The design is idle: every start since the release has had all N of its values emitted."
+    },
+    {
+      "name": "Transaction",
+      "decl": "SvGolf.Tasks.Sorter.Properties.Transaction",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "text": "Transaction N W stim c1 h s xs e: s is a start after the release c1, xs are the N values on in_data in the cycles after it, and e is the next start, or the horizon h if there is none before it."
+    },
+    {
+      "name": "StreamTask.Shows",
+      "decl": "SvGolf.StreamTask.Shows",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Shows tr s obs: the snapshots from cycle s on show the observations obs, one per cycle: out_valid as a known bit, and out_data as a known value where out_valid is 1."
+    },
+    {
+      "name": "StreamTask.emitted",
+      "decl": "SvGolf.StreamTask.emitted",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The values emitted in a list of observations: the out_data of the cycles with out_valid = 1, in order."
+    },
+    {
+      "name": "StreamTask.Guar",
+      "decl": "SvGolf.StreamTask.Guar",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted guarantee, one conjunction; OUT_VALID_KNOWN, SILENT_BEFORE_FIRST_START, EMITS_SORTED and SILENT_AFTER_LATENCY are its parts."
+    },
+    {
+      "name": "Statement",
+      "decl": "SvGolf.Tasks.Sorter.Statement",
+      "file": "svgolf/tasks/sorter/Spec.lean",
+      "text": "The trusted challenge statement that these properties restate, part by part."
+    },
+    {
+      "name": "task",
+      "decl": "SvGolf.Tasks.Sorter.task",
+      "file": "svgolf/tasks/sorter/Spec.lean",
+      "text": "The task as data: the parameter range, the port names and widths, and the function of a transaction."
+    },
+    {
+      "name": "UnderProtocol",
+      "decl": "SvGolf.Tasks.Sorter.Properties.UnderProtocol",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "text": "UnderProtocol d G: in every completed run, from every release of the reset, up to every later cycle h before which the environment followed the protocol (the task's Rely), G holds up to h. Every guarantee is stated in this frame, so a protocol violation can only void claims about later cycles."
+    },
+    {
+      "name": "Released",
+      "decl": "SvGolf.Released",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Released rst stim c1 h: rst was 1 in the cycle before c1 and is 0 in every cycle from c1 up to h. Claims start at every release, so nothing may survive a reset."
+    },
+    {
+      "name": "TraceBit",
+      "decl": "SvGolf.TraceBit",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "TraceBit tr c n b: in cycle c the design shows the 1-bit signal n as the known bit b."
+    },
+    {
+      "name": "StimBit",
+      "decl": "SvGolf.StimBit",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "StimBit stim c n b: in cycle c the environment drives the 1-bit input n with the known bit b."
+    },
+    {
+      "name": "ClockedBy",
+      "decl": "SvGolf.ClockedBy",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted clock discipline that CLOCK_DISCIPLINE restates."
+    },
+    {
+      "name": "edgeClock",
+      "decl": "SvGolf.edgeClock",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The clock of a clocked process (always_ff @(posedge c) and the like); none for any other process."
+    },
+    {
+      "name": "asyncReset",
+      "decl": "SvGolf.asyncReset",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The asynchronous reset of a clocked process (the rn of posedge c or negedge rn), if it has one."
+    },
+    {
+      "name": "processDataNames",
+      "decl": "SvGolf.processDataNames",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Every signal a process reads or writes as data: its body, or its assignment. The clock and reset in the event control do not count."
+    },
+    {
+      "name": "inputPorts",
+      "decl": "SvGolf.inputPorts",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The design's input ports, each with its declared width, in declaration order."
+    },
+    {
+      "name": "outputPorts",
+      "decl": "SvGolf.outputPorts",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The design's output ports, each with its declared width, in declaration order."
+    },
+    {
+      "name": "HoldAll",
+      "decl": "SvGolf.HoldAll",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "HoldAll st ports values: in the state st, every listed port holds its value as a known bit vector (no x, no z) of exactly the port's width."
+    },
+    {
+      "name": "⊨₂",
+      "decl": "LeanModels.Sv.Models2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "d ⊨₂ P: in every completed run of the design d, under every schedule and every stimulus, the stimulus and the trace satisfy P."
+    },
+    {
+      "name": "spec2",
+      "decl": "LeanModels.Sv.spec2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "Turns a property of a stimulus (one input entry per clock cycle) and a trace (one snapshot of every signal per cycle, taken after the clock edge) into the form ⊨₂ takes."
+    },
+    {
+      "name": "Runs2",
+      "decl": "LeanModels.Sv.Runs2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "Runs2 d σ stim tr: simulating d under the schedule σ on the stimulus stim completes, with the trace tr."
+    },
+    {
+      "name": "ScheduleOracle",
+      "decl": "LeanModels.Sv.ScheduleOracle",
+      "file": "LeanModels/Sv/Semantics.lean",
+      "text": "A legal schedule: the order in which the simulator runs the processes that are ready at the same moment. The statement quantifies over all of them."
+    },
+    {
+      "name": "Process2.isEdgePhase",
+      "decl": "LeanModels.Sv.Process2.isEdgePhase",
+      "file": "LeanModels/Sv/Sem2.lean",
+      "text": "True for the processes that run at the clock edge: always_ff, always @(posedge …) and asynchronous-reset blocks."
+    }
+  ]
+}

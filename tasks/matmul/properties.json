@@ -1,0 +1,227 @@
+{
+  "task": "matmul",
+  "file": "svgolf/tasks/matmul/Properties.lean",
+  "theorem": "SvGolf.Tasks.Matmul.Properties.statement_iff_properties",
+  "statement": {
+    "decl": "SvGolf.Tasks.Matmul.Statement",
+    "file": "svgolf/tasks/matmul/Spec.lean"
+  },
+  "summary": "A design and its declared latency meet the trusted statement exactly when, for every (N, W, AccW) in range, they have all of the properties below. The last four are guarantees the design owes an environment that follows the protocol: after a reset is released, start is raised only while the design is idle, and A and B are held from start until done rises. Lean checks that, together, the properties say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
+  "properties": [
+    {
+      "name": "PARAMS_IN_RANGE",
+      "decl": "SvGolf.Tasks.Matmul.Properties.ParamsInRange",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "range",
+      "text": "The statement covers every matrix size N ≥ 1, entry width W ≥ 1 and accumulator width AccW ≥ 1, as long as both port widths, N·N·W and N·N·AccW bits, stay below 2^31: the parameters are 32-bit ints, and in that range a real SystemVerilog tool and Lean's model agree on every width and index. One proof covers all of them; the design is scored at N = 4, W = 8, AccW = 32."
+    },
+    {
+      "name": "INTERFACE",
+      "decl": "SvGolf.Tasks.Matmul.Properties.Interface",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "The module has exactly the input ports clk, rst, start (1 bit each), A and B (N·N·W bits each) and exactly the output ports done (1 bit) and C (N·N·AccW bits), with these widths, in this order. Nothing is missing and nothing is extra: an extra input could serve as a hidden mode pin, and the checker and the scoring tools drive and read the design by these names and widths. Matrices are flat, row-major, least significant entry first: entry (i, k) of A is A[(i·N+k)·W +: W]."
+    },
+    {
+      "name": "CLOCK_DISCIPLINE",
+      "decl": "SvGolf.Tasks.Matmul.Properties.ClockDiscipline",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "The clock is the input clk: every register is clocked by it, an asynchronous reset (if the design has one) can only be rst, and no logic reads clk as a data signal. Together these make one cycle of Lean's model exactly one rising edge of clk in the real circuit: a clock that is gated, derived from logic, tied off or never driven is ruled out. One consequence to know: the registers have to sit in the top module, because connecting clk to a child instance copies it as data."
+    },
+    {
+      "name": "TERMINATES",
+      "decl": "SvGolf.Tasks.Matmul.Properties.Terminates",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "Whatever order the simulator picks for processes that are ready at the same moment (the schedule), and whatever the environment drives on the inputs, simulating the design completes: every clock cycle settles. A combinational loop that oscillates fails this, and so does a design the tools could not read. It is also what gives the guarantees below their teeth: they are about completed runs, and a design with no completed run would satisfy them without doing anything."
+    },
+    {
+      "name": "LATENCY_AT_LEAST_ONE",
+      "decl": "SvGolf.Tasks.Matmul.Properties.LatencyAtLeastOne",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "Besides the design, a submission declares its latency: the number of cycles it may take to answer a start, as a function of the parameters. It must be at least one cycle. The checker pins its value at the scoring point, and the score uses it (time = latency × clock period), so declaring a larger latency than needed only costs score."
+    },
+    {
+      "name": "DONE_KNOWN",
+      "decl": "SvGolf.Tasks.Matmul.Properties.DoneKnown",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, done is a known bit, 0 or 1, in every cycle from the release of the reset on. The environment decides when to start the next transaction by watching done, so done must mean something in every cycle; never x."
+    },
+    {
+      "name": "DONE_WITHIN_LATENCY",
+      "decl": "SvGolf.Tasks.Matmul.Properties.DoneWithinLatency",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, after every start, done is 1 in some cycle at most lat cycles later, counting the cycle in which start is sampled as cycle 0. Finishing earlier is fine, and the number of cycles may depend on the data, as long as it never exceeds the declared latency."
+    },
+    {
+      "name": "DONE_HELD",
+      "decl": "SvGolf.Tasks.Matmul.Properties.DoneHeld",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, once done has been 1 after a start, it stays 1 in every cycle until the next start. The result does not vanish: the environment may read it at any time before it starts the next transaction."
+    },
+    {
+      "name": "RESULT_IS_PRODUCT",
+      "decl": "SvGolf.Tasks.Matmul.Properties.ResultIsProduct",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, in every cycle from the first done = 1 after a start until the next start, C holds the matrix product A·B of the operands driven when start was sampled. Entries of A and B are signed W-bit numbers, and each C[i][j] = Σ_k A[i][k]·B[k][j] is computed exactly and then wrapped to AccW bits (modulo 2^AccW, as a GPU accumulator does). Once done rises the environment may change A and B, so the design must keep the result, not recompute it from its inputs."
+    }
+  ],
+  "definitions": [
+    {
+      "name": "product",
+      "decl": "SvGolf.Tasks.Matmul.product",
+      "file": "svgolf/tasks/matmul/Spec.lean",
+      "text": "product N W AccW A B: the matrix product, each entry Σ_k A[i][k]·B[k][j] over signed W-bit entries, reduced modulo 2^AccW, packed flat and row-major."
+    },
+    {
+      "name": "dot",
+      "decl": "SvGolf.Tasks.Matmul.dot",
+      "file": "svgolf/tasks/matmul/Spec.lean",
+      "text": "dot N W A B i j: the exact integer Σ_{k<N} A[i][k]·B[k][j]."
+    },
+    {
+      "name": "entry",
+      "decl": "SvGolf.Tasks.Matmul.entry",
+      "file": "svgolf/tasks/matmul/Spec.lean",
+      "text": "entry W x idx: entry idx of a flat vector of W-bit signed entries, as an integer."
+    },
+    {
+      "name": "TxTask.Rely",
+      "decl": "SvGolf.TxTask.Rely",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The environment's side of the protocol, up to a horizon: start and the operands are driven with known values in every cycle, start is 1 only while the design is idle, and the operands of a start are held until the cycle in which done first rises."
+    },
+    {
+      "name": "TxTask.Idle",
+      "decl": "SvGolf.TxTask.Idle",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The design is idle: every start since the release has already been answered by a cycle with done = 1."
+    },
+    {
+      "name": "Finished",
+      "decl": "SvGolf.Tasks.Matmul.Properties.Finished",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "text": "Finished stim tr c1 s c: s is a start after the release c1, done has been 1 in some cycle from s to c, and there is no later start up to c. These are the cycles in which the result must be shown."
+    },
+    {
+      "name": "TxTask.Guar",
+      "decl": "SvGolf.TxTask.Guar",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted guarantee, one conjunction; DONE_KNOWN, DONE_WITHIN_LATENCY, DONE_HELD and RESULT_IS_PRODUCT are its parts."
+    },
+    {
+      "name": "Statement",
+      "decl": "SvGolf.Tasks.Matmul.Statement",
+      "file": "svgolf/tasks/matmul/Spec.lean",
+      "text": "The trusted challenge statement that these properties restate, part by part."
+    },
+    {
+      "name": "task",
+      "decl": "SvGolf.Tasks.Matmul.task",
+      "file": "svgolf/tasks/matmul/Spec.lean",
+      "text": "The task as data: the parameter range, the port names and widths, and the function of a transaction."
+    },
+    {
+      "name": "UnderProtocol",
+      "decl": "SvGolf.Tasks.Matmul.Properties.UnderProtocol",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "text": "UnderProtocol d G: in every completed run, from every release of the reset, up to every later cycle h before which the environment followed the protocol (the task's Rely), G holds up to h. Every guarantee is stated in this frame, so a protocol violation can only void claims about later cycles."
+    },
+    {
+      "name": "Released",
+      "decl": "SvGolf.Released",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Released rst stim c1 h: rst was 1 in the cycle before c1 and is 0 in every cycle from c1 up to h. Claims start at every release, so nothing may survive a reset."
+    },
+    {
+      "name": "TraceBit",
+      "decl": "SvGolf.TraceBit",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "TraceBit tr c n b: in cycle c the design shows the 1-bit signal n as the known bit b."
+    },
+    {
+      "name": "StimBit",
+      "decl": "SvGolf.StimBit",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "StimBit stim c n b: in cycle c the environment drives the 1-bit input n with the known bit b."
+    },
+    {
+      "name": "ClockedBy",
+      "decl": "SvGolf.ClockedBy",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted clock discipline that CLOCK_DISCIPLINE restates."
+    },
+    {
+      "name": "edgeClock",
+      "decl": "SvGolf.edgeClock",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The clock of a clocked process (always_ff @(posedge c) and the like); none for any other process."
+    },
+    {
+      "name": "asyncReset",
+      "decl": "SvGolf.asyncReset",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The asynchronous reset of a clocked process (the rn of posedge c or negedge rn), if it has one."
+    },
+    {
+      "name": "processDataNames",
+      "decl": "SvGolf.processDataNames",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Every signal a process reads or writes as data: its body, or its assignment. The clock and reset in the event control do not count."
+    },
+    {
+      "name": "inputPorts",
+      "decl": "SvGolf.inputPorts",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The design's input ports, each with its declared width, in declaration order."
+    },
+    {
+      "name": "outputPorts",
+      "decl": "SvGolf.outputPorts",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The design's output ports, each with its declared width, in declaration order."
+    },
+    {
+      "name": "HoldAll",
+      "decl": "SvGolf.HoldAll",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "HoldAll st ports values: in the state st, every listed port holds its value as a known bit vector (no x, no z) of exactly the port's width."
+    },
+    {
+      "name": "⊨₂",
+      "decl": "LeanModels.Sv.Models2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "d ⊨₂ P: in every completed run of the design d, under every schedule and every stimulus, the stimulus and the trace satisfy P."
+    },
+    {
+      "name": "spec2",
+      "decl": "LeanModels.Sv.spec2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "Turns a property of a stimulus (one input entry per clock cycle) and a trace (one snapshot of every signal per cycle, taken after the clock edge) into the form ⊨₂ takes."
+    },
+    {
+      "name": "Runs2",
+      "decl": "LeanModels.Sv.Runs2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "Runs2 d σ stim tr: simulating d under the schedule σ on the stimulus stim completes, with the trace tr."
+    },
+    {
+      "name": "ScheduleOracle",
+      "decl": "LeanModels.Sv.ScheduleOracle",
+      "file": "LeanModels/Sv/Semantics.lean",
+      "text": "A legal schedule: the order in which the simulator runs the processes that are ready at the same moment. The statement quantifies over all of them."
+    },
+    {
+      "name": "Process2.isEdgePhase",
+      "decl": "LeanModels.Sv.Process2.isEdgePhase",
+      "file": "LeanModels/Sv/Sem2.lean",
+      "text": "True for the processes that run at the clock edge: always_ff, always @(posedge …) and asynchronous-reset blocks."
+    }
+  ]
+}

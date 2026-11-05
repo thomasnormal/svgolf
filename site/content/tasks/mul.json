@@ -1,0 +1,21 @@
+{
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "title": "N-bit multiplier",
+ "subtitle": "The full 2N-bit product of two unsigned N-bit numbers, with logic gates only.",
+ "references": {
+  "mul_n": "The N × N array multiplier, partial products summed by rows of full adders, proved with the sv_comb tactics.",
+  "mul_n_byhand": "The same design as `mul_n`, proved by hand without the tactics: the by-hand proof.",
+  "mul_tree": "A log-depth carry-save tree of 4:2 compressors over the partial-product rows, with a ripple final adder.",
+  "mul_wallace": "A Wallace tree: carry-save adders reduce the rows three at a time, then a ripple final adder.",
+  "mul_tree_h": "A carry-save tree whose leaves each hold two partial-product rows, every node a 4:2 compressor, with a ripple final adder."
+ },
+ "baselines": {
+  "yosys_mul": "Yosys's own multiplier, `assign p = a * b;`, which uses the banned `*`.",
+  "dadda_rc_8": "A Dadda tree with a ripple final adder, generated for N = 8 only and checked by simulation.",
+  "dadda_rc_16": "A Dadda tree with a ripple final adder, generated for N = 16 only and checked by simulation.",
+  "dadda_rc_32": "A Dadda tree with a ripple final adder, generated for N = 32 only and checked by simulation.",
+  "dadda_ks_8": "A Dadda tree with a Kogge-Stone final adder, generated for N = 8 only and checked by simulation.",
+  "dadda_ks_16": "A Dadda tree with a Kogge-Stone final adder, generated for N = 16 only and checked by simulation.",
+  "dadda_ks_32": "A Dadda tree with a Kogge-Stone final adder, generated for N = 32 only; not scored, because synthesis ran past the flow's time limit."
+ }
+}

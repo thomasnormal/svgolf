@@ -1,0 +1,88 @@
+{
+ "_comment": [
+  "Designs whose scored netlist carries the dead PUBLIC-NAMED wires Yosys leaves of techmapped cells ($shiftx, $shr, $pmux, $div ...):",
+  "escaped identifiers (`wire [7:0] \\_1_.A ;`), `assign \\_1_.A  = a;`, part selects after an escaped name, x constants. Found by review of",
+  "WP-X3; the reader in score/ppa.py once refused all of them. Same format as designs.json; goldens in expected_idioms.json.",
+  "Not part of the validation table of designs.json (ppa_validate.py table --designs idioms.json prints it). Paths relative to svgolf/."
+ ],
+ "designs": [
+  {
+   "name": "bitsel_dyn",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/bitsel_dyn.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "shift_var",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/shift_var.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "case_mux",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/case_mux.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "lut_case",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/lut_case.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "onehot_dec",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/onehot_dec.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "packed2d_idx",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/packed2d_idx.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "udiv_var",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/udiv_var.sv",
+   "top": "idiom",
+   "params": {
+    "N": 8
+   },
+   "ref": false
+  },
+  {
+   "name": "sbox_logexp",
+   "task": "idioms",
+   "src": "score/tests/ppa/idioms/sbox_logexp.sv",
+   "top": "aes_sbox",
+   "params": {},
+   "ref": false
+  }
+ ]
+}

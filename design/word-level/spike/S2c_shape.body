@@ -1,0 +1,58 @@
+
+/-! ## Width facts -/
+
+section widths
+variable {σ : String → Int} {dw : String → Nat}
+
+theorem ASk.width_le : ∀ (sk : ASk) (tw : Nat), sk.WidthOk σ dw tw → sk.width σ dw ≤ tw
+  | .lit _, tw, h => by simp only [ASk.WidthOk] at h; simp [ASk.width, h]
+  | .rd _, tw, h => by simp only [ASk.WidthOk] at h; simp [ASk.width, h]
+  | .ext _, tw, h => by simpa [ASk.width, ASk.WidthOk] using h.2
+  | .add l r, tw, h => by
+      have := ASk.width_le l tw h.1; have := ASk.width_le r tw h.2; simp [ASk.width]; omega
+  | .sub l r, tw, h => by
+      have := ASk.width_le l tw h.1; have := ASk.width_le r tw h.2; simp [ASk.width]; omega
+  | .gate g l r, tw, h => by
+      have := ASk.width_le l tw h.1; have := ASk.width_le r tw h.2; simp [ASk.width]; omega
+  | .bnot a, tw, h => by simpa [ASk.width] using ASk.width_le a tw h
+  | .tern c a b, tw, h => by
+      have := ASk.width_le a tw h.2.2.2.1; have := ASk.width_le b tw h.2.2.2.2
+      simp [ASk.width]; omega
+
+/-- the natural width is as good as the context, down to the skeleton's own width -/
+theorem ASk.WidthOk.mono : ∀ (sk : ASk) (tw W : Nat), sk.WidthOk σ dw tw →
+    sk.width σ dw ≤ W → W ≤ tw → sk.WidthOk σ dw W
+  | .lit _, tw, W, h, h1, h2 => by simp only [ASk.WidthOk, ASk.width] at h h1 ⊢; omega
+  | .rd _, tw, W, h, h1, h2 => by simp only [ASk.WidthOk, ASk.width] at h h1 ⊢; omega
+  | .ext _, tw, W, h, h1, h2 => by simp only [ASk.WidthOk, ASk.width] at h h1 ⊢; exact ⟨h.1, h1⟩
+  | .add l r, tw, W, h, h1, h2 => by
+      simp only [ASk.width, Nat.max_le] at h1
+      exact ⟨ASk.WidthOk.mono l tw W h.1 h1.1 h2, ASk.WidthOk.mono r tw W h.2 h1.2 h2⟩
+  | .sub l r, tw, W, h, h1, h2 => by
+      simp only [ASk.width, Nat.max_le] at h1
+      exact ⟨ASk.WidthOk.mono l tw W h.1 h1.1 h2, ASk.WidthOk.mono r tw W h.2 h1.2 h2⟩
+  | .gate g l r, tw, W, h, h1, h2 => by
+      simp only [ASk.width, Nat.max_le] at h1
+      exact ⟨ASk.WidthOk.mono l tw W h.1 h1.1 h2, ASk.WidthOk.mono r tw W h.2 h1.2 h2⟩
+  | .bnot a, tw, W, h, h1, h2 => ASk.WidthOk.mono a tw W h h1 h2
+  | .tern c a b, tw, W, h, h1, h2 => by
+      simp only [ASk.width, Nat.max_le] at h1
+      exact ⟨h.1, h.2.1, h.2.2.1, ASk.WidthOk.mono a tw W h.2.2.2.1 h1.1 h2,
+        ASk.WidthOk.mono b tw W h.2.2.2.2 h1.2 h2⟩
+
+/-- a marker-free skeleton is lowered at any width alike -/
+theorem ASk.low_irrel : ∀ (sk : ASk), sk.NoExt → ∀ t1 t2, sk.low σ t1 = sk.low σ t2
+  | .lit _, _, _, _ => rfl
+  | .rd _, _, _, _ => rfl
+  | .ext _, h, _, _ => by simp [ASk.NoExt] at h
+  | .add l r, h, t1, t2 => by
+      simp only [ASk.low, ASk.low_irrel l h.1 t1 t2, ASk.low_irrel r h.2 t1 t2]
+  | .sub l r, h, t1, t2 => by
+      simp only [ASk.low, ASk.low_irrel l h.1 t1 t2, ASk.low_irrel r h.2 t1 t2]
+  | .gate g l r, h, t1, t2 => by
+      simp only [ASk.low, ASk.low_irrel l h.1 t1 t2, ASk.low_irrel r h.2 t1 t2]
+  | .bnot a, h, t1, t2 => by simp only [ASk.low, ASk.low_irrel a h t1 t2]
+  | .tern c a b, h, t1, t2 => by
+      simp only [ASk.low, ASk.low_irrel a h.2.1 t1 t2, ASk.low_irrel b h.2.2 t1 t2]
+
+end widths

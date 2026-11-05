@@ -1,0 +1,2328 @@
+[
+{
+"topic": "clmul",
+"file": "bharath_clmul.v",
+"top": "carry_less_mul",
+"unsupported": [
+"TimedStatement:EventListControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "clmul",
+"file": "cogs_karatsuba_gfmult128.v",
+"top": "A2_karatsuba_GFmult128",
+"unsupported": [
+"ElementSelect:default-point-index",
+"NetSymbol:type"
+],
+"localdecl": 0,
+"packednull": 58
+},
+{
+"topic": "clmul",
+"file": "dng_gfmul.v",
+"top": "gfmul",
+"unsupported": [
+"NetSymbol:type"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "clmul",
+"file": "dng_gfmul_v2.v",
+"top": "gfmul_v2",
+"unsupported": [
+"CallExpression",
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 9
+},
+{
+"topic": "clmul",
+"file": "forencich_lfsr.v",
+"top": "lfsr",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 8
+},
+{
+"topic": "clmul",
+"file": "imperas_rvb_clmul.v",
+"top": "rvb_clmul",
+"unsupported": [
+"CallExpression",
+"ConversionExpression:width",
+"ConversionExpression:xz-literal-parametric",
+"IntegerLiteral:unsized-xz-parametric",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "clmul",
+"file": "klauss_ghash.sv",
+"top": "ghash",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "clmul",
+"file": "lql_GF128bitMultiply.sv",
+"top": "GF128bitMultiply",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 21
+},
+{
+"topic": "clmul",
+"file": "mixinst_clmul_dense.v",
+"top": "probe_clmul_dense",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "clmul",
+"file": "ot_prim_crc32.sv",
+"top": "prim_crc32",
+"unsupported": [
+"ElementSelect:default-point-index",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "clmul",
+"file": "risk5_rvb_clmul.v",
+"top": "rvb_clmul",
+"unsupported": [
+"CallExpression",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "clmul",
+"file": "ryanycs_gf128_reduction.sv",
+"top": "gf128_reduction",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "clmul",
+"file": "ryanycs_gf_mul.sv",
+"top": "gf_mul",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "clmul",
+"file": "statsim_ghash_gfmul.v",
+"top": "ghash_gfmul",
+"unsupported": [
+"TimedStatement:ImplicitEventControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "arx",
+"file": "aion_blake2_G.v",
+"top": "blake2_G",
+"unsupported": [
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 10
+},
+{
+"topic": "arx",
+"file": "apsarras_simon_ks.sv",
+"top": "simon_key_schedule",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:DelayControl"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "apsarras_simon_round.sv",
+"top": "simon_round",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:DelayControl"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "aucohl_salsa20.v",
+"top": "salsa20",
+"unsupported": [
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 37
+},
+{
+"topic": "arx",
+"file": "bobobomin_block.sv",
+"top": "chacha20_block",
+"unsupported": [
+"ExpressionStatement:CallExpression",
+"ForLoopStatement",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "eden_qr.sv",
+"top": "chacha_quarter_round",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "florian_round.v",
+"top": "round_encrypt",
+"unsupported": [
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "arx",
+"file": "germancq_round.sv",
+"top": "round_function",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "arx",
+"file": "goshik_chacha20.sv",
+"top": "ChaCha20",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"CaseStatement:WildcardJustZ"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "arx",
+"file": "kchymet_salsa20_8.sv",
+"top": "salsa20_8",
+"unsupported": [
+"ConversionExpression:width",
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 1
+},
+{
+"topic": "arx",
+"file": "khoa_block.v",
+"top": "BlockFunction",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"NamedValueExpression:type",
+"NetSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 12
+},
+{
+"topic": "arx",
+"file": "ljhsiun_qr.sv",
+"top": "quarter_round",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "lokarjun_core.sv",
+"top": "chacha20_core",
+"unsupported": [
+"ExpressionStatement:CallExpression",
+"ForLoopStatement",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 2,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "maiux_rounds.sv",
+"top": "Salsa20DoubleRound",
+"unsupported": [
+"NamedValueExpression:type",
+"PortConnection:target",
+"PortSymbol:type",
+"TimedStatement:EventListControl"
+],
+"localdecl": 0,
+"packednull": 8
+},
+{
+"topic": "arx",
+"file": "mujeeb_speck32.sv",
+"top": "speck32_64_top",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arx",
+"file": "nikhil_chacha20.sv",
+"top": "ChaCha20withBuffer",
+"unsupported": [
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"ProceduralBlockSymbol:NoEventControl",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 37
+},
+{
+"topic": "arx",
+"file": "onyx_chacha20.v",
+"top": "chacha20",
+"unsupported": [
+"CallExpression",
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "arx",
+"file": "onyx_speck.v",
+"top": "Top",
+"unsupported": [
+"ProceduralBlockSymbol:NoEventControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 13
+},
+{
+"topic": "arx",
+"file": "secworks_blake2s_G.v",
+"top": "blake2s_G",
+"unsupported": [
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 10
+},
+{
+"topic": "arx",
+"file": "secworks_chacha_qr.v",
+"top": "chacha_qr",
+"unsupported": [
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 8
+},
+{
+"topic": "arx",
+"file": "shmuel_round.v",
+"top": "speck_round",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 7
+},
+{
+"topic": "arx",
+"file": "silicon_qr.sv",
+"top": "QR",
+"unsupported": [
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "arx",
+"file": "trinity_blake3.v",
+"top": "blake3_anchor_v3",
+"unsupported": [
+"ExpressionStatement:CallExpression",
+"ForLoopStatement",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "arx",
+"file": "xtea_core.sv",
+"top": "xtea_core",
+"unsupported": [
+"NamedValueExpression:type",
+"PortSymbol:net-z",
+"VariableDeclStatement:type",
+"VariableSymbol:signed"
+],
+"localdecl": 10,
+"packednull": 4
+},
+{
+"topic": "arx",
+"file": "zcash_blake2b_g.sv",
+"top": "blake2b_g",
+"unsupported": [
+"GenerateBlockSymbol:unconditional"
+],
+"localdecl": 0,
+"packednull": 6
+},
+{
+"topic": "fpdiv",
+"file": "adachi_fp32_div_comb.sv",
+"top": "fp32_div_comb",
+"unsupported": [
+"CallExpression",
+"ConversionExpression:Explicit",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "adachi_fp32_sqrt_comb.sv",
+"top": "fp32_sqrt_comb",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "amd_miniisp_nr.sv",
+"top": "non_restoring_unsigned_divider",
+"unsupported": [
+"PortSymbol:net-z",
+"ProceduralBlockSymbol:initialized-variable"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "fpdiv",
+"file": "antongli_fp_div.sv",
+"top": "fp_div",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "c910_ct_vfdsu_ff1.v",
+"top": "ct_vfdsu_ff1",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "fpdiv",
+"file": "c910_ct_vfdsu_pack.v",
+"top": "ct_vfdsu_pack",
+"unsupported": [
+"NetSymbol:net-z",
+"SignalEventControl:None_",
+"TimedStatement:EventListControl"
+],
+"localdecl": 0,
+"packednull": 33
+},
+{
+"topic": "fpdiv",
+"file": "c910_ct_vfdsu_srt_radix16_bound_table.v",
+"top": "ct_vfdsu_srt_radix16_bound_table",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 19
+},
+{
+"topic": "fpdiv",
+"file": "cvw_fdivsqrtuslc4.sv",
+"top": "fdivsqrtuslc4",
+"unsupported": [
+"ForLoopStatement",
+"NamedValueExpression:type"
+],
+"localdecl": 4,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "dau_sqrt.sv",
+"top": "dau_fixed_point_sqrt",
+"unsupported": [
+"AssignmentExpression:target",
+"ElabSystemTaskSymbol:ElabSystemTask",
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"NamedValueExpression:type",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 5,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "erofivan_sqrt2.sv",
+"top": "sqrt2",
+"unsupported": [
+"CallExpression",
+"ExpressionStatement:CallExpression",
+"NetSymbol:net-z",
+"PortSymbol:InOut",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "gabbedt_nrdiv.sv",
+"top": "non_restoring_divider",
+"unsupported": [
+"AssignmentExpression:target",
+"RangeSelectExpression:member-range",
+"VariableSymbol:default-point-aggregate"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "gabbedt_sqrt.sv",
+"top": "non_restoring_square_root",
+"unsupported": [
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "graphpulse_fp_div.sv",
+"top": "fp_div",
+"unsupported": [
+"CaseStatement:WildcardJustZ"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "llama_restoring.sv",
+"top": "unsigned_restoring_divider",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "lsff_nnr_sqrt.sv",
+"top": "nnr_sqrt",
+"unsupported": [
+"ConversionExpression:Explicit",
+"NetSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 7
+},
+{
+"topic": "fpdiv",
+"file": "membrane_fp_div_r4.sv",
+"top": "membrane_fp_divider_radix4",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "mvp_iteration_div_sqrt_mvp.sv",
+"top": "iteration_div_sqrt_mvp",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "oc_except.v",
+"top": "except",
+"unsupported": [
+"IntraAssignment:publication-or-context"
+],
+"localdecl": 0,
+"packednull": 6
+},
+{
+"topic": "fpdiv",
+"file": "oc_post_norm.v",
+"top": "delay3",
+"unsupported": [
+"IntraAssignment:publication-or-context"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "fpdiv",
+"file": "oc_primitives.v",
+"top": "div_r2",
+"unsupported": [
+"IntraAssignment:publication-or-context"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "fpdiv",
+"file": "palmenros_fp_div_32_28.sv",
+"top": "fp_div_32_28",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "pequeno_nr32.sv",
+"top": "nrestore_divider_x32r2",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "fpdiv",
+"file": "robfinch_isqrt.sv",
+"top": "isqrt_tb",
+"unsupported": [
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"TimedStatement:DelayControl"
+],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "fpdiv",
+"file": "rtlcookbook_restoring.sv",
+"top": "divider_restoring",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "fpdiv",
+"file": "sakilxo_restoring.sv",
+"top": "restoring_divider",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "sayat_fp32_sqrt.sv",
+"top": "fp32_sqrt",
+"unsupported": [
+"CallExpression",
+"ConversionExpression:Explicit",
+"ForLoopStatement",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "sherpa_restoring.sv",
+"top": "math_divider_restoring",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "tide_fp32_divsqrt.sv",
+"top": "tide_fp32_divsqrt",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "vdp_fp_div.sv",
+"top": "fp_div",
+"unsupported": [
+"ConversionExpression:Explicit",
+"ConversionExpression:width"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "vvvdoo_srt_div.sv",
+"top": "srt_div",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ConversionExpression:Explicit",
+"ElementSelect:default-point-index",
+"ExpressionStatement:CallExpression",
+"ForLoopStatement",
+"PortSymbol:net-z",
+"PortSymbol:signed",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:default-point-array",
+"VariableSymbol:signed"
+],
+"localdecl": 32,
+"packednull": 0
+},
+{
+"topic": "fpdiv",
+"file": "zipcpu_div.v",
+"top": "div",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "sbox",
+"file": "ar_comp.v",
+"top": "sbox",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 48
+},
+{
+"topic": "sbox",
+"file": "ar_lut.v",
+"top": "sbox",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "sbox",
+"file": "as_mixcol.v",
+"top": "MixColumns_DUT",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:DelayControl"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "sbox",
+"file": "as_shiftrows.v",
+"top": "ShiftRows_DUT",
+"unsupported": [
+"TimedStatement:DelayControl"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "sbox",
+"file": "bl_affine.v",
+"top": "affine_transform",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "sbox",
+"file": "bl_calik.v",
+"top": "sbox_calik",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 6
+},
+{
+"topic": "sbox",
+"file": "bm_bp_fwd.v",
+"top": "bp_aes_sbox_fwd",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "sbox",
+"file": "bm_bp_sbox.v",
+"top": "bp_aes_sbox",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 7
+},
+{
+"topic": "sbox",
+"file": "bm_gf16_inv.v",
+"top": "bp_gf16_inv",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "cafxx_sbox.v",
+"top": "al_c_sbox",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 7
+},
+{
+"topic": "sbox",
+"file": "cal_doe_sbox.sv",
+"top": "doe_sbox",
+"unsupported": [
+"NamedValueExpression:type",
+"NetSymbol:type"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "cs_sbox.sv",
+"top": "Sbox",
+"unsupported": [
+"ExpressionStatement:CallExpression",
+"NamedValueExpression:type"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "cs_tbox_sbox.sv",
+"top": "Sbox",
+"unsupported": [
+"ExpressionStatement:CallExpression",
+"NamedValueExpression:type"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "me_invmixcol.v",
+"top": "inverseMixColumns",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "me_mixcol.v",
+"top": "mixColumns",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "me_sbox.v",
+"top": "sbox",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "sbox",
+"file": "me_shiftrows.v",
+"top": "shiftRows",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "nt_poly_shift.sv",
+"top": "dec128_poly_shift",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 9
+},
+{
+"topic": "sbox",
+"file": "nt_sbox.sv",
+"top": "dec128_sbox",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "sbox",
+"file": "nt_top.sv",
+"top": "aes_top",
+"unsupported": [
+"ElabSystemTaskSymbol:ElabSystemTask",
+"GenerateBlockSymbol:unconditional"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "sbox",
+"file": "pn_mixcol.v",
+"top": "mixcolumn",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "pn_sbox.v",
+"top": "sbox",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "sbox",
+"file": "pn_shiftrow.v",
+"top": "shiftrow",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "pr_mixcol.sv",
+"top": "inv_mix_columns",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 12
+},
+{
+"topic": "sbox",
+"file": "pr_player_dec.v",
+"top": "p_layer_dec",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "pr_sboxlayer_dec.v",
+"top": "sbox_layer_dec",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "ray_sm4_sbox.sv",
+"top": "sbox",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "sbox",
+"file": "rp_comp.v",
+"top": "SBOX",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 32
+},
+{
+"topic": "sbox",
+"file": "rp_sbox.v",
+"top": "RSBox",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "sbox",
+"file": "rs5_sbox.sv",
+"top": "riscv_crypto_aes_sbox",
+"unsupported": [
+"NamedValueExpression:type",
+"VariableSymbol:type"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "rv_lut4.v",
+"top": "riscv_crypto_fu_lut4",
+"unsupported": [
+"ElementSelect:default-point-index",
+"NamedValueExpression:type",
+"NetSymbol:net-z",
+"NetSymbol:type",
+"PortSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 6
+},
+{
+"topic": "sbox",
+"file": "rv_mixcols.v",
+"top": "riscv_crypto_aes_mixcolumn_dec",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 20
+},
+{
+"topic": "sbox",
+"file": "rv_sboxes.v",
+"top": "riscv_crypto_aes_sm4_sbox",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 25
+},
+{
+"topic": "sbox",
+"file": "sc_bytemix.v",
+"top": "byte_mixcolum",
+"unsupported": [
+"SubroutineSymbol:Subroutine",
+"TimedStatement:EventListControl"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "sbox",
+"file": "sc_isax.sv",
+"top": "ISAX_sbox",
+"unsupported": [
+"AssignmentExpression:target",
+"CaseStatement:WildcardJustZ",
+"NetSymbol:net-z",
+"PortSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "sbox",
+"file": "sk_hs.v",
+"top": "skinny_sbox8_hs",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "sbox",
+"file": "sk_logic.v",
+"top": "skinny_sbox8_logic",
+"unsupported": [
+"PortSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "sbox",
+"file": "sk_lut.v",
+"top": "skinny_sbox8_lut",
+"unsupported": [
+"SignalEventControl:None_"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "sbox",
+"file": "sm4_cki.sv",
+"top": "get_cki",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "sbox",
+"file": "sm4_sbox.sv",
+"top": "sbox_32bit",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "sw_sbox.v",
+"top": "aes_sbox",
+"unsupported": [
+"NamedValueExpression:type",
+"NetSymbol:type"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "sbox",
+"file": "tt_present.v",
+"top": "present80_encrypt",
+"unsupported": [
+"CallExpression",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "hashround",
+"file": "af_lfsr.v",
+"top": "lfsr",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 8
+},
+{
+"topic": "hashround",
+"file": "beethoven_keccak_round.v",
+"top": "keccak_round",
+"unsupported": [
+"ElementSelect:default-point-index",
+"NetSymbol:type",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "hashround",
+"file": "cryptopen_sha1_core.sv",
+"top": "sha1_core",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ForLoopStatement",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 2,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "cryptopen_sha256_core.sv",
+"top": "sha256_core",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ForLoopStatement",
+"NamedValueExpression:type",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed",
+"VariableSymbol:type"
+],
+"localdecl": 2,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "fpgaminer_sha256_core.sv",
+"top": "sha256_core",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ForLoopStatement",
+"NamedValueExpression:type",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "fpgaminer_sha256_core_unrolled.sv",
+"top": "sha256_core_unrolled",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 3,
+"packednull": 2
+},
+{
+"topic": "hashround",
+"file": "hakatu_rcgen.sv",
+"top": "keccak_round_constants_gen",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "hashround",
+"file": "hakatu_rho.sv",
+"top": "rho",
+"unsupported": [
+"ElementSelect:default-point-index",
+"SimpleAssignmentPatternExpression"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "hashround",
+"file": "hakatu_theta.sv",
+"top": "theta",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "hashround",
+"file": "hope_keccak.v",
+"top": "gen_input_keccak_MASKED_KECCAK",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 21
+},
+{
+"topic": "hashround",
+"file": "jesse_simplified_sha256.sv",
+"top": "simplified_sha256",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ExpressionStatement:CallExpression",
+"NamedValueExpression:type",
+"SimpleAssignmentPatternExpression",
+"SubroutineSymbol:Subroutine",
+"VariableDeclStatement:type"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "jl_keccak_f.sv",
+"top": "keccak_f",
+"unsupported": [
+"AssignmentExpression:target",
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"GenerateFor:step",
+"NamedValueExpression:type",
+"PortSymbol:type"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "jmoles_rcgen.sv",
+"top": "keccak_round_constants_gen",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "hashround",
+"file": "kaihugs_sha256.sv",
+"top": "sha256",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ForLoopStatement",
+"NamedValueExpression:type",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 6,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "karu64_keccak_round.v",
+"top": "keccak_round",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 9
+},
+{
+"topic": "hashround",
+"file": "m1a1x1_crc32_POL_1.sv",
+"top": "crc32_POL_1",
+"unsupported": [
+"ForLoopStatement",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 1,
+"packednull": 1
+},
+{
+"topic": "hashround",
+"file": "mxwiser_CRC32_D8.sv",
+"top": "CRC32_D8",
+"unsupported": [
+"CallExpression",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 4
+},
+{
+"topic": "hashround",
+"file": "nktkt_msg_schedule.sv",
+"top": "sha256_msg_schedule",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ForLoopStatement",
+"NamedValueExpression:type",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 3,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "ntp17_chi.sv",
+"top": "chi",
+"unsupported": [
+"ElementSelect:default-point-index",
+"PortSymbol:type"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "ntp17_rc.sv",
+"top": "rc",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "hashround",
+"file": "ntp17_rho.sv",
+"top": "rho",
+"unsupported": [
+"PortSymbol:type"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "ntp17_theta.sv",
+"top": "theta",
+"unsupported": [
+"ElementSelect:default-point-index",
+"PortSymbol:type"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "nycu_keccak_f.sv",
+"top": "keccak_f",
+"unsupported": [
+"AssignmentExpression:target",
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"GenerateFor:step",
+"NamedValueExpression:type",
+"PortSymbol:type"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "ot_prim_crc32.sv",
+"top": "prim_crc32",
+"unsupported": [
+"ElementSelect:default-point-index",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "pqov_keccak_round.v",
+"top": "keccak_round",
+"unsupported": [
+"ElementSelect:default-point-index",
+"NetSymbol:type",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 7
+},
+{
+"topic": "hashround",
+"file": "pulp_cc_lfsr_8bit.sv",
+"top": "cc_lfsr_8bit",
+"unsupported": [],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "hashround",
+"file": "secworks_md5_core.v",
+"top": "md5_core",
+"unsupported": [
+"CallExpression",
+"ForLoopStatement",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 1,
+"packednull": 2
+},
+{
+"topic": "hashround",
+"file": "secworks_sha1_w_mem.v",
+"top": "sha1_w_mem",
+"unsupported": [
+"ForLoopStatement",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 1,
+"packednull": 2
+},
+{
+"topic": "hashround",
+"file": "secworks_sha256_w_mem.v",
+"top": "sha256_w_mem",
+"unsupported": [
+"ForLoopStatement",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 1,
+"packednull": 3
+},
+{
+"topic": "hashround",
+"file": "secworks_sha3_core.v",
+"top": "sha3_core",
+"unsupported": [
+"PortSymbol:net-z",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 14
+},
+{
+"topic": "hashround",
+"file": "suprminer_keccak_round.v",
+"top": "keccak_round",
+"unsupported": [
+"CallExpression",
+"ElementSelect:default-point-index",
+"NetSymbol:type",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "hashround",
+"file": "vectrex_flash_save.sv",
+"top": "vectrex_flash_save",
+"unsupported": [
+"AssignmentExpression:target",
+"CallExpression",
+"ConversionExpression:Explicit",
+"ForLoopStatement",
+"NamedValueExpression:type",
+"PortSymbol:net-z",
+"ProceduralBlockSymbol:initialized-variable",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:type"
+],
+"localdecl": 1,
+"packednull": 7
+},
+{
+"topic": "hashround",
+"file": "wuang_SHA3_Keccak_f.sv",
+"top": "SHA3_Keccak_f",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 108
+},
+{
+"topic": "hashround",
+"file": "zeitlos_keccak.v",
+"top": "keccak",
+"unsupported": [
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"TimedStatement:ImplicitEventControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "bitops",
+"file": "ample_oh2bin.sv",
+"top": "onehot_to_binary_comb",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "asresh_bitonic.sv",
+"top": "bitonic_sorter",
+"unsupported": [
+"CallExpression",
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:default-point-array",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 6
+},
+{
+"topic": "bitops",
+"file": "av1_clz16.sv",
+"top": "clz16",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "bitops",
+"file": "bachus_prio.sv",
+"top": "F_priority_encoder",
+"unsupported": [
+"CaseStatement:WildcardJustZ"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "bhavana_ctz.sv",
+"top": "trailing_zeros",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "birdybro_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "birdybro_ctz.sv",
+"top": "trailing_zero_counter",
+"unsupported": [
+"ConversionExpression:Explicit",
+"ForLoopStatement"
+],
+"localdecl": 2,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "birdybro_lzc.sv",
+"top": "leading_zero_counter",
+"unsupported": [
+"ConversionExpression:Explicit",
+"ForLoopStatement"
+],
+"localdecl": 2,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "birdybro_rotate.sv",
+"top": "rotate_unit",
+"unsupported": [
+"ConversionExpression:Explicit",
+"ConversionExpression:width",
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "cc_bin2gray.sv",
+"top": "cc_binary_to_gray",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "cc_gray2bin.sv",
+"top": "cc_gray_to_binary",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "cc_popcount.sv",
+"top": "cc_popcount",
+"unsupported": [
+"ElabSystemTaskSymbol:ElabSystemTask",
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "cva5_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "cva5_prio.sv",
+"top": "priority_encoder",
+"unsupported": [
+"CallExpression",
+"ElabSystemTaskSymbol:ElabSystemTask",
+"ElementSelectExpression:param-range",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "davidm_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ElementSelect:default-point-index",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "digiforge_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ElementSelect:default-point-index",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "dsp_bitrev.sv",
+"top": "bit_reverse",
+"unsupported": [
+"ForLoopStatement",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "eecs470_oh2bin.sv",
+"top": "onehot_to_binary",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "bitops",
+"file": "embedded_funnel.sv",
+"top": "funnel_shifter",
+"unsupported": [
+"CaseStatement:WildcardXOrZ"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "bitops",
+"file": "gjlies_prio.sv",
+"top": "priority_encoder",
+"unsupported": [
+"SignalEventControl:None_",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "bitops",
+"file": "hundreddays_bin2oh.sv",
+"top": "Binary_to_OneHot_Converter",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "bitops",
+"file": "iicjku_barrel.sv",
+"top": "barrel_shift",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "jeras_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "jeras_prio_base.sv",
+"top": "priority_encoder_base",
+"unsupported": [
+"ConversionExpression:xz-literal-parametric",
+"GenerateBlockSymbol:unconditional"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "leg_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"CaseStatement:WildcardJustZ",
+"ForLoopStatement",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "lisa_ls280.sv",
+"top": "parity_generator_LS280",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "meds_lzc.sv",
+"top": "leading_zero_counter",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "minh_funnel.sv",
+"top": "shifter",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "nano_shifter.sv",
+"top": "shifter",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 2,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "noc_oh_to_idx.sv",
+"top": "oh_to_idx",
+"unsupported": [
+"TimedStatement:ImplicitEventControl",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "bitops",
+"file": "notes_sortnet.sv",
+"top": "sort_network",
+"unsupported": [
+"ConversionExpression:Explicit",
+"ElementSelect:default-point-index",
+"TimedStatement:ImplicitEventControl",
+"VariableSymbol:default-point-array",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "odl_bin2oh.sv",
+"top": "ODL_bin_to_onehot",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "odl_oh2bin.sv",
+"top": "ODL_onehot_to_bin",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "opae_oh2bin.sv",
+"top": "cci_mpf_prim_onehot_to_bin",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "bitops",
+"file": "pconst_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ProceduralBlockSymbol:initialized-variable"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "bitops",
+"file": "pconst_reverse.sv",
+"top": "reverse_vector",
+"unsupported": [
+"ForLoopStatement",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "bitops",
+"file": "pifive_barrel.sv",
+"top": "barrel_shifter",
+"unsupported": [
+"ForLoopStatement",
+"NamedValueExpression:type",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "bitops",
+"file": "plena_clz.sv",
+"top": "clz_int",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "rIC3_gray.sv",
+"top": "gray_counter",
+"unsupported": [
+"CallExpression",
+"ImmediateAssertion:symbolic"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "raybox_lzc_d.sv",
+"top": "lzc_d",
+"unsupported": [
+"CallExpression",
+"NetSymbol:net-z",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "bitops",
+"file": "sakil_bin2oh.sv",
+"top": "binary_to_onehot",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "sakil_oh2bin.sv",
+"top": "onehot_to_binary",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "scariv_bitrev.sv",
+"top": "bit_reverse",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "sherpa_barrel.sv",
+"top": "shifter_barrel",
+"unsupported": [
+"ConversionExpression:Explicit",
+"ElementSelect:default-point-index",
+"NamedValueExpression:type",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "sherpa_clz.sv",
+"top": "count_leading_zeros",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "sherpa_ctz.sv",
+"top": "count_trailing_zeros",
+"unsupported": [
+"CallExpression",
+"SubroutineSymbol:Subroutine"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "sherpa_parity.sv",
+"top": "dataint_parity",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "ttl_74x280.sv",
+"top": "ttl_74x280",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "bitops",
+"file": "v60_shifter.sv",
+"top": "v60_shifter",
+"unsupported": [
+"ConversionExpression:Explicit",
+"RepeatLoopStatement",
+"VariableSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "avg_sklansky.sv",
+"top": "sklansky_adder",
+"unsupported": [
+"ElementSelect:default-point-index",
+"GenerateBlockSymbol:unconditional",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "cookbook_ks.sv",
+"top": "adder_kogge_stone",
+"unsupported": [
+"ElementSelect:default-point-index",
+"ForLoopStatement",
+"PortSymbol:net-z",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 3,
+"packednull": 4
+},
+{
+"topic": "arith",
+"file": "dollbar_ks48.sv",
+"top": "kogge_stone_adder_48",
+"unsupported": [
+"ElementSelect:default-point-index",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "drra_ks.sv",
+"top": "kogge_stone_adder",
+"unsupported": [
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "esa_gp.sv",
+"top": "gp_unit",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "mac16_ks.sv",
+"top": "kogge_stone_40bit",
+"unsupported": [
+"PortSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 18
+},
+{
+"topic": "arith",
+"file": "manjot_ks.sv",
+"top": "kogge_stone_adder_32",
+"unsupported": [
+"ElementSelect:default-point-index"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "mgma_adder.sv",
+"top": "adder",
+"unsupported": [
+"ConversionExpression:width",
+"PortSymbol:signed"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "arith",
+"file": "nikos_ks.sv",
+"top": "kogge_stone_adder",
+"unsupported": [
+"ElementSelect:default-point-index",
+"NetSymbol:type",
+"PortSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "alu",
+"file": "biriscv_alu.v",
+"top": "biriscv_alu",
+"unsupported": [
+"TimedStatement:EventListControl"
+],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "alu",
+"file": "cc_onehot_to_bin.sv",
+"top": "cc_onehot_to_bin",
+"unsupported": [
+"ConversionExpression:Explicit"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "alu",
+"file": "cc_popcount.sv",
+"top": "cc_popcount",
+"unsupported": [
+"ElabSystemTaskSymbol:ElabSystemTask",
+"ForLoopStatement"
+],
+"localdecl": 1,
+"packednull": 0
+},
+{
+"topic": "alu",
+"file": "cole_ALU.v",
+"top": "ALU",
+"unsupported": [
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 3
+},
+{
+"topic": "alu",
+"file": "hazard3_onehot_priority.v",
+"top": "hazard3_onehot_priority",
+"unsupported": [
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "alu",
+"file": "prim_crc32.sv",
+"top": "prim_crc32",
+"unsupported": [
+"ElementSelect:default-point-index",
+"SubroutineSymbol:Subroutine",
+"VariableSymbol:default-point-array"
+],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "alu",
+"file": "prim_msb_extend.sv",
+"top": "prim_msb_extend",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 2
+},
+{
+"topic": "alu",
+"file": "prim_onehot_enc.sv",
+"top": "prim_onehot_enc",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 0
+},
+{
+"topic": "alu",
+"file": "prim_secded_39_32_enc.sv",
+"top": "prim_secded_39_32_enc",
+"unsupported": [],
+"localdecl": 0,
+"packednull": 1
+},
+{
+"topic": "alu",
+"file": "simplerisc_shifter.v",
+"top": "shifter32_opt",
+"unsupported": [
+"NetSymbol:net-z"
+],
+"localdecl": 0,
+"packednull": 12
+},
+{
+"topic": "alu",
+"file": "ultra_riscv_alu.v",
+"top": "riscv_alu",
+"unsupported": [
+"TimedStatement:EventListControl"
+],
+"localdecl": 0,
+"packednull": 5
+},
+{
+"topic": "alu",
+"file": "vexriscv_full.v",
+"top": "VexRiscv",
+"unsupported": [
+"AssignmentExpression:target",
+"ConversionExpression:width",
+"NamedValueExpression:type",
+"NetSymbol:net-z",
+"PortSymbol:net-z",
+"TimedStatement:ImplicitEventControl"
+],
+"localdecl": 0,
+"packednull": 485
+}
+]

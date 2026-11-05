@@ -1,0 +1,7 @@
+base exit 0 wall 20 s errors 0
+c10_whole_struct exit 0 wall 38 s errors 0
+c20_whole_struct exit 0 wall 69 s errors 0
+c40_whole_struct exit 124 wall 70 s errors 0
+c40_whole_struct exit 124 wall 190 s errors 0
+c10_whole_eq exit 1 wall 43 s errors 1
+c20_whole_eq exit 1 wall 69 s errors 1

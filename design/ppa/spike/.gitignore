@@ -1,0 +1,6 @@
+.cache/
+__pycache__/
+# regenerable intermediates of flow_a.py (mapped netlists, Yosys logs, stat files)
+data/flow_a/
+# regenerable by gen_netlists.py (4.8 MB of mapped netlists)
+data/netlists/

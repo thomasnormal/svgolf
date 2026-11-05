@@ -1,0 +1,94 @@
+
+/-! ## The x-free reading: width and Boolean bits of the lowered expression -/
+
+section xf
+variable {m : Design2} {σ : String → Int} {dw : String → Nat}
+
+theorem addBits_congr {w : Nat} {f f' g g' : Nat → Bool} (hf : ∀ j, j < w → f j = f' j)
+    (hg : ∀ j, j < w → g j = g' j) (k : Nat) : XF.addBits w f w g k = XF.addBits w f' w g' k := by
+  simp only [XF.addBits, XF.val_congr hf, XF.val_congr hg]
+
+theorem subBits_congr {w : Nat} {f f' g g' : Nat → Bool} (hf : ∀ j, j < w → f j = f' j)
+    (hg : ∀ j, j < w → g j = g' j) (k : Nat) : XF.subBits w f w g k = XF.subBits w f' w g' k := by
+  simp only [XF.subBits, XF.val_congr hf, XF.val_congr hg]
+
+/-- the payload of a marker (a literal or an access) at its own width, for every bit -/
+theorem payload_xf : ∀ (a : ASk), a.Payload → a.knownB = true → (∀ x ∈ a.leaves, LeafOk m σ dw x) →
+    ∀ env : String → Nat → Bool,
+    (a.low σ 0).xfWidth m = some (a.width σ dw) ∧
+      ∀ k, (a.low σ 0).xfBits m env k = a.bit σ dw (a.width σ dw) env k
+  | .lit v, _, hk, _, env => by
+      simp only [ASk.knownB] at hk
+      exact ⟨by simp [ASk.low, ASk.width, Expr2.xfWidth, hk], fun k => by simp [ASk.low, ASk.bit, Expr2.xfBits]⟩
+  | .rd a, _, _, hL, env =>
+      ⟨by rw [ASk.low, expr_xfWidth (hL a (by simp [ASk.leaves])), ASk.width],
+       fun k => by simp [ASk.low, ASk.bit, expr_xfBits]⟩
+  | .ext _, h, _, _, _ => by simp [ASk.Payload] at h
+  | .add _ _, h, _, _, _ => by simp [ASk.Payload] at h
+  | .sub _ _, h, _, _, _ => by simp [ASk.Payload] at h
+  | .gate _ _ _, h, _, _, _ => by simp [ASk.Payload] at h
+  | .bnot _, h, _, _, _ => by simp [ASk.Payload] at h
+  | .tern _ _ _, h, _, _, _ => by simp [ASk.Payload] at h
+
+/-- **The lowered expression is in the x-free fragment at the context width, and its Boolean bits are the
+skeleton's** (markers: zero extension; `+ -`: `XF.addBits tw`, `XF.subBits tw`). -/
+theorem alow_xf_gen :
+    ∀ (sk : ASk) (tw : Nat), sk.knownB = true → sk.WidthOk σ dw tw →
+      (∀ a ∈ sk.leaves, LeafOk m σ dw a) → ∀ env : String → Nat → Bool,
+      (sk.low σ tw).xfWidth m = some tw ∧
+        ∀ k, k < tw → (sk.low σ tw).xfBits m env k = sk.bit σ dw tw env k
+  | .lit v, tw, hk, hw, _, env => by
+      simp only [ASk.knownB] at hk
+      simp only [ASk.WidthOk] at hw
+      exact ⟨by simp [ASk.low, Expr2.xfWidth, hk, hw], fun k _ => by simp [ASk.low, ASk.bit, Expr2.xfBits]⟩
+  | .rd a, tw, _, hw, hL, env => by
+      simp only [ASk.WidthOk] at hw
+      exact ⟨by rw [ASk.low, expr_xfWidth (hL a (by simp [ASk.leaves])), hw],
+        fun k _ => by simp [ASk.low, ASk.bit, expr_xfBits]⟩
+  | .ext a, tw, hk, hw, hL, env => by
+      simp only [ASk.knownB] at hk
+      simp only [ASk.WidthOk] at hw
+      obtain ⟨h1, h2⟩ := payload_xf a hw.1 hk hL env
+      refine ⟨by simp [ASk.low, Expr2.xfWidth, h1], fun k _ => ?_⟩
+      simp [ASk.low, ASk.bit, Expr2.xfBits, h1, h2, XF.zext]
+  | .add l r, tw, hk, hw, hL, env => by
+      simp only [ASk.knownB, Bool.and_eq_true] at hk
+      simp only [ASk.WidthOk] at hw
+      obtain ⟨h1, b1⟩ := alow_xf_gen l tw hk.1 hw.1 (fun a ha => hL a (by simp [ASk.leaves, ha])) env
+      obtain ⟨h2, b2⟩ := alow_xf_gen r tw hk.2 hw.2 (fun a ha => hL a (by simp [ASk.leaves, ha])) env
+      refine ⟨by simp [ASk.low, Expr2.xfWidth, h1, h2, XF.comb], fun k _ => ?_⟩
+      simp only [ASk.low, ASk.bit, Expr2.xfBits, h1, h2, Option.getD_some]
+      exact addBits_congr b1 b2 k
+  | .sub l r, tw, hk, hw, hL, env => by
+      simp only [ASk.knownB, Bool.and_eq_true] at hk
+      simp only [ASk.WidthOk] at hw
+      obtain ⟨h1, b1⟩ := alow_xf_gen l tw hk.1 hw.1 (fun a ha => hL a (by simp [ASk.leaves, ha])) env
+      obtain ⟨h2, b2⟩ := alow_xf_gen r tw hk.2 hw.2 (fun a ha => hL a (by simp [ASk.leaves, ha])) env
+      refine ⟨by simp [ASk.low, Expr2.xfWidth, h1, h2, XF.comb], fun k _ => ?_⟩
+      simp only [ASk.low, ASk.bit, Expr2.xfBits, h1, h2, Option.getD_some]
+      exact subBits_congr b1 b2 k
+  | .gate g l r, tw, hk, hw, hL, env => by
+      simp only [ASk.knownB, Bool.and_eq_true] at hk
+      simp only [ASk.WidthOk] at hw
+      obtain ⟨h1, b1⟩ := alow_xf_gen l tw hk.1 hw.1 (fun a ha => hL a (by simp [ASk.leaves, ha])) env
+      obtain ⟨h2, b2⟩ := alow_xf_gen r tw hk.2 hw.2 (fun a ha => hL a (by simp [ASk.leaves, ha])) env
+      refine ⟨by cases g <;> simp [ASk.low, Gate.op, Expr2.xfWidth, h1, h2, XF.same], fun k hk' => ?_⟩
+      cases g <;> simp [ASk.low, ASk.bit, Gate.op, Expr2.xfBits, b1 k hk', b2 k hk']
+  | .bnot a, tw, hk, hw, hL, env => by
+      simp only [ASk.knownB] at hk
+      simp only [ASk.WidthOk] at hw
+      obtain ⟨h1, b1⟩ := alow_xf_gen a tw hk hw (fun x hx => hL x (by simpa [ASk.leaves] using hx)) env
+      exact ⟨by simp [ASk.low, Expr2.xfWidth, h1], fun k hk' => by
+        simp [ASk.low, ASk.bit, Expr2.xfBits, b1 k hk']⟩
+  | .tern c a b, tw, hk, hw, hL, env => by
+      simp only [ASk.knownB, Bool.and_eq_true] at hk
+      obtain ⟨hnc, hwc, hwc1, hwa, hwb⟩ := hw
+      obtain ⟨h1, b1⟩ := alow_xf_gen c 1 hk.1.1 hwc (fun x hx => hL x (by simp [ASk.leaves, hx])) env
+      obtain ⟨h2, b2⟩ := alow_xf_gen a tw hk.1.2 hwa (fun x hx => hL x (by simp [ASk.leaves, hx])) env
+      obtain ⟨h3, b3⟩ := alow_xf_gen b tw hk.2 hwb (fun x hx => hL x (by simp [ASk.leaves, hx])) env
+      rw [ASk.low_irrel c hnc 1 0] at h1 b1
+      refine ⟨xf_tern h1 h2 h3, fun k hk' => ?_⟩
+      simp only [ASk.low, ASk.bit]
+      rw [xfb_tern h1, b1 0 (by omega), b2 k hk', b3 k hk']
+
+end xf

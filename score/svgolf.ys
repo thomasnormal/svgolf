@@ -1,0 +1,24 @@
+# svGolf PINNED scoring flow, stage 2 of 2: SYNTHESIS AND MEASUREMENT (Yosys +
+# ABC). Do not edit: a change here is a change to every score. score.py fills
+# the @NAME@ placeholders and records this file's sha256 (`script_sha256`) in
+# every result. It runs in a fresh Yosys process on the canonical RTLIL that
+# stage 1 (canon.ys) wrote.
+#
+#   @RTLIL@    the canonical RTLIL from stage 1
+#   @TOP@      the task's top module
+#   @STAT@     output file for `stat -json` (gate counts by type)
+#   @LTP@      output file for `ltp -noff` (longest topological path)
+#   @NETLIST@  output file: the scored gate netlist (`write_verilog -noexpr`:
+#              one `$_AND_`/`$_MUX_`/... instance per scored gate), which the
+#              checker's `postsynth` stage simulates. It is written AFTER
+#              `stat` and `ltp`, so it cannot influence the score.
+#
+# Area is the gate count weighted by ge.json (NAND2 gate equivalents); depth is
+# the `ltp` length, the number of gates on the longest input-to-output path.
+read_rtlil @RTLIL@
+synth -flatten -top @TOP@
+abc -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX
+opt_clean
+tee -q -o @STAT@ stat -json
+tee -q -o @LTP@ ltp -noff
+write_verilog -noattr -noexpr @NETLIST@

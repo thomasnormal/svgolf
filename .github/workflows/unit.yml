@@ -1,0 +1,35 @@
+# The tests that need no Lean and no Yosys (the whole suite is tests/run.py, on a machine with the
+# toolchain: see README.md).
+name: unit
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch lean-surfaces at the revision lake-manifest.json pins (the files the site reads)
+        run: |
+          rev=$(python3 -c 'import json; print(next(p["rev"] for p in json.load(open("lake-manifest.json"))["packages"] if p["name"].strip("\u00ab\u00bb") == "lean-models"))')
+          dep=.lake/packages/lean-models
+          git init -q "$dep"
+          git -C "$dep" remote add origin https://github.com/thomasnormal/lean-surfaces
+          git -C "$dep" sparse-checkout set --no-cone /LeanModels/ /docs/sv-refusals.json /extractors/sv/ /tools/gen_sv_refusals.py
+          git -C "$dep" fetch -q --depth 1 --filter=blob:none origin "$rev"
+          git -C "$dep" checkout -q FETCH_HEAD
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The layouts, the site generator, the leaderboard
+        run: |
+          python3 tests/checker/test_layout.py
+          python3 -m unittest discover -s tests/site
+          python3 tests/leaderboard/test_leaderboard.py
+      - name: REFUSALS.md is what the pinned register renders
+        run: |
+          python3 .lake/packages/lean-models/tools/gen_sv_refusals.py --root .lake/packages/lean-models --emit-svgolf "$RUNNER_TEMP/REFUSALS.md"
+          cmp "$RUNNER_TEMP/REFUSALS.md" REFUSALS.md

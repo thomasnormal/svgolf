@@ -1,0 +1,36 @@
+module c10_win #(parameter int W = 5, parameter int P = 11) (
+  input  logic [W+P-1:0] a, input logic [W+P-1:0] b, output logic [W+P-1:0] q);
+  localparam integer K = W + P;
+  localparam integer T = P - 1;
+  logic [K-1:0] x0;
+  logic [K-1:0] x1;
+  logic [K-1:0] x2;
+  logic [K-1:0] x3;
+  logic [K-1:0] x4;
+  logic [K-1:0] x5;
+  logic [K-1:0] x6;
+  logic [K-1:0] x7;
+  logic [K-1:0] x8;
+  logic [K-1:0] x9;
+  assign x0[T-1:0] = a[T-1:0] ^ b[T-1:0];
+  assign x0[K-1:T] = a[K-1:T] ^ b[K-1:T];
+  assign x1[T-1:0] = x0[T-1:0] ^ a[T-1:0];
+  assign x1[K-1:T] = x0[K-1:T] & a[K-1:T];
+  assign x2[T-1:0] = x1[T-1:0] ^ a[T-1:0];
+  assign x2[K-1:T] = x1[K-1:T] & a[K-1:T];
+  assign x3[T-1:0] = x2[T-1:0] ^ a[T-1:0];
+  assign x3[K-1:T] = x2[K-1:T] & a[K-1:T];
+  assign x4[T-1:0] = x3[T-1:0] ^ a[T-1:0];
+  assign x4[K-1:T] = x3[K-1:T] & a[K-1:T];
+  assign x5[T-1:0] = x4[T-1:0] ^ a[T-1:0];
+  assign x5[K-1:T] = x4[K-1:T] & a[K-1:T];
+  assign x6[T-1:0] = x5[T-1:0] ^ a[T-1:0];
+  assign x6[K-1:T] = x5[K-1:T] & a[K-1:T];
+  assign x7[T-1:0] = x6[T-1:0] ^ a[T-1:0];
+  assign x7[K-1:T] = x6[K-1:T] & a[K-1:T];
+  assign x8[T-1:0] = x7[T-1:0] ^ a[T-1:0];
+  assign x8[K-1:T] = x7[K-1:T] & a[K-1:T];
+  assign x9[T-1:0] = x8[T-1:0] ^ a[T-1:0];
+  assign x9[K-1:T] = x8[K-1:T] & a[K-1:T];
+  assign q = x9;
+endmodule

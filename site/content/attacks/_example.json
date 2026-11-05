@@ -1,0 +1,34 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "arith_and": "The right function, written with run-time `+` and `-`, which this task bans.",
+  "extra_in": "A hidden extra input port: the statement allows exactly the task's ports.",
+  "or_gate": "The wrong function: OR instead of AND.",
+  "reads_x": "Reads a net that nothing drives, so its value is unknown (`x`).",
+  "wide_out": "The output is N + 1 bits wide instead of N."
+ },
+ "attacks": {
+  "array_sum": "Sums an unpacked array with the `.sum()` method: run-time addition in disguise.",
+  "casex_item": "A `case` item with an `x` digit: ls-sv computes `a & b`, while Yosys treats the item as a match and drives an unknown value at 0 GE.",
+  "fn_uninit": "A function reads a local variable before assigning it: unknown in SystemVerilog, a fixed value in Yosys, and a construct ls-sv cannot run.",
+  "for_counter_skip": "A `for` loop that skips an iteration by incrementing its own counter: simulation and synthesis disagree on the result.",
+  "for_counter_write": "A `for` loop whose body overwrites its own counter: Yosys ignores the write, while a simulator can loop forever.",
+  "latch_never": "An `always_latch` that is never enabled: unknown in simulation, while Yosys resolves the latch to a constant.",
+  "latch_star": "The same never-enabled latch, written with `always @*`.",
+  "oob_rare": "An out-of-range read that changes the netlist's output on a single input pair, too rare for any sampling to find.",
+  "oob_select": "An index that always reads past the end of a 4-bit vector: an unknown value that ls-sv and Yosys resolve differently.",
+  "param_divzero": "A constant `1 / 0` used as a `case` item: an unknown value without an `x` literal, matched by Yosys and never by ls-sv.",
+  "priority_nomatch": "A `priority case` that never matches, which lets Yosys drive anything (0 GE).",
+  "rare_mid": "An out-of-range read that changes the output on about one input in 512: sampling finds it only with the full vector set.",
+  "undriven_mux": "A multiplexer steered by a signal that nothing drives: ls-sv and Yosys pick different branches.",
+  "unique0_nomatch": "A harmless `unique0 case` that never matches, refused like every `unique`, `unique0` and `priority` qualifier because they let synthesis read a `case` differently from simulation.",
+  "unique_first_const": "A harmless-looking `unique case (1'b1)` whose first item is the constant 1, so two items can match at once.",
+  "unique_nomatch": "A `unique case` that never matches, which lets Yosys drive anything (0 GE).",
+  "unique_overlap": "A `unique case` with overlapping items, where Yosys ORs the arms of the items that both match.",
+  "unique_rare": "The same overlap confined to one input pattern in 2^24.",
+  "z_rare": "A `case` item with `z` digits that Yosys ignores, so the netlist differs on one input in 2^28.",
+  "zconst_param": "`x` and `z` bits hidden in local parameters built by concatenation, used as `case` items.",
+  "zeq_pair_if": "Comparisons against constants with `z` digits: unknown in ls-sv, always true in Yosys.",
+  "zpair_or": "Two complementary `case` items with `z` digits: neither matches in ls-sv, together they match every input in Yosys."
+ }
+}

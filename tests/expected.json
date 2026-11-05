@@ -1,0 +1,3125 @@
+{
+  "_comment": [
+    "Golden expectations for tests/run.py: every score quoted in a README is here and is re-measured by tests/run.py (area_mge and depth exactly, and the gate mix).",
+    "Per task: `references` (tasks/<task>/reference/<stem>.sv; accepted by check.py with <stem>.lean, or for a draft task the `stage` check.py stops at with the draft's partial Lean file), `baselines` (tests/<task>/baselines/<stem>.sv unless `sv` says otherwise, relative to tests/<task>/; scored only, never accepted: `banned` says whether the task's banlist rejects it, the score is taken with the banlist lifted), `negatives` (tests/<task>/negative/<stem>.sv; rejected by check.py at `stage` when submitted with the task's first reference proof).",
+    "`scores` maps a parameter point (`N=16`, or `default` for a parameterless top) to the pinned flow's result there (score/score.py: score/svgolf.ys + score/ge.json, Yosys 0.53). Regenerate the scores with `python3.12 tests/run.py --update-scores` after a deliberate change of the flow.",
+    "`attacks` (tests/<task>/attacks/<stem>.sv; through `check.py --unproved`, or with a reference proof when `lean` says so: `reference` the task's first, `reference/<stem>.lean` that one; rejected at `stage`): optional `message_contains` (a phrase the rejection must carry; WP-C3's `design` rejections name the unsupported construct), `postsynth_alone` (`rejects` | `passes`: the postsynth check alone with the source gate and the fourstate stage bypassed), `postsynth_mode` (`light` when absent; `full` for an attack that ONLY the full post-synthesis check rejects: the mode of the check.py run and of the `postsynth_alone` run, WP-C2), `postsynth_light` (the LIGHT mode's own verdict where it is documented, `rejects` | `passes`), `functional` and `tactics` (the advisory checks). `advisory` (true): a test of the checker's own behavior that the refusal register (docs/sv-refusals.json, tools/gen_sv_refusals.py) does not need to cite; WP-C2/WP-C3 set it on `func_call`, `assign_func` and `rare_mid` until the register has entries for them."
+  ],
+  "flow": {
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea"
+  },
+  "tasks": {
+    "_example": {
+      "references": {
+        "band": {
+          "scores": {
+            "N=16": {
+              "area_ge": 21.328,
+              "area_mge": 21328,
+              "depth": 1,
+              "num_gates": 16,
+              "gates": {
+                "AND": 16
+              }
+            }
+          }
+        },
+        "band_lp": {
+          "scores": {
+            "N=16": {
+              "area_ge": 21.328,
+              "area_mge": 21328,
+              "depth": 1,
+              "num_gates": 16,
+              "gates": {
+                "AND": 16
+              }
+            }
+          }
+        }
+      },
+      "baselines": {},
+      "negatives": {
+        "or_gate": {
+          "stage": "solution",
+          "why": "wrong function (OR); refuted in negative/Refute.lean (orGate_refuted)"
+        },
+        "reads_x": {
+          "stage": "fourstate",
+          "why": "reads an undriven net (x): the fourstate stage refuses it (Yosys `check`: used but no driver) before any proof is tried; the statement refutes it too, in negative/Refute.lean (readsX_refuted)"
+        },
+        "wide_out": {
+          "stage": "solution",
+          "why": "output N+1 bits wide; refuted in negative/Refute.lean (wideOut_refuted)"
+        },
+        "extra_in": {
+          "stage": "solution",
+          "why": "hidden extra input; refuted in negative/Refute.lean (extraIn_refuted)"
+        },
+        "arith_and": {
+          "stage": "banlist",
+          "why": "correct function through banned run-time + and -"
+        }
+      },
+      "attacks": {
+        "casex_item": {
+          "stage": "source",
+          "why": "`s = 1'b0; case (s) 1'bx: y = '0; default: y = a & b;`: ls-sv computes a & b, Yosys reads the x item as matching and drives x (0 GE). The source gate refuses the x literal digit; before that rule it passed every stage up to postsynth (LIVE), and postsynth alone still rejects every vector.",
+          "postsynth_alone": "rejects"
+        },
+        "zpair_or": {
+          "stage": "source",
+          "why": "complementary z case items `2'b0z`, `2'b1z` on {a[0], b[0]}: none matches in ls-sv (a & b), together they match every input in Yosys (a | b). Refused by the source gate (x/z literal digits); postsynth alone rejects nearly every vector.",
+          "postsynth_alone": "rejects"
+        },
+        "z_rare": {
+          "stage": "source",
+          "why": "`case ({a, b}) 32'hDEAD_BEEz: y = '0;`: Yosys drops the z bits, so the netlist outputs 0 on 2^-28 of the inputs, ls-sv never. Refused by the source gate; postsynth alone rejects it only through the harvested constant's 0/1 bits (x/z bits left free), never by random vectors.",
+          "postsynth_alone": "rejects"
+        },
+        "zconst_param": {
+          "stage": "source",
+          "why": "the x/z bits inside localparams built by concatenation, `{1'b0, 1'bz}` and `{1'b1, 1'bx}`, as case items: a & b in ls-sv, a | b in Yosys. Refused by the source gate (the literal digits); postsynth alone rejects.",
+          "postsynth_alone": "rejects"
+        },
+        "zeq_pair_if": {
+          "stage": "source",
+          "why": "`if ((a[1:0] == 2'b0z) || (a[1:0] == 2'b1z))`: x in ls-sv (else branch, a & b), always true in Yosys (a | b). Refused by the source gate; postsynth alone rejects.",
+          "postsynth_alone": "rejects"
+        },
+        "param_divzero": {
+          "stage": "fourstate",
+          "why": "an x without an x literal: `localparam logic [1:0] K = 2'd1 / 2'd0;` (constant division is not banned) as a case item: never matches in ls-sv (a & b), matches every input in Yosys (a | b). Refused by the fourstate stage (a parameter with unknown bits, slang's DivisionByZero); postsynth alone rejects.",
+          "postsynth_alone": "rejects"
+        },
+        "undriven_mux": {
+          "stage": "fourstate",
+          "why": "`logic u; t = u ? 0 : 1; if (t) y = a | b; else y = a & b;`: u is x in ls-sv (else branch, a & b), a don't-care Yosys resolves to t = 1 (a | b). Refused by the fourstate stage (Yosys `check`: used but no driver); postsynth alone rejects.",
+          "postsynth_alone": "rejects"
+        },
+        "oob_select": {
+          "stage": "fourstate",
+          "why": "`k[{1'b1, a[1:0]}]` always reads past k's 4 bits (x): else branch (a & b) in ls-sv, t = 1 (a | b) in Yosys. Refused by the fourstate stage (a run-time index that can leave the range); postsynth alone rejects.",
+          "postsynth_alone": "rejects"
+        },
+        "oob_rare": {
+          "stage": "fourstate",
+          "why": "the out-of-range read confined to ONE input pair (a = 16'hAAAA, b = 16'hB6DB, a reduction-AND detector): ls-sv a & b everywhere, the netlist flips y[0] there. Refused exactly by the fourstate stage; postsynth alone PASSES it (2^-32 of the inputs, no comparison constant to harvest): the sampling limit the static refusals exist for.",
+          "postsynth_alone": "passes"
+        },
+        "fn_uninit": {
+          "stage": "design",
+          "message_contains": "unsupported construct",
+          "why": "LATENT: a function-local `logic r;` read before it is assigned: x in IEEE (else branch, a & b), resolved to 1 by Yosys (a | b). No static rule sees it (no literal, Yosys `check` passes); ls-sv has no user function calls yet, so the design LOADS with an Unsupported node, no proof about it can hold, and the `design` stage rejects it (WP-C3: `Design2.hasUnsupported`, naming the first loud node; before WP-C3 it surfaced only at the postsynth stage, which failed closed on it, and the postsynth check alone still does). A PR that adds function calls must add a 4-state rule for unassigned locals first.",
+          "postsynth_alone": "rejects"
+        },
+        "latch_never": {
+          "stage": "fourstate",
+          "message_contains": "inferred a latch",
+          "why": "LATENT: an `always_latch` that is never enabled keeps its initial x in IEEE (`!r` is x: else branch, a & b); Yosys resolves the never-loaded latch to 0 (`!r` = 1: a | b, 21.328 GE). No static rule sees it (no literal; the latch is a driver, so Yosys `check` passes); ls-sv does not run `always_latch`, so the design loads with an Unsupported process and the `design` stage rejects it (WP-C3; before it, the postsynth stage failed closed on it, and the postsynth check alone still does). A PR that adds `always_latch` must add a 4-state rule for a latch's initial x first. (10/30 night: since the off-prem agent's extractor commit 'admit always_ff and always_latch' the envelope carries an `AlwaysLatch` process that the symbolic loader does not know yet, so the rejection comes from `load_design_sv2` itself with `unknown process kind \"AlwaysLatch\"` at the same `design` stage; the earlier WP-C3 message for this design is the one `latch_star` and `fn_uninit` still show.) Since WP-PROC follow-up 3 (2026-11-01) rule (e) of score/fourstate.py refuses every latch Yosys's `proc` infers (`select -assert-none t:$dlatch t:$adlatch t:$dlatchsr`) and that stage runs before `design`: the attack now stops at `fourstate`, naming the latched signal `r` (the `design` rejection above is what it was before, and what the design stage would still say).",
+          "postsynth_alone": "rejects"
+        },
+        "latch_star": {
+          "stage": "fourstate",
+          "message_contains": "inferred a latch",
+          "why": "LATENT: the same never-loaded latch written with `always @*` (Yosys's `proc` infers it without the error it gives for `always_comb`): x in IEEE (a & b), 0 in Yosys (a | b). No static rule sees it; ls-sv runs `always @*` only under the rules R1 to R6 of docs/sv-proc-lowering.md (WP-PROC E1, 2026-11-01): R5 refuses a block that assigns a variable on some paths only, so the design still loads with an Unsupported process (`TimedStatement:ImplicitEventControl`, text names R5) and the `design` stage rejects it (WP-C3; before it, the postsynth stage failed closed). The Yosys-side assertion that no `$dlatch` exists after `proc` (defense in depth for R5, design note PROC-NOTE section 7) is rule (e) of score/fourstate.py since WP-PROC follow-up 3 (2026-11-01), and `fourstate` runs before `design`: the attack now stops at `fourstate` (`proc` inferred a latch for `r`), where both rules refuse it.",
+          "postsynth_alone": "rejects"
+        },
+        "unique_nomatch": {
+          "stage": "source",
+          "why": "`unique case` that never matches: the source gate refuses `unique`; with the gate bypassed, postsynth rejects every vector (Yosys: x, 0 GE).",
+          "postsynth_alone": "rejects"
+        },
+        "priority_nomatch": {
+          "stage": "source",
+          "why": "`priority case` that never matches: as unique_nomatch.",
+          "postsynth_alone": "rejects"
+        },
+        "unique_overlap": {
+          "stage": "source",
+          "why": "`unique case (1'b1) a[1]: ...; a[0]: ...;` overlapping items: Yosys's parallel_case ORs both arms where both match; with the gate bypassed, postsynth rejects about a quarter of the vectors.",
+          "postsynth_alone": "rejects"
+        },
+        "unique_rare": {
+          "stage": "source",
+          "why": "unique_overlap confined to `a[7:0] == 8'hEF && b == 16'h1234` (2^-24 of the inputs): with the gate bypassed, postsynth rejects it only through the harvested comparison constants.",
+          "postsynth_alone": "rejects"
+        },
+        "unique_first_const": {
+          "stage": "source",
+          "why": "benign-looking `unique case (1'b1)` whose first item is the constant 1: the netlist is a & b. Refused by the source gate. With the gate bypassed, postsynth REJECTS since master 2218821b (ls-sv 0.1.424, 2026-11-02): whenever a[0]=1 both items match, a `unique` violation, and run2 now returns a loud CaseCheck result on such a settled state instead of silently taking the first item. So the model and the netlist differ on those vectors (117 of 256 in light mode). Before, postsynth alone found no difference. The svGolf X10 finding asked for exactly this.",
+          "postsynth_alone": "rejects"
+        },
+        "unique0_nomatch": {
+          "stage": "source",
+          "why": "benign `unique0 case` that never matches (parallel_case only): the netlist is a & b; with the gate bypassed, postsynth finds no difference.",
+          "postsynth_alone": "passes"
+        },
+        "for_counter_write": {
+          "stage": "banlist",
+          "why": "a procedural for loop writing its own counter (`k = int'(a[0])`): Yosys ignores the write (y = a & b, 21 GE), simulation loops forever when a[0] = 0. Under `_example`'s arithmetic ban the banlist rejects the loop's `k++` (a counter the body writes is run-time); without that ban the design stage would (the ls-sv loader refuses the envelope's `LocalDecl` statement). postsynth alone fails closed (ls-sv cannot evaluate it).",
+          "postsynth_alone": "rejects"
+        },
+        "for_counter_skip": {
+          "stage": "banlist",
+          "why": "a for loop skipping an iteration by `k = k + 1`: simulation gives a & b, Yosys ignores the write and drives 0 (0 GE). The banlist rejects the run-time `+` on a counter the body writes; postsynth alone fails closed (ls-sv refuses the loop).",
+          "postsynth_alone": "rejects"
+        },
+        "array_sum": {
+          "stage": "banlist",
+          "why": "`arr.sum()` on an unpacked array: the banlist's front check flags the array reduction method (run-time `+`); Yosys 0.53 cannot read the method (the backstop fails too)."
+        },
+        "func_call": {
+          "stage": "unproved",
+          "message_contains": "every check that needs no proof passed",
+          "why": "WP-C3 fixture, superseded 2026-11-02: a CORRECT `a & b` written through a user function called from always_comb. It used to load with a loud Unsupported node and be rejected at `design`. The symbolic tier now inlines pure input-only functions (USERFN), so the design runs, passes every check that needs no proof, and post-synthesis agrees with ls-sv. The design-stage refusal stays covered by fn_uninit and clmul's gen_local_column, always_star_rows and verilog2001_wire.",
+          "postsynth_alone": "passes"
+        },
+        "assign_func": {
+          "stage": "unproved",
+          "message_contains": "every check that needs no proof passed",
+          "why": "WP-C3 fixture, superseded 2026-11-02: the same function call in a continuous assignment (`assign y = both(a, b)`). Inlined by the symbolic tier now (USERFN); it passes every check that needs no proof, like func_call.",
+          "postsynth_alone": "passes"
+        },
+        "rare_mid": {
+          "stage": "fourstate",
+          "why": "WP-C2: the out-of-range read confined to about 2^-9 of the inputs (the low 9 bits of a equal a fixed pattern, a reduction-AND detector with no comparison constant to harvest): ls-sv a & b everywhere, the netlist flips y[0] there. Refused exactly by the fourstate stage. The FULL postsynth check alone rejects it (7 of 4130 vectors, all random), the LIGHT one passes it (256 vectors, 191 random): the sampling boundary between the two modes, the one attack only the full check catches.",
+          "postsynth_alone": "rejects",
+          "postsynth_mode": "full",
+          "postsynth_light": "passes"
+        }
+      }
+    },
+    "add": {
+      "references": {
+        "add_n": {
+          "scores": {
+            "N=2": {
+              "area_ge": 14.0,
+              "area_mge": 14000,
+              "depth": 5,
+              "num_gates": 10,
+              "gates": {
+                "NAND": 6,
+                "XOR": 4
+              }
+            },
+            "N=4": {
+              "area_ge": 28.0,
+              "area_mge": 28000,
+              "depth": 9,
+              "num_gates": 20,
+              "gates": {
+                "NAND": 12,
+                "XOR": 8
+              }
+            },
+            "N=8": {
+              "area_ge": 56.0,
+              "area_mge": 56000,
+              "depth": 17,
+              "num_gates": 40,
+              "gates": {
+                "NAND": 24,
+                "XOR": 16
+              }
+            },
+            "N=16": {
+              "area_ge": 112.0,
+              "area_mge": 112000,
+              "depth": 33,
+              "num_gates": 80,
+              "gates": {
+                "NAND": 48,
+                "XOR": 32
+              }
+            },
+            "N=32": {
+              "area_ge": 224.0,
+              "area_mge": 224000,
+              "depth": 65,
+              "num_gates": 160,
+              "gates": {
+                "NAND": 96,
+                "XOR": 64
+              }
+            },
+            "N=64": {
+              "area_ge": 448.0,
+              "area_mge": 448000,
+              "depth": 129,
+              "num_gates": 320,
+              "gates": {
+                "NAND": 192,
+                "XOR": 128
+              }
+            }
+          }
+        },
+        "add_proc": {
+          "scores": {
+            "N=8": {
+              "area_ge": 56.0,
+              "area_mge": 56000,
+              "depth": 17,
+              "num_gates": 40,
+              "gates": {
+                "NAND": 24,
+                "XOR": 16
+              }
+            },
+            "N=16": {
+              "area_ge": 112.0,
+              "area_mge": 112000,
+              "depth": 33,
+              "num_gates": 80,
+              "gates": {
+                "NAND": 48,
+                "XOR": 32
+              }
+            },
+            "N=32": {
+              "area_ge": 224.0,
+              "area_mge": 224000,
+              "depth": 65,
+              "num_gates": 160,
+              "gates": {
+                "NAND": 96,
+                "XOR": 64
+              }
+            }
+          }
+        },
+        "add_proc_m": {
+          "scores": {
+            "N=8": {
+              "area_ge": 56.0,
+              "area_mge": 56000,
+              "depth": 17,
+              "num_gates": 40,
+              "gates": {
+                "NAND": 24,
+                "XOR": 16
+              }
+            },
+            "N=16": {
+              "area_ge": 112.0,
+              "area_mge": 112000,
+              "depth": 33,
+              "num_gates": 80,
+              "gates": {
+                "NAND": 48,
+                "XOR": 32
+              }
+            },
+            "N=32": {
+              "area_ge": 224.0,
+              "area_mge": 224000,
+              "depth": 65,
+              "num_gates": 160,
+              "gates": {
+                "NAND": 96,
+                "XOR": 64
+              }
+            }
+          }
+        },
+        "add_mux": {
+          "scores": {
+            "N=8": {
+              "area_ge": 56.0,
+              "area_mge": 56000,
+              "depth": 17,
+              "num_gates": 40,
+              "gates": {
+                "NAND": 24,
+                "XOR": 16
+              }
+            },
+            "N=16": {
+              "area_ge": 112.0,
+              "area_mge": 112000,
+              "depth": 33,
+              "num_gates": 80,
+              "gates": {
+                "NAND": 48,
+                "XOR": 32
+              }
+            },
+            "N=32": {
+              "area_ge": 224.0,
+              "area_mge": 224000,
+              "depth": 65,
+              "num_gates": 160,
+              "gates": {
+                "NAND": 96,
+                "XOR": 64
+              }
+            }
+          }
+        },
+        "add_n_byhand": {
+          "same_design_as": "add_n",
+          "scores": {
+            "N=16": {
+              "area_ge": 112.0,
+              "area_mge": 112000,
+              "depth": 33,
+              "num_gates": 80,
+              "gates": {
+                "NAND": 48,
+                "XOR": 32
+              }
+            }
+          }
+        }
+      },
+      "baselines": {
+        "add_n_sklansky": {
+          "banned": false,
+          "why": "Sklansky parallel prefix; simulation only (validate/validate.py, verilator.py, postsynth.py), no proof yet",
+          "scores": {
+            "N=16": {
+              "area_ge": 127.658,
+              "area_mge": 127658,
+              "depth": 28,
+              "num_gates": 95,
+              "gates": {
+                "AND": 17,
+                "NAND": 44,
+                "NOR": 1,
+                "OR": 9,
+                "XNOR": 8,
+                "XOR": 16
+              }
+            },
+            "N=32": {
+              "area_ge": 296.639,
+              "area_mge": 296639,
+              "depth": 43,
+              "num_gates": 220,
+              "gates": {
+                "AND": 56,
+                "ANDNOT": 1,
+                "NAND": 81,
+                "NOR": 7,
+                "OR": 23,
+                "ORNOT": 3,
+                "XNOR": 16,
+                "XOR": 33
+              }
+            },
+            "N=64": {
+              "area_ge": 601.274,
+              "area_mge": 601274,
+              "depth": 80,
+              "num_gates": 451,
+              "gates": {
+                "AND": 119,
+                "ANDNOT": 10,
+                "NAND": 164,
+                "NOR": 14,
+                "NOT": 2,
+                "OR": 48,
+                "ORNOT": 3,
+                "XNOR": 37,
+                "XOR": 54
+              }
+            }
+          }
+        },
+        "add_n_kogge_stone": {
+          "banned": false,
+          "why": "Kogge-Stone parallel prefix; simulation only (validate/validate.py, verilator.py, postsynth.py), no proof yet",
+          "scores": {
+            "N=16": {
+              "area_ge": 149.652,
+              "area_mge": 149652,
+              "depth": 24,
+              "num_gates": 115,
+              "gates": {
+                "AND": 30,
+                "NAND": 51,
+                "OR": 12,
+                "ORNOT": 2,
+                "XNOR": 3,
+                "XOR": 17
+              }
+            },
+            "N=32": {
+              "area_ge": 325.296,
+              "area_mge": 325296,
+              "depth": 47,
+              "num_gates": 253,
+              "gates": {
+                "AND": 72,
+                "ANDNOT": 3,
+                "NAND": 105,
+                "NOR": 1,
+                "OR": 34,
+                "ORNOT": 3,
+                "XNOR": 12,
+                "XOR": 23
+              }
+            },
+            "N=64": {
+              "area_ge": 788.892,
+              "area_mge": 788892,
+              "depth": 66,
+              "num_gates": 601,
+              "gates": {
+                "AND": 183,
+                "ANDNOT": 40,
+                "NAND": 179,
+                "NOR": 18,
+                "OR": 80,
+                "ORNOT": 21,
+                "XNOR": 24,
+                "XOR": 56
+              }
+            }
+          }
+        },
+        "cmp_carry": {
+          "banned": false,
+          "why": "policy probe: every carry a run-time comparison; passes the banlist; simulation only (validate/validate.py, postsynth.py)",
+          "scores": {
+            "N=16": {
+              "area_ge": 195.975,
+              "area_mge": 195975,
+              "depth": 17,
+              "num_gates": 149,
+              "gates": {
+                "AND": 49,
+                "ANDNOT": 5,
+                "NAND": 48,
+                "NOR": 4,
+                "OR": 21,
+                "XNOR": 12,
+                "XOR": 10
+              }
+            },
+            "N=32": {
+              "area_ge": 391.952,
+              "area_mge": 391952,
+              "depth": 25,
+              "num_gates": 309,
+              "gates": {
+                "AND": 73,
+                "ANDNOT": 16,
+                "NAND": 122,
+                "NOR": 8,
+                "OR": 35,
+                "ORNOT": 20,
+                "XNOR": 29,
+                "XOR": 6
+              }
+            },
+            "N=64": {
+              "area_ge": 855.218,
+              "area_mge": 855218,
+              "depth": 30,
+              "num_gates": 657,
+              "gates": {
+                "AND": 231,
+                "ANDNOT": 23,
+                "MUX": 2,
+                "NAND": 208,
+                "NOR": 20,
+                "NOT": 1,
+                "OR": 75,
+                "ORNOT": 16,
+                "XNOR": 46,
+                "XOR": 35
+              }
+            }
+          }
+        },
+        "plus": {
+          "sv": "negative/plus.sv",
+          "banned": true,
+          "why": "Yosys's own `assign {cout, s} = a + b + cin;` (banned run-time +; scored with the banlist lifted): the baseline to beat",
+          "scores": {
+            "N=16": {
+              "area_ge": 117.994,
+              "area_mge": 117994,
+              "depth": 33,
+              "num_gates": 86,
+              "gates": {
+                "AND": 12,
+                "NAND": 42,
+                "OR": 6,
+                "XNOR": 6,
+                "XOR": 20
+              }
+            },
+            "N=32": {
+              "area_ge": 251.982,
+              "area_mge": 251982,
+              "depth": 57,
+              "num_gates": 183,
+              "gates": {
+                "AND": 39,
+                "NAND": 77,
+                "NOR": 1,
+                "OR": 14,
+                "ORNOT": 1,
+                "XNOR": 14,
+                "XOR": 37
+              }
+            },
+            "N=64": {
+              "area_ge": 494.973,
+              "area_mge": 494973,
+              "depth": 121,
+              "num_gates": 370,
+              "gates": {
+                "AND": 46,
+                "ANDNOT": 3,
+                "NAND": 186,
+                "NOR": 3,
+                "NOT": 1,
+                "OR": 32,
+                "ORNOT": 1,
+                "XNOR": 30,
+                "XOR": 68
+              }
+            }
+          }
+        }
+      },
+      "negatives": {
+        "no_cin": {
+          "stage": "solution",
+          "why": "carry in ignored (c[0] = 0); refuted in negative/Refute.lean (noCin_refuted)"
+        },
+        "cout_off": {
+          "stage": "solution",
+          "why": "off-by-one carry out (cout = c[N-1]); refuted in negative/Refute.lean (coutOff_refuted)"
+        },
+        "carry_bug": {
+          "stage": "solution",
+          "why": "wrong carry gate ((a & b) | (c & a)); refuted in negative/Refute.lean (carryBug_refuted)"
+        },
+        "only_n16": {
+          "stage": "solution",
+          "why": "a ripple adder at N = 16 only (the scoring point; it scores like the reference there), carry-free elsewhere; refuted in negative/Refute.lean (onlyN16_refuted)",
+          "scores": {
+            "N=8": {
+              "area_ge": 16.0,
+              "area_mge": 16000,
+              "depth": 1,
+              "num_gates": 8,
+              "gates": {
+                "XOR": 8
+              }
+            },
+            "N=16": {
+              "area_ge": 112.0,
+              "area_mge": 112000,
+              "depth": 33,
+              "num_gates": 80,
+              "gates": {
+                "NAND": 48,
+                "XOR": 32
+              }
+            }
+          }
+        },
+        "wide_s": {
+          "stage": "solution",
+          "why": "interface: one (N+1)-bit output s = {cout, sum}, no cout port; refuted in negative/Refute.lean (wideS_refuted)"
+        },
+        "cin_name": {
+          "stage": "solution",
+          "why": "interface: the carry in is named ci; refuted in negative/Refute.lean (cinName_refuted)"
+        },
+        "dead_clock": {
+          "stage": "fourstate",
+          "why": "a correct sum registered by always_ff on a clock nothing drives: right in every ls-sv snapshot, x in every simulator, 0 GE. The fourstate stage refuses it first (Yosys `check`: `clk` is used but has no driver); the loader's clock discipline (Clock:source) refuses it too, so the kernel-checked refutation through Unclocked (deadClock_refuted) is retired (there is no `.sem` to refute)",
+          "scores": {
+            "N=16": {
+              "area_ge": 0.0,
+              "area_mge": 0,
+              "depth": 0,
+              "num_gates": 0,
+              "gates": {}
+            }
+          }
+        },
+        "dead_clock_tied": {
+          "stage": "design",
+          "why": "the same with the clock tied to 1'b0. Since WP-Q0 the loader itself refuses a clock that is not an input port (Clock:source, LeanModels/Sv/ClockGuard2.lean), so the design stage rejects it before any proof; the kernel-checked refutation through the Unclocked conjunct (deadClockTied_refuted) is retired because there is no `.sem` to refute (the generic not_satisfiedAt_of_clocked remains in negative/Refute.lean)",
+          "scores": {
+            "N=16": {
+              "area_ge": 0.0,
+              "area_mge": 0,
+              "depth": 0,
+              "num_gates": 0,
+              "gates": {}
+            }
+          },
+          "message_contains": "Clock:source"
+        },
+        "plus": {
+          "stage": "banlist",
+          "why": "the right function through banned run-time + (Yosys's own adder, the baseline)"
+        },
+        "add_proc_case": {
+          "stage": "solution",
+          "lean": "negative/add_proc_case.lean",
+          "why": "a CORRECT ripple adder whose carry cell is an always_comb `case` with an arm in `begin … end`: every design check passes, but such an arm is outside the fragment of the sv_comb tactics (a plain `case` with single-assignment arms and a `default` is inside since WP-G S3a), so sv_structure in the proof file (the add_proc reference proof) logs its refusal and admits the goal. check.py must reject it at the solution stage: an error from the new tactic elaborators plus an admitted goal can never be accepted (the compile error, and sorryAx in the axiom check)",
+          "message_contains": "`case` arm is not a single assignment"
+        }
+      },
+      "attacks": {
+        "z_case_item": {
+          "stage": "source",
+          "why": "a correct ripple sum behind `case (cin) 1'bz: ... default: s = sr;`: ls-sv computes the sum (case items compare by ===, like a 4-state simulator: Icarus 12, measured 10/28), Yosys reads the z item as a don't-care match and drives x (0 GE). The source gate refuses the z literal digit; before that rule it was LIVE (it passed every stage up to postsynth, and only a proof stood between it and a 0 GE entry), and postsynth alone still rejects every vector.",
+          "postsynth_alone": "rejects"
+        },
+        "eqx_x": {
+          "stage": "source",
+          "why": "`(cin === 1'bx) ? '0 : sum`: Yosys folds it to the constant 0 (0 GE) where a 4-state simulator computes the sum (Icarus 12, measured 10/28); ls-sv has no `===` yet. Refused by the source gate (the x literal digit); postsynth alone fails closed (ls-sv cannot evaluate the design).",
+          "postsynth_alone": "rejects"
+        },
+        "eqx_undriven": {
+          "stage": "fourstate",
+          "why": "`(u === cin)` with `u` undriven: Yosys folds it to 0 (0 GE). Refused by the fourstate stage (Yosys `check`: `u` is used but has no driver); postsynth alone fails closed (ls-sv has no `===`).",
+          "postsynth_alone": "rejects"
+        },
+        "slang_two_always": {
+          "stage": "banlist",
+          "why": "multiple-always-assigns: two always_comb writers of `cout` (IEEE 1800-2023 9.2.2.2, 9.2.2.4). Decided 2026-11-01: \"slang reports a program illegal\" means the FULL slang driver, analysis errors included (`Compilation.getAllDiagnostics()`, which banlist and fourstate read, omits them): the banlist front check now reads them (score/slangdriver.py). Before: both blocks drive the same value, so Yosys `check` and fourstate passed it and only the Lean `driversOk` guard refused it, at the `design` stage.",
+          "message_contains": "slang analysis error MultipleAlwaysAssigns"
+        },
+        "slang_mixed_assign": {
+          "stage": "banlist",
+          "why": "mixed-var-assigns: `assign cout` plus `always_comb cout` (IEEE 1800-2023 6.5). Decided 2026-11-01: \"slang reports a program illegal\" means the FULL slang driver, analysis errors included (`Compilation.getAllDiagnostics()`, which banlist and fourstate read, omits them): the banlist front check now reads them (score/slangdriver.py). Before: same values on both drivers, so fourstate passed it and only the Lean guard refused it, at the `design` stage.",
+          "message_contains": "slang analysis error MixedVarAssigns"
+        },
+        "slang_input_assign": {
+          "stage": "banlist",
+          "why": "`assign cin = a[0]`: cannot assign to input port (IEEE 1800-2023 23.3.3.2). Decided 2026-11-01: \"slang reports a program illegal\" means the FULL slang driver, analysis errors included (`Compilation.getAllDiagnostics()`, which banlist and fourstate read, omits them): the banlist front check now reads them (score/slangdriver.py). Before: refused at fourstate, only because Yosys `check` reports two drivers of `a`'s bit.",
+          "message_contains": "slang analysis error InputPortAssign"
+        },
+        "slang_initial_comb": {
+          "stage": "banlist",
+          "why": "an `initial` block and an `always_comb` writing `cout`: multiple-always-assigns (IEEE 1800-2023 9.2.2.2; Xcelium *E,MULAXX; Yosys accepts the netlist). Decided 2026-11-01: \"slang reports a program illegal\" means the FULL slang driver, analysis errors included (`Compilation.getAllDiagnostics()`, which banlist and fourstate read, omits them): the banlist front check now reads them (score/slangdriver.py). Before: refused only at the `design` stage, because the Lean loader has no `Initial` process kind (docs/sv-tools-split-audit.md section 5, finding 2); a day `initial` is admitted it would have passed every stage.",
+          "message_contains": "slang analysis error MultipleAlwaysAssigns"
+        },
+        "slang_always_notime": {
+          "stage": "banlist",
+          "why": "`always cout = c[N];` never advances time: 'always' procedure does not advance time (IEEE 1800-2023 9.2.2.1, a simulation deadlock; Yosys reads a wire). Decided 2026-11-01: \"slang reports a program illegal\" means the FULL slang driver, analysis errors included (`Compilation.getAllDiagnostics()`, which banlist and fourstate read, omits them): the banlist front check now reads them (score/slangdriver.py). Before: refused only at the `design` stage (the extractor's `ProceduralBlockSymbol:NoEventControl`), fourstate and banlist passed it.",
+          "message_contains": "slang analysis error AlwaysWithoutTimingControl"
+        },
+        "zpair_add_rare": {
+          "stage": "source",
+          "why": "complementary z items on {a[0], cin} around a ripple adder whose z arms flip s[0] on ONE input pair (a = 16'hAAAA, b = 16'hB6DB, a reduction-AND detector): ls-sv computes the sum everywhere (provable), the netlist is wrong on that pair. Refused exactly by the source gate; postsynth alone PASSES it (found by the round-2 review): the sampling limit the static refusals exist for.",
+          "postsynth_alone": "passes"
+        },
+        "wrong_carry": {
+          "stage": "unproved",
+          "why": "ADVISORY CHECK, not an attack on ls-sv/Yosys: a ripple adder whose carry drops the propagate term ((a & b) | (c & a)). ls-sv and the netlist agree, so it passes every stage before the proof (check.py --unproved stops at `unproved`, stage unchanged); the advisory functional smoke check (the task's oracle.py) finds 3245 of 4132 vectors wrong and adds ONE `warnings` line",
+          "functional": "warns",
+          "advisory": true
+        },
+        "mux_carry": {
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `?:` carry, checker-legal. It WAS tactic-refused (\"conditional expression `?:` (outside the v1 fragment)\"); since WP-G S2 the conditional expression, `~ !`, the reductions, `&& ||` and `== !=` are in the sv_comb fragment (PROVING.md sections 4 and 14), so the same design is now INSIDE it (in_fragment true), kept as the regression for that; `+` and `-` are inside since WP-B2 (PROVING.md section 17); the refused shapes are the other word-level operators (`*`, `>`, shifts, unary minus) and a width conversion around an operation. The functional smoke check agrees with the oracle on every vector",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true
+          },
+          "advisory": true
+        },
+        "localparam_carry": {
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `localparam int M = N - 1;` read in an index, checker-legal. It WAS tactic-refused (\"local parameters are outside the v1 fragment\"); since the localparam extension (WP-F, PROVING.md section 4) a localparam of constant arithmetic over the parameters is one more named constant of the sv_comb summary, so the same design is now INSIDE the fragment (in_fragment true), kept as the regression for that; the refused shapes are localparam_clog2 and localparam_intdiv. The functional smoke check agrees with the oracle on every vector",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true
+          },
+          "advisory": true
+        },
+        "localparam_clog2": {
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `localparam int L = $clog2(N + 1);` (the level count of the prefix-adder baselines), checker-legal and tactic-refused (PROVING.md section 4: `$clog2` is not a linear function of the parameters, and `paramEnv2` cannot evaluate it at a symbolic N); the functional smoke check agrees with the oracle on every vector",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "localparam `L`: `$clog2` is outside the v1 fragment"
+          },
+          "advisory": true
+        },
+        "localparam_intdiv": {
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a 2-state `localparam int H = (N + 1) / 2;`, checker-legal and tactic-refused (PROVING.md section 4: the extractor squashes a `/` or `%` under an `int` target to 2 states, which ls-sv reads as a wrap modulo 2^32, so the closed form would be false for huge N; the 4-state `localparam integer` is accepted); the functional smoke check agrees with the oracle on every vector",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "a 2-state `int` localparam initialised by `/` or `%`"
+          },
+          "advisory": true
+        },
+        "tactics_reference": {
+          "sv": "../../tasks/add/reference/add_n.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on the proved reference: the sv_comb tactics read the design (in_fragment true, message ok), and the functional smoke check agrees with the oracle on every vector",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true
+          },
+          "advisory": true
+        },
+        "hier_fa": {
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on a correct ripple adder written with a `full_adder` module instance per bit (WP-I step I0): the design stage accepts it (the loader flattens), the sv_comb tactics have no summary for instances and the probe says so (`this design instantiates modules`), not 'cannot read a load_design_sv2 family' (measured: the design scores 112.0 GE / depth 33, exactly add_n)",
+          "args": [
+            "--tactics",
+            "--no-score"
+          ],
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "this design instantiates modules"
+          },
+          "advisory": true
+        },
+        "tactics_proc": {
+          "sv": "../../tasks/add/reference/add_proc.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on the proved always_comb reference (WP-G): the plain sv_structure? refuses the procedural site, the second elaborator reads the LOWERED goal `exists d', (design.sem N).lowerComb = some d' /\\ CombDesign d' /\\ Acyclic d'` (in_fragment true, lowered true, message ok)",
+          "args": [
+            "--tactics",
+            "--no-score"
+          ],
+          "tactics": {
+            "in_fragment": true,
+            "lowered": true
+          },
+          "advisory": true
+        },
+        "tactics_proc_case": {
+          "sv": "negative/add_proc_case.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on an always_comb body with a `case` whose arm is in `begin … end` (outside the fragment: a plain `case` with single-assignment arms and a `default` is inside since WP-G S3a): the answer is the second elaborator's refusal naming the construct, not the plain tactic's 'procedural process'",
+          "args": [
+            "--tactics",
+            "--no-score"
+          ],
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "`case` arm is not a single assignment"
+          },
+          "advisory": true
+        }
+      }
+    },
+    "mul": {
+      "references": {
+        "mul_n": {
+          "scores": {
+            "N=8": {
+              "area_ge": 447.976,
+              "area_mge": 447976,
+              "depth": 40,
+              "num_gates": 320,
+              "gates": {
+                "AND": 69,
+                "ANDNOT": 1,
+                "MUX": 2,
+                "NAND": 144,
+                "NOT": 1,
+                "OR": 1,
+                "XNOR": 3,
+                "XOR": 99
+              }
+            },
+            "N=16": {
+              "area_ge": 1962.576,
+              "area_mge": 1962576,
+              "depth": 88,
+              "num_gates": 1408,
+              "gates": {
+                "AND": 269,
+                "ANDNOT": 1,
+                "MUX": 2,
+                "NAND": 672,
+                "NOT": 1,
+                "OR": 1,
+                "XNOR": 3,
+                "XOR": 459
+              }
+            },
+            "N=32": {
+              "area_ge": 8191.648,
+              "area_mge": 8191648,
+              "depth": 184,
+              "num_gates": 5888,
+              "gates": {
+                "AND": 1053,
+                "ANDNOT": 1,
+                "MUX": 2,
+                "NAND": 2880,
+                "NOT": 1,
+                "OR": 1,
+                "XNOR": 3,
+                "XOR": 1947
+              }
+            }
+          }
+        },
+        "mul_n_byhand": {
+          "same_design_as": "mul_n",
+          "scores": {
+            "N=16": {
+              "area_ge": 1962.576,
+              "area_mge": 1962576,
+              "depth": 88,
+              "num_gates": 1408,
+              "gates": {
+                "AND": 269,
+                "ANDNOT": 1,
+                "MUX": 2,
+                "NAND": 672,
+                "NOT": 1,
+                "OR": 1,
+                "XNOR": 3,
+                "XOR": 459
+              }
+            }
+          }
+        },
+        "mul_tree": {
+          "scores": {
+            "N=8": {
+              "area_ge": 451.31,
+              "area_mge": 451310,
+              "depth": 30,
+              "num_gates": 324,
+              "gates": {
+                "AND": 69,
+                "NAND": 150,
+                "ORNOT": 1,
+                "XNOR": 9,
+                "XOR": 95
+              }
+            },
+            "N=16": {
+              "area_ge": 2034.904,
+              "area_mge": 2034904,
+              "depth": 63,
+              "num_gates": 1456,
+              "gates": {
+                "AND": 286,
+                "NAND": 684,
+                "NOR": 1,
+                "ORNOT": 2,
+                "XNOR": 19,
+                "XOR": 464
+              }
+            },
+            "N=32": {
+              "area_ge": 8453.626,
+              "area_mge": 8453626,
+              "depth": 126,
+              "num_gates": 6058,
+              "gates": {
+                "AND": 1119,
+                "NAND": 2907,
+                "NOR": 7,
+                "ORNOT": 3,
+                "XNOR": 43,
+                "XOR": 1979
+              }
+            }
+          }
+        },
+        "mul_wallace": {
+          "scores": {
+            "N=8": {
+              "area_ge": 482.974,
+              "area_mge": 482974,
+              "depth": 30,
+              "num_gates": 343,
+              "gates": {
+                "AND": 76,
+                "NAND": 151,
+                "ORNOT": 2,
+                "XNOR": 11,
+                "XOR": 103
+              }
+            },
+            "N=16": {
+              "area_ge": 2113.894,
+              "area_mge": 2113894,
+              "depth": 62,
+              "num_gates": 1502,
+              "gates": {
+                "AND": 301,
+                "ANDNOT": 6,
+                "MUX": 2,
+                "NAND": 678,
+                "NOR": 2,
+                "OR": 6,
+                "ORNOT": 3,
+                "XNOR": 26,
+                "XOR": 478
+              }
+            },
+            "N=32": {
+              "area_ge": 8767.595,
+              "area_mge": 8767595,
+              "depth": 124,
+              "num_gates": 6245,
+              "gates": {
+                "AND": 1206,
+                "ANDNOT": 5,
+                "NAND": 2909,
+                "NOR": 3,
+                "OR": 3,
+                "ORNOT": 1,
+                "XNOR": 50,
+                "XOR": 2068
+              }
+            }
+          }
+        },
+        "mul_tree_h": {
+          "scores": {
+            "N=8": {
+              "area_ge": 451.31,
+              "area_mge": 451310,
+              "depth": 30,
+              "num_gates": 324,
+              "gates": {
+                "AND": 70,
+                "NAND": 150,
+                "XNOR": 8,
+                "XOR": 96
+              }
+            },
+            "N=16": {
+              "area_ge": 2025.905,
+              "area_mge": 2025905,
+              "depth": 62,
+              "num_gates": 1450,
+              "gates": {
+                "AND": 284,
+                "NAND": 684,
+                "ORNOT": 1,
+                "XNOR": 17,
+                "XOR": 464
+              }
+            },
+            "N=32": {
+              "area_ge": 8452.626,
+              "area_mge": 8452626,
+              "depth": 127,
+              "num_gates": 6058,
+              "gates": {
+                "AND": 1117,
+                "NAND": 2907,
+                "NOR": 8,
+                "ORNOT": 5,
+                "XNOR": 44,
+                "XOR": 1977
+              }
+            }
+          }
+        }
+      },
+      "baselines": {
+        "yosys_mul": {
+          "banned": true,
+          "why": "Yosys's own `assign p = a * b;` (banned run-time *; scored with the banlist lifted): the baseline to beat",
+          "scores": {
+            "N=8": {
+              "area_ge": 468.637,
+              "area_mge": 468637,
+              "depth": 30,
+              "num_gates": 334,
+              "gates": {
+                "AND": 81,
+                "ANDNOT": 1,
+                "MUX": 1,
+                "NAND": 141,
+                "OR": 4,
+                "ORNOT": 2,
+                "XNOR": 15,
+                "XOR": 89
+              }
+            },
+            "N=16": {
+              "area_ge": 2081.227,
+              "area_mge": 2081227,
+              "depth": 59,
+              "num_gates": 1486,
+              "gates": {
+                "AND": 303,
+                "ANDNOT": 2,
+                "MUX": 4,
+                "NAND": 679,
+                "NOR": 1,
+                "NOT": 1,
+                "OR": 6,
+                "ORNOT": 5,
+                "XNOR": 29,
+                "XOR": 456
+              }
+            },
+            "N=32": {
+              "area_ge": 8639.254,
+              "area_mge": 8639254,
+              "depth": 110,
+              "num_gates": 6185,
+              "gates": {
+                "AND": 1196,
+                "ANDNOT": 5,
+                "MUX": 1,
+                "NAND": 2899,
+                "NOR": 7,
+                "OR": 19,
+                "ORNOT": 17,
+                "XNOR": 73,
+                "XOR": 1968
+              }
+            }
+          }
+        },
+        "dadda_rc_8": {
+          "banned": false,
+          "banlist_points": [
+            "N=8"
+          ],
+          "why": "Dadda tree + ripple final adder, generated for N = 8 only (gen_dadda.py 8)",
+          "scores": {
+            "N=8": {
+              "area_ge": 445.978,
+              "area_mge": 445978,
+              "depth": 29,
+              "num_gates": 320,
+              "gates": {
+                "AND": 62,
+                "MUX": 2,
+                "NAND": 148,
+                "NOT": 2,
+                "OR": 1,
+                "ORNOT": 3,
+                "XNOR": 12,
+                "XOR": 90
+              }
+            }
+          }
+        },
+        "dadda_rc_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "Dadda tree + ripple final adder, generated for N = 16 only (gen_dadda.py 16)",
+          "scores": {
+            "N=16": {
+              "area_ge": 1953.585,
+              "area_mge": 1953585,
+              "depth": 61,
+              "num_gates": 1408,
+              "gates": {
+                "AND": 226,
+                "MUX": 4,
+                "NAND": 695,
+                "NOT": 4,
+                "OR": 6,
+                "ORNOT": 13,
+                "XNOR": 50,
+                "XOR": 410
+              }
+            }
+          }
+        },
+        "dadda_rc_32": {
+          "banned": false,
+          "banlist_points": [
+            "N=32"
+          ],
+          "why": "Dadda tree + ripple final adder, generated for N = 32 only (gen_dadda.py 32)",
+          "scores": {
+            "N=32": {
+              "area_ge": 8153.02,
+              "area_mge": 8153020,
+              "depth": 125,
+              "num_gates": 5888,
+              "gates": {
+                "AND": 904,
+                "MUX": 6,
+                "NAND": 2990,
+                "NOT": 6,
+                "OR": 11,
+                "ORNOT": 25,
+                "XNOR": 158,
+                "XOR": 1788
+              }
+            }
+          },
+          "postsynth_points": [],
+          "postsynth_why": "too slow for ls-sv: on this flat 32-bit Dadda tree `run2` takes seconds per vector (both schedules), so even the 258 fixed corners at N = 32 overran the mul task's 900 s fail-closed cap (measured 2026-10-28: 458 vectors not done in 900 s). Its 8- and 16-bit siblings pass the check; N = 32 is not the scoring point."
+        },
+        "dadda_ks_8": {
+          "banned": false,
+          "banlist_points": [
+            "N=8"
+          ],
+          "why": "Dadda tree + Kogge-Stone final adder, generated for N = 8 only (gen_dadda.py 8 --final ks)",
+          "scores": {
+            "N=8": {
+              "area_ge": 484.29,
+              "area_mge": 484290,
+              "depth": 24,
+              "num_gates": 345,
+              "gates": {
+                "AND": 99,
+                "ANDNOT": 7,
+                "MUX": 2,
+                "NAND": 113,
+                "NOR": 4,
+                "NOT": 2,
+                "OR": 10,
+                "ORNOT": 14,
+                "XNOR": 30,
+                "XOR": 64
+              }
+            }
+          }
+        },
+        "dadda_ks_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "Dadda tree + Kogge-Stone final adder, generated for N = 16 only (gen_dadda.py 16 --final ks)",
+          "scores": {
+            "N=16": {
+              "area_ge": 2076.51,
+              "area_mge": 2076510,
+              "depth": 48,
+              "num_gates": 1483,
+              "gates": {
+                "AND": 370,
+                "ANDNOT": 24,
+                "MUX": 3,
+                "NAND": 551,
+                "NOR": 22,
+                "NOT": 3,
+                "OR": 29,
+                "ORNOT": 47,
+                "XNOR": 124,
+                "XOR": 310
+              }
+            }
+          }
+        },
+        "dadda_ks_32": {
+          "banned": false,
+          "banlist_points": [
+            "N=32"
+          ],
+          "why": "Dadda tree + Kogge-Stone final adder, generated for N = 32 only (gen_dadda.py 32 --final ks); NOT scored: the pinned flow exceeded score.py's 1800 s Yosys limit (ABC alone over 25 minutes)",
+          "postsynth_points": [],
+          "postsynth_why": "not scored (the pinned flow exceeds 1800 s), and slower than dadda_rc_32 for ls-sv"
+        }
+      },
+      "negatives": {
+        "drop_carry": {
+          "stage": "solution",
+          "why": "off-by-one carry: every adder row drops its carry-out; counterexample N = 2, a = b = 3, p = 1 (negative/Refute.lean, #guard)"
+        },
+        "top_shift": {
+          "stage": "solution",
+          "why": "wrong bit: top half from s[N-1][N-1:0]; counterexample N = 1, a = b = 1, p = 3 (negative/Refute.lean, #guard)"
+        },
+        "narrow_out": {
+          "stage": "solution",
+          "why": "interface: p is 2N-1 bits; refuted in negative/Refute.lean (narrowOut_refuted)"
+        },
+        "only_n16": {
+          "stage": "solution",
+          "why": "correct only at the scoring point N = 16 (p = 0 elsewhere; it scores exactly like the reference there); refuted in negative/Refute.lean (onlyN16_refuted)",
+          "scores": {
+            "N=16": {
+              "area_ge": 1962.576,
+              "area_mge": 1962576,
+              "depth": 88,
+              "num_gates": 1408,
+              "gates": {
+                "AND": 269,
+                "ANDNOT": 1,
+                "MUX": 2,
+                "NAND": 672,
+                "NOT": 1,
+                "OR": 1,
+                "XNOR": 3,
+                "XOR": 459
+              }
+            }
+          }
+        },
+        "mul_star": {
+          "stage": "banlist",
+          "why": "correct, but through the banned run-time *"
+        }
+      },
+      "attacks": {
+        "tactics_reference": {
+          "sv": "../../tasks/mul/reference/mul_n.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on the proved reference: the sv_comb tactics read the 2-D array multiplier (in_fragment true, message ok); run without the score stage (the full postsynth of the reference is 45 s and the references step covers it)",
+          "args": [
+            "--tactics",
+            "--no-score"
+          ],
+          "tactics": {
+            "in_fragment": true
+          },
+          "advisory": true
+        }
+      }
+    },
+    "aes_sbox": {
+      "references": {
+        "sbox_bp": {
+          "why": "the Boyar-Peralta 113-gate circuit, translated gate for gate from the authors' netlist file (tests/aes_sbox/validate/validate.py) and validated by Verilator on all 256 inputs; PROVED (reference/sbox_bp.lean, generated by tests/aes_sbox/validate/gen_bp_proof.py): a flat netlist (every site plain, no parameter), so sv_structure and sv_equations DECIDE its obligations as closed statements about the site list (structure, in range, widths, bit reads, coverage), the 113 equations come from sv_equations under their stable names, the 256 inputs by kernel evaluation of a packed program",
+          "scores": {
+            "default": {
+              "area_ge": 200.986,
+              "area_mge": 200986,
+              "depth": 21,
+              "num_gates": 123,
+              "gates": {
+                "AND": 21,
+                "ANDNOT": 9,
+                "MUX": 4,
+                "NAND": 17,
+                "NOT": 2,
+                "OR": 5,
+                "ORNOT": 5,
+                "XNOR": 45,
+                "XOR": 15
+              }
+            }
+          }
+        },
+        "sbox_table": {
+          "why": "the 256-entry plain `case` table of FIPS 197 Table 4 with a `default`, in one always_comb (WP-G S3a); PROVED (reference/sbox_table.lean): `by sv_exhaustive`, the design read through its lowering, the `case` compiled once into a word-level table lookup, the 256 inputs by kernel evaluation; the same design (and so the same netlist and score) as the baseline tests/aes_sbox/baselines/sbox_table.sv",
+          "scores": {
+            "default": {
+              "area_ge": 786.894,
+              "area_mge": 786894,
+              "depth": 11,
+              "num_gates": 612,
+              "gates": {
+                "AND": 129,
+                "ANDNOT": 21,
+                "MUX": 63,
+                "NAND": 264,
+                "NOR": 18,
+                "NOT": 3,
+                "OR": 70,
+                "ORNOT": 38,
+                "XNOR": 5,
+                "XOR": 1
+              }
+            }
+          }
+        }
+      },
+      "baselines": {
+        "sbox_table": {
+          "banned": false,
+          "why": "the 256-entry case table (FIPS 197 Table 4): the naive design; no operator is banned for this task, so the banlist passes; simulation only (validate.py: Verilator on all 256 inputs); the exhaustive post-synthesis check passes it",
+          "scores": {
+            "default": {
+              "area_ge": 786.894,
+              "area_mge": 786894,
+              "depth": 11,
+              "num_gates": 612,
+              "gates": {
+                "AND": 129,
+                "ANDNOT": 21,
+                "MUX": 63,
+                "NAND": 264,
+                "NOR": 18,
+                "NOT": 3,
+                "OR": 70,
+                "ORNOT": 38,
+                "XNOR": 5,
+                "XOR": 1
+              }
+            }
+          }
+        },
+        "sbox_bp_d16": {
+          "banned": false,
+          "why": "the Boyar-Peralta depth-16 circuit (125 gates, depth 16 in the authors' file), translated gate for gate; a second Pareto point (+7.6% area, 3 levels shallower than the 113-gate circuit in this flow); simulation only",
+          "scores": {
+            "default": {
+              "area_ge": 216.322,
+              "area_mge": 216322,
+              "depth": 18,
+              "num_gates": 131,
+              "gates": {
+                "AND": 20,
+                "ANDNOT": 6,
+                "MUX": 3,
+                "NAND": 19,
+                "NOR": 3,
+                "NOT": 2,
+                "OR": 3,
+                "ORNOT": 4,
+                "XNOR": 56,
+                "XOR": 15
+              }
+            }
+          }
+        }
+      },
+      "negatives": {
+        "no_constant": {
+          "stage": "solution",
+          "why": "the affine constant 0x63 forgotten (the four XNORs written as XORs): S(x) ^ 0x63, wrong on all 256 inputs; the reference proof does not apply to it (the equation of an XNOR gate is not the XNOR the proof's program evaluates), so it fails to compile at `solution`"
+        },
+        "one_entry": {
+          "stage": "solution",
+          "why": "a 256-entry table with S(0x53) = 0xec instead of 0xed: right on 255 of 256 inputs; always_comb is outside the tactic fragment, so the reference proof (a proof about the Boyar-Peralta netlist) does not even apply; tests/aes_sbox/validate/validate.py shows it differs from the S-box on exactly one input"
+        },
+        "reversed_bits": {
+          "stage": "solution",
+          "why": "the right circuit fed x in the opposite bit order (U<i> = x[i]): wrong on 240 of 256 inputs; the reference proof's gate equations (which read x[7-i]) no longer match, so it fails to compile at `solution`"
+        },
+        "inverse_sbox": {
+          "stage": "solution",
+          "why": "the inverse S-box (FIPS 197 InvSubBytes) as a case table: wrong on 254 of 256 inputs; the reference proof does not apply to a case table"
+        },
+        "wrong_names": {
+          "stage": "solution",
+          "why": "the right circuit on ports a, s instead of x, y: the interface conjunct; the reference proof's interface step (`sv_interface`) refuses the ports"
+        },
+        "undriven_bit": {
+          "stage": "fourstate",
+          "why": "y[0] is never assigned: the fourstate stage refuses the undriven net (Yosys `check`: used but no driver) before any proof is tried"
+        },
+        "x_default": {
+          "stage": "source",
+          "why": "a correct 256-entry table with an unreachable `default: y = 8'bxxxxxxxx`: the source gate refuses the x literal digit"
+        }
+      },
+      "attacks": {
+        "case_missing_x": {
+          "stage": "source",
+          "why": "a table that omits S(0x53) and sends it to `default: y = 8'bx`: Yosys may fill the hole with any value, ls-sv computes x there. Refused by the source gate (the x literal digit); with the gate bypassed the post-synthesis check rejects it, and it differs on exactly ONE of the 256 inputs: the exhaustive check (full and light modes both run all 256 vectors) cannot miss it",
+          "postsynth_alone": "rejects",
+          "postsynth_mode": "full"
+        },
+        "case_missing_nodefault": {
+          "stage": "fourstate",
+          "why": "the same table with no default arm: always_comb keeps the old value, a latch; Yosys infers a latch (fourstate refuses it; the scorer cannot price a latch either, so there is no post-synthesis row)"
+        },
+        "unique_case_partial": {
+          "stage": "source",
+          "why": "`unique case` over a table that omits S(0x53), no default: Yosys turns the qualifier into a synthesis don't-care. Refused by the source gate (the qualifier); post-synthesis alone rejects it on exactly one input, caught because the check is exhaustive",
+          "postsynth_alone": "rejects",
+          "postsynth_mode": "full"
+        },
+        "unique_zero_ge": {
+          "stage": "source",
+          "why": "the 0 GE exploit of the unique-case class: a correct S-box, then `unique case (1'b1)` with an arm that never matches: ls-sv computes the S-box, Yosys a constant. Refused by the source gate; post-synthesis alone rejects it on all 256 vectors",
+          "postsynth_alone": "rejects",
+          "postsynth_mode": "full"
+        },
+        "tactics_reference": {
+          "sv": "../../tasks/aes_sbox/reference/sbox_bp.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on the draft goalpost: the sv_comb tactics read the design (in_fragment true: a parameterless flat netlist of 113 assigns over & ^ with XNOR as ^ 1'b1), and the functional smoke check agrees with the oracle on all 256 vectors",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true
+          },
+          "advisory": true
+        },
+        "table_unproved": {
+          "sv": "baselines/sbox_table.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics) on the case-table baseline: it loads in ls-sv with no unsupported node, so check.py --unproved reaches the end (the design stage included) and the oracle agrees on all 256 vectors; since WP-G S3a the sv_comb tactics READ it (a plain `case` with constant items and a `default` is in the always_comb fragment; the proved reference is tasks/aes_sbox/reference/sbox_table.*), so the row is in_fragment true and `lowered`: it is the regression for that",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true,
+            "lowered": true
+          },
+          "advisory": true
+        },
+        "functional_no_constant": {
+          "sv": "negative/no_constant.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK on the negative design no_constant.sv (the affine constant forgotten: wrong on all 256 inputs): it passes every stage that needs no proof (the exhaustive post-synthesis check agrees ls-sv with the netlist), and the task's oracle finds the mismatch on ls-sv's outputs and says so in ONE warning. The negatives run against the reference proof only fail to compile; this is their semantic evidence at the ls-sv level",
+          "functional": "warns",
+          "advisory": true
+        },
+        "functional_one_entry": {
+          "sv": "negative/one_entry.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK on the negative design one_entry.sv (one wrong table entry: wrong on exactly ONE of the 256 inputs): it passes every stage that needs no proof (the exhaustive post-synthesis check agrees ls-sv with the netlist), and the task's oracle finds the mismatch on ls-sv's outputs and says so in ONE warning. The negatives run against the reference proof only fail to compile; this is their semantic evidence at the ls-sv level",
+          "functional": "warns",
+          "advisory": true
+        },
+        "functional_reversed_bits": {
+          "sv": "negative/reversed_bits.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK on the negative design reversed_bits.sv (bit-reversed input: wrong on 240 of 256 inputs): it passes every stage that needs no proof (the exhaustive post-synthesis check agrees ls-sv with the netlist), and the task's oracle finds the mismatch on ls-sv's outputs and says so in ONE warning. The negatives run against the reference proof only fail to compile; this is their semantic evidence at the ls-sv level",
+          "functional": "warns",
+          "advisory": true
+        },
+        "functional_inverse_sbox": {
+          "sv": "negative/inverse_sbox.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK on the negative design inverse_sbox.sv (the inverse S-box: wrong on 254 of 256 inputs): it passes every stage that needs no proof (the exhaustive post-synthesis check agrees ls-sv with the netlist), and the task's oracle finds the mismatch on ls-sv's outputs and says so in ONE warning. The negatives run against the reference proof only fail to compile; this is their semantic evidence at the ls-sv level",
+          "functional": "warns",
+          "advisory": true
+        }
+      }
+    },
+    "clmul": {
+      "references": {
+        "clmul_n": {
+          "why": "the N x N array: AND partial products, XOR rows, no carries (mul_n's shape with XOR where mul_n has a full adder), row i holds r[i][j] = XOR over t <= i of a[t] & b[i+j-t]; generate family, every N >= 1; PROVED (reference/clmul_n.lean) with the sv_comb tactics",
+          "scores": {
+            "N=8": {
+              "area_ge": 179.649,
+              "area_mge": 179649,
+              "depth": 4,
+              "num_gates": 113,
+              "gates": {
+                "AND": 53,
+                "NAND": 11,
+                "XNOR": 49
+              }
+            },
+            "N=16": {
+              "area_ge": 772.267,
+              "area_mge": 772267,
+              "depth": 6,
+              "num_gates": 481,
+              "gates": {
+                "AND": 199,
+                "NAND": 57,
+                "XNOR": 225
+              }
+            },
+            "N=32": {
+              "area_ge": 3214.731,
+              "area_mge": 3214731,
+              "depth": 7,
+              "num_gates": 1985,
+              "gates": {
+                "AND": 807,
+                "NAND": 217,
+                "XNOR": 961
+              }
+            }
+          }
+        }
+      },
+      "baselines": {
+        "school_tree_8": {
+          "banned": false,
+          "banlist_points": [
+            "N=8"
+          ],
+          "why": "schoolbook: all N^2 partial products, a balanced XOR tree per output column, generated for N = 8 only (gen_clmul.py); simulation only (sim.py --width 8); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=8": {
+              "area_ge": 179.649,
+              "area_mge": 179649,
+              "depth": 4,
+              "num_gates": 113,
+              "gates": {
+                "AND": 53,
+                "NAND": 11,
+                "XNOR": 49
+              }
+            }
+          }
+        },
+        "school_tree_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "schoolbook: all N^2 partial products, a balanced XOR tree per output column, generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=16": {
+              "area_ge": 770.935,
+              "area_mge": 770935,
+              "depth": 5,
+              "num_gates": 481,
+              "gates": {
+                "AND": 195,
+                "NAND": 61,
+                "XNOR": 225
+              }
+            }
+          }
+        },
+        "school_tree_32": {
+          "banned": false,
+          "banlist_points": [
+            "N=32"
+          ],
+          "why": "schoolbook: all N^2 partial products, a balanced XOR tree per output column, generated for N = 32 only (gen_clmul.py); simulation only (sim.py --width 32); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=32": {
+              "area_ge": 3219.393,
+              "area_mge": 3219393,
+              "depth": 6,
+              "num_gates": 1985,
+              "gates": {
+                "AND": 821,
+                "NAND": 203,
+                "XNOR": 961
+              }
+            }
+          },
+          "postsynth_points": [],
+          "postsynth_why": "too slow for ls-sv: on this flat 32-bit netlist (about 1200 to 2000 assigns) `run2` takes 0.25 to 0.4 s per vector (both schedules), so even the 278 fixed corners took 67 s (kara_b4_32) and 109 s (school_tree_32) of ls-sv time and the whole check 177 s and 359 s on a loaded machine (measured 2026-11-01, 20 random vectors). Its 8- and 16-bit siblings pass the check; N = 32 is not the scoring point."
+        },
+        "kara_b4_8": {
+          "banned": false,
+          "banlist_points": [
+            "N=8"
+          ],
+          "why": "Karatsuba recursion with a schoolbook base of 4 bits, generated for N = 8 only (gen_clmul.py); simulation only (sim.py --width 8); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=8": {
+              "area_ge": 166.986,
+              "area_mge": 166986,
+              "depth": 5,
+              "num_gates": 101,
+              "gates": {
+                "AND": 42,
+                "NAND": 7,
+                "XNOR": 43,
+                "XOR": 9
+              }
+            }
+          }
+        },
+        "kara_b4_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "Karatsuba recursion with a schoolbook base of 4 bits (the study's best area/depth point), generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=16": {
+              "area_ge": 621.959,
+              "area_mge": 621959,
+              "depth": 8,
+              "num_gates": 371,
+              "gates": {
+                "AND": 120,
+                "ANDNOT": 4,
+                "NAND": 34,
+                "NOT": 2,
+                "OR": 1,
+                "XNOR": 162,
+                "XOR": 48
+              }
+            }
+          }
+        },
+        "kara_b4_32": {
+          "banned": false,
+          "banlist_points": [
+            "N=32"
+          ],
+          "why": "Karatsuba recursion with a schoolbook base of 4 bits, generated for N = 32 only (gen_clmul.py); simulation only (sim.py --width 32); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=32": {
+              "area_ge": 2068.877,
+              "area_mge": 2068877,
+              "depth": 11,
+              "num_gates": 1203,
+              "gates": {
+                "AND": 363,
+                "ANDNOT": 4,
+                "NAND": 87,
+                "NOT": 2,
+                "OR": 2,
+                "ORNOT": 2,
+                "XNOR": 561,
+                "XOR": 182
+              }
+            }
+          },
+          "postsynth_points": [],
+          "postsynth_why": "too slow for ls-sv: on this flat 32-bit netlist (about 1200 to 2000 assigns) `run2` takes 0.25 to 0.4 s per vector (both schedules), so even the 278 fixed corners took 67 s (kara_b4_32) and 109 s (school_tree_32) of ls-sv time and the whole check 177 s and 359 s on a loaded machine (measured 2026-11-01, 20 random vectors). Its 8- and 16-bit siblings pass the check; N = 32 is not the scoring point."
+        },
+        "kara_b2_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "Karatsuba recursion with a schoolbook base of 2 bits, generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=16": {
+              "area_ge": 672.635,
+              "area_mge": 672635,
+              "depth": 10,
+              "num_gates": 390,
+              "gates": {
+                "AND": 84,
+                "ANDNOT": 8,
+                "NAND": 41,
+                "NOR": 1,
+                "NOT": 1,
+                "OR": 1,
+                "ORNOT": 3,
+                "XNOR": 159,
+                "XOR": 92
+              }
+            }
+          }
+        },
+        "kara_b8_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "Karatsuba recursion with a schoolbook base of 8 bits, generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=16": {
+              "area_ge": 643.283,
+              "area_mge": 643283,
+              "depth": 7,
+              "num_gates": 393,
+              "gates": {
+                "AND": 151,
+                "NAND": 42,
+                "XNOR": 181,
+                "XOR": 19
+              }
+            }
+          }
+        },
+        "kara_full_16": {
+          "banned": false,
+          "banlist_points": [
+            "N=16"
+          ],
+          "why": "Karatsuba recursion all the way down (base 1), generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
+          "scores": {
+            "N=16": {
+              "area_ge": 677.638,
+              "area_mge": 677638,
+              "depth": 9,
+              "num_gates": 389,
+              "gates": {
+                "AND": 81,
+                "ANDNOT": 6,
+                "NAND": 41,
+                "NOT": 1,
+                "XNOR": 167,
+                "XOR": 93
+              }
+            }
+          }
+        }
+      },
+      "negatives": {
+        "top_shift": {
+          "stage": "solution",
+          "why": "wrong bit: the top N-1 output bits read r[N-1][m] instead of r[N-1][m+1]; counterexample N = 2, a = b = 3, p = 3'b001 (negative/Refute.lean, #guard)"
+        },
+        "drop_top": {
+          "stage": "solution",
+          "why": "off-by-one: every row i >= 1 drops its top term (r[i][N-1] = 1'b0); counterexample N = 2, a = b = 3, p = 3'b001 (negative/Refute.lean, #guard)"
+        },
+        "or_accumulate": {
+          "stage": "solution",
+          "why": "wrong gate: the rows accumulate with OR instead of XOR; counterexample N = 2, a = b = 3, p = 3'b111 (negative/Refute.lean, #guard)"
+        },
+        "reversed_p": {
+          "stage": "solution",
+          "why": "bit orientation: coefficient k delivered at p[2N-2-k] (GHASH's reflected convention); right at N = 1, counterexample N = 2, a = b = 1, p = 3'b100 (negative/Refute.lean, #guard)"
+        },
+        "wide_out": {
+          "stage": "solution",
+          "why": "interface: p is 2N bits with a constant-zero top bit (the value is right); refuted in negative/Refute.lean (wideOut_refuted, the interface conjunct at N = 1)"
+        },
+        "only_n16": {
+          "stage": "solution",
+          "why": "correct only at the scoring point N = 16 (p = 0 elsewhere; it scores exactly like the reference there); counterexample N = 1, a = b = 1, p = 0 (negative/Refute.lean, onlyN16_refuted)",
+          "scores": {
+            "N=16": {
+              "area_ge": 772.267,
+              "area_mge": 772267,
+              "depth": 6,
+              "num_gates": 481,
+              "gates": {
+                "AND": 199,
+                "NAND": 57,
+                "XNOR": 225
+              }
+            }
+          }
+        },
+        "plus_xor": {
+          "stage": "banlist",
+          "why": "correct, but the XOR of every row is a one-bit run-time + (carry dropped): the banned operator `+`; the same netlist as the reference"
+        },
+        "kronecker_mul": {
+          "stage": "banlist",
+          "why": "correct, through the integer multiplier on bit-spread operands (Kronecker substitution): the banned run-time `*`; synthesizes to the same netlist as the reference"
+        }
+      },
+      "attacks": {
+        "tactics_reference": {
+          "sv": "../../tasks/clmul/reference/clmul_n.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK (--tactics): the sv_comb tactics read the reference (in_fragment true: generate loops two deep over & ^ on a 2-D packed array, zero-iteration loops at N = 1), and the functional smoke check agrees with the oracle on every vector",
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true
+          },
+          "advisory": true
+        },
+        "functional_or_accumulate": {
+          "sv": "negative/or_accumulate.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK on the negative design or_accumulate.sv (OR for XOR): it passes every stage that needs no proof, and the task's oracle finds the mismatch on ls-sv's outputs and says so in ONE warning",
+          "functional": "warns",
+          "advisory": true
+        },
+        "functional_reversed_p": {
+          "sv": "negative/reversed_p.sv",
+          "stage": "unproved",
+          "why": "ADVISORY CHECK on the negative design reversed_p.sv (the reflected output orientation): it passes every stage that needs no proof, and the task's oracle finds the mismatch on ls-sv's outputs and says so in ONE warning",
+          "functional": "warns",
+          "advisory": true
+        },
+        "proc_nested_for": {
+          "stage": "fourstate",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): nested procedural for loops in an always_comb, `p[i+j] ^= a[i] & b[j]` (cv32e40x_alu.sv, CORE-V-WALLY clmul.sv): the loop counter is a run-time index for the fourstate rule (`b[i]` with `int i` can address outside [N-1:0]), and ls-sv does not load procedural loops (st-for, rank 1): the extractor marks the ForLoopStatement Unsupported",
+          "advisory": true,
+          "message_contains": "run-time index"
+        },
+        "proc_shift_xor": {
+          "stage": "fourstate",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): the textbook `if (b[i]) p = p ^ (a << i)` in an always_comb (fontamsoc clmul.sv, effanem gf64_mul.v, akerlund bch_gf.sv): same wall as proc_nested_for",
+          "advisory": true,
+          "message_contains": "run-time index"
+        },
+        "func_shift_xor": {
+          "stage": "banlist",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): the shift-and-XOR as an automatic function with `return` (akerlund bch_gf.sv): the pinned scoring flow's own Yosys frontend refuses `return` (syntax error), which the banlist backstop runs first; before that, ls-sv marks the call and the subroutine Unsupported (ex-user-call, rank 2)",
+          "advisory": true,
+          "message_contains": "syntax error"
+        },
+        "func_oldstyle_xor": {
+          "stage": "source",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): the same function in Verilog-2001 form (`integer i`, result assigned to the function name, no `return`; fontamsoc clmul.sv): Yosys reads it, the source gate stops at the loop counter: `integer i` is declared outside the loop header, which item 7 (the stopgap for ls-sv's procedural-loop defects) refuses; before item 7 the fourstate rule stopped it at the same counter",
+          "advisory": true,
+          "message_contains": "is not declared in the loop header"
+        },
+        "wally_chain": {
+          "stage": "fourstate",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): CORE-V-WALLY's chain through an intermediate vector indexed `S[WIDTH*i+j]` inside nested for loops: the index is a product of the parameter and a loop counter, a run-time index for fourstate (and not affine for the tactics)",
+          "advisory": true,
+          "message_contains": "run-time index"
+        },
+        "gen_always_step": {
+          "stage": "unproved",
+          "why": "STYLE (tests/clmul/attacks/README.md): one generate-for iteration per shift-and-add step, each an always_comb with a default and a conditional compound XOR (Marian mult_ghash.sv). Loaded since compound assignment is admitted in the symbolic tier (WP-PROC C1, 2026-11-01): it passes every check that needs no proof.",
+          "advisory": true,
+          "message_contains": "every check that needs no proof passed"
+        },
+        "gen_local_column": {
+          "stage": "design",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): a column temporary declared inside a generate block (`logic [N-1:0] t;`) plus a conditional generate: ls-sv refuses the generate-local declaration",
+          "advisory": true,
+          "message_contains": "generate-local declaration"
+        },
+        "inst_karatsuba_1level": {
+          "stage": "fourstate",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): one level of Karatsuba on three instances of a procedural base module (effanem gf128_karatsuba.v + gf64_mul.v): the base module's loop counter stops it at fourstate",
+          "advisory": true,
+          "message_contains": "run-time index"
+        },
+        "inst_karatsuba_rec": {
+          "stage": "fourstate",
+          "why": "STYLE (tests/clmul/attacks/README.md): Karatsuba as a recursive parameterized module (JC-S karat_mult_recursion.sv, here over GF(2)). The extractor's --top now accepts a self-instantiating top (WP-PROC N3), so the first wall moved to fourstate: the procedural `for` counter is a run-time `int` index (rule (d)), as in inst_karatsuba_1level.",
+          "advisory": true,
+          "message_contains": "run-time index"
+        },
+        "gen_word_pp_chain": {
+          "stage": "unproved",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): word-wide partial products by generate-for with a conditional shift, `pp[i] = b[i] ? aw << i : '0`, and an XOR chain (ibex_alu.sv clmul_and_stage, rv32imafb-core clmul_unit.sv): every stage before the proof accepts it and the oracle agrees; the tactics stop at the fill `'0` as an arm of `?:` (WP-B2 gate 4c reads the zero-extension replication before it; the word-level shift, gates 3a and 4b, is read)",
+          "advisory": true,
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "unbased unsized literal"
+          }
+        },
+        "reduce_xor_column": {
+          "stage": "unproved",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): one XOR-reduction per output column, `p[k] = ^(a & bpad[(2N-2-k) +: N])` (the `x^y` reduction-operator form; not seen in the files read, included for coverage): accepted up to the proof; the tactics refuse the indexed part select",
+          "advisory": true,
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "indexed part select"
+          }
+        },
+        "gen_pp_zerofill": {
+          "stage": "unproved",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): word-wide partial products with the zero-fill loop starting at N, `for (i = N; i < 2*N-1; i++)`: accepted up to the proof; the tactics' generate-for header needs an integer literal start",
+          "advisory": true,
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "generate-for header"
+          }
+        },
+        "gen_size_cast": {
+          "stage": "design",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): the explicit size cast `(2*N-1)'(a) << i` that real code uses to widen the operand (the survey's most common spelling of the word-wide partial product; register cv-explicit, rank 9), on packed 2-D arrays: ls-sv does not load ConversionExpression:Explicit",
+          "advisory": true,
+          "message_contains": "ConversionExpression:Explicit"
+        },
+        "gen_unpacked_pp": {
+          "stage": "design",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): partial products and accumulator as parameter-sized UNPACKED arrays, `logic [2*N-2:0] pp [N]` (ibex_alu.sv's clmul_and_stage, the survey's probe c01): ls-sv reports `assign target 'acc[0]' undeclared`",
+          "advisory": true,
+          "message_contains": "undeclared"
+        },
+        "gen_mask_replication": {
+          "stage": "unproved",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): the replicated-bit mask `(aw << i) & {(2*N-1){b[i]}}` (VeeR, scarv): accepted up to the proof; the tactics read it since WP-B2 gate 4c (at the base commit of this task the first refusal was the run-time shift, added by gate 3a; then the genvar shift amount, gate 4b; then the replication of a bit select, gate 4c): `sv_structure` and `sv_equations` accept the design, and only the proof of the clmul theorem is missing",
+          "advisory": true,
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": true
+          }
+        },
+        "verilog2001_wire": {
+          "stage": "design",
+          "why": "STYLE (tests/clmul/attacks/README.md): Verilog-2001 nets: `input wire` / `output wire` ports and a `wire [N-1:0][N-1:0] r` array (13 of the survey's 30 clmul entries are Verilog). Typeless ports and nets load since WP-PROC N1/N2; the wall is now the 2-D net `r` as an assignment target: `AssignL: 'r' has no declared packed dimension list`.",
+          "advisory": true,
+          "message_contains": "has no declared packed dimension list"
+        },
+        "always_star_rows": {
+          "stage": "design",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): a Verilog-2001 `always @*` per row inside a generate-for (60 of the survey's 331 entries; registers pr-implicit-event, pr-event-list): ls-sv cannot run TimedStatement:ImplicitEventControl",
+          "advisory": true,
+          "message_contains": "ImplicitEventControl"
+        },
+        "inst_karatsuba_1level_gen": {
+          "stage": "unproved",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): one level of Karatsuba on three instances of a generate-array base module: accepted by every stage before the proof (the loader, the scorer and postsynth handle instances); the tactics refuse module instances (WP-I)",
+          "advisory": true,
+          "args": [
+            "--tactics"
+          ],
+          "functional": "agrees",
+          "tactics": {
+            "in_fragment": false,
+            "message_contains": "instantiates modules"
+          }
+        }
+      }
+    },
+    "fdivp": {
+      "references": {
+        "fdivp": {
+          "why": "the proved reference (WP-H3): D3, a word-level netlist of 34 sites for every W, P >= 2 (linear one-bit normalizer and P + 2 restoring steps as generate families, two's complement exponent, run-time shifter with a sticky bit, round to nearest even by an increment into {exponent, fraction}); validated by Verilator on all 66 formats with W + P <= 14, on all 2^32 pairs at (5, 11) and (8, 8) and on 12 larger formats; PROVED (reference/fdivp.lean) for every format with the sv_comb tactics and Glue.chain on top of OutN_fdivBits, in one self-contained file over LeanModels.Sv.Lib (the facts about the spec, the rounding certificate, the math layer and the glue are its sections); binary16 is the instance (5, 11), the scoring point",
+          "scores": {
+            "W=5,P=11": {
+              "area_ge": 2166.076,
+              "area_mge": 2166076,
+              "depth": 289,
+              "num_gates": 1515,
+              "gates": {
+                "AND": 285,
+                "ANDNOT": 72,
+                "MUX": 194,
+                "NAND": 440,
+                "NOR": 35,
+                "NOT": 34,
+                "OR": 131,
+                "ORNOT": 124,
+                "XNOR": 121,
+                "XOR": 79
+              }
+            },
+            "W=8,P=24": {
+              "area_ge": 8826.016,
+              "area_mge": 8826016,
+              "depth": 1261,
+              "num_gates": 6062,
+              "gates": {
+                "AND": 1120,
+                "ANDNOT": 160,
+                "MUX": 893,
+                "NAND": 1865,
+                "NOR": 83,
+                "NOT": 137,
+                "OR": 355,
+                "ORNOT": 561,
+                "XNOR": 471,
+                "XOR": 417
+              }
+            },
+            "W=8,P=8": {
+              "area_ge": 1369.84,
+              "area_mge": 1369840,
+              "depth": 184,
+              "num_gates": 973,
+              "gates": {
+                "AND": 184,
+                "ANDNOT": 46,
+                "MUX": 104,
+                "NAND": 301,
+                "NOR": 29,
+                "NOT": 15,
+                "OR": 81,
+                "ORNOT": 80,
+                "XNOR": 64,
+                "XOR": 69
+              }
+            },
+            "W=2,P=2": {
+              "area_ge": 102.985,
+              "area_mge": 102985,
+              "depth": 18,
+              "num_gates": 79,
+              "gates": {
+                "AND": 20,
+                "ANDNOT": 6,
+                "MUX": 3,
+                "NAND": 23,
+                "NOR": 3,
+                "NOT": 1,
+                "OR": 11,
+                "ORNOT": 6,
+                "XNOR": 4,
+                "XOR": 2
+              }
+            }
+          }
+        },
+        "fdivp_newton": {
+          "why": "the second proved reference (PLAN4 N1): a Newton-Raphson divider, D3 with its P + 2 restoring steps replaced by an initial reciprocal, NI = $clog2((P + 9) / 8) + 1 Newton steps over word-level `*` (a generate family), a quotient estimate at most 2 below the quotient and an exact correction by the remainder; the estimate perturbed when an exponent field is all ones (`qe`, where the output stage never reads the core), without which the pinned flow does not finish at (5, 11) in 1800 s; validated by Verilator on all 66 formats with W + P <= 14, on all 2^32 pairs at (5, 11), (8, 8) and (2, 14) and on 200,000 corner-rich pairs at 14 formats up to (11, 53), (2, 62); PROVED (reference/fdivp_newton.lean) for every format, self-contained like D3 (D3's sections IEEE754Proofs..DpG4 verbatim, then the mathematics of the core in its own section NwCore, the core's glue and its own Glue.chain). Not competitive: about 3.6 times D3's area at (5, 11). Not scored at (8, 24): the pinned flow takes more than 30 min there (&fraig -x on the multipliers)",
+          "scores": {
+            "W=5,P=11": {
+              "area_ge": 7892.452,
+              "area_mge": 7892452,
+              "depth": 252,
+              "num_gates": 5691,
+              "gates": {
+                "AND": 1151,
+                "ANDNOT": 88,
+                "MUX": 129,
+                "NAND": 2429,
+                "NOR": 39,
+                "NOT": 27,
+                "OR": 169,
+                "ORNOT": 134,
+                "XNOR": 287,
+                "XOR": 1238
+              }
+            },
+            "W=8,P=8": {
+              "area_ge": 4286.665,
+              "area_mge": 4286665,
+              "depth": 211,
+              "num_gates": 3101,
+              "gates": {
+                "AND": 646,
+                "ANDNOT": 92,
+                "MUX": 77,
+                "NAND": 1235,
+                "NOR": 41,
+                "NOT": 23,
+                "OR": 113,
+                "ORNOT": 100,
+                "XNOR": 198,
+                "XOR": 576
+              }
+            },
+            "W=2,P=2": {
+              "area_ge": 115.318,
+              "area_mge": 115318,
+              "depth": 21,
+              "num_gates": 90,
+              "gates": {
+                "AND": 17,
+                "ANDNOT": 6,
+                "MUX": 4,
+                "NAND": 35,
+                "NOR": 3,
+                "OR": 12,
+                "ORNOT": 7,
+                "XNOR": 4,
+                "XOR": 2
+              }
+            }
+          }
+        },
+        "fdivp_srt": {
+          "why": "the third proved reference (PLAN4, the SRT workflow): a radix-4 SRT divider adapted from CORE-V Wally (Apache-2.0 WITH SHL-2.1, the licence texts in reference/LICENSES/), D3 with its P + 2 restoring steps replaced by N = (P + 2) / 2 + 1 unrolled stages (a generate family): a carry-save partial remainder, the digit in {-2..2} selected from 7 top bits of the remainder and 3 divisor bits by comparison with Wally's constants (four 3-level ?: trees), on-the-fly conversion, then the correction by the residual's sign and the sticky rs != 0; unpacking, normalizers, exponent, denormalizer, rounding and output stage are D3's. Validated by Verilator on all 66 formats with W + P <= 14, on all 2^32 pairs at (5, 11), (8, 8) and (2, 14) and on 14 large formats (tests/fdivp/results/srt_S0.md); PROVED (reference/fdivp_srt.lean) for every format, self-contained like D3 (D3's sections IEEE754Proofs..DpG4 verbatim, the core's mathematics in section SrCore with the selection table checked cell by cell by kernel decide, its own Glue.chain over the 69 printed equations). The lowest depth of the fdivp references (189 against D3's 289 at (5, 11)) for 1.29 times D3's area",
+          "scores": {
+            "W=5,P=11": {
+              "area_ge": 2787.652,
+              "area_mge": 2787652,
+              "depth": 189,
+              "num_gates": 2012,
+              "gates": {
+                "AND": 404,
+                "ANDNOT": 88,
+                "MUX": 237,
+                "NAND": 687,
+                "NOR": 50,
+                "NOT": 20,
+                "OR": 198,
+                "ORNOT": 137,
+                "XNOR": 106,
+                "XOR": 85
+              }
+            },
+            "W=8,P=24": {
+              "area_ge": 10139.803,
+              "area_mge": 10139803,
+              "depth": 387,
+              "num_gates": 7392,
+              "gates": {
+                "AND": 1426,
+                "ANDNOT": 263,
+                "MUX": 1000,
+                "NAND": 2996,
+                "NOR": 93,
+                "NOT": 80,
+                "OR": 731,
+                "ORNOT": 251,
+                "XNOR": 314,
+                "XOR": 238
+              }
+            },
+            "W=8,P=8": {
+              "area_ge": 1907.436,
+              "area_mge": 1907436,
+              "depth": 141,
+              "num_gates": 1402,
+              "gates": {
+                "AND": 295,
+                "ANDNOT": 68,
+                "MUX": 132,
+                "NAND": 479,
+                "NOR": 46,
+                "NOT": 21,
+                "OR": 138,
+                "ORNOT": 80,
+                "XNOR": 77,
+                "XOR": 66
+              }
+            },
+            "W=2,P=2": {
+              "area_ge": 96.652,
+              "area_mge": 96652,
+              "depth": 19,
+              "num_gates": 75,
+              "gates": {
+                "AND": 23,
+                "ANDNOT": 4,
+                "MUX": 1,
+                "NAND": 19,
+                "NOR": 2,
+                "NOT": 2,
+                "OR": 11,
+                "ORNOT": 7,
+                "XNOR": 4,
+                "XOR": 2
+              }
+            }
+          }
+        }
+      },
+      "baselines": {
+        "fdivp_d1": {
+          "banned": false,
+          "why": "D1, the natural parametric form (gate 0 of WP-H3): $clog2, 2**, replication, sized localparams, a LOGARITHMIC normalizer and shifter; the constant arithmetic is allowed by the banlist; validated by Verilator (all 66 formats with W + P <= 14, both 2^32-pair formats, 14 larger formats), never proved: six of its constructs are outside the sv_comb fragment and ls-sv does not run it",
+          "scores": {
+            "W=5,P=11": {
+              "area_ge": 1911.446,
+              "area_mge": 1911446,
+              "depth": 300,
+              "num_gates": 1290,
+              "gates": {
+                "AND": 199,
+                "ANDNOT": 72,
+                "MUX": 199,
+                "NAND": 340,
+                "NOR": 30,
+                "NOT": 28,
+                "OR": 70,
+                "ORNOT": 150,
+                "XNOR": 106,
+                "XOR": 96
+              }
+            },
+            "W=8,P=24": {
+              "area_ge": 7450.536,
+              "area_mge": 7450536,
+              "depth": 1256,
+              "num_gates": 4905,
+              "gates": {
+                "AND": 748,
+                "ANDNOT": 168,
+                "MUX": 846,
+                "NAND": 1252,
+                "NOR": 54,
+                "NOT": 152,
+                "OR": 399,
+                "ORNOT": 383,
+                "XNOR": 493,
+                "XOR": 410
+              }
+            }
+          },
+          "postsynth_points": [],
+          "postsynth_why": "ls-sv cannot run D1: it loads with an unsupported node (the constant-expression conversions of its sized localparams), so svgolf-eval and the post-synthesis check do not apply (check.py's design stage would reject it); it is scored, banlist-checked and 4-state-checked, and simulated by Verilator"
+        },
+        "fdivp_d2": {
+          "banned": false,
+          "why": "D2, the fragment-friendly parametric form (gate 0 of WP-H3): every construct the sv_comb tactics refuse replaced by an affine one, a LINEAR normalizer and denormalizer, about 90 plain sites; validated by Verilator as D1; its sv_structure/sv_equations cost grows as n^2 in the sites (without WP-LIN), which is why the reference folds it into 34 sites",
+          "scores": {
+            "W=5,P=11": {
+              "area_ge": 2314.058,
+              "area_mge": 2314058,
+              "depth": 295,
+              "num_gates": 1618,
+              "gates": {
+                "AND": 303,
+                "ANDNOT": 115,
+                "MUX": 204,
+                "NAND": 449,
+                "NOR": 48,
+                "NOT": 39,
+                "OR": 113,
+                "ORNOT": 130,
+                "XNOR": 135,
+                "XOR": 82
+              }
+            },
+            "W=8,P=24": {
+              "area_ge": 9813.601,
+              "area_mge": 9813601,
+              "depth": 1279,
+              "num_gates": 6899,
+              "gates": {
+                "AND": 1274,
+                "ANDNOT": 250,
+                "MUX": 857,
+                "NAND": 2334,
+                "NOR": 125,
+                "NOT": 125,
+                "OR": 421,
+                "ORNOT": 520,
+                "XNOR": 549,
+                "XOR": 444
+              }
+            }
+          },
+          "postsynth_points": [
+            "W=5,P=11"
+          ]
+        },
+        "flat_binary16": {
+          "banned": false,
+          "banlist_points": [
+            "W=5,P=11"
+          ],
+          "why": "the flat binary16 reference of the former 16-bit task (removed 2026-11-03: binary16 is this task's instance (5, 11); 111 sites) under the parametric header: right at (5, 11) ONLY (every width inside is a literal 16-bit one), so it is scored and simulated at the scoring point and has no proof for the parametric statement; its score differs from that reference's 1929.778 (in the former task) because the header declares W, P and the W+P-bit ports",
+          "scores": {
+            "W=5,P=11": {
+              "area_ge": 1944.775,
+              "area_mge": 1944775,
+              "depth": 303,
+              "num_gates": 1303,
+              "gates": {
+                "AND": 207,
+                "ANDNOT": 67,
+                "MUX": 208,
+                "NAND": 336,
+                "NOR": 29,
+                "NOT": 27,
+                "OR": 94,
+                "ORNOT": 126,
+                "XNOR": 106,
+                "XOR": 103
+              }
+            }
+          },
+          "postsynth_points": [
+            "W=5,P=11"
+          ]
+        }
+      },
+      "negatives": {
+        "div_op": {
+          "stage": "banlist",
+          "why": "the right function (all 2^32 pairs at (5,11), every pair of the small formats) through banned run-time / and %: the reference with its restoring-division family replaced by qq = (na << (P+1)) / nb and the sticky bit from %",
+          "message_contains": "banned run-time binary `/`"
+        },
+        "rm_pin": {
+          "stage": "solution",
+          "why": "an extra input rtz that is never read (right function at every format and every rtz); the interface conjunct: sv_interface refuses the ports",
+          "message_contains": "sv_interface: the declared ports do not match the task's interface"
+        },
+        "status_flag": {
+          "stage": "solution",
+          "why": "a second output `inexact` next to q (constant 0); the interface conjunct: sv_interface refuses the ports",
+          "message_contains": "sv_interface: the declared ports do not match the task's interface"
+        },
+        "wide_q": {
+          "stage": "solution",
+          "why": "q one bit wider than the task's W + P bits (the top bit constant 0, the low W + P bits the right function at every format; ported from the former 16-bit task's inexact_flag.sv, a 17-bit q): the interface conjunct, kernel-refuted at (2, 2) by negative/Refute.lean's wideQ_refuted (the ports differ). No message is pinned: the reference proof also fails at its q-site steps (the wider q has a fourth site: known_q_plain_24 is no longer the one it uses), and those later errors push sv_interface's refusal out of the reported tail"
+        },
+        "const_nan": {
+          "stage": "solution",
+          "why": "q = the canonical quiet NaN always (right only on NaN-producing pairs, wrong on almost every other pair of every format) (rejected at `solution` INCIDENTALLY: the one-assign netlist is outside the fragment of the tactics)",
+          "message_contains": "sv_structure: outside the supported fragment"
+        }
+      },
+      "attacks": {
+        "inc_tie_odd": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "inc = qs[0] & (sticky | ~qs[1]): exact ties round to the odd neighbour (wrong on 8 pairs of (2,2), 132 of (3,4), 1816 of (4,6), ... exhaustive; the advisory oracle flags 4 of the 4443 post-synthesis vectors at (5,11), the post-synthesis check alone none). The reference proof fails at the application of `chain` (Application type mismatch: the printed equation of the changed site no longer has the shape the chain assumes)."
+        },
+        "dsh_wrap64": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "the denormalizing shift amount taken modulo 64: right at every format with W <= 6 (all 2^32 pairs of (5,11) agree with the oracle), wrong from W = 7 on ((7,3): 104 of 2^20 pairs, (8,2): 2056, 22,113 of 500,000 sampled at (8,24)); neither the advisory oracle nor the post-synthesis check at (5,11) sees it. The reference proof fails at the application of `chain` (Application type mismatch: the printed equation of the changed site no longer has the shape the chain assumes)."
+        },
+        "ew_narrow": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "the exponent register W + 2 bits instead of W + P + 1: right at (5,11) (all 2^32 pairs), (8,24) and (11,53) (500,000 sampled each), wrong when P is large against W ((2,8): 1792 of 2^20 pairs); neither the advisory oracle nor the post-synthesis check sees it. The reference proof fails at the application of `chain` (Application type mismatch: the printed equation of the changed site no longer has the shape the chain assumes)."
+        },
+        "zero_by_zero_inf": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "the 0/0 clause of c_nan is missing: +-0/+-0 gives +-inf instead of the canonical NaN; wrong on exactly 4 pairs of every format; the advisory oracle flags 4 of the 4443 vectors. The reference proof fails at the application of `chain` (Application type mismatch: the printed equation of the changed site no longer has the shape the chain assumes)."
+        },
+        "rr_sticky_dropped": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "the division's sticky bit ignores the last remainder: wrong on a large share of the pairs of every format (138,736 of 2^20 at (4,6)); the advisory oracle flags 590 of the 4443 vectors. The reference proof fails at the application of `chain` (Application type mismatch: the printed equation of the changed site no longer has the shape the chain assumes)."
+        },
+        "ftz": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "flush-to-zero: a result with E <= 0 (subnormal before rounding) is +-0; wrong on 32 of 256 pairs of (2,2), 2836 of 2^14 at (3,4), 145,924 of 2^20 at (4,6) (exhaustive; ported from the former 16-bit task's ftz.sv). The reference proof fails at the application of `chain` (the printed equation of mag no longer has the shape the chain assumes)."
+        },
+        "ovf_late": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "the overflow test one too late, E >= 2^W where the reference has 2^W - 1: a result with the all-ones exponent keeps its fraction (an infinity or a NaN-like pattern instead of +-inf); wrong on 4 of 256 pairs of (2,2), 25,668 of 2^20 at (4,6) (exhaustive; ported from the former 16-bit task's ovf_late.sv). The reference proof fails at the application of `chain`."
+        },
+        "dsh_sticky_short": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "in the application\n  FdivParam.Glue.chain",
+          "why": "the denormalizer's sticky test is two bits short, (qs << dsh) != {qm[P:2], 2'b00}: a subnormal result whose only nonzero dropped bit is qm[1] is taken for a tie, and at a shift of 1 the round bit is taken for a sticky bit; right at (2,2), wrong on 32 of 2^14 pairs at (3,4), 384 of 2^20 at (4,6), 128 at (2,8), 504 at (8,2) (exhaustive; the parametric form of the former 16-bit task's sticky_short.sv, whose sticky forgot the bits of the last shifter stage). The reference proof fails at the application of `chain`."
+        },
+        "newton_f_minus2": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "eq_zr_plain_12 eq_r_plain_13\n",
+          "why": "the Newton reference with the working precision F = P + 2 instead of P + 4: the constant {6'd45, zr[P-2:0]} of r[0] is 45/32 only at F = P + 4, so the initial reciprocal is wrong and the estimate falls far more than 2 below the quotient (up to 2070 at P = 10 in the core's Python model), out of the correction's reach; wrong on every format (48 of 256 pairs at (2,2), 670,984 of 2^20 at (4,6); exhaustive). The Newton proof fails at the application of `chain`: the argument eq_r_plain_13, the printed equation of r[0], is F + 1 = P + 3 bits wide where the chain assumes P + 5 (the error's tail ends with the application up to that argument)."
+        },
+        "newton_ge1_const": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Application type mismatch: The argument\n  eq_qq_plain_21",
+          "why": "the Newton reference with the correction always adding 1 (qq = qe + 1 + ge2): wrong whenever the estimate is already the quotient; every format (8 of 256 pairs at (2,2), 150,424 of 2^20 at (4,6); exhaustive). The Newton proof fails at the application of `chain`: the argument eq_qq_plain_21, the printed equation of qq, no longer has the shape the chain assumes."
+        },
+        "newton_ni_minus1": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "(deterministic) timeout at `whnf`, maximum number of heartbeats (700000) has been reached",
+          "why": "the Newton reference with one Newton step fewer (NI = $clog2((P + 9) / 8), none for P <= 6): right at P = 2 ((2,2), (8,2)), wrong from P = 3 on (72 of 2^10 pairs at (2,3), 32 of 2^18 at (2,7), 576,772 of 2^20 at (4,6); exhaustive). The Newton proof fails at the application of `chain`, by the heartbeat limit of `solution`: the argument eq_qp_plain_14 (qp = ma * r[NI]) now carries the step count clog2((P + 9) / 8) + 0 where the chain has + 1, and unifying the two makes Lean reduce clog2 at a symbolic P until the limit (deterministic, measured 2026-11-04)."
+        },
+        "newton_no_ge2": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Application type mismatch: The argument\n  eq_qq_plain_21",
+          "why": "the Newton reference with the correction stopping at qf + 1 (ge2 dropped): wrong only where the estimate is 2 below the quotient, which the Newton error bound allows and which is rare: over W = 2, P = 2..12 only at P = 6 (28 of 2^16 pairs), 196 of 2^20 at (4,6), right on all 2^32 pairs of (5,11) (exhaustive). Only a proof for every P sees it. The Newton proof fails at the application of `chain`: the argument eq_qq_plain_21, the printed equation of qq, no longer has the shape the chain assumes."
+        },
+        "newton_r0_off": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "6 = 45\nis false",
+          "why": "the Newton reference with the initial reciprocal's constant 47/32 instead of 45/32 (|e0| up to about 0.15 instead of 1/16): over W = 2, P = 2..12 wrong at P = 6, 11 and 12 only (2156 of 2^16 pairs at (2,6), 303,536 of 2^26 at (2,11)), 77,636 of 2^20 at (4,6) (exhaustive). The Newton proof fails at the value check of the constant of r[0]: the chain takes the 6-bit constant as an argument with the hypothesis that its value is 45, and `decide` proves that 47 is not."
+        },
+        "newton_rnz_no2mb": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Application type mismatch: The argument\n  eq_rnz_plain_22",
+          "why": "the Newton reference whose sticky bit forgets the remainder 2 mb (an exact quotient qf + 2 taken for inexact): over W = 2, P = 2..12 wrong only at P = 6 (20 of 2^16 pairs), 140 of 2^20 at (4,6), right on all 2^32 pairs of (5,11) (exhaustive). The Newton proof fails at the application of `chain`: the argument eq_rnz_plain_22, the printed equation of rnz, no longer has the shape the chain assumes."
+        },
+        "newton_rnz_nomb": {
+          "lean": "reference/fdivp_newton.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Application type mismatch: The argument\n  eq_rnz_plain_22",
+          "why": "the Newton reference whose sticky bit forgets the remainder mb (an exact quotient qf + 1 taken for inexact): every format, exact quotients only (4 of 256 pairs at (2,2), 892 of 2^20 at (4,6); exhaustive). The Newton proof fails at the application of `chain`: the argument eq_rnz_plain_22, the printed equation of rnz, no longer has the shape the chain assumes."
+        },
+        "srt_qds_t2_d0": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_t2_plain_20\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference with a wrong selection constant, t2's leaf at da = 0 75 instead of 76 (Wally's mks2[0] 12 -> 11): right at P = 2..4, where the bad cell of the table is never reached, wrong from P = 5 on (20 of 2^14 pairs at (2,5), 612 of 2^20 at (4,6); exhaustive over W = 2, P = 2..12). Only a proof for every P, or the exact check of every table cell, sees it. The SRT proof fails at the application of `chain`, which ends at the argument eq_t2_plain_20 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of the selection constant t2, no longer has the shape the chain assumes."
+        },
+        "srt_qds_t1_d0": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_t1_plain_21\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference with a wrong selection constant, t1's leaf at da = 0 66 instead of 68 (Wally's mks1[0] 4 -> 2): right at P = 2..4, wrong from P = 5 on (24 of 2^14 pairs at (2,5), 2716 of 2^20 at (4,6); exhaustive over W = 2, P = 2..12). The SRT proof fails at the application of `chain`, which ends at the argument eq_t1_plain_21 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of the selection constant t1, no longer has the shape the chain assumes."
+        },
+        "srt_qds_tm_d7": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_tm_plain_23\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference with a wrong selection constant, tm's leaf at da = 7 38 instead of 41 (Wally's mksm1[7] -23 -> -26): right at P = 2..4, wrong from P = 5 on (20 of 2^14 pairs at (2,5), 1356 of 2^20 at (4,6); exhaustive over W = 2, P = 2..12). The SRT proof fails at the application of `chain`, which ends at the argument eq_tm_plain_23 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of the selection constant tm, no longer has the shape the chain assumes."
+        },
+        "srt_no_corr": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_qq_plain_29\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference without the final correction (qq = u[N] also when the residual is negative): right at P = 2, wrong from P = 3 on (28 of 2^10 pairs at (2,3), 126,504 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_qq_plain_29 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of qq, no longer has the shape the chain assumes."
+        },
+        "srt_drop_carry": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_wc_srt_10\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference with one carry of the carry-save row dropped (cy[k][3] replaced by 0): every format (20 of 256 pairs at (2,2), 81,264 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_wc_srt_10 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of the carry vector wc of the family srt, no longer has the shape the chain assumes."
+        },
+        "srt_no_cin": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_wc_srt_10\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference that drops the +1 of the negated multiple -q dv (q > 0) from the carry vector: every format (72 of 256 pairs at (2,2), 562,084 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_wc_srt_10 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of the carry vector wc of the family srt, no longer has the shape the chain assumes."
+        },
+        "srt_sticky_sign": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_rnz_plain_30\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference whose sticky bit reads the residual's sign (rnz = ~rs[RW-1] & (rs != 0): a negative residual taken for exact): right at P = 2, wrong from P = 3 on (32 of 2^10 pairs at (2,3), 74,036 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_rnz_plain_30 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of rnz, no longer has the shape the chain assumes."
+        },
+        "srt_stages_m1": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_rs_plain_28\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference with one stage fewer (N = H radix-4 digits): every format (84 of 256 pairs at (2,2), 792,708 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_rs_plain_28 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of rs (the residual after the last stage, now ws[N] + wc[N] at N = H), no longer has the shape the chain assumes."
+        },
+        "srt_otfc_um": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_ums_srt_16\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference whose on-the-fly conversion takes UM' for the digit q = 0 from U instead of UM (g0 for g1): right at P = 2, wrong from P = 3 on (40 of 2^10 pairs at (2,3), 227,588 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_ums_srt_16 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of ums of the family srt, no longer has the shape the chain assumes."
+        },
+        "srt_otfc_digit": {
+          "lean": "reference/fdivp_srt.lean",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": " eq_uq0_srt_12\n'Submission.solution' depends on axioms",
+          "why": "the SRT reference whose on-the-fly conversion appends 10 instead of 11 to U for the digit q = -1: every format (20 of 256 pairs at (2,2), 227,804 of 2^20 at (4,6); exhaustive). The SRT proof fails at the application of `chain`, which ends at the argument eq_uq0_srt_12 (`message_contains`: the error's tail, where Lean prints the application up to it), the printed equation of uq0 of the family srt, no longer has the shape the chain assumes."
+        }
+      }
+    },
+    "matmul": {
+      "references": {
+        "matmul_g1": {
+          "why": "the proved reference (PLAN4 Gate 3; reference/matmul_g1.lean, 1c17536f): N*N parallel multiply-accumulate units and one step counter k, A and B captured into shift registers at start, latency N (lat = N, n = 4 at the scoring point; MEASURED by check.py's clocked post-synthesis check: every transaction's first done = 1 is 4 snapshots after its start at (4,8,32), 2 at (2,4,8)). check.py ACCEPTS it (2026-11-04, three cold runs, score/time_limits.json): the extractor's and the design stage's probe points (1,1,1), (2,3,5), (3,4,8), (4,8,32), the clocked post-synthesis check at (2,4,8) and (4,8,32) in full mode (3 seeds x 24 transactions each, 309 and 493 cycles, 0 failures; the oracle binding), axioms propext, Classical.choice, Quot.sound. THE PERIOD (sky130_a0_v2, decided 11/04: 'add the repair step everywhere (buffering)'; sky130_a0_v3, every input driven by the default sky130_fd_sc_hd__buf_8 instead of buf_1, and every load pin read per edge, its rise_capacitance for a rising transition and its fall_capacitance for a falling one, as OpenSTA reads them): 10696 ps over a 60-cell register-to-register datapath path, on the netlist REPAIRED by buffering only (6 buffers on the 5 illegal nets: busy's flop Q 1 x buf_4, NOR(busy, start) and NOR(rst, .) 1 x buf_8 each, one more control net 2 x buf_4, the input start 1 x buf_12; no cell resized; worst load 0.875x max_capacitance, worst transition 0.905x, no table read outside its grid), 87173.6064 um^2. Before the per-edge loads it was 10705 ps with 5 buffers (the third control net 1 x buf_8, the same area; worst load 0.71x, worst transition 0.98x), under v2's buf_1 and v3's buf_8 alike. The unrepaired A0' netlist (sky130_a0_v1: 48079 ps, 87101.0368 um^2) was electrically illegal: busy's Q (fanout 198, 399 fF) -> NOR(busy, start) (fanout 360, 837 fF) -> NOR(rst, .) (fanout 257, 792 fF) -> mux2 -> D, every gate an unbuffered _1 cell at up to 9.7x its max_capacitance, the NLDM tables extrapolated far outside their grid; sky130_a0_v2 rejects such a netlist instead",
+          "scores": {
+            "N=4,W=8,AccW=32": {
+              "area_ge": 20783.15,
+              "area_mge": 20783150,
+              "depth": 61,
+              "num_gates": 12568,
+              "gates": {
+                "AND": 1963,
+                "ANDNOT": 313,
+                "DFF_P": 802,
+                "MUX": 514,
+                "NAND": 4831,
+                "NOR": 189,
+                "NOT": 10,
+                "OR": 788,
+                "ORNOT": 180,
+                "XNOR": 851,
+                "XOR": 2127
+              },
+              "area_um2": 87173.6064,
+              "period_ps": 10696,
+              "cycles": 4,
+              "time_ps": 42784,
+              "ffs": 802
+            }
+          }
+        }
+      },
+      "baselines": {},
+      "negatives": {},
+      "attacks": {
+        "off_by_one_k": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "LVec.ofBitVec 0#32\nis false",
+          "why": "the step counter starts at 1 on start (`k <= 32'd1`): N - 1 busy steps, the last product A[i][N-1]*B[N-1][j] never reaches C and done rises one cycle early; for N = 1 done never rises. Wrong for every N. WRONG, independently of the proof: check.py --unproved --latency 4 (the clocked score) rejects it at postsynth, 153 failures at (2,4,8); the first: C[0][0] = 49, want 98 (max*max). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in mm_ctrl: `decide` refutes that the start branch writes k := 0 (the literal is 1)."
+        },
+        "unsigned_product": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Expr2.binary BinOp.mul (Expr2.resize AccW ((Expr2.ident \"a_sh\").slice (i * N * W) W))",
+          "why": "the operands are not extended: `C + a * b` with W-bit part-selects, which SystemVerilog zero-extends to the AccW-bit context, an unsigned product. Wrong when AccW > W >= 2 and an entry is negative (oracle.py `_faults`). WRONG, independently of the proof: check.py --unproved --latency 4 (the clocked score) rejects it at postsynth, 143 failures at (2,4,8); the first: C[0][0] = 112, want -112 (checker). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in pe_inst: the instantiated PE's update is a product of zero-extended part-selects, not the reference's sign extension (unsolved goal)."
+        },
+        "missing_sign_ext": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "N W AccW : Int\n⊢ False",
+          "why": "the W x W product is sign-extended only to 2W bits (`p`, a 2W-bit net) and added to the AccW-bit accumulator zero-extended. Wrong when AccW > 2W and a product is negative (oracle.py `_faults`), right when AccW <= 2W: check.py --unproved --latency 4 passes it at (2,4,8) (AccW = 2W, 0 failures) and rejects it at postsynth at (4,8,32), 171 failures; the first: C[0][0] = 197120, want -65024 (min*max). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), first in mm_decls (the extra net p: unsolved goal False), then pe_inst and mm_gens_src."
+        },
+        "done_early": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Tactic `decide` proved that the proposition\n  False\nis false",
+          "why": "done is set one step early (`k == N - 2`) while the accumulation runs all N steps: the first snapshot showing done = 1 holds C without its last step; for N = 1 done never rises. Wrong for every N. WRONG, independently of the proof: check.py --unproved --latency 4 (the clocked score) rejects it at postsynth, 69 failures at (2,4,8); the first: C[0][0] = 49, want 98 (max*max). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in mm_ctrl: `decide` refutes the control process's shape."
+        },
+        "no_clear_on_start": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "hle1 : ¬AccW + W ≤ AccW\n⊢ False",
+          "why": "the accumulators are cleared by the reset, not by start: the first transaction after a reset is right, every later one adds onto the previous result. Wrong for every N, W, AccW. WRONG, independently of the proof: check.py --unproved --latency 4 (the clocked score) rejects it at postsynth, 150 failures at (2,4,8); the first: C[0][0] = -14, want -112 (checker, the second transaction). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in pe_inst: the instantiated PE process is not the reference's (unsolved goal False)."
+        },
+        "acc_2w": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "is not definitionally equal to the right-hand side\n  [genN \"g_row\" \"i\"",
+          "why": "the accumulator is 2W bits (`acc`, the width of one product), and C is acc sign-extended to AccW bits by continuous assignments. Wrong when AccW > 2W and a dot product leaves the signed 2W-bit range (oracle.py `_faults`), right when AccW <= 2W or N = 1: check.py --unproved --latency 4 passes it at (2,4,8) (AccW = 2W, 0 failures) and rejects it at postsynth at (4,8,32), 33 failures; the first: C[0][0] = 512, want -65024 (min*max). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), first in mm_decls (the extra register acc), then pe_inst and mm_gens_src (the generate block holds an assign: not definitionally the reference's)."
+        }
+      }
+    },
+    "sorter": {
+      "references": {
+        "sorter_ins": {
+          "why": "the proved reference (PLAN4 Gate 5; reference/sorter_ins.lean, 039c2162): the insertion-cell array (cell sort) adapted from andrewpeck/cell-sort (MIT), N cells and a valid token per cell, latency 2N (lat = 2N, n = 16 at the scoring point; MEASURED by check.py's clocked post-synthesis check: in every transaction the N outputs are at snapshots s+N+1 .. s+2N, latency 16 at (8,8) and 6 at (3,4)). check.py ACCEPTS it (2026-11-04, three cold runs, score/time_limits.json): the extractor's and the design stage's probe points (1,1), (1,8), (2,1), (2,4), (3,1), (3,4), (4,8), (8,8) (0 frontend errors; at N = 1 the zero-instance cell loop's body is kept as source, `GenerateFor:no-template`, the extractor's stated limit, and the proof covers N = 1 symbolically), the clocked post-synthesis check at (3,4) and (8,8) in full mode (3 seeds x 24 transactions each, 195, 193, 224 and 478, 448, 479 cycles, 0 failures; the oracle binding), axioms propext, Classical.choice, Quot.sound. Its simulation is tests/sorter/sim.py. The critical path of the sky130 period (2523 ps; 2510 before the per-edge loads) is 11 cells, register to register (under sky130_a0_v2's buf_1 input drive an input path was the critical one, 2621 ps).",
+          "scores": {
+            "N=8,W=8": {
+              "area_ge": 1288.819,
+              "area_mge": 1288819,
+              "depth": 15,
+              "num_gates": 713,
+              "gates": {
+                "AND": 202,
+                "ANDNOT": 24,
+                "DFF_P": 81,
+                "MUX": 57,
+                "NAND": 138,
+                "NOR": 12,
+                "NOT": 3,
+                "OR": 59,
+                "ORNOT": 123,
+                "XNOR": 14
+              },
+              "area_um2": 5512.7872,
+              "period_ps": 2523,
+              "cycles": 16,
+              "time_ps": 40368,
+              "ffs": 81
+            }
+          }
+        }
+      },
+      "baselines": {},
+      "negatives": {},
+      "attacks": {
+        "token_self": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:155:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
+          "why": "the token shift of cells 0 .. N-2 reads the cell's own token (`tok[k] <= tok[k]`, the neighbour index k+1 dropped): the tokens below the top never move, out_valid stays 0 and no value is emitted. Wrong for every N >= 2, right at N = 1 (the cell family is empty). WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 3 failures at (3,4), one per seed, each run stopping; the first: transaction 0 (zeros): 0 values emitted, want 3; no more outputs within the declared latency 16. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: `decide` refutes that the instantiated cell process is the reference's. (It replaces the designer's loop-bound mutant `k < N-2` of tests/sorter/sim.py, which leaves cell N-2 and token N-2 undriven: check.py refuses that one at fourstate, Yosys `check` reporting the undriven bits, before any proof.)"
+        },
+        "missing_else": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:155:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
+          "why": "the cell's second test lost its `else` (`if (in_data > data[k*W +: W])`): when the input beats both the upper neighbour and the cell's own value both writes fire and the later one, the input, wins, so a large value is copied into several cells and the neighbour's value is lost. Wrong for every N >= 2, right at N = 1. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 61 failures at (3,4); the first: transaction 1 (one zero): output 0 is 15, want 0. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: `decide` refutes the instantiated cell process."
+        },
+        "push_own_value": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:155:26: error: Expected type must not contain free variables\n  k * W = (k + 1) * W",
+          "why": "the neighbour-push test compares the input with the cell's OWN value (`in_data > data[k*W +: W]`) instead of its upper neighbour's: a cell takes its neighbour's value whenever the input beats its own value, so the input itself is never stored below the top cell. Wrong for every N >= 2, right at N = 1. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 27 failures at (3,4); the first: transaction 6 (descending): output 0 is 15, want 11. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: the compared window is data[k*W +: W], not data[(k+1)*W +: W] (`k * W = (k + 1) * W`)."
+        },
+        "early_valid": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:132:90: error: unsolved goals",
+          "why": "the valid token enters with the start (`tok[N-1] <= in_valid | start`), one cycle before the first value: out_valid rises at the snapshot N after the start and stays up N + 1 cycles, one value too many (the padding 0 in cell 0). Wrong for every N. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 69 failures at (3,4); the first: transaction 1 (one zero): output 1 is 0, want 15 (other transactions: 4 values emitted, want 3). the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in so_static: the top process is not the reference's (unsolved goal False). (It replaces the designer's mutant `out_valid <= tok[N > 1 ? 1 : 0]`, whose netlist carries a 1'hx constant that the post-synthesis check refuses on every vector.)"
+        },
+        "reset_keeps_cells": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:155:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
+          "why": "the reset clears the tokens and the top cell but not cells 0 .. N-2: the first transaction after a reset sorts its input together with whatever the cells held (the drain clears them, so later transactions are right). Wrong for every N >= 2 from an arbitrary power-up state, right at N = 1. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 2 failures at (3,4); the first: transaction 0 (zeros): output 0 is 4, want 0, then ls-sv: out_data is x/z in a cared position (ls-sv's cells start x). the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: `decide` refutes the instantiated cell process (no reset write of the cell)."
+        },
+        "top_not_drained": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:132:90: error: unsolved goals",
+          "why": "the top cell is not cleared by the drain (its `else` branch is gone): it keeps the transaction's maximum, which shifts down behind the sorted values and is still in the top cell for the next transaction, whose values below it never reach the top. Wrong for every N from the second transaction on. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 63 failures at (3,4); the first: transaction 3 (alternating): output 0 is 15, want 0. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in so_static: the top process is not the reference's (unsolved goal False)."
+        },
+        "signed_order": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:132:90: error: unsolved goals",
+          "why": "the comparisons are signed (`$signed(in_data) > $signed(data[...])`, all three) instead of unsigned: values with the top bit set sort below the others and below the padding 0, so they are lost. Wrong for every N and W (at W = 1 the value 1 is -1). WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 57 failures at (3,4); the first: transaction 1 (one zero): output 1 is 0, want 15. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), in so_static (the top process: unsolved goal False) and in cell_inst (`decide`)."
+        }
+      }
+    }
+  },
+  "canonical_layout": {
+    "_comment": "The `canon` step of tests/run.py: each design below, re-laid-out and renamed (tests/canon/variants.py), must have a byte-identical canonical RTLIL and its score; reordered, its score; `commute` (the operands of every commutative operator swapped: a different expression tree for the same function) is the RECORDED score, a residual the canonical flow does not normalize (README.md, \"Scoring\"). Not in the list: the divider designs. The proved reference of the former 16-bit task (one flat netlist of 111 continuous assigns, now the baseline tests/fdivp/baselines/flat_binary16.sv): reordering its items changes its score (reverse 1920.446 GE / depth 304, shuffles 1938 to 1957 GE / depth 298 to 300, against 1929.778 / 299 as written; layout and renaming variants are byte-identical), so the canonical flow does not make the score of a flat netlist independent of the order of its assigns (WP-H2 finding, reported). The same holds for the fdivp designs at (5, 11) (2026-11-03, when the former 16-bit task and with it its first circuit, a draft baseline, which covered a divider here, were removed): every layout and renaming variant and `hoist` byte-identical, the reorderings not: reference/fdivp.sv 2166.076 / 289 as written, reverse 2173.402 / 287, shuffles 2159.083 to 2221.062 / 292 to 297 (one shuffle equal); baselines fdivp_d1.sv 1911.446 / 300, reorderings 1895.463 to 1956.444 / 285 to 301; fdivp_d2.sv 2314.058 / 295, every reordering 2326.389 / 297.",
+    "designs": {
+      "tasks/_example/reference/band.sv": {
+        "top": "band",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 21.328,
+          "area_mge": 21328,
+          "depth": 1,
+          "num_gates": 16,
+          "gates": {
+            "AND": 16
+          }
+        }
+      },
+      "tasks/_example/reference/band_lp.sv": {
+        "top": "band",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 21.328,
+          "area_mge": 21328,
+          "depth": 1,
+          "num_gates": 16,
+          "gates": {
+            "AND": 16
+          }
+        }
+      },
+      "tasks/add/reference/add_n.sv": {
+        "top": "add_n",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 112.0,
+          "area_mge": 112000,
+          "depth": 33,
+          "num_gates": 80,
+          "gates": {
+            "NAND": 48,
+            "XOR": 32
+          }
+        }
+      },
+      "tasks/mul/reference/mul_n.sv": {
+        "top": "mul_n",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 2087.118,
+          "area_mge": 2087118,
+          "depth": 88,
+          "num_gates": 1408,
+          "gates": {
+            "AND": 449,
+            "ANDNOT": 1,
+            "MUX": 2,
+            "NAND": 298,
+            "NOT": 1,
+            "OR": 14,
+            "ORNOT": 181,
+            "XNOR": 197,
+            "XOR": 265
+          }
+        }
+      },
+    "tasks/clmul/reference/clmul_n.sv": {
+      "top": "clmul_n",
+      "point": "N=16",
+      "commute": {
+        "area_ge": 774.265,
+        "area_mge": 774265,
+        "depth": 6,
+        "num_gates": 481,
+        "gates": {
+          "AND": 205,
+          "NAND": 51,
+          "XNOR": 225
+        }
+      }
+    },
+      "tests/add/baselines/add_n_sklansky.sv": {
+        "top": "add_n",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 124.992,
+          "area_mge": 124992,
+          "depth": 30,
+          "num_gates": 93,
+          "gates": {
+            "AND": 15,
+            "NAND": 44,
+            "NOR": 1,
+            "OR": 9,
+            "XNOR": 8,
+            "XOR": 16
+          }
+        }
+      },
+      "tests/add/baselines/add_n_kogge_stone.sv": {
+        "top": "add_n",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 149.652,
+          "area_mge": 149652,
+          "depth": 24,
+          "num_gates": 115,
+          "gates": {
+            "AND": 30,
+            "NAND": 51,
+            "OR": 12,
+            "ORNOT": 2,
+            "XNOR": 3,
+            "XOR": 17
+          }
+        }
+      },
+      "tests/add/baselines/cmp_carry.sv": {
+        "top": "add_n",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 186.644,
+          "area_mge": 186644,
+          "depth": 16,
+          "num_gates": 142,
+          "gates": {
+            "AND": 43,
+            "ANDNOT": 3,
+            "NAND": 47,
+            "NOR": 5,
+            "OR": 19,
+            "ORNOT": 3,
+            "XNOR": 13,
+            "XOR": 9
+          }
+        }
+      }
+    }
+  },
+  "import_allowlist": {
+    "_comment": "Tested by tests/imports/test_allowlist.py against check.py's IMPORT_ALLOW. `admitted_tactic_library`: the sv_comb tactic modules a proof imports; their transitive imports must be allowed too. `mathlib_closure` (WP-B): the import closure of `roots`, recomputed from the package sources in the parent's packagesDir, must consist of allowed modules only (`package_roots`: the module roots found in the packages, exactly), apart from the toolchain modules in `toolchain_unallowed` (reached through Mathlib, never importable directly).",
+    "admitted_tactic_library": [
+      "LeanModels.Sv.CombView",
+      "LeanModels.Sv.CombViewThm",
+      "LeanModels.Sv.CombViewSound",
+      "LeanModels.Sv.CombViewMain",
+      "LeanModels.Sv.CombViewDiag",
+      "LeanModels.Sv.CombViewTactic",
+      "LeanModels.Sv.CombViewArith",
+      "LeanModels.Sv.CombKnownBits",
+      "LeanModels.Sv.CombKnownThm",
+      "LeanModels.Sv.CombEqBase",
+      "LeanModels.Sv.CombEqShape",
+      "LeanModels.Sv.CombEqThm",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombProcTactic",
+      "LeanModels.Sv.CombLib"
+    ],
+    "admitted": [
+      "LeanModels.Sv.CombView",
+      "LeanModels.Sv.CombViewThm",
+      "LeanModels.Sv.CombViewSound",
+      "LeanModels.Sv.CombViewMain",
+      "LeanModels.Sv.CombViewDiag",
+      "LeanModels.Sv.CombViewTactic",
+      "LeanModels.Sv.CombViewArith",
+      "LeanModels.Sv.CombKnownBits",
+      "LeanModels.Sv.CombKnownThm",
+      "LeanModels.Sv.CombEqBase",
+      "LeanModels.Sv.CombEqShape",
+      "LeanModels.Sv.CombEqThm",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombLib",
+      "LeanModels.Sv",
+      "LeanModels.Sv.Ingest2",
+      "LeanModels.Sv.Comb2",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.Known2",
+      "SvGolf.Comb",
+      "SvGolf.Task",
+      "tasks.add.Spec",
+      "tasks.fdivp.IEEE754",
+      "Lean",
+      "Std.Tactic.BVDecide",
+      "Init.Data.BitVec",
+      "Submission.Design",
+      "Mathlib",
+      "Mathlib.Tactic",
+      "Mathlib.Tactic.Ring",
+      "Mathlib.Tactic.Linarith",
+      "Mathlib.Tactic.Positivity",
+      "Mathlib.Tactic.NormNum",
+      "Mathlib.Data.Nat.Defs",
+      "Batteries",
+      "Batteries.Data.List.Basic",
+      "Aesop",
+      "Qq",
+      "ProofWidgets",
+      "Plausible",
+      "ImportGraph",
+      "LeanSearchClient"
+    ],
+    "refused": [
+      "Examples.\u00absystem-verilog\u00bb.ripple_add.proof",
+      "Examples.\u00absystem-verilog\u00bb.ripple_add.comb_proof",
+      "LeanModels.Python.Semantics",
+      "LeanModels.Core.Prelude",
+      "LeanModels",
+      "LeanModels.Svx",
+      "LeanModelsSv.Comb2",
+      "Submission.Solution",
+      "Submission.Other",
+      "tests.add.negative.Refute",
+      "spec.IEEE754",
+      "spec.IEEE754Proofs",
+      "SvGolf2.Task",
+      "Std2",
+      "Initial",
+      "Lean4",
+      "Mathlib2",
+      "Mathlib2.Tactic",
+      "MathlibExtras",
+      "Mathlib_Tactic",
+      "MathlibTest.Linter.Header.Basic",
+      "Batteries2",
+      "BatteriesExtra.Data",
+      "Aesopx",
+      "Qqq",
+      "Lake",
+      "Lake.CLI.Main",
+      "Cli",
+      "Cache.IO",
+      "Archive",
+      "Counterexamples"
+    ],
+    "mathlib_closure": {
+      "roots": ["Mathlib"],
+      "package_roots": [
+        "Aesop",
+        "Batteries",
+        "ImportGraph",
+        "LeanSearchClient",
+        "Mathlib",
+        "Plausible",
+        "ProofWidgets",
+        "Qq"
+      ],
+      "toolchain_unallowed": [
+        "Lake.Util.Casing"
+      ]
+    },
+    "headers": [
+      {
+        "name": "tactic proof header",
+        "text": "import Submission.Design\nimport SvGolf.Comb\nimport LeanModels.Sv.CombEqTactic\nimport LeanModels.Sv.CombLib\n\nnamespace Submission\n",
+        "imports": [
+          "Submission.Design",
+          "SvGolf.Comb",
+          "LeanModels.Sv.CombEqTactic",
+          "LeanModels.Sv.CombLib"
+        ],
+        "rejected": []
+      },
+      {
+        "name": "tactic proof header plus Mathlib (WP-B: admitted)",
+        "text": "import Submission.Design\nimport LeanModels.Sv.CombEqTactic\nimport Mathlib.Tactic\n",
+        "imports": [
+          "Submission.Design",
+          "LeanModels.Sv.CombEqTactic",
+          "Mathlib.Tactic"
+        ],
+        "rejected": []
+      },
+      {
+        "name": "narrow Mathlib imports and Batteries",
+        "text": "import Submission.Design\nimport Mathlib.Tactic.Ring\nimport Mathlib.Tactic.Linarith\nimport Mathlib.Data.Nat.Defs\nimport Batteries.Data.List.Basic\n",
+        "imports": [
+          "Submission.Design",
+          "Mathlib.Tactic.Ring",
+          "Mathlib.Tactic.Linarith",
+          "Mathlib.Data.Nat.Defs",
+          "Batteries.Data.List.Basic"
+        ],
+        "rejected": []
+      },
+      {
+        "name": "Mathlib next to an Examples module and a lookalike",
+        "text": "import Submission.Design\nimport Mathlib.Tactic.Ring\nimport Mathlib2.Tactic\nimport Examples.python.tri.proof\nimport Lake\n",
+        "imports": [
+          "Submission.Design",
+          "Mathlib.Tactic.Ring",
+          "Mathlib2.Tactic",
+          "Examples.python.tri.proof",
+          "Lake"
+        ],
+        "rejected": [
+          "Mathlib2.Tactic",
+          "Examples.python.tri.proof",
+          "Lake"
+        ]
+      },
+      {
+        "name": "tactic proof header plus an Examples module",
+        "text": "import Submission.Design\nimport LeanModels.Sv.CombLib\nimport Examples.\u00absystem-verilog\u00bb.mul_array.comb_proof\n",
+        "imports": [
+          "Submission.Design",
+          "LeanModels.Sv.CombLib",
+          "Examples.\u00absystem-verilog\u00bb.mul_array.comb_proof"
+        ],
+        "rejected": [
+          "Examples.\u00absystem-verilog\u00bb.mul_array.comb_proof"
+        ]
+      },
+      {
+        "name": "import in a comment is not an import",
+        "text": "-- import Mathlib\nimport Submission.Design\n/- import Examples.x -/\nimport LeanModels.Sv.CombLib\n",
+        "imports": [
+          "Submission.Design",
+          "LeanModels.Sv.CombLib"
+        ],
+        "rejected": []
+      },
+      {
+        "name": "block comment between two imports on one line separates them (WP-B review: it used to splice them into one token and hide the second)",
+        "text": "import Submission.Design\nimport SvGolf.Comb/-c-/import Mathlib.Tactic.Ring\n",
+        "imports": [
+          "Submission.Design",
+          "SvGolf.Comb",
+          "Mathlib.Tactic.Ring"
+        ],
+        "rejected": []
+      },
+      {
+        "name": "the same glue hiding a refused module is still refused",
+        "text": "import Submission.Design\nimport SvGolf.Comb/-c-/import LeanModels.Python.Semantics\n",
+        "imports": [
+          "Submission.Design",
+          "SvGolf.Comb",
+          "LeanModels.Python.Semantics"
+        ],
+        "rejected": [
+          "LeanModels.Python.Semantics"
+        ]
+      },
+      {
+        "name": "nested comments and a line comment between imports",
+        "text": "import Submission.Design/- a /- b -/ c -/import Mathlib.Tactic.Ring -- import Examples.x\n/-d-/import Batteries.Data.List.Basic\n",
+        "imports": [
+          "Submission.Design",
+          "Mathlib.Tactic.Ring",
+          "Batteries.Data.List.Basic"
+        ],
+        "rejected": []
+      },
+      {
+        "name": "module header",
+        "text": "module\nimport Submission.Design\n",
+        "raises": true
+      },
+      {
+        "name": "prelude header",
+        "text": "prelude\nimport Init\n",
+        "raises": true
+      }
+    ]
+  }
+}

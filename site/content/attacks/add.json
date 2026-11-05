@@ -1,0 +1,26 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "add_proc_case": "A correct adder whose carry cell is a `case` arm wrapped in `begin … end`, a shape the proof's tactics do not handle, so its proof leaves a goal unproved.",
+  "carry_bug": "A wrong carry gate, `(a & b) | (c & a)`.",
+  "cin_name": "The carry-in port is named `ci` instead of `cin`.",
+  "cout_off": "The carry out is taken one bit too early (`c[N-1]`).",
+  "dead_clock": "A correct sum stored in flip-flops on a clock that nothing drives: every simulator sees `x`, and it would score 0 GE.",
+  "dead_clock_tied": "The same with the clock tied to `1'b0`: a clock must be an input port.",
+  "no_cin": "The carry in is ignored.",
+  "only_n16": "A ripple adder at the scoring width N = 16 only, wrong at every other width.",
+  "plus": "The right function through the banned run-time `+`.",
+  "wide_s": "One (N + 1)-bit output `{cout, s}` instead of the two ports `s` and `cout`."
+ },
+ "attacks": {
+  "eqx_undriven": "Compares an undriven signal with `===`, which Yosys folds to a constant.",
+  "eqx_x": "`(cin === 1'bx) ? '0 : sum`: a 4-state simulator computes the sum, while Yosys folds the test and outputs 0 at 0 GE.",
+  "slang_always_notime": "A plain `always` block that never advances time, which the language forbids (it deadlocks a simulator) but Yosys reads as a wire.",
+  "slang_initial_comb": "An `initial` block and an `always_comb` both writing `cout`, which the language forbids but Yosys accepts.",
+  "slang_input_assign": "Assigns to the input port `cin`, which the language forbids.",
+  "slang_mixed_assign": "Drives `cout` from both a continuous assignment and an `always_comb`, which the language forbids.",
+  "slang_two_always": "Two `always_comb` blocks writing `cout`, which the language forbids.",
+  "z_case_item": "A correct sum behind a `case` item with a `z` digit, which Yosys reads as a match, turning the output into an unknown value at 0 GE.",
+  "zpair_add_rare": "Complementary `z` items that make the netlist wrong on a single input pair, too rare for sampling to find."
+ }
+}

@@ -1,0 +1,232 @@
+
+/-! ## The instance facts -/
+
+section shape
+variable {σ : String → Int} {E : IEnv} {elems : List (String × Nat)}
+  {DW : String → Option Nat} {DG : String → Option (List (Int × Int))}
+  {EW : String → Option Nat} {ns : List String}
+
+/-- the flags `instExpr2`'s `.resize` arm reads, for a leaf -/
+theorem leaf_flags {ds : List DeclT} {e : PExpr} {a : Acc} (h : leafRd? ds e = .ok a) :
+    e.ctxPropagates = false ∧ e.constLeaf = false ∧
+      ∀ (env : IEnv) (m w : Nat), (PExpr.resize m e).negGenvarWidened env w = none := by
+  cases e <;> simp [leafRd?] at h <;>
+    first
+    | exact ⟨rfl, rfl, fun _ _ _ => rfl⟩
+    | (split at h <;> simp_all)
+    | skip
+
+/-- **The instance fact for a marker over a leaf**, at every context width, whatever the leaf's width. -/
+theorem ie_resize_leaf (C : Ctx σ E elems DW DG EW ns) {dw : String → Nat}
+    (hdw : ∀ n, (DW n).isSome = true → DW n = some (dw n))
+    {ds : List DeclT} {e : PExpr} {a : Acc} (h : leafRd? ds e = .ok a) (ha : AccOK σ DW DG EW ns a)
+    (m cw : Nat) :
+    instExpr2 E elems (some cw) (.resize m e) = .resize cw (accExpr σ a) := by
+  obtain ⟨hsw, hin, -⟩ := leaf_eq C hdw h ha
+  obtain ⟨hcp, hcl, hng⟩ := leaf_flags h
+  simp [instExpr2, hsw, hcp, hcl, hng, hin]
+
+/-- … and over a literal -/
+theorem ie_resize_lit (m cw : Nat) (v : LVec) :
+    instExpr2 E elems (some cw) (.resize m (.lit v)) = .resize cw (.lit v) := by
+  simp [instExpr2, PExpr.ctxPropagates, PExpr.constLeaf, PExpr.negGenvarWidened, selfWidth2]
+
+theorem ie_bin_none (b : BinOp) (hb : b = .and ∨ b = .or ∨ b = .xor ∨ b = .add ∨ b = .sub)
+    (l r : PExpr) {a c : Nat} (hl : selfWidth2 E elems l = some a) (hr : selfWidth2 E elems r = some c) :
+    instExpr2 E elems none (.binary (.m0 b) l r) =
+      .binary b (fitExpr2 E elems (some (max a c)) l) (fitExpr2 E elems (some (max a c)) r) := by
+  rcases hb with rfl | rfl | rfl | rfl | rfl <;> simp [instExpr2, hl, hr]
+
+theorem ie_ternary_none' (c t e : PExpr) {a b : Nat} (ht : selfWidth2 E elems t = some a)
+    (he : selfWidth2 E elems e = some b) :
+    instExpr2 E elems none (.ternary c t e) =
+      .ternary (instExpr2 E elems none c) (fitExpr2 E elems (some (max a b)) t)
+        (fitExpr2 E elems (some (max a b)) e) := by
+  simp [instExpr2, ht, he]
+
+/-- **The generalised shape theorem** (the five facts of `skT_shape`, with the NATURAL width `W` for the
+self-determined reading and the context `tw` for the context-determined ones):
+`selfWidth2 = rigidMax2 = W`; at no context (unless the root is a marker) the lowering is `low W`; at the
+context `tw` and under `fitExpr2` it is `low tw`. -/
+theorem ashape (C : Ctx σ E elems DW DG EW ns) {dw : String → Nat}
+    (hdw : ∀ n, (DW n).isSome = true → DW n = some (dw n)) {ds : List DeclT} :
+    ∀ (v : PExpr) (rs : List Acc), ardsOf? ds v = .ok rs → afragG v = true →
+      (∀ a ∈ rs, AccOK σ DW DG EW ns a) → ∀ tw, (askT v rs).WidthOk σ dw tw →
+        selfWidth2 E elems v = some ((askT v rs).width σ dw) ∧
+        rigidMax2 E elems v = some ((askT v rs).width σ dw) ∧
+        ((askT v rs).isExt = false →
+          instExpr2 E elems none v = (askT v rs).low σ ((askT v rs).width σ dw)) ∧
+        instExpr2 E elems (some tw) v = (askT v rs).low σ tw ∧
+        fitExpr2 E elems (some tw) v = (askT v rs).low σ tw
+  | .lit lv, rs, h, _, _, tw, hw => by
+      simp only [ardsOf?, Except.ok.injEq] at h
+      subst h
+      simp only [askT, ASk.WidthOk] at hw
+      refine ⟨by simp [askT, ASk.width, selfWidth2], by simp [askT, ASk.width, rigidMax2, selfWidth2],
+        fun _ => by simp [askT, ASk.low, instExpr2], by simp [askT, ASk.low, instExpr2], ?_⟩
+      rw [fitExpr2_lit, if_pos hw]
+      simp [askT, ASk.low]
+  | .binary op l r, rs, h, hf, hacc, tw, hw => by
+      simp only [afragG, Bool.and_eq_true] at hf
+      obtain ⟨hb, ra, rb, hl, hr, rfl⟩ := ardsOf?_binary h
+      have hla := ardsOf?_len l ra hl hf.1
+      have e1 : (ra ++ rb).take (acnt l) = ra := List.take_left' hla
+      have e2 : (ra ++ rb).drop (acnt l) = rb := List.drop_left' hla
+      have hacl : ∀ a ∈ ra, AccOK σ DW DG EW ns a := fun a ha => hacc a (List.mem_append_left _ ha)
+      have hacr : ∀ a ∈ rb, AccOK σ DW DG EW ns a := fun a ha => hacc a (List.mem_append_right _ ha)
+      have ihl := ashape C hdw l ra hl hf.1 hacl
+      have ihr := ashape C hdw r rb hr hf.2 hacr
+      -- the node is `amk b sl sr` for some `b` of the five
+      obtain ⟨b, rfl, hbb⟩ : ∃ b, op = .m0 b ∧ (b = .and ∨ b = .or ∨ b = .xor ∨ b = .add ∨ b = .sub) := by
+        rcases abinOk_cases hb with rfl | rfl | rfl | rfl | rfl <;> exact ⟨_, rfl, by simp⟩
+      have hsk : askT (.binary (.m0 b) l r) (ra ++ rb) = amk b (askT l ra) (askT r rb) := by
+        simp [askT, e1, e2]
+      rw [hsk] at hw ⊢
+      -- the widths of the two operands and the shape of the node
+      have hwk : (askT l ra).WidthOk σ dw tw ∧ (askT r rb).WidthOk σ dw tw := by
+        rcases hbb with rfl | rfl | rfl | rfl | rfl <;> exact hw
+      obtain ⟨Sl, Rl, I0l, I1l, Fl⟩ := ihl tw hwk.1
+      obtain ⟨Sr, Rr, I0r, I1r, Fr⟩ := ihr tw hwk.2
+      have hlw := ASk.width_le _ _ hwk.1
+      have hrw := ASk.width_le _ _ hwk.2
+      -- the children at their own (natural) widths
+      have hWl := ASk.WidthOk.mono _ _ (max ((askT l ra).width σ dw) ((askT r rb).width σ dw)) hwk.1
+        (Nat.le_max_left _ _) (by omega)
+      have hWr := ASk.WidthOk.mono _ _ (max ((askT l ra).width σ dw) ((askT r rb).width σ dw)) hwk.2
+        (Nat.le_max_right _ _) (by omega)
+      obtain ⟨-, -, -, -, FlW⟩ := ihl _ hWl
+      obtain ⟨-, -, -, -, FrW⟩ := ihr _ hWr
+      have hS : selfWidth2 E elems (.binary (.m0 b) l r) =
+          some (max ((askT l ra).width σ dw) ((askT r rb).width σ dw)) := by
+        rcases hbb with rfl | rfl | rfl | rfl | rfl <;> simp [selfWidth2, Sl, Sr]
+      have hR : rigidMax2 E elems (.binary (.m0 b) l r) =
+          some (max ((askT l ra).width σ dw) ((askT r rb).width σ dw)) := by
+        rcases hbb with rfl | rfl | rfl | rfl | rfl <;> simp [rigidMax2, Rl, Rr]
+      have hI0 := ie_bin_none b hbb l r Sl Sr
+      have hI1 : instExpr2 E elems (some tw) (.binary (.m0 b) l r) =
+          .binary b (fitExpr2 E elems (some tw) l) (fitExpr2 E elems (some tw) r) := by
+        rcases hbb with rfl | rfl | rfl | rfl | rfl
+        · simp [instExpr2]
+        · simp [instExpr2]
+        · simp [instExpr2]
+        · exact instExpr2_add tw l r (by simp [ctxOpWidth2, Rl, Rr]; omega)
+        · exact instExpr2_sub tw l r (by simp [ctxOpWidth2, Rl, Rr]; omega)
+      rw [Fl, Fr] at hI1
+      rw [FlW, FrW] at hI0
+      rcases hbb with rfl | rfl | rfl | rfl | rfl <;>
+        exact ⟨hS, hR, fun _ => hI0, hI1, by rw [fitExpr2_binary]; exact hI1⟩
+  | .unary op a, rs, h, hf, hacc, tw, hw => by
+      obtain ⟨rfl, ha⟩ := ardsOf?_unary h
+      simp only [afragG] at hf
+      have hsk : askT (.unary (.m0 .bnot) a) rs = .bnot (askT a rs) := by simp [askT]
+      rw [hsk] at hw ⊢
+      simp only [ASk.WidthOk] at hw
+      obtain ⟨Sa, Ra, I0a, I1a, Fa⟩ := ashape C hdw a rs ha hf hacc tw hw
+      have hle := ASk.width_le _ _ hw
+      have hrm : (rigidMax2 E elems a).getD tw ≤ tw := by rw [Ra]; simpa using hle
+      have I1 : instExpr2 E elems (some tw) (.unary (.m0 .bnot) a) =
+          (ASk.bnot (askT a rs)).low σ tw := by
+        rw [ie_bnot_some tw a hrm, Fa]; rfl
+      have hW := ASk.WidthOk.mono _ _ ((askT a rs).width σ dw) hw (Nat.le_refl _) hle
+      obtain ⟨-, -, -, I1aW, -⟩ := ashape C hdw a rs ha hf hacc _ hW
+      refine ⟨by rw [sw_bnot]; exact Sa, by rw [rm_bnot]; exact Ra, fun _ => ?_, I1, ?_⟩
+      · rw [ie_bnot_none, Sa, I1aW]; rfl
+      · rw [fitExpr2_of_not_rigid tw (rigidExpr_unary _ _)]; exact I1
+  | .ternary c t f, rs, h, hf, hacc, tw, hw => by
+      obtain ⟨rc, rt, rf, hc, ht, hfe, rfl⟩ := ardsOf?_ternary h
+      simp only [afragG, Bool.and_eq_true] at hf
+      have hc' := ardsOf?_len c rc hc hf.1.1
+      have ht' := ardsOf?_len t rt ht hf.1.2
+      have e1 : (rc ++ rt ++ rf).take (acnt c) = rc := by
+        rw [List.append_assoc]; exact List.take_left' hc'
+      have e2 : (rc ++ rt ++ rf).drop (acnt c) = rt ++ rf := by
+        rw [List.append_assoc]; exact List.drop_left' hc'
+      have e3 : (rt ++ rf).take (acnt t) = rt := List.take_left' ht'
+      have e4 : (rt ++ rf).drop (acnt t) = rf := List.drop_left' ht'
+      have hsk : askT (.ternary c t f) (rc ++ rt ++ rf) = .tern (askT c rc) (askT t rt) (askT f rf) := by
+        simp only [askT, e1, e2, e3, e4]
+      rw [hsk] at hw ⊢
+      obtain ⟨hnc, hwc, hwc1, hwt, hwf⟩ := hw
+      have hcext : (askT c rc).isExt = false := by
+        cases hcc : askT c rc <;> simp_all [ASk.NoExt, ASk.isExt]
+      obtain ⟨-, -, I0c, -, -⟩ := ashape C hdw c rc hc hf.1.1
+        (fun x hx => hacc x (List.mem_append_left _ (List.mem_append_left _ hx))) 1 hwc
+      have I0c' := I0c hcext
+      rw [hwc1] at I0c'
+      obtain ⟨St, Rt, I0t, I1t, Ft⟩ := ashape C hdw t rt ht hf.1.2
+        (fun x hx => hacc x (List.mem_append_left _ (List.mem_append_right _ hx))) tw hwt
+      obtain ⟨Sf, Rf, I0f, I1f, Ff⟩ := ashape C hdw f rf hfe hf.2
+        (fun x hx => hacc x (List.mem_append_right _ hx)) tw hwf
+      have hlt := ASk.width_le _ _ hwt
+      have hlf := ASk.width_le _ _ hwf
+      have hWt := ASk.WidthOk.mono _ _ (max ((askT t rt).width σ dw) ((askT f rf).width σ dw)) hwt
+        (Nat.le_max_left _ _) (by omega)
+      have hWf := ASk.WidthOk.mono _ _ (max ((askT t rt).width σ dw) ((askT f rf).width σ dw)) hwf
+        (Nat.le_max_right _ _) (by omega)
+      obtain ⟨-, -, -, -, FtW⟩ := ashape C hdw t rt ht hf.1.2
+        (fun x hx => hacc x (List.mem_append_left _ (List.mem_append_right _ hx))) _ hWt
+      obtain ⟨-, -, -, -, FfW⟩ := ashape C hdw f rf hfe hf.2
+        (fun x hx => hacc x (List.mem_append_right _ hx)) _ hWf
+      have I1 : instExpr2 E elems (some tw) (.ternary c t f) =
+          (ASk.tern (askT c rc) (askT t rt) (askT f rf)).low σ tw := by
+        rw [ie_ternary_some, I0c', Ft, Ff]
+        simp only [ASk.low, ASk.low_irrel _ hnc 1 0]
+      refine ⟨by simp [selfWidth2, St, Sf, ASk.width], by simp [rigidMax2, Rt, Rf, ASk.width],
+        fun _ => ?_, I1, ?_⟩
+      · rw [ie_ternary_none' c t f St Sf, I0c', FtW, FfW]
+        simp only [ASk.low, ASk.width, ASk.low_irrel _ hnc 1 0]
+      · rw [fitExpr2_of_not_rigid tw (rigidExpr_ternary _ _ _)]; exact I1
+  | .resize m e, rs, h, _, hacc, tw, hw => by
+      rcases ardsOf?_resize h with ⟨v, rfl, rfl⟩ | ⟨hn, a, hl, rfl⟩
+      · simp only [askT, ASk.WidthOk, ASk.width, ASk.Payload] at hw ⊢
+        refine ⟨by simp [selfWidth2], by simp [rigidMax2, selfWidth2], fun h => by simp [ASk.isExt] at h,
+          ?_, ?_⟩
+        · rw [ie_resize_lit]; simp [ASk.low]
+        · rw [fitExpr2_of_not_rigid tw rfl, ie_resize_lit]; simp [ASk.low]
+      · have hsk : askT (.resize m e) [a] = .ext (.rd a) := by
+          cases e <;> first | exact absurd rfl (hn _) | rfl
+        rw [hsk] at hw ⊢
+        obtain ⟨hsw, -, -⟩ := leaf_eq C hdw hl (hacc a (by simp))
+        have I1 : instExpr2 E elems (some tw) (.resize m e) = (ASk.ext (.rd a)).low σ tw := by
+          rw [ie_resize_leaf C hdw hl (hacc a (by simp)) m tw]; rfl
+        refine ⟨by simp [selfWidth2, hsw, ASk.width], by simp [rigidMax2, ASk.width, rm_leaf hl, hsw],
+          fun h => by simp [ASk.isExt] at h, I1, ?_⟩
+        rw [fitExpr2_of_not_rigid tw rfl]; exact I1
+  | .ident n, rs, h, _, hacc, tw, hw => by
+      obtain ⟨a, hl, rfl⟩ := rdsLeaf_cases (by simpa [ardsOf?] using h)
+      simp only [askT, List.headD_cons, ASk.WidthOk, ASk.low, ASk.width] at hw ⊢
+      obtain ⟨hsw, hin, -⟩ := leaf_eq C hdw hl (hacc a (by simp))
+      exact ⟨hsw, by rw [rm_leaf hl, hsw], fun _ => hin none, hin _,
+        leaf_fit C hdw hl (hacc a (by simp)) hw⟩
+  | .bitSel b i, rs, h, _, hacc, tw, hw => by
+      obtain ⟨a, hl, rfl⟩ := rdsLeaf_cases (by simpa [ardsOf?] using h)
+      simp only [askT, List.headD_cons, ASk.WidthOk, ASk.low, ASk.width] at hw ⊢
+      obtain ⟨hsw, hin, -⟩ := leaf_eq C hdw hl (hacc a (by simp))
+      exact ⟨hsw, by rw [rm_leaf hl, hsw], fun _ => hin none, hin _,
+        leaf_fit C hdw hl (hacc a (by simp)) hw⟩
+  | .arrayElem n is, rs, h, _, hacc, tw, hw => by
+      obtain ⟨a, hl, rfl⟩ := rdsLeaf_cases (by simpa [ardsOf?] using h)
+      simp only [askT, List.headD_cons, ASk.WidthOk, ASk.low, ASk.width] at hw ⊢
+      obtain ⟨hsw, hin, -⟩ := leaf_eq C hdw hl (hacc a (by simp))
+      exact ⟨hsw, by rw [rm_leaf hl, hsw], fun _ => hin none, hin _,
+        leaf_fit C hdw hl (hacc a (by simp)) hw⟩
+  | .arrayPart n is m a b, rs, h, _, hacc, tw, hw => by
+      obtain ⟨a', hl, rfl⟩ := rdsLeaf_cases (by simpa [ardsOf?] using h)
+      simp only [askT, List.headD_cons, ASk.WidthOk, ASk.low, ASk.width] at hw ⊢
+      obtain ⟨hsw, hin, -⟩ := leaf_eq C hdw hl (hacc a' (by simp))
+      exact ⟨hsw, by rw [rm_leaf hl, hsw], fun _ => hin none, hin _,
+        leaf_fit C hdw hl (hacc a' (by simp)) hw⟩
+  | .concat _, _, _, hf, _, _, _ => by simp [afragG] at hf
+  | .fill _, _, _, hf, _, _, _ => by simp [afragG] at hf
+  | .paramRef .., rs, h, _, _, _, _ | .genvarRef .., rs, h, _, _, _, _
+  | .enumRef .., rs, h, _, _, _, _
+  | .int .., rs, h, _, _, _, _
+  | .signedResize .., rs, h, _, _, _, _
+  | .squash2 .., rs, h, _, _, _, _
+  | .sysCall .., rs, h, _, _, _, _ | .partSel .., rs, h, _, _, _, _ | .repl .., rs, h, _, _, _, _
+  | .reduce .., rs, h, _, _, _, _
+  | .cast .., rs, h, _, _, _, _
+  | .unsupported .., rs, h, _, _, _, _ => by
+      simp [ardsOf?, rdsLeaf?, leafRd?] at h
+
+end shape

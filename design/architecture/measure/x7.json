@@ -1,0 +1,1726 @@
+{
+ "schema": "x7/1",
+ "references": [
+  {
+   "task": "add",
+   "ref": "add_n",
+   "template_sites": 4,
+   "flat_sites": 34,
+   "total_heartbeats": 112397278,
+   "decls": [
+    {
+     "decl": "add_struct",
+     "heartbeats": 37059092
+    },
+    {
+     "decl": "add_interface",
+     "heartbeats": 2313196
+    },
+    {
+     "decl": "bv1_eq_ofBool",
+     "heartbeats": 101326
+    },
+    {
+     "decl": "add_final",
+     "heartbeats": 602579
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 72321085
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 28099.3,
+   "per_flat_site_kHB": 3305.8
+  },
+  {
+   "task": "mul",
+   "ref": "mul_n",
+   "template_sites": 11,
+   "flat_sites": 1026,
+   "total_heartbeats": 315757830,
+   "decls": [
+    {
+     "decl": "mulKey",
+     "heartbeats": 528634
+    },
+    {
+     "decl": "mul_struct",
+     "heartbeats": 162462870
+    },
+    {
+     "decl": "mul_interface",
+     "heartbeats": 3487112
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 149279214
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 28705.3,
+   "per_flat_site_kHB": 307.8
+  },
+  {
+   "task": "clmul",
+   "ref": "clmul_n",
+   "template_sites": 5,
+   "flat_sites": 287,
+   "total_heartbeats": 184710353,
+   "decls": [
+    {
+     "decl": "bx",
+     "heartbeats": 70650
+    },
+    {
+     "decl": "bx_congr",
+     "heartbeats": 139333
+    },
+    {
+     "decl": "bx_trunc",
+     "heartbeats": 381386
+    },
+    {
+     "decl": "foldl_xor",
+     "heartbeats": 223390
+    },
+    {
+     "decl": "coeff_eq",
+     "heartbeats": 113963
+    },
+    {
+     "decl": "bx_pair",
+     "heartbeats": 965598
+    },
+    {
+     "decl": "getLsbD_ofBits",
+     "heartbeats": 293861
+    },
+    {
+     "decl": "rowSum",
+     "heartbeats": 96219
+    },
+    {
+     "decl": "bx_succ",
+     "heartbeats": 33829
+    },
+    {
+     "decl": "bx_false",
+     "heartbeats": 80411
+    },
+    {
+     "decl": "rowSum_big",
+     "heartbeats": 231240
+    },
+    {
+     "decl": "rowSum_succ",
+     "heartbeats": 772487
+    },
+    {
+     "decl": "view_row",
+     "heartbeats": 688545
+    },
+    {
+     "decl": "view_spec",
+     "heartbeats": 2343297
+    },
+    {
+     "decl": "clmulKey",
+     "heartbeats": 218219
+    },
+    {
+     "decl": "clmul_struct",
+     "heartbeats": 79727999
+    },
+    {
+     "decl": "clmul_interface",
+     "heartbeats": 2827321
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 95502605
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 36942.1,
+   "per_flat_site_kHB": 643.6
+  },
+  {
+   "task": "mul",
+   "ref": "mul_wallace",
+   "template_sites": 11,
+   "flat_sites": 1541,
+   "total_heartbeats": 514584043,
+   "decls": [
+    {
+     "decl": "bfVal_false",
+     "heartbeats": 133354
+    },
+    {
+     "decl": "csa_row",
+     "heartbeats": 2441528
+    },
+    {
+     "decl": "lane_val",
+     "heartbeats": 4218422
+    },
+    {
+     "decl": "lane_gated",
+     "heartbeats": 215269
+    },
+    {
+     "decl": "csum",
+     "heartbeats": 73187
+    },
+    {
+     "decl": "csum_front",
+     "heartbeats": 307813
+    },
+    {
+     "decl": "csum_front3",
+     "heartbeats": 93729
+    },
+    {
+     "decl": "csum_leaves",
+     "heartbeats": 403684
+    },
+    {
+     "decl": "tape_mul",
+     "heartbeats": 8659020
+    },
+    {
+     "decl": "tapeKey",
+     "heartbeats": 419179
+    },
+    {
+     "decl": "tape_struct",
+     "heartbeats": 214993489
+    },
+    {
+     "decl": "tape_interface",
+     "heartbeats": 3712523
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 278912846
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 46780.4,
+   "per_flat_site_kHB": 333.9
+  },
+  {
+   "task": "fdivp",
+   "ref": "fdivp",
+   "template_sites": 34,
+   "flat_sites": 114,
+   "total_heartbeats": 704687695,
+   "decls": [
+    {
+     "decl": "fdiv_struct",
+     "heartbeats": 265792379
+    },
+    {
+     "decl": "fdiv_interface",
+     "heartbeats": 12324623
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 426570693
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 20726.1,
+   "per_flat_site_kHB": 6181.5
+  },
+  {
+   "task": "fdiv16",
+   "ref": "fdiv16",
+   "template_sites": 111,
+   "flat_sites": 111,
+   "total_heartbeats": 596628899,
+   "decls": [
+    {
+     "decl": "kc_31_5",
+     "heartbeats": 57206
+    },
+    {
+     "decl": "kc_0_10",
+     "heartbeats": 103306
+    },
+    {
+     "decl": "kc_0_5",
+     "heartbeats": 56619
+    },
+    {
+     "decl": "kc_1_5",
+     "heartbeats": 56673
+    },
+    {
+     "decl": "kc_0_8",
+     "heartbeats": 83169
+    },
+    {
+     "decl": "kc_0_4",
+     "heartbeats": 48809
+    },
+    {
+     "decl": "kc_0_2",
+     "heartbeats": 34635
+    },
+    {
+     "decl": "kc_0_12",
+     "heartbeats": 125535
+    },
+    {
+     "decl": "kc_47_7",
+     "heartbeats": 73864
+    },
+    {
+     "decl": "kc_63_7",
+     "heartbeats": 73869
+    },
+    {
+     "decl": "kc_33_7",
+     "heartbeats": 73893
+    },
+    {
+     "decl": "kc_12_7",
+     "heartbeats": 73896
+    },
+    {
+     "decl": "kc_12_4",
+     "heartbeats": 48861
+    },
+    {
+     "decl": "kc_32256_16",
+     "heartbeats": 175936
+    },
+    {
+     "decl": "kc_31744_15",
+     "heartbeats": 162580
+    },
+    {
+     "decl": "kc_0_15",
+     "heartbeats": 162546
+    },
+    {
+     "decl": "fdivRank",
+     "heartbeats": 915541
+    },
+    {
+     "decl": "fdiv_struct",
+     "heartbeats": 150495467
+    },
+    {
+     "decl": "fdiv_interface",
+     "heartbeats": 56750361
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 387056133
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 5375.0,
+   "per_flat_site_kHB": 5375.0
+  },
+  {
+   "task": "aes_sbox",
+   "ref": "sbox_bp",
+   "template_sites": 113,
+   "flat_sites": 113,
+   "total_heartbeats": 608469748,
+   "decls": [
+    {
+     "decl": "evalGate",
+     "heartbeats": 87552
+    },
+    {
+     "decl": "bpProg",
+     "heartbeats": 1736695
+    },
+    {
+     "decl": "bpLocs",
+     "heartbeats": 1796100
+    },
+    {
+     "decl": "bpYGate",
+     "heartbeats": 67529
+    },
+    {
+     "decl": "bpRank",
+     "heartbeats": 896606
+    },
+    {
+     "decl": "bp_struct",
+     "heartbeats": 129965435
+    },
+    {
+     "decl": "bp_interface",
+     "heartbeats": 54219580
+    },
+    {
+     "decl": "stepN",
+     "heartbeats": 84927
+    },
+    {
+     "decl": "runN",
+     "heartbeats": 96528
+    },
+    {
+     "decl": "testBit_stepN",
+     "heartbeats": 120607
+    },
+    {
+     "decl": "runN_inv",
+     "heartbeats": 794888
+    },
+    {
+     "decl": "bp_vals",
+     "heartbeats": 98435
+    },
+    {
+     "decl": "bp_correct",
+     "heartbeats": 65768315
+    },
+    {
+     "decl": "bp_locs_y",
+     "heartbeats": 1002052
+    },
+    {
+     "decl": "bp_locs_x",
+     "heartbeats": 131227
+    },
+    {
+     "decl": "bp_len",
+     "heartbeats": 97136
+    },
+    {
+     "decl": "bp_out",
+     "heartbeats": 532485
+    },
+    {
+     "decl": "solution",
+     "heartbeats": 350973651
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 5384.7,
+   "per_flat_site_kHB": 5384.7
+  }
+ ],
+ "slices": [
+  {
+   "variant": "ibex_cs_registers@csrop",
+   "task": "ibex",
+   "ref": "slice_csrop",
+   "template_sites": 11,
+   "flat_sites": 11,
+   "total_heartbeats": 214803858,
+   "decls": [
+    {
+     "decl": "load_design_sv2",
+     "heartbeats": 637332
+    },
+    {
+     "decl": "struct",
+     "heartbeats": 72755135
+    },
+    {
+     "decl": "eqs",
+     "heartbeats": 141411391
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 19527.6,
+   "per_flat_site_kHB": 19527.6,
+   "site_verdicts": [
+    {
+     "site": 0,
+     "verdict": "ok"
+    },
+    {
+     "site": 1,
+     "verdict": "ok"
+    },
+    {
+     "site": 2,
+     "verdict": "ok"
+    },
+    {
+     "site": 3,
+     "verdict": "ok"
+    },
+    {
+     "site": 4,
+     "verdict": "ok"
+    },
+    {
+     "site": 5,
+     "verdict": "ok"
+    },
+    {
+     "site": 6,
+     "verdict": "ok"
+    },
+    {
+     "site": 7,
+     "verdict": "ok"
+    },
+    {
+     "site": 8,
+     "verdict": "ok"
+    },
+    {
+     "site": 9,
+     "verdict": "ok"
+    },
+    {
+     "site": 10,
+     "verdict": "ok"
+    }
+   ],
+   "generates_verdict": "ok (0)",
+   "summary": "ok",
+   "heartbeats_by_command": [
+    {
+     "line": 24,
+     "heartbeats": 637332
+    },
+    {
+     "line": 27,
+     "heartbeats": 72755135
+    },
+    {
+     "line": 32,
+     "heartbeats": 141411391
+    }
+   ],
+   "axioms": [
+    [
+     "X7.csrop.struct",
+     "propext, Classical.choice, Quot.sound"
+    ],
+    [
+     "X7.csrop.eqs",
+     "propext, Classical.choice, Quot.sound"
+    ]
+   ],
+   "slicer": {
+    "slice": "ibex_cs_registers@csrop",
+    "top": "ibex_cs_registers_csrop",
+    "repo": "lowRISC/ibex",
+    "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+    "inputs_sha256": {
+     "ibex/rtl/ibex_cs_registers.sv": "887b5e61e0131f93332be4f133bf3749ab57fe8db9cb0f3fe58b060240a0d243",
+     "ibex/rtl/ibex_pkg.sv": "18c986c83664daee64660dab3a57796d9b6ae2cb95fd4fc76543753cfe57110e"
+    },
+    "output": "ibex_cs_registers_csrop.sv",
+    "output_sha256": "6e1e85941c74c3f8ed3d741a66e8117c915ba80b7c6f4d41965dbdca5120ad83",
+    "output_lines": 68,
+    "by_kind": {
+     "slice-range": 2,
+     "package-type-width": 1,
+     "construct-rewrite": 2,
+     "struct-member-cut": 1,
+     "package-enum-type-erased": 3,
+     "cut-to-input": 4,
+     "internal-to-output": 2,
+     "param-fixed": 1,
+     "package-import-removed": 2,
+     "param-comparison-folded": 1,
+     "package-enum-constant": 7,
+     "package-param-inlined": 1
+    },
+    "transforms": [
+     {
+      "kind": "slice-range",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "lines 394-404 verbatim",
+      "count": 1,
+      "source_line": 394,
+      "lines": 11
+     },
+     {
+      "kind": "slice-range",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "lines 998-1023 verbatim",
+      "count": 1,
+      "source_line": 998,
+      "lines": 26
+     },
+     {
+      "kind": "package-type-width",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "$bits(ibex_pkg::csr_num_e) = 12",
+      "count": 1,
+      "source_line": 395
+     },
+     {
+      "kind": "construct-rewrite",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "`inside` on a value set -> `||` of `==` (4-state equal: `inside` compares integral operands with `==?`, which agrees with `==` when the set member has no x/z bit, as these constants have none; and `inside` is 1 on a match, 0 when all are 0, x otherwise, which is the `||` of the comparisons)",
+      "count": 1,
+      "source_line": 1009,
+      "construct": "InsideExpression"
+     },
+     {
+      "kind": "struct-member-cut",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "pcc_cap_q.perms.SR (ibex_cheriot_pkg::decoded_cap_t member) -> input pcc_cap_perms_sr",
+      "count": 1,
+      "source_line": 1020
+     },
+     {
+      "kind": "package-enum-type-erased",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "port csr_addr_i: ibex_pkg::csr_num_e -> logic [11:0]",
+      "count": 1,
+      "source_line": 57
+     },
+     {
+      "kind": "package-enum-type-erased",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "port csr_op_i: ibex_pkg::csr_op_e -> logic [1:0]",
+      "count": 1,
+      "source_line": 59
+     },
+     {
+      "kind": "package-enum-type-erased",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "port cheriot_enable_i: ibex_pkg::ibex_mubi_t -> logic [3:0]",
+      "count": 1,
+      "source_line": 41,
+      "note": "a package typedef of a packed vector, not an enum"
+     },
+     {
+      "kind": "cut-to-input",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "priv_lvl_q (ibex_pkg::priv_lvl_e register, always_ff at source line 985) -> input logic [1:0]",
+      "count": 1,
+      "source_line": 251
+     },
+     {
+      "kind": "cut-to-input",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "illegal_csr (driven by the CSR read mux, source lines 413-715) -> input",
+      "count": 1,
+      "source_line": 348
+     },
+     {
+      "kind": "cut-to-input",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "dbg_csr (driven by the CSR read mux) -> input",
+      "count": 1,
+      "source_line": 347
+     },
+     {
+      "kind": "cut-to-input",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "csr_rdata_int (driven by the CSR read mux) -> input",
+      "count": 1,
+      "source_line": 342
+     },
+     {
+      "kind": "internal-to-output",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "csr_wdata_int (read by the CSR write logic and the ibex_csr instances outside the slice) -> output",
+      "count": 1,
+      "source_line": 341
+     },
+     {
+      "kind": "internal-to-output",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "csr_we_int (read by the CSR write logic outside the slice) -> output",
+      "count": 1,
+      "source_line": 343
+     },
+     {
+      "kind": "param-fixed",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "BaseIsa (ibex_pkg::base_isa_e, default BaseIsaRV32I) not carried over; fixed at BaseIsaRV32I = 0",
+      "count": 1,
+      "source_line": 14
+     },
+     {
+      "kind": "package-import-removed",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "module header `import ibex_pkg::*, ibex_cheriot_pkg::*;`",
+      "count": 2,
+      "source_line": 31
+     },
+     {
+      "kind": "param-comparison-folded",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "1 comparisons of BaseIsa (fixed at 0) with ibex_pkg::base_isa_e constants folded to their 1-bit value",
+      "count": 1,
+      "forms": [
+       "(BaseIsa == BaseIsaRV32IorCHERIoT)"
+      ]
+     },
+     {
+      "kind": "package-enum-constant",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "ibex_pkg::csr_op_e (logic[1:0]): 4 of 4 constants named, 7 uses inlined as `2'dV`",
+      "count": 7,
+      "constants": 4,
+      "enum": "csr_op_e",
+      "names": [
+       "CSR_OP_READ",
+       "CSR_OP_WRITE",
+       "CSR_OP_SET",
+       "CSR_OP_CLEAR"
+      ],
+      "package_file": "ibex/rtl/ibex_pkg.sv",
+      "package_line": 193
+     },
+     {
+      "kind": "package-param-inlined",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "ibex_pkg::IbexMuBiOn (ibex_mubi_t = logic [3:0], 4'b0101): 1 use(s) inlined as `4'b0101` (same width, signedness and value)",
+      "count": 1,
+      "source_line": 1019
+     },
+     {
+      "kind": "construct-rewrite",
+      "file": "ibex/rtl/ibex_cs_registers.sv",
+      "detail": "`unique case` -> `case` where every item is a distinct constant and a `default` exists (exactly equivalent: no violation is possible)",
+      "count": 1,
+      "construct": "unique-case",
+      "output_lines": [
+       43
+      ],
+      "unique_kept_output_lines": []
+     }
+    ]
+   }
+  },
+  {
+   "variant": "ibex_alu@accepted",
+   "task": "ibex",
+   "ref": "slice_alu_accepted",
+   "template_sites": 32,
+   "flat_sites": 63,
+   "total_heartbeats": 454430451,
+   "decls": [
+    {
+     "decl": "load_design_sv2",
+     "heartbeats": 1621057
+    },
+    {
+     "decl": "struct",
+     "heartbeats": 180360155
+    },
+    {
+     "decl": "eqs",
+     "heartbeats": 272449239
+    }
+   ],
+   "errors": [],
+   "per_template_site_kHB": 14201.0,
+   "per_flat_site_kHB": 7213.2,
+   "site_verdicts": [
+    {
+     "site": 0,
+     "verdict": "ok"
+    },
+    {
+     "site": 1,
+     "verdict": "ok"
+    },
+    {
+     "site": 2,
+     "verdict": "ok"
+    },
+    {
+     "site": 3,
+     "verdict": "ok"
+    },
+    {
+     "site": 4,
+     "verdict": "ok"
+    },
+    {
+     "site": 5,
+     "verdict": "ok"
+    },
+    {
+     "site": 6,
+     "verdict": "ok"
+    },
+    {
+     "site": 7,
+     "verdict": "ok"
+    },
+    {
+     "site": 8,
+     "verdict": "ok"
+    },
+    {
+     "site": 9,
+     "verdict": "ok"
+    },
+    {
+     "site": 10,
+     "verdict": "ok"
+    },
+    {
+     "site": 11,
+     "verdict": "ok"
+    },
+    {
+     "site": 12,
+     "verdict": "ok"
+    },
+    {
+     "site": 13,
+     "verdict": "ok"
+    },
+    {
+     "site": 14,
+     "verdict": "ok"
+    },
+    {
+     "site": 15,
+     "verdict": "ok"
+    },
+    {
+     "site": 16,
+     "verdict": "ok"
+    },
+    {
+     "site": 17,
+     "verdict": "ok"
+    },
+    {
+     "site": 18,
+     "verdict": "ok"
+    },
+    {
+     "site": 19,
+     "verdict": "ok"
+    },
+    {
+     "site": 20,
+     "verdict": "ok"
+    },
+    {
+     "site": 21,
+     "verdict": "ok"
+    },
+    {
+     "site": 22,
+     "verdict": "ok"
+    },
+    {
+     "site": 23,
+     "verdict": "ok"
+    },
+    {
+     "site": 24,
+     "verdict": "ok"
+    },
+    {
+     "site": 25,
+     "verdict": "ok"
+    },
+    {
+     "site": 26,
+     "verdict": "ok"
+    },
+    {
+     "site": 27,
+     "verdict": "ok"
+    },
+    {
+     "site": 28,
+     "verdict": "ok"
+    },
+    {
+     "site": 29,
+     "verdict": "ok"
+    },
+    {
+     "site": 30,
+     "verdict": "ok"
+    }
+   ],
+   "generates_verdict": "ok (1)",
+   "summary": "ok",
+   "heartbeats_by_command": [
+    {
+     "line": 24,
+     "heartbeats": 1621057
+    },
+    {
+     "line": 27,
+     "heartbeats": 180360155
+    },
+    {
+     "line": 32,
+     "heartbeats": 272449239
+    }
+   ],
+   "axioms": [
+    [
+     "X7.alu_accepted.struct",
+     "propext, Classical.choice, Quot.sound"
+    ],
+    [
+     "X7.alu_accepted.eqs",
+     "propext, Classical.choice, Quot.sound"
+    ]
+   ],
+   "slicer": {
+    "slice": "ibex_alu@accepted",
+    "top": "ibex_alu",
+    "repo": "lowRISC/ibex",
+    "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+    "inputs_sha256": {
+     "ibex/rtl/ibex_alu.sv": "6fb9a6a300bb040ab62d6c12ccd9e29dc241f44d52ac2982b63e037cf66afee2",
+     "ibex/rtl/ibex_pkg.sv": "18c986c83664daee64660dab3a57796d9b6ae2cb95fd4fc76543753cfe57110e"
+    },
+    "output": "ibex_alu.sv",
+    "output_sha256": "62953d9daeeed18d7dd7eca1943995575ecbe16b19aa5b82bb31a0cc5067f832",
+    "output_lines": 277,
+    "by_kind": {
+     "generate-branch-fixed": 1,
+     "param-fixed": 1,
+     "package-enum-type-erased": 1,
+     "package-import-removed": 1,
+     "param-comparison-folded": 7,
+     "package-enum-constant": 97,
+     "construct-rewrite": 8,
+     "refused-block-cut": 6,
+     "cut-to-input": 2,
+     "output-dropped": 1
+    },
+    "transforms": [
+     {
+      "kind": "generate-branch-fixed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "if (RV32B != RV32BNone) begin : g_alu_rvb -> branch g_no_alu_rvb kept",
+      "count": 1,
+      "source_line": 333,
+      "dropped_lines": 472,
+      "nested_generate_blocks_dropped": [
+       "gen_alu_rvb_full",
+       "gen_shuffle_mask_not",
+       "gen_sel_vld_n",
+       "gen_sel_vld_b",
+       "gen_xperm_n",
+       "gen_rev_operand_b",
+       "gen_clmul_and_op",
+       "gen_clmul_xor_op_l1",
+       "gen_clmul_xor_op_l2",
+       "gen_clmul_xor_op_l3",
+       "gen_clmul_xor_op_l4",
+       "gen_rev_clmul_result",
+       "gen_alu_rvb_not_full"
+      ]
+     },
+     {
+      "kind": "param-fixed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "RV32B (ibex_pkg::rv32b_e, default RV32BNone) removed; fixed at RV32BNone = 0",
+      "count": 1,
+      "source_line": 9
+     },
+     {
+      "kind": "package-enum-type-erased",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "port operator_i: ibex_pkg::alu_op_e -> logic [6:0]",
+      "count": 1,
+      "source_line": 12
+     },
+     {
+      "kind": "package-import-removed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "import ibex_pkg::*",
+      "count": 1,
+      "source_line": 28
+     },
+     {
+      "kind": "param-comparison-folded",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "7 comparisons of RV32B (fixed at 0) with ibex_pkg::rv32b_e constants folded to their 1-bit value",
+      "count": 7,
+      "forms": [
+       "(RV32B != RV32BNone)"
+      ]
+     },
+     {
+      "kind": "package-enum-constant",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "ibex_pkg::alu_op_e (logic[6:0]): 49 of 49 constants named, 97 uses inlined as `7'dV`",
+      "count": 97,
+      "constants": 49,
+      "enum": "alu_op_e",
+      "names": [
+       "ALU_ADD",
+       "ALU_SUB",
+       "ALU_XOR",
+       "ALU_OR",
+       "ALU_AND",
+       "ALU_XNOR",
+       "ALU_ORN",
+       "ALU_ANDN",
+       "ALU_SRA",
+       "ALU_SRL",
+       "ALU_SLL",
+       "ALU_ROR",
+       "ALU_ROL",
+       "ALU_REV8",
+       "ALU_BREV8",
+       "ALU_ORCB",
+       "ALU_ZIP",
+       "ALU_UNZIP",
+       "ALU_XPERM4",
+       "ALU_XPERM8",
+       "ALU_SH1ADD",
+       "ALU_SH2ADD",
+       "ALU_SH3ADD",
+       "ALU_LT",
+       "ALU_LTU",
+       "ALU_GE",
+       "ALU_GEU",
+       "ALU_EQ",
+       "ALU_NE",
+       "ALU_MIN",
+       "ALU_MINU",
+       "ALU_MAX",
+       "ALU_MAXU",
+       "ALU_PACK",
+       "ALU_PACKH",
+       "ALU_SEXTB",
+       "ALU_SEXTH",
+       "ALU_CLZ",
+       "ALU_CTZ",
+       "ALU_CPOP",
+       "ALU_SLT",
+       "ALU_SLTU",
+       "ALU_BSET",
+       "ALU_BCLR",
+       "ALU_BINV",
+       "ALU_BEXT",
+       "ALU_CLMUL",
+       "ALU_CLMULR",
+       "ALU_CLMULH"
+      ],
+      "package_file": "ibex/rtl/ibex_pkg.sv",
+      "package_line": 172
+     },
+     {
+      "kind": "construct-rewrite",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "`$unsigned(x)` -> `x` for x = adder_in_a, adder_in_b (`logic [32:0]`, already unsigned: the call is the identity)",
+      "count": 2,
+      "construct": "$unsigned"
+     },
+     {
+      "kind": "construct-rewrite",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "`unique case` -> `case` where every item is a distinct constant and a `default` exists (exactly equivalent: no violation is possible)",
+      "count": 6,
+      "construct": "unique-case",
+      "output_lines": [
+       53,
+       113,
+       153,
+       239,
+       296,
+       351
+      ],
+      "unique_kept_output_lines": [
+       78,
+       90,
+       315
+      ]
+     },
+     {
+      "kind": "refused-block-cut",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "always_comb writing adder_op_a_shift1, adder_op_a_shift2, adder_op_a_shift3, adder_op_b_negate: defaults, then a case that overrides them",
+      "count": 1,
+      "lines": 27,
+      "writes": [
+       "adder_op_a_shift1",
+       "adder_op_a_shift2",
+       "adder_op_a_shift3",
+       "adder_op_b_negate"
+      ]
+     },
+     {
+      "kind": "refused-block-cut",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "always_comb writing adder_in_a: `unique case (1'b1)` over signals",
+      "count": 1,
+      "lines": 9,
+      "writes": [
+       "adder_in_a"
+      ]
+     },
+     {
+      "kind": "refused-block-cut",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "always_comb writing adder_in_b: `unique case (1'b1)` over signals",
+      "count": 1,
+      "lines": 7,
+      "writes": [
+       "adder_in_b"
+      ]
+     },
+     {
+      "kind": "refused-block-cut",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "always_comb writing shift_operand, shift_fill, shift_result_ext, shift_result, unused_shift_result_ext, shift_result_rev: an `if \u2026 else` after the first statement (and a procedural `for`)",
+      "count": 1,
+      "lines": 28,
+      "writes": [
+       "shift_operand",
+       "shift_fill",
+       "shift_result_ext",
+       "shift_result",
+       "unused_shift_result_ext",
+       "shift_result_rev"
+      ]
+     },
+     {
+      "kind": "refused-block-cut",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "always_comb writing bwlogic_result: `unique case (1'b1)` over signals",
+      "count": 1,
+      "lines": 7,
+      "writes": [
+       "bwlogic_result"
+      ]
+     },
+     {
+      "kind": "refused-block-cut",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "always_comb writing result_o: a default, then a case that overrides it",
+      "count": 1,
+      "lines": 60,
+      "writes": [
+       "result_o"
+      ]
+     },
+     {
+      "kind": "cut-to-input",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "adder_in_a, adder_in_b (written by cut blocks, read by `assign adder_result_ext_o`) -> input logic [32:0]",
+      "count": 2
+     },
+     {
+      "kind": "output-dropped",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "result_o: its only driver (the result mux) is cut",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "variant": "ibex_alu@rv32bnone",
+   "site_verdicts": [
+    {
+     "site": 0,
+     "verdict": "REFUSED always_comb block with several statements (outside the first fragment: write one if/else tree that assigns the target on every path)"
+    },
+    {
+     "site": 1,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 2,
+     "verdict": "ok"
+    },
+    {
+     "site": 3,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 4,
+     "verdict": "ok"
+    },
+    {
+     "site": 5,
+     "verdict": "ok"
+    },
+    {
+     "site": 6,
+     "verdict": "ok"
+    },
+    {
+     "site": 7,
+     "verdict": "ok"
+    },
+    {
+     "site": 8,
+     "verdict": "ok"
+    },
+    {
+     "site": 9,
+     "verdict": "ok"
+    },
+    {
+     "site": 10,
+     "verdict": "ok"
+    },
+    {
+     "site": 11,
+     "verdict": "ok"
+    },
+    {
+     "site": 12,
+     "verdict": "ok"
+    },
+    {
+     "site": 13,
+     "verdict": "ok"
+    },
+    {
+     "site": 14,
+     "verdict": "ok"
+    },
+    {
+     "site": 15,
+     "verdict": "ok"
+    },
+    {
+     "site": 16,
+     "verdict": "ok"
+    },
+    {
+     "site": 17,
+     "verdict": "ok"
+    },
+    {
+     "site": 18,
+     "verdict": "REFUSED an `if \u2026 else` after the first statement of an always_comb block (outside the second fragment: only `if (c) \u2026;` without `else` can follow, as a default-then-override body)"
+    },
+    {
+     "site": 19,
+     "verdict": "ok"
+    },
+    {
+     "site": 20,
+     "verdict": "ok"
+    },
+    {
+     "site": 21,
+     "verdict": "ok"
+    },
+    {
+     "site": 22,
+     "verdict": "ok"
+    },
+    {
+     "site": 23,
+     "verdict": "ok"
+    },
+    {
+     "site": 24,
+     "verdict": "ok"
+    },
+    {
+     "site": 25,
+     "verdict": "ok"
+    },
+    {
+     "site": 26,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 27,
+     "verdict": "ok"
+    },
+    {
+     "site": 28,
+     "verdict": "ok"
+    },
+    {
+     "site": 29,
+     "verdict": "ok"
+    },
+    {
+     "site": 30,
+     "verdict": "ok"
+    },
+    {
+     "site": 31,
+     "verdict": "ok"
+    },
+    {
+     "site": 32,
+     "verdict": "ok"
+    },
+    {
+     "site": 33,
+     "verdict": "ok"
+    },
+    {
+     "site": 34,
+     "verdict": "ok"
+    },
+    {
+     "site": 35,
+     "verdict": "ok"
+    },
+    {
+     "site": 36,
+     "verdict": "REFUSED after its first statement an always_comb block may only hold `if (c) \u2026;` overrides of the same target (outside the second fragment)"
+    }
+   ],
+   "generates_verdict": "ok (1)",
+   "summary": "REFUSED site `plain#0`: always_comb block with several statements (outside the first fragment: write one if/else tree that assigns the target on every path)",
+   "heartbeats_by_command": [
+    {
+     "line": 26,
+     "heartbeats": 3787345
+    },
+    {
+     "line": 29,
+     "heartbeats": 34023
+    },
+    {
+     "line": 34,
+     "heartbeats": 26697
+    }
+   ],
+   "axioms": [
+    [
+     "X7.alu.struct",
+     "propext, sorryAx, Classical.choice, Quot.sound"
+    ],
+    [
+     "X7.alu.eqs",
+     "propext, sorryAx, Classical.choice, Quot.sound"
+    ]
+   ],
+   "slicer": {
+    "slice": "ibex_alu@rv32bnone",
+    "top": "ibex_alu",
+    "repo": "lowRISC/ibex",
+    "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+    "inputs_sha256": {
+     "ibex/rtl/ibex_alu.sv": "6fb9a6a300bb040ab62d6c12ccd9e29dc241f44d52ac2982b63e037cf66afee2",
+     "ibex/rtl/ibex_pkg.sv": "18c986c83664daee64660dab3a57796d9b6ae2cb95fd4fc76543753cfe57110e"
+    },
+    "output": "ibex_alu.sv",
+    "output_sha256": "cd9b491d1c5e4398da7c369858a5f8653bf64d079d0e30591015e4ba357fb5cd",
+    "output_lines": 409,
+    "by_kind": {
+     "generate-branch-fixed": 1,
+     "param-fixed": 1,
+     "package-enum-type-erased": 1,
+     "package-import-removed": 1,
+     "param-comparison-folded": 7,
+     "package-enum-constant": 97,
+     "construct-rewrite": 8
+    },
+    "transforms": [
+     {
+      "kind": "generate-branch-fixed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "if (RV32B != RV32BNone) begin : g_alu_rvb -> branch g_no_alu_rvb kept",
+      "count": 1,
+      "source_line": 333,
+      "dropped_lines": 472,
+      "nested_generate_blocks_dropped": [
+       "gen_alu_rvb_full",
+       "gen_shuffle_mask_not",
+       "gen_sel_vld_n",
+       "gen_sel_vld_b",
+       "gen_xperm_n",
+       "gen_rev_operand_b",
+       "gen_clmul_and_op",
+       "gen_clmul_xor_op_l1",
+       "gen_clmul_xor_op_l2",
+       "gen_clmul_xor_op_l3",
+       "gen_clmul_xor_op_l4",
+       "gen_rev_clmul_result",
+       "gen_alu_rvb_not_full"
+      ]
+     },
+     {
+      "kind": "param-fixed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "RV32B (ibex_pkg::rv32b_e, default RV32BNone) removed; fixed at RV32BNone = 0",
+      "count": 1,
+      "source_line": 9
+     },
+     {
+      "kind": "package-enum-type-erased",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "port operator_i: ibex_pkg::alu_op_e -> logic [6:0]",
+      "count": 1,
+      "source_line": 12
+     },
+     {
+      "kind": "package-import-removed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "import ibex_pkg::*",
+      "count": 1,
+      "source_line": 28
+     },
+     {
+      "kind": "param-comparison-folded",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "7 comparisons of RV32B (fixed at 0) with ibex_pkg::rv32b_e constants folded to their 1-bit value",
+      "count": 7,
+      "forms": [
+       "(RV32B != RV32BNone)"
+      ]
+     },
+     {
+      "kind": "package-enum-constant",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "ibex_pkg::alu_op_e (logic[6:0]): 49 of 49 constants named, 97 uses inlined as `7'dV`",
+      "count": 97,
+      "constants": 49,
+      "enum": "alu_op_e",
+      "names": [
+       "ALU_ADD",
+       "ALU_SUB",
+       "ALU_XOR",
+       "ALU_OR",
+       "ALU_AND",
+       "ALU_XNOR",
+       "ALU_ORN",
+       "ALU_ANDN",
+       "ALU_SRA",
+       "ALU_SRL",
+       "ALU_SLL",
+       "ALU_ROR",
+       "ALU_ROL",
+       "ALU_REV8",
+       "ALU_BREV8",
+       "ALU_ORCB",
+       "ALU_ZIP",
+       "ALU_UNZIP",
+       "ALU_XPERM4",
+       "ALU_XPERM8",
+       "ALU_SH1ADD",
+       "ALU_SH2ADD",
+       "ALU_SH3ADD",
+       "ALU_LT",
+       "ALU_LTU",
+       "ALU_GE",
+       "ALU_GEU",
+       "ALU_EQ",
+       "ALU_NE",
+       "ALU_MIN",
+       "ALU_MINU",
+       "ALU_MAX",
+       "ALU_MAXU",
+       "ALU_PACK",
+       "ALU_PACKH",
+       "ALU_SEXTB",
+       "ALU_SEXTH",
+       "ALU_CLZ",
+       "ALU_CTZ",
+       "ALU_CPOP",
+       "ALU_SLT",
+       "ALU_SLTU",
+       "ALU_BSET",
+       "ALU_BCLR",
+       "ALU_BINV",
+       "ALU_BEXT",
+       "ALU_CLMUL",
+       "ALU_CLMULR",
+       "ALU_CLMULH"
+      ],
+      "package_file": "ibex/rtl/ibex_pkg.sv",
+      "package_line": 172
+     },
+     {
+      "kind": "construct-rewrite",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "`$unsigned(x)` -> `x` for x = adder_in_a, adder_in_b (`logic [32:0]`, already unsigned: the call is the identity)",
+      "count": 2,
+      "construct": "$unsigned"
+     },
+     {
+      "kind": "construct-rewrite",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "`unique case` -> `case` where every item is a distinct constant and a `default` exists (exactly equivalent: no violation is possible)",
+      "count": 6,
+      "construct": "unique-case",
+      "output_lines": [
+       53,
+       113,
+       153,
+       239,
+       296,
+       351
+      ],
+      "unique_kept_output_lines": [
+       78,
+       90,
+       315
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "variant": "ibex_alu@pkgonly",
+   "site_verdicts": [
+    {
+     "site": 0,
+     "verdict": "REFUSED always_comb block with several statements (outside the first fragment: write one if/else tree that assigns the target on every path)"
+    },
+    {
+     "site": 1,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 2,
+     "verdict": "ok"
+    },
+    {
+     "site": 3,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 4,
+     "verdict": "REFUSED width conversion of a nested conversion or a constant that is not an unsized integer (outside the v1 fragment: a conversion is read around one signal access, one sized literal, a concatenation, or an operation of the fragment)"
+    },
+    {
+     "site": 5,
+     "verdict": "ok"
+    },
+    {
+     "site": 6,
+     "verdict": "ok"
+    },
+    {
+     "site": 7,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 8,
+     "verdict": "ok"
+    },
+    {
+     "site": 9,
+     "verdict": "ok"
+    },
+    {
+     "site": 10,
+     "verdict": "ok"
+    },
+    {
+     "site": 11,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 12,
+     "verdict": "ok"
+    },
+    {
+     "site": 13,
+     "verdict": "ok"
+    },
+    {
+     "site": 14,
+     "verdict": "ok"
+    },
+    {
+     "site": 15,
+     "verdict": "ok"
+    },
+    {
+     "site": 16,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 17,
+     "verdict": "ok"
+    },
+    {
+     "site": 18,
+     "verdict": "REFUSED an `if \u2026 else` after the first statement of an always_comb block (outside the second fragment: only `if (c) \u2026;` without `else` can follow, as a default-then-override body)"
+    },
+    {
+     "site": 19,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 20,
+     "verdict": "ok"
+    },
+    {
+     "site": 21,
+     "verdict": "ok"
+    },
+    {
+     "site": 22,
+     "verdict": "ok"
+    },
+    {
+     "site": 23,
+     "verdict": "ok"
+    },
+    {
+     "site": 24,
+     "verdict": "ok"
+    },
+    {
+     "site": 25,
+     "verdict": "ok"
+    },
+    {
+     "site": 26,
+     "verdict": "REFUSED always_comb statement `unique`/`priority case` (outside the first fragment)"
+    },
+    {
+     "site": 27,
+     "verdict": "REFUSED after its first statement an always_comb block may only hold `if (c) \u2026;` overrides of the same target (outside the second fragment)"
+    }
+   ],
+   "generates_verdict": "REFUSED conditional generate (outside the v1 fragment)",
+   "summary": "REFUSED site `plain#0`: always_comb block with several statements (outside the first fragment: write one if/else tree that assigns the target on every path)",
+   "heartbeats_by_command": [
+    {
+     "line": 26,
+     "heartbeats": 7200610
+    },
+    {
+     "line": 29,
+     "heartbeats": 50648
+    },
+    {
+     "line": 34,
+     "heartbeats": 34007
+    }
+   ],
+   "axioms": [
+    [
+     "X7.alu_pkgonly.struct",
+     "propext, sorryAx, Classical.choice, Quot.sound"
+    ],
+    [
+     "X7.alu_pkgonly.eqs",
+     "propext, sorryAx, Classical.choice, Quot.sound"
+    ]
+   ],
+   "slicer": {
+    "slice": "ibex_alu@pkgonly",
+    "top": "ibex_alu",
+    "repo": "lowRISC/ibex",
+    "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+    "inputs_sha256": {
+     "ibex/rtl/ibex_alu.sv": "6fb9a6a300bb040ab62d6c12ccd9e29dc241f44d52ac2982b63e037cf66afee2",
+     "ibex/rtl/ibex_pkg.sv": "18c986c83664daee64660dab3a57796d9b6ae2cb95fd4fc76543753cfe57110e"
+    },
+    "output": "ibex_alu.sv",
+    "output_sha256": "a42a2300f523b6d9719738818951490716d9a84a7df6c50b26a182c647cc9920",
+    "output_lines": 883,
+    "by_kind": {
+     "param-fixed": 1,
+     "package-enum-type-erased": 1,
+     "package-import-removed": 1,
+     "param-comparison-folded": 13,
+     "package-enum-constant": 110
+    },
+    "transforms": [
+     {
+      "kind": "param-fixed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "RV32B (ibex_pkg::rv32b_e, default RV32BNone) removed; fixed at RV32BNone = 0",
+      "count": 1,
+      "source_line": 9
+     },
+     {
+      "kind": "package-enum-type-erased",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "port operator_i: ibex_pkg::alu_op_e -> logic [6:0]",
+      "count": 1,
+      "source_line": 12
+     },
+     {
+      "kind": "package-import-removed",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "import ibex_pkg::*",
+      "count": 1,
+      "source_line": 28
+     },
+     {
+      "kind": "param-comparison-folded",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "13 comparisons of RV32B (fixed at 0) with ibex_pkg::rv32b_e constants folded to their 1-bit value",
+      "count": 13,
+      "forms": [
+       "(RV32B != RV32BNone)",
+       "(RV32B == RV32BFull)"
+      ]
+     },
+     {
+      "kind": "package-enum-constant",
+      "file": "ibex/rtl/ibex_alu.sv",
+      "detail": "ibex_pkg::alu_op_e (logic[6:0]): 49 of 49 constants named, 110 uses inlined as `7'dV`",
+      "count": 110,
+      "constants": 49,
+      "enum": "alu_op_e",
+      "names": [
+       "ALU_ADD",
+       "ALU_SUB",
+       "ALU_XOR",
+       "ALU_OR",
+       "ALU_AND",
+       "ALU_XNOR",
+       "ALU_ORN",
+       "ALU_ANDN",
+       "ALU_SRA",
+       "ALU_SRL",
+       "ALU_SLL",
+       "ALU_ROR",
+       "ALU_ROL",
+       "ALU_REV8",
+       "ALU_BREV8",
+       "ALU_ORCB",
+       "ALU_ZIP",
+       "ALU_UNZIP",
+       "ALU_XPERM4",
+       "ALU_XPERM8",
+       "ALU_SH1ADD",
+       "ALU_SH2ADD",
+       "ALU_SH3ADD",
+       "ALU_LT",
+       "ALU_LTU",
+       "ALU_GE",
+       "ALU_GEU",
+       "ALU_EQ",
+       "ALU_NE",
+       "ALU_MIN",
+       "ALU_MINU",
+       "ALU_MAX",
+       "ALU_MAXU",
+       "ALU_PACK",
+       "ALU_PACKH",
+       "ALU_SEXTB",
+       "ALU_SEXTH",
+       "ALU_CLZ",
+       "ALU_CTZ",
+       "ALU_CPOP",
+       "ALU_SLT",
+       "ALU_SLTU",
+       "ALU_BSET",
+       "ALU_BCLR",
+       "ALU_BINV",
+       "ALU_BEXT",
+       "ALU_CLMUL",
+       "ALU_CLMULR",
+       "ALU_CLMULH"
+      ],
+      "package_file": "ibex/rtl/ibex_pkg.sv",
+      "package_line": 172
+     }
+    ]
+   }
+  }
+ ]
+}

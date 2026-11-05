@@ -1,0 +1,17 @@
+/.lake
+/build
+__pycache__/
+*.pyc
+# Extractor output is never committed: check.py extracts into its staging
+# directory, `load_sv` into .lake/envelopes/ (a cache).
+*.sv.json
+*.probes.json
+
+# editor swap files
+.*.swp
+*.swp
+*.swo
+*~
+
+# nightly reports (nightly.py)
+/nightly/

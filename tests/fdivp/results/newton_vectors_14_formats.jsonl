@@ -1,0 +1,14 @@
+{"W": 8, "P": 24, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 8, "P": 24, "K": 32, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 11, "P": 53, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 11, "P": 53, "K": 64, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 2, "P": 62, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 2, "P": 62, "K": 64, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 20, "P": 12, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 20, "P": 12, "K": 32, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 2, "P": 30, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 2, "P": 30, "K": 32, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 6, "P": 30, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 6, "P": 30, "K": 36, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 15, "P": 48, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 15, "P": 48, "K": 63, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 3, "P": 60, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 3, "P": 60, "K": 63, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 12, "P": 20, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 12, "P": 20, "K": 32, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 16, "P": 16, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 16, "P": 16, "K": 32, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 4, "P": 20, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 4, "P": 20, "K": 24, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 10, "P": 40, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 10, "P": 40, "K": 50, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 5, "P": 11, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 5, "P": 11, "K": 16, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}
+{"W": 8, "P": 8, "gen_vec": {"vectors": 200000, "mismatches": 0}, "gen_vec_oracle_vs_fraction": ["2000", "0"], "tb_sampled": {"W": 8, "P": 8, "K": 16, "pairs": 432400, "mismatches": 0, "mode": "sampled"}}

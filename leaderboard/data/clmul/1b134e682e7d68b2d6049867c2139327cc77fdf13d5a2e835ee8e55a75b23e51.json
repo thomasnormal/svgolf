@@ -1,0 +1,199 @@
+{
+  "assisted_by": [
+    "Claude (Anthropic)"
+  ],
+  "canonical_sha256": "943a14ddf3945bc4bea101573c12ca613ba971f028bf386573d39ed612207310",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "c5a735c6a0c9fcd05bfec097905a0294be2905aee86e26313398fc18282e07f1",
+    "files": {
+      "check.py": "39c941b123901302d59f2a14c80f32c8ff02a7b4eed59d39d008695e4cddb146",
+      "check/Comparator.lean": "3145eb578ca71e452eff05a398e8ad04673e6c72ca5343b234cb22e2cefe65a6",
+      "check/SvEval.lean": "56ff5eb23b7c7b12b849b057fa563cc96c917c61c287649847dea7c7fbf22620",
+      "check/envelope.py": "a202d502616f4d1ef319306d40bfc61f933348fe7d89837e5435cc5d612e83d1",
+      "check/postsynth.py": "8680ecb8e709c4553b8c37a9678176d99cfe2ef0c2e5cda097eae077e62247e3",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "8cbd7d8b040cd3d769328d3b636ef3254d0290adc181d61dbfc0e616d50a3ded",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "ad60672f15668edd60f5b0eeb67d822c6905bafa42ddcc6babc76f3d7c7a3b08",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ppa.py": "1743956fac3ef4bc80cf84c63b2b44c249236c67844070139fe56578e369115e",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "ca4932f99fc572a310301a53f3eb61669e0f643053aca28a85250d28d75670e4",
+      "score/srcgate.py": "58fd766f4c2a7e7523b137f74b2d83b7921a512e770f4c0297b725f14cb7b9a6",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "c8e4695e90d52147d6e29f56675ccbc666fb7ec0",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "svgolf_revision": "c8e4695e90d52147d6e29f56675ccbc666fb7ec0",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "clmul_n.lean",
+      "sha256": "97fa58bf224b98046fdabf82287fc1483757e5e91f80d221340535764ace5fd8"
+    },
+    "sv": {
+      "name": "clmul_n.sv",
+      "sha256": "4637e72ba5368a35cf427b948aeab0ba3ce8aa6c2f249d2ab90f1ef44372f1ad"
+    }
+  },
+  "notes": "reference solution",
+  "player": "svgolf-reference",
+  "postsynth": {
+    "full_vectors": 630,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "N=16",
+    "salted": false,
+    "seed": "3af21d27c8f0cf7df60eb1a206b0feb72244e5e46139a179b6e03331eb6b06ac",
+    "vectors": 630
+  },
+  "ppa": {
+    "area_e4um2_sky130": 34295392,
+    "area_um2_sky130": 3429.5392,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 199,
+      "nand2_1": 57,
+      "xnor2_1": 225
+    },
+    "cells_sky130": 481,
+    "constants": false,
+    "critical": {
+      "cells": 6,
+      "edge": "r",
+      "output": "p[15]"
+    },
+    "delay_ps_sky130": 1114,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.144,
+      "worst_transition_ratio": 0.178
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+      "area_e4um2_sky130_mapped_v1": 29415712,
+      "area_um2_sky130_mapped_v1": 2941.5712,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 5,
+        "edge": "f",
+        "output": "p[15]"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "and2_0": 2,
+        "nand2_1": 254,
+        "xnor2_1": 169,
+        "xnor3_1": 1,
+        "xor2_1": 54
+      },
+      "mapped_cells_sky130_v1": 480,
+      "mapped_delay_sky130_v1": 957,
+      "mapped_inverters_sky130_v1": 0,
+      "mapped_levels_sky130_v1": 5,
+      "netlist_sha256": "1bb8092e418a21a36bc32dea1cad6a72616fe9e297cccaaa71bffb3e4c9c78d4",
+      "ppa_mapped_pins_sha256": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v1",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "1743956fac3ef4bc80cf84c63b2b44c249236c67844070139fe56578e369115e",
+      "rtlil_sha256": "308149de643dedabab540218ac8e9dc7d31c45ce69c49626cab6c267e2c57c74",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "netlist_sha256": "53ab6ddd5ef519de7f4338e18b7fd5f7df17d163840a02d6cddc1ff8e60a29c0",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "1743956fac3ef4bc80cf84c63b2b44c249236c67844070139fe56578e369115e",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 481,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "dc11ba038ed78876109233ff0982e8286f3f5d17a6afbcd2f80747fc9b677caa",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 6
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 6.82,
+    "imports": [
+      "Submission.Design",
+      "tasks.clmul.Spec",
+      "SvGolf.Comb",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombLib"
+    ],
+    "lines": 238,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp",
+      "sv_cover",
+      "sv_equations",
+      "sv_interface",
+      "sv_rowmajor",
+      "sv_structure"
+    ],
+    "uses_comb_eq": true,
+    "uses_comb_view": false
+  },
+  "record_hash": "1b134e682e7d68b2d6049867c2139327cc77fdf13d5a2e835ee8e55a75b23e51",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 772.267,
+    "area_mge": 772267,
+    "depth": 6,
+    "gates": {
+      "AND": 199,
+      "NAND": 57,
+      "XNOR": 225
+    },
+    "num_gates": 481,
+    "rtlil_sha256": "308149de643dedabab540218ac8e9dc7d31c45ce69c49626cab6c267e2c57c74",
+    "scoring_point": {
+      "N": 16
+    },
+    "top": "clmul_n"
+  },
+  "submitted_at": "2026-11-04",
+  "task": "clmul"
+}

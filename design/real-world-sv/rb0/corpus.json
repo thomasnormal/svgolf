@@ -1,0 +1,1794 @@
+[
+ {
+  "id": "ibex_alu",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "alu",
+  "kind": "comb",
+  "top": "ibex_alu",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_alu.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_compressed_decoder",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "ibex_compressed_decoder",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_compressed_decoder.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "RVC expander",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_decoder",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "ibex_decoder",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_cheriot_pkg.sv",
+   "rtl/ibex_decoder.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "main instruction decoder incl. immediate generation",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_branch_predict",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "branch",
+  "kind": "comb",
+  "top": "ibex_branch_predict",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_branch_predict.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_multdiv_slow",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "ibex_multdiv_slow",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_multdiv_slow.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_multdiv_fast",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "ibex_multdiv_fast",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_multdiv_fast.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_register_file_ff",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "ibex_register_file_ff",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_cheriot_pkg.sv",
+   "rtl/ibex_register_file_ff.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_ex_block",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "pipeline-stage",
+  "kind": "hier",
+  "top": "ibex_ex_block",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_cheriot_pkg.sv",
+   "rtl/ibex_alu.sv",
+   "rtl/ibex_multdiv_slow.sv",
+   "rtl/ibex_multdiv_fast.sv",
+   "rtl/ibex_ex_block.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "ALU + multiplier/divider wrapper",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_wb_stage",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "pipeline-stage",
+  "kind": "seq",
+  "top": "ibex_wb_stage",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_cheriot_pkg.sv",
+   "rtl/ibex_wb_stage.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_csr",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "csr",
+  "kind": "seq",
+  "top": "ibex_csr",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_csr.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_counter",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "csr",
+  "kind": "seq",
+  "top": "ibex_counter",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_counter.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_alu",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "alu",
+  "kind": "hier",
+  "top": "cv32e40p_alu",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_popcnt.sv",
+   "rtl/cv32e40p_ff_one.sv",
+   "rtl/cv32e40p_alu_div.sv",
+   "rtl/cv32e40p_alu.sv"
+  ],
+  "incdirs": [],
+  "note": "ALU with popcount, ff1, serial divider",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_alu_div",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "cv32e40p_alu_div",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_alu_div.sv"
+  ],
+  "incdirs": [],
+  "note": "serial divider (already ingested by Examples/system-verilog/alu_div)",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_popcnt",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "popcount",
+  "kind": "comb",
+  "top": "cv32e40p_popcnt",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_popcnt.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_ff_one",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "ff1",
+  "kind": "comb",
+  "top": "cv32e40p_ff_one",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_ff_one.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_compressed_decoder",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "cv32e40p_compressed_decoder",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_compressed_decoder.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_decoder",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "cv32e40p_decoder",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_decoder.sv"
+  ],
+  "incdirs": [],
+  "note": "main decoder, 131 KB",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_mult",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "cv32e40p_mult",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_mult.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_register_file_ff",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "cv32e40p_register_file",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_register_file_ff.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40p_int_controller",
+  "project": "cv32e40p",
+  "repo": "openhwgroup/cv32e40p",
+  "commit": "6033d2b1be3295ec774d17ac4cf226faacfdeb08",
+  "category": "csr",
+  "kind": "seq",
+  "top": "cv32e40p_int_controller",
+  "files": [
+   "rtl/include/cv32e40p_pkg.sv",
+   "rtl/include/cv32e40p_apu_core_pkg.sv",
+   "rtl/include/cv32e40p_fpu_pkg.sv",
+   "rtl/cv32e40p_int_controller.sv"
+  ],
+  "incdirs": [],
+  "note": "interrupt priority",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ibex_cs_registers",
+  "project": "ibex",
+  "repo": "lowRISC/ibex",
+  "commit": "f4515520c0045bb8ef1e72d46ed82499a6ac5f18",
+  "category": "csr",
+  "kind": "seq",
+  "top": "ibex_cs_registers",
+  "files": [
+   "rtl/ibex_pkg.sv",
+   "rtl/ibex_cheriot_pkg.sv",
+   "rtl/ibex_csr.sv",
+   "rtl/ibex_counter.sv",
+   "rtl/ibex_cs_registers.sv"
+  ],
+  "incdirs": [
+   "vendor/lowrisc_ip/ip/prim/rtl",
+   "vendor/lowrisc_ip/dv/sv/dv_utils"
+  ],
+  "note": "CSR file incl. address decode",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_alu_b_cpop",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "popcount",
+  "kind": "comb",
+  "top": "cv32e40x_alu_b_cpop",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_alu_b_cpop.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_popcnt",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "popcount",
+  "kind": "comb",
+  "top": "cv32e40x_popcnt",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_popcnt.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_ff_one",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "ff1",
+  "kind": "comb",
+  "top": "cv32e40x_ff_one",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_ff_one.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_alu",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "alu",
+  "kind": "hier",
+  "top": "cv32e40x_alu",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_ff_one.sv",
+   "rtl/cv32e40x_alu_b_cpop.sv",
+   "rtl/cv32e40x_popcnt.sv",
+   "rtl/cv32e40x_alu.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_pc_target",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "branch",
+  "kind": "comb",
+  "top": "cv32e40x_pc_target",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_pc_target.sv"
+  ],
+  "incdirs": [],
+  "note": "jump/branch target",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_i_decoder",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "cv32e40x_i_decoder",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_i_decoder.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_b_decoder",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "cv32e40x_b_decoder",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_b_decoder.sv"
+  ],
+  "incdirs": [],
+  "note": "Zb* decoder",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cv32e40x_compressed_decoder",
+  "project": "cv32e40x",
+  "repo": "openhwgroup/cv32e40x",
+  "commit": "d952cd63bc1b4eb58cd893c28ef8283c781e345e",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "cv32e40x_compressed_decoder",
+  "files": [
+   "rtl/include/cv32e40x_pkg.sv",
+   "rtl/cv32e40x_compressed_decoder.sv"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_alu",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "alu",
+  "kind": "comb",
+  "top": "alu",
+  "files": [
+   "core/include/config_pkg.sv",
+   "core/include/riscv_pkg.sv",
+   "core/include/cv32a6_imac_sv32_config_pkg.sv",
+   "core/include/build_config_pkg.sv",
+   "core/include/ariane_pkg.sv",
+   "core/alu.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "struct parameter CVA6Cfg and type parameter fu_data_t",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_branch_unit",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "branch",
+  "kind": "comb",
+  "top": "branch_unit",
+  "files": [
+   "core/include/config_pkg.sv",
+   "core/include/riscv_pkg.sv",
+   "core/include/cv32a6_imac_sv32_config_pkg.sv",
+   "core/include/build_config_pkg.sv",
+   "core/include/ariane_pkg.sv",
+   "core/branch_unit.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_multiplier",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "multiplier",
+  "files": [
+   "core/include/config_pkg.sv",
+   "core/include/riscv_pkg.sv",
+   "core/include/cv32a6_imac_sv32_config_pkg.sv",
+   "core/include/build_config_pkg.sv",
+   "core/include/ariane_pkg.sv",
+   "core/multiplier.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_serdiv",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "serdiv",
+  "files": [
+   "core/include/config_pkg.sv",
+   "core/include/riscv_pkg.sv",
+   "core/include/cv32a6_imac_sv32_config_pkg.sv",
+   "core/include/build_config_pkg.sv",
+   "core/include/ariane_pkg.sv",
+   "vendor/pulp-platform/common_cells/src/cf_math_pkg.sv",
+   "vendor/pulp-platform/common_cells/src/lzc.sv",
+   "core/serdiv.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_compressed_decoder",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "compressed_decoder",
+  "files": [
+   "core/include/config_pkg.sv",
+   "core/include/riscv_pkg.sv",
+   "core/include/cv32a6_imac_sv32_config_pkg.sv",
+   "core/include/build_config_pkg.sv",
+   "core/include/ariane_pkg.sv",
+   "core/compressed_decoder.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_lzc",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "ff1",
+  "kind": "comb",
+  "top": "lzc",
+  "files": [
+   "vendor/pulp-platform/common_cells/src/cf_math_pkg.sv",
+   "vendor/pulp-platform/common_cells/src/lzc.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "PULP common_cells leading-zero counter (the cell cva6 and cv32e40p share)",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "cva6_popcount",
+  "project": "cva6",
+  "repo": "openhwgroup/cva6",
+  "commit": "742dc82a0c706e0a3bfb98b709fd3ee06d50d12a",
+  "category": "popcount",
+  "kind": "comb",
+  "top": "popcount",
+  "files": [
+   "vendor/pulp-platform/common_cells/src/cf_math_pkg.sv",
+   "vendor/pulp-platform/common_cells/src/lzc.sv",
+   "vendor/pulp-platform/common_cells/src/popcount.sv"
+  ],
+  "incdirs": [
+   "core/include",
+   "vendor/pulp-platform/common_cells/include"
+  ],
+  "note": "recursive instantiation (popcount builds its adder tree from popcount)",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "note": "NO workaround attempted: popcount instantiates itself (recursive generate)"
+  }
+ },
+ {
+  "id": "picorv32_pcpi_mul",
+  "project": "picorv32",
+  "repo": "YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "picorv32_pcpi_mul",
+  "files": [
+   "picorv32.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "slice": {
+    "file": "picorv32.v",
+    "modules": [
+     "picorv32_pcpi_mul"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "picorv32_pcpi_fast_mul",
+  "project": "picorv32",
+  "repo": "YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "picorv32_pcpi_fast_mul",
+  "files": [
+   "picorv32.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "slice": {
+    "file": "picorv32.v",
+    "modules": [
+     "picorv32_pcpi_fast_mul"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "picorv32_pcpi_div",
+  "project": "picorv32",
+  "repo": "YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "picorv32_pcpi_div",
+  "files": [
+   "picorv32.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "slice": {
+    "file": "picorv32.v",
+    "modules": [
+     "picorv32_pcpi_div"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "picorv32_regs",
+  "project": "picorv32",
+  "repo": "YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "picorv32_regs",
+  "files": [
+   "picorv32.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "picorv32_axi_adapter",
+  "project": "picorv32",
+  "repo": "YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "category": "pipeline-stage",
+  "kind": "seq",
+  "top": "picorv32_axi_adapter",
+  "files": [
+   "picorv32.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "slice": {
+    "file": "picorv32.v",
+    "modules": [
+     "picorv32_axi_adapter"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "picorv32_core",
+  "project": "picorv32",
+  "repo": "YosysHQ/picorv32",
+  "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+  "category": "core",
+  "kind": "seq",
+  "top": "picorv32",
+  "files": [
+   "picorv32.v"
+  ],
+  "incdirs": [],
+  "note": "the whole 2100-line core",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "slice": {
+    "file": "picorv32.v",
+    "modules": [
+     "picorv32",
+     "picorv32_pcpi_mul",
+     "picorv32_pcpi_fast_mul",
+     "picorv32_pcpi_div"
+    ]
+   },
+   "note": "the top is instantiated by picorv32_axi/picorv32_wb of the same file: the core and its coprocessors alone are compiled"
+  }
+ },
+ {
+  "id": "serv_alu",
+  "project": "serv",
+  "repo": "olofk/serv",
+  "commit": "f200eb2ed7b69ac1c6b8eddd47654522aeee5ce8",
+  "category": "alu",
+  "kind": "seq",
+  "top": "serv_alu",
+  "files": [
+   "rtl/serv_alu.v"
+  ],
+  "incdirs": [],
+  "note": "bit-serial ALU",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "serv_immdec",
+  "project": "serv",
+  "repo": "olofk/serv",
+  "commit": "f200eb2ed7b69ac1c6b8eddd47654522aeee5ce8",
+  "category": "imm-gen",
+  "kind": "seq",
+  "top": "serv_immdec",
+  "files": [
+   "rtl/serv_immdec.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "serv_decode",
+  "project": "serv",
+  "repo": "olofk/serv",
+  "commit": "f200eb2ed7b69ac1c6b8eddd47654522aeee5ce8",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "serv_decode",
+  "files": [
+   "rtl/serv_decode.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "serv_compdec",
+  "project": "serv",
+  "repo": "olofk/serv",
+  "commit": "f200eb2ed7b69ac1c6b8eddd47654522aeee5ce8",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "serv_compdec",
+  "files": [
+   "rtl/serv_compdec.v"
+  ],
+  "incdirs": [],
+  "note": "RVC decompressor",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "serv_csr",
+  "project": "serv",
+  "repo": "olofk/serv",
+  "commit": "f200eb2ed7b69ac1c6b8eddd47654522aeee5ce8",
+  "category": "csr",
+  "kind": "seq",
+  "top": "serv_csr",
+  "files": [
+   "rtl/serv_csr.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "serv_bufreg",
+  "project": "serv",
+  "repo": "olofk/serv",
+  "commit": "f200eb2ed7b69ac1c6b8eddd47654522aeee5ce8",
+  "category": "pipeline-stage",
+  "kind": "seq",
+  "top": "serv_bufreg",
+  "files": [
+   "rtl/serv_bufreg.v"
+  ],
+  "incdirs": [],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_alu",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "alu",
+  "kind": "comb",
+  "top": "hazard3_alu",
+  "files": [
+   "hdl/arith/hazard3_alu.v",
+   "hdl/arith/hazard3_shift_barrel.v",
+   "hdl/arith/hazard3_priority_encode.v",
+   "hdl/arith/hazard3_onehot_encode.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_branchcmp",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "branch",
+  "kind": "comb",
+  "top": "hazard3_branchcmp",
+  "files": [
+   "hdl/arith/hazard3_branchcmp.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa3_edits": {
+   "hazard3_branchcmp.v": [
+    [
+     "`include \"hazard3_config.vh\"\\n,\\n`include \"hazard3_width_const.vh\"",
+     "parameter W_DATA = 32"
+    ],
+    [
+     "`include \"hazard3_ops.vh\"\\n",
+     ""
+    ]
+   ]
+  }
+ },
+ {
+  "id": "hazard3_shift_barrel",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "shifter",
+  "kind": "comb",
+  "top": "hazard3_shift_barrel",
+  "files": [
+   "hdl/arith/hazard3_shift_barrel.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_priority_encode",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "ff1",
+  "kind": "comb",
+  "top": "hazard3_priority_encode",
+  "files": [
+   "hdl/arith/hazard3_onehot_priority.v",
+   "hdl/arith/hazard3_onehot_encode.v",
+   "hdl/arith/hazard3_priority_encode.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_onehot_priority",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "ff1",
+  "kind": "comb",
+  "top": "hazard3_onehot_priority",
+  "files": [
+   "hdl/arith/hazard3_onehot_priority.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_instr_decompress",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "hazard3_instr_decompress",
+  "files": [
+   "hdl/hazard3_instr_decompress.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "RVC expander",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_regfile_1w2r",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "hazard3_regfile_1w2r",
+  "files": [
+   "hdl/hazard3_regfile_1w2r.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_mul_fast",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "hazard3_mul_fast",
+  "files": [
+   "hdl/arith/hazard3_mul_fast.v"
+  ],
+  "incdirs": [
+   "hdl",
+   "hdl/arith"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "mor1kx_execute_alu",
+  "project": "mor1kx",
+  "repo": "openrisc/mor1kx",
+  "commit": "f46074a88576e1d7e2fc6cfae14a664dc593a2d8",
+  "category": "alu",
+  "kind": "seq",
+  "top": "mor1kx_execute_alu",
+  "files": [
+   "rtl/verilog/mor1kx_execute_alu.v"
+  ],
+  "incdirs": [
+   "rtl/verilog"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "mor1kx_decode",
+  "project": "mor1kx",
+  "repo": "openrisc/mor1kx",
+  "commit": "f46074a88576e1d7e2fc6cfae14a664dc593a2d8",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "mor1kx_decode",
+  "files": [
+   "rtl/verilog/mor1kx_decode.v"
+  ],
+  "incdirs": [
+   "rtl/verilog"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "mor1kx_rf_cappuccino",
+  "project": "mor1kx",
+  "repo": "openrisc/mor1kx",
+  "commit": "f46074a88576e1d7e2fc6cfae14a664dc593a2d8",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "mor1kx_rf_cappuccino",
+  "files": [
+   "rtl/verilog/mor1kx_simple_dpram_sclk.v",
+   "rtl/verilog/mor1kx_rf_cappuccino.v"
+  ],
+  "incdirs": [
+   "rtl/verilog"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "mor1kx_wb_mux_cappuccino",
+  "project": "mor1kx",
+  "repo": "openrisc/mor1kx",
+  "commit": "f46074a88576e1d7e2fc6cfae14a664dc593a2d8",
+  "category": "forwarding-mux",
+  "kind": "comb",
+  "top": "mor1kx_wb_mux_cappuccino",
+  "files": [
+   "rtl/verilog/mor1kx_wb_mux_cappuccino.v"
+  ],
+  "incdirs": [
+   "rtl/verilog"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_alu",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "alu",
+  "kind": "comb",
+  "top": "riscv_alu",
+  "files": [
+   "core/riscv/riscv_alu.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_decoder",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "riscv_decoder",
+  "files": [
+   "core/riscv/riscv_decoder.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_multiplier",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "riscv_multiplier",
+  "files": [
+   "core/riscv/riscv_multiplier.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_divider",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "riscv_divider",
+  "files": [
+   "core/riscv/riscv_divider.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_regfile",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "riscv_regfile",
+  "files": [
+   "core/riscv/riscv_regfile.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "hazard3_csr",
+  "project": "hazard3",
+  "repo": "Wren6991/Hazard3",
+  "commit": "8af992930f71a69b0e06c38734c1094f41a05ca0",
+  "category": "csr",
+  "kind": "seq",
+  "top": "hazard3_csr",
+  "files": [
+   "hdl/hazard3_csr.v"
+  ],
+  "incdirs": [
+   "hdl"
+  ],
+  "note": "CSR file incl. address decode (uses hazard3_csr_addr.vh)",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_secded_inv_39_32_enc",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "ecc",
+  "kind": "comb",
+  "top": "prim_secded_inv_39_32_enc",
+  "files": [
+   "hw/ip/prim/rtl/prim_secded_inv_39_32_enc.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_secded_inv_39_32_dec",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "ecc",
+  "kind": "comb",
+  "top": "prim_secded_inv_39_32_dec",
+  "files": [
+   "hw/ip/prim/rtl/prim_secded_inv_39_32_dec.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_secded_39_32_enc",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "ecc",
+  "kind": "comb",
+  "top": "prim_secded_39_32_enc",
+  "files": [
+   "hw/ip/prim/rtl/prim_secded_39_32_enc.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_leading_one_ppc",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "ff1",
+  "kind": "comb",
+  "top": "prim_leading_one_ppc",
+  "files": [
+   "hw/ip/prim/rtl/prim_util_pkg.sv",
+   "hw/ip/prim/rtl/prim_leading_one_ppc.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_arbiter_ppc",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "forwarding-mux",
+  "kind": "comb",
+  "top": "prim_arbiter_ppc",
+  "files": [
+   "hw/ip/prim/rtl/prim_util_pkg.sv",
+   "hw/ip/prim/rtl/prim_leading_one_ppc.sv",
+   "hw/ip/prim/rtl/prim_arbiter_ppc.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "parallel-prefix priority arbiter",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_onehot_mux",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "forwarding-mux",
+  "kind": "comb",
+  "top": "prim_onehot_mux",
+  "files": [
+   "hw/ip/prim_generic/rtl/prim_and2.sv",
+   "hw/ip/prim/rtl/prim_onehot_mux.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_max_tree",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "comparator",
+  "kind": "comb",
+  "top": "prim_max_tree",
+  "files": [
+   "hw/ip/prim/rtl/prim_util_pkg.sv",
+   "hw/ip/prim/rtl/prim_max_tree.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_issue",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "forwarding-mux",
+  "kind": "seq",
+  "top": "riscv_issue",
+  "files": [
+   "core/riscv/riscv_issue.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "issue stage with operand forwarding / scoreboard",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "biriscv_exec",
+  "project": "biriscv",
+  "repo": "ultraembedded/riscv",
+  "commit": "7ae6f803e30f78c6ea3121e73c3adf50ff912730",
+  "category": "pipeline-stage",
+  "kind": "seq",
+  "top": "riscv_exec",
+  "files": [
+   "core/riscv/riscv_alu.v",
+   "core/riscv/riscv_exec.v"
+  ],
+  "incdirs": [
+   "core/riscv"
+  ],
+  "note": "execute stage: ALU + branch resolution",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "ot_prim_secded_inv_72_64_dec",
+  "project": "opentitan",
+  "repo": "lowRISC/opentitan",
+  "commit": "41049e9deb40e0602cd5272c40398be380ae2637",
+  "category": "ecc",
+  "kind": "comb",
+  "top": "prim_secded_inv_72_64_dec",
+  "files": [
+   "hw/ip/prim/rtl/prim_secded_inv_72_64_dec.sv"
+  ],
+  "incdirs": [
+   "hw/ip/prim/rtl",
+   "hw/dv/sv/dv_utils"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "el2_exu_alu_ctl",
+  "project": "veer_el2",
+  "repo": "chipsalliance/Cores-VeeR-EL2",
+  "commit": "fa00c8aadc4a077d78b277129c1badf90d881255",
+  "category": "alu",
+  "kind": "comb",
+  "top": "el2_exu_alu_ctl",
+  "files": [
+   "design/include/el2_def.sv",
+   "design/lib/beh_lib.sv",
+   "design/exu/el2_exu_alu_ctl.sv"
+  ],
+  "incdirs": [
+   "design/include",
+   "design/lib"
+  ],
+  "note": "needs the generated el2_param.vh / el2_pdef.vh (absent from the repository)",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "el2_ifu_compress_ctl",
+  "project": "veer_el2",
+  "repo": "chipsalliance/Cores-VeeR-EL2",
+  "commit": "fa00c8aadc4a077d78b277129c1badf90d881255",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "el2_ifu_compress_ctl",
+  "files": [
+   "design/include/el2_def.sv",
+   "design/ifu/el2_ifu_compress_ctl.sv"
+  ],
+  "incdirs": [
+   "design/include",
+   "design/lib"
+  ],
+  "note": "same generated-config dependency",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "el2_dec_gpr_ctl",
+  "project": "veer_el2",
+  "repo": "chipsalliance/Cores-VeeR-EL2",
+  "commit": "fa00c8aadc4a077d78b277129c1badf90d881255",
+  "category": "regfile",
+  "kind": "seq",
+  "top": "el2_dec_gpr_ctl",
+  "files": [
+   "design/include/el2_def.sv",
+   "design/lib/beh_lib.sv",
+   "design/dec/el2_dec_gpr_ctl.sv"
+  ],
+  "incdirs": [
+   "design/include",
+   "design/lib"
+  ],
+  "note": "",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "vexriscv_min_streamfifo",
+  "project": "vexriscv",
+  "repo": "litex-hub/pythondata-cpu-vexriscv",
+  "commit": "642ecfed1c84460555d6d803d660cc60cfc1ecb6",
+  "category": "pipeline-stage",
+  "kind": "seq",
+  "top": "StreamFifo",
+  "files": [
+   "pythondata_cpu_vexriscv/verilog/VexRiscv_Min.v"
+  ],
+  "incdirs": [],
+  "note": "a generated FIFO module of the same file",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "vexriscv_min_core",
+  "project": "vexriscv",
+  "repo": "litex-hub/pythondata-cpu-vexriscv",
+  "commit": "642ecfed1c84460555d6d803d660cc60cfc1ecb6",
+  "category": "core",
+  "kind": "seq",
+  "top": "VexRiscv",
+  "files": [
+   "pythondata_cpu_vexriscv/verilog/VexRiscv_Min.v"
+  ],
+  "incdirs": [],
+  "note": "SpinalHDL-generated Verilog",
+  "params": {},
+  "defines": [],
+  "skip_base": false
+ },
+ {
+  "id": "rocket_alu",
+  "project": "rocket",
+  "repo": "litex-hub/pythondata-cpu-rocket",
+  "commit": "d641037640637471e82646e69a055475cd2abfab",
+  "category": "alu",
+  "kind": "comb",
+  "top": "ALU",
+  "files": [
+   "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v"
+  ],
+  "incdirs": [],
+  "note": "Chisel-generated ALU module of the 9.5 MB LitexConfig_linux_1_1.v",
+  "params": {},
+  "defines": [],
+  "skip_base": false,
+  "wa": {
+   "slice": {
+    "file": "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v",
+    "modules": [
+     "ALU"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "rocket_rvc_expander",
+  "project": "rocket",
+  "repo": "litex-hub/pythondata-cpu-rocket",
+  "commit": "d641037640637471e82646e69a055475cd2abfab",
+  "category": "decoder",
+  "kind": "comb",
+  "top": "RVCExpander",
+  "files": [
+   "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v"
+  ],
+  "incdirs": [],
+  "note": "Chisel-generated RVC expander",
+  "params": {},
+  "defines": [],
+  "skip_base": true,
+  "wa": {
+   "slice": {
+    "file": "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v",
+    "modules": [
+     "RVCExpander"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "rocket_muldiv",
+  "project": "rocket",
+  "repo": "litex-hub/pythondata-cpu-rocket",
+  "commit": "d641037640637471e82646e69a055475cd2abfab",
+  "category": "mult-div",
+  "kind": "seq",
+  "top": "MulDiv",
+  "files": [
+   "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v"
+  ],
+  "incdirs": [],
+  "note": "Chisel-generated multiplier/divider",
+  "params": {},
+  "defines": [],
+  "skip_base": true,
+  "wa": {
+   "slice": {
+    "file": "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v",
+    "modules": [
+     "MulDiv"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ },
+ {
+  "id": "rocket_breakpoint_unit",
+  "project": "rocket",
+  "repo": "litex-hub/pythondata-cpu-rocket",
+  "commit": "d641037640637471e82646e69a055475cd2abfab",
+  "category": "comparator",
+  "kind": "comb",
+  "top": "BreakpointUnit",
+  "files": [
+   "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v"
+  ],
+  "incdirs": [],
+  "note": "Chisel-generated trigger comparator",
+  "params": {},
+  "defines": [],
+  "skip_base": true,
+  "wa": {
+   "slice": {
+    "file": "pythondata_cpu_rocket/verilog/generated-src/freechips.rocketchip.system.LitexConfig_linux_1_1.v",
+    "modules": [
+     "BreakpointUnit"
+    ]
+   },
+   "note": "the top is instantiated by another module of the same file: the module text alone is compiled"
+  }
+ }
+]

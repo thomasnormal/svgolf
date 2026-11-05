@@ -1,0 +1,42 @@
+[
+ {
+  "topic": "comb",
+  "shortlist": [
+   "KemetCore hapi_fp32_div (HapiCore fp32 divide)",
+   "DGrid dgrid_fp16_div_rtl (SoC4-A correctly-rounded FP16 divider)"
+  ],
+  "others": 27
+ },
+ {
+  "topic": "iterative",
+  "shortlist": [
+   "drewbabel/riscv-vector rtl/fp_div_sqrt.sv (+ rtl/fp_pkg.sv)",
+   "Berkeley HardFloat divSqrtRecFN_small (Verilog, Release 1)"
+  ],
+  "others": 22
+ },
+ {
+  "topic": "generators",
+  "shortlist": [
+   "Berkeley HardFloat divSqrtRecFN_small (original Verilog, Release 1) with fNToRecFN and recFNToFN",
+   "XiangShan fudian FDIV (SRT16 divide / SRT4 sqrt unit, Chisel)"
+  ],
+  "others": 18
+ },
+ {
+  "topic": "reciprocal",
+  "shortlist": [
+   "RTLDesignSherpa math_ieee754_2008_fp32_divider (sean-galloway)",
+   "fontamsoc/hw cpu/fpu.sv, PUFDIVDSP2 variant (Newton-Raphson reciprocal + residual fix-up)"
+  ],
+  "others": 26
+ },
+ {
+  "topic": "small",
+  "shortlist": [
+   "Phy-Engine-Dev/Phy-Engine: test/0020.fp16_calc/fp16_div.v (module fp16_div_unit)",
+   "raphaelPinheiro26/tt_um_fp8_fpu (Tiny Tapeout FP8 E4M3 FPU; divide path = fp8_div_iter + fp8_normalize + fp8_round)"
+  ],
+  "others": 16
+ }
+]

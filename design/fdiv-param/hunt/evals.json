@@ -1,0 +1,2534 @@
+[
+ {
+  "name": "KemetCore hapi_fp32_div (HapiCore fp32 divide)",
+  "url": "https://github.com/Lord1Egypt/KemetCore/blob/main/projects/hapicore/rtl/hapi_fp32_div.sv",
+  "license": "Apache-2.0 (repo-level LICENSE, re-confirmed with gh repo view; the file itself has no header); 3 stars; the file's last commit is fa1575b23b (2026-06-27)",
+  "runAs": "Combinational. I re-fetched the file with gh api; its sha256 (85648c70...) equals the search agent's copy. I compiled it with Verilator 5.042 --cc --exe and a C++ harness that applies (a,b), calls eval() once and reads the output. There is no clock and no cycle count. Both ports are 32 bits wide. Format is fixed at W=8, P=24. It is not parametric.",
+  "combinational": true,
+  "formatsTested": [
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 7258897,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "vs the exact-rational oracle fdiv_oracle.fdiv(8,24,..), model run in Verilator. Sets: 3 x 1,000,000 biased random pairs (seeds 11-13: uniform, specials, equal/adjacent exponents, subnormal operands, quotient exponent at the under/overflow thresholds, power-of-two divisors into the subnormal band, exact quotients, one-bit and all-ones mantissas); 4,194,304 systematic pairs (every one of the 256x256 exponent pairs x 64 mantissa pairs); 64,593 specials grid (all NaN payloads, +-0, +-inf, min/max subnormal, min/max normal, 1.0 against each other and against an exponent x mantissa grid). Result classes covered: nan, inf, zero, sub, norm, all in the hundreds of thousands. About 0.26% of the biased pairs are exact rounding ties (778 of a 300k sample, measured), roughly 8k ties per 3M pairs. 0 mismatches, so no mismatch class has an example."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 26315245296,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "vs a host float32 division reference (RNE, any NaN mapped to 0x7FC00000). I first checked that reference against the model on the 7.26M oracle-verified pairs above: 0 differences. Sweeps: 1.0/b for EVERY b in 0..2^32-1 (exhaustive over b); 0x00000001/b for every b; 0x7F7FFFFF/b for every b; 268M pairs over all 256x256 exponent pairs x random biased mantissas; 159M pairs with ea=eb+-1 and mb=ma+delta (|delta|<=9, quotient straddling 1) over all 2^23 ma; 4.66G pairs with a power-of-two divisor, all eb, all 2^23 mantissas of a at 5 exponents, restricted to the under/overflow-threshold quotient exponents (ties and shifter); 8.05G pairs with every one of the 2^23 subnormal a (and as b) against about 480 structured divisors; 300M biased random. 0 mismatches in all sweeps. Total about 2^34.6 of the 2^64 pairs."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 400,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "Mutation check that the harness sees errors: dropping the remainder sticky gave 6265 mismatches in 200k pairs (3.1%, 1-ulp rounding); rounding every tie up instead of to even gave 258 (0.13%, all in the underflow range). The oracle harness therefore sees sticky and tie errors. Pair count 400 is a placeholder (these used 2 x 200k pairs). Separately: 4-state Icarus x-check on 2 x 200k pairs, no x on y."
+   }
+  ],
+  "conformance": "EXACT at binary32: 0 mismatches against the exact-rational oracle on 7,258,897 pairs and against a host float32 reference on about 26.3 billion pairs. Both are samples, not a proof. The format is fixed at (8,24), so the exhaustive W+P<=14 test does not apply. The only change the svGolf port list needs is the output rename y->q.",
+  "differences": [
+   "No functional difference found against the spec at (8,24). Mismatch counts per class: NaN payload/sign 0, flush-to-zero or denormal handling 0, rounding other than RNE 0, inf/zero special cases 0, overflow/underflow thresholds 0, other 0. All of these hold at every pair I tested.",
+   "Port name: the output is called y; svGolf wants q (the wrapper fixes this).",
+   "Fixed format: it covers (W,P)=(8,24) only, so it can only serve a fixed fdiv32 task, not the parametric fdiv #(W,P). The spec already has SvGolf.IEEE754.fdiv32, and fdivBits 8 24 = fdiv32 is rfl, as the repo's design/fdiv-param notes say.",
+   "It uses run-time `/` and `%` (a 51-bit dividend over a 24-bit divisor). I measured score/banlist.py rejecting it at line 76 (`/`) and line 77 (`%`), in both the pyslang front check and the Yosys $div/$mod backstop, so it cannot be an fdiv16-style golf entry.",
+   "Measured with Icarus 4-state: when b = +-0 the design divides by zero. The internal qfull is all x and arith_bits is partly x. The output y is never x in 400k tested pairs (200k with b = +-0, 200k random), because the special-case mux picks a known branch first. score/fourstate.py's own docstring says run-time division by zero has no rule yet.",
+   "score/fourstate.py rejects it with 2 findings: `qint[gpos[4:0]]` (a 5-bit index into [27:0]; it is guarded by gpos<=27, but the check is syntactic) and `x[i]` in clz24 (a 32-bit integer index into [23:0]). srcgate passes."
+  ],
+  "wrapperNeeded": "Only a port rename: a 5-line module fdiv32(a, b, q) that instantiates hapi_fp32_div with .y(q) (my fdiv_wrap.sv). The candidate file stays unmodified. It needs no NaN canonicalization, no rounding-mode pin and no format conversion. Its NaN is already 32'h7FC00000 (sign 0).",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "NOT OBTAINED from the pinned flow. (1) score.py (python3.12 score/score.py hapi_fp32_div.sv --top hapi_fp32_div) hit its hard-coded 1800 s Yosys limit (error 'yosys timed out after 1800s'); the machine load average was about 200. (2) A second run, using the repo's score.py with only the module constant YOSYS_TIMEOUT_S raised to 4 h, was killed by me after 1 h 36 min wall and 38 CPU-minutes in ABC without finishing. The ABC step of the pinned flow is far slower than the Yosys read and synth, and the 51-bit array divider is the reason. Measured stand-ins: pre-ABC `synth -flatten -noabc` gives 15,106 gates ($_AND_ 5854, $_MUX_ 2509, $_NOT_ 889, $_OR_ 3308, $_XOR_ 2546). An UNOFFICIAL proxy, `abc -fast -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX` weighted with score/ge.json, gives 14,121 cells and about 21,600 GE; this is not an svGolf score. Depth not measured.",
+   "notes": "Yosys 0.53 `read_verilog -sv; hierarchy -check; proc; opt` runs with no warnings or errors. Before synthesis it has 252 cells including 1 $div (51-bit) and 1 $mod. The source gate (score/srcgate.py) passes. The banlist fails on `/` and `%`. fourstate fails with the 2 run-time index findings. The design's `function automatic` and in-block locals are accepted by Yosys and Verilator."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extract.py --top hapi_fp32_div made a 194 KB sv-0.2 envelope in 1.8 s. It contains 8 Unsupported nodes. Binary `u/` and `u%` are extracted and are not Unsupported (ls-sv models integral `/` and `%` as natural-number quotient and remainder, with a zero divisor giving x). My own rewrite (rewrite/fdiv32r.sv: clz as a ?: chain, signed values as 14-bit two's complement, flat assigns, no run-time part-select index, `/` and `%` kept) extracts with 0 Unsupported nodes, passes srcgate and fourstate, and agrees with the oracle on 5,258,897 pairs. It still fails the banlist. Its generic pre-ABC synth is 14,957 gates.",
+   "unsupported": [
+    "VariableSymbol:signed x5 (ga, gb, wbot, ebias_norm, rs_s: the 14-bit `logic signed` declarations; the extractor says declared signedness is not carried)",
+    "CallExpression x2 (clz24(ma_pk), clz24(mb_pk): user function calls in assigns)",
+    "SubroutineSymbol:Subroutine x1 (the clz24 function declaration with its procedural for loop)"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "After a stated rewrite, and only against a fixed-format fdiv32 task variant that lifts the `/ %` ban. Not as is, and not against the parametric fdiv #(W,P), because the design is binary32 only. This is a judgement. The measured facts are the blockers below and the rewrite I tested. The proof estimate is my inference from the fdiv16 task's size, not something I ran.",
+   "blockers": [
+    "MEASURED: banlist rejects `/` and `%` (the fdiv task bans them). A proof target would need an unbanned fdiv32 variant, e.g. option C of svgolf/design/fdiv-param/TASK.md, a family of fixed-size tasks. SvGolf.IEEE754.fdiv32 already exists in spec/IEEE754.lean, so the statement side is cheap.",
+    "READ in PROVING.md section 4: run-time `/` and `%` are outside the sv_structure/sv_equations fragment (`/ %` appear only in localparams, by a positive literal). Either extend the tactics with word-level udiv/umod, or rewrite to a 28-step restoring-division chain (about 84 flat assigns plus a loop-invariant lemma 'restoring = Nat.div', which I estimate at 300-500 lines like fdiv16's DpModel).",
+    "READ in score/fourstate.py: division by zero has no x rule. This design divides by zero whenever b = +-0 (MEASURED in Icarus: the internal quotient is x, the output is clean). Admitting `/` needs a fourstate rule first, or the divisor must be forced nonzero (a one-line rewrite, e.g. OR 1 into the divisor when b is zero).",
+    "MEASURED extractor blockers: 5 signed declarations and the clz24 function with its call and for loop. My rewrite fixes them (0 Unsupported, fourstate pass, oracle-equal on 5.26M pairs). Two measured fourstate findings (run-time indexes) are fixed there as well.",
+    "READ style rules of the tactic fragment (fdiv16 reference notes R1-R3, PROVING.md) that my rewrite does NOT yet satisfy: concatenations as operands of `+` and of a shift (`{27'b0,sna} << 27`, `{1'b0,keep} + {24'b0,round_up}`) must be named first; comparisons should be written into one-bit signals; the arith_bits and special-case tables should be flat ?: chains over named words; operands must be exactly target-width. These are mechanical edits, not tested because I did not run Lean.",
+    "Proof difficulty (read from the design): the rounding tail uses run-time shifts and masks of a 28-bit quotient with shift amounts 3..~154 (9-bit rs). Subnormal results go through guard/rest at rs>=28 and the 14-bit wrap-around exponent arithmetic, and the clz normalizer is 24-way. The fdiv16 proof used a 2047-entry kernel table for the normalizer and 13-way rcases for the shift; neither scales to P=24, so a symbolic clz lemma and a symbolic rounding-core lemma are needed. On the good side, with `/` and `%` as Nat primitives the quotient correctness is just Nat.div_add_mod, rem<D, and the interval of qint, with no restoring-loop invariant."
+   ],
+   "estimate": "About 2,500 to 4,500 lines of Lean for a fixed (8,24) proof; the fdiv16 task directory is 3,781 lines in total (measured with wc). That is: a math layer of 1.2-2k (round-to-nearest-even characterisation against Spec.round/roundUnits, symbolic clz, exponent bookkeeping with 14-bit wrap bounds, special-case table), a BitVec model plus equations-to-model glue of 1-1.5k, and a tactic extension for `/ %` plus a fourstate rule (or a restoring-chain rewrite plus its invariant, 300-500 lines). Risks: sv_equations heartbeat cost on about 100 sites with 51-bit words; the fdiv16 proof needed about 260k heartbeats at 111 sites with 16-bit words."
+  },
+  "verdict": "Exact binary32 divider: 0 mismatches against the exact oracle on 7.26M pairs and against a host float32 reference on about 26.3 billion pairs. Both runs include NaN canonicalization, subnormals, ties and overflow. It is a valid fixed-format fdiv32 reference or variant-task circuit. It cannot be an svGolf golf entry as is. The fdiv banlist rejects `/` and `%`. fourstate flags two run-time indexes. The extractor reports 8 Unsupported nodes (5 signed declarations, the clz24 function with its call and for loop). The output port is y, not q. Provable only after a rewrite (mine passes the extractor, srcgate and fourstate and is oracle-equal) plus a `/ %` tactic extension, a fourstate rule for division by zero, or a restoring-division rewrite. Estimated 2.5-4.5k Lean lines for a fixed (8,24) proof. The pinned area score did not finish; the pre-ABC count is 15,106 gates.",
+  "measuredVsRead": "MEASURED by me: the Verilator build of the candidate; the 7,258,897-pair oracle comparison (0 mismatches); the 26.3-billion-pair host-reference sweeps (0 mismatches), including exhaustive 1.0/b, 0x1/b and 0x7F7FFFFF/b over all 2^32 b; the host reference's agreement with the oracle-verified model on the 7.26M pairs; two mutation checks (sticky dropped, ties rounded up; the harness sees both); the exact-tie rate of the generator (778 of 300k); an Icarus 4-state run showing the internal division by zero at b = +-0 with x never reaching y; Yosys 0.53 read_verilog -sv, its cell stats and the 15,106-gate pre-ABC count; srcgate (pass), banlist (fail on `/` line 76 and `%` line 77) and fourstate (fail, 2 run-time-index findings) run standalone; the extractor envelope and its 8 Unsupported nodes (5 signed declarations, 2 clz24 calls, 1 function declaration); my own rewrite fdiv32r.sv, which extracts with 0 Unsupported nodes, passes srcgate and fourstate, fails only the banlist, is oracle-equal on 5,258,897 pairs and is 14,957 gates pre-ABC; the licence and sha256 via gh. NOT obtained: the pinned svGolf area. score.py ran into its 1800 s limit under a load average of about 200, and a later run with the timeout raised to 4 h was killed after 1 h 36 min and 38 ABC CPU-minutes without finishing. The about 21,600 GE figure is an unofficial abc -fast proxy only. READ, not measured: the claims about what sv_structure, sv_equations and sv_cover accept (from PROVING.md and docs/sv-refusals.md; I did not run Lean, and check.py --tactics needs it); the fourstate docstring's statement that run-time division by zero has no rule; that the header says it is checked against golden fp_div in tb/test_fp32_div.py (I did not run it); and the whole proof-size estimate, which is inference from the fdiv16 task's file sizes. Not tested: W+P<=14 exhaustive (not applicable at a fixed binary32 format) and any other (W,P). The about 2^34.6 pairs are a sample of 2^64, not a proof."
+ },
+ {
+  "name": "DGrid dgrid_fp16_div_rtl (SoC4-A correctly-rounded FP16 divider)",
+  "url": "https://github.com/haritha-debug/SOC_4_Flat/blob/main/artix7_full_DDR_COMPLETE/verilog/dgrid_fp16_div_rtl.sv",
+  "license": "None declared. The repo has no LICENSE file (gh repo view: licenseInfo null, 0 stars; only README.md, FEATURES.md and the artix7_full_DDR_COMPLETE tree), so all rights are reserved by default. Ask the author, or reimplement from the algorithm (which is plain: normalise, floor-divide, GRS and sticky, RNE) before redistributing. Nothing from it was put in the repositories.",
+  "runAs": "Combinational, simulated directly. Verilator 5.042 (--cc --exe --build -O3 --no-timing) on the UNMODIFIED file plus a 4-line wrapper module fdiv16_dgrid(a,b,q) that instantiates dgrid_fp16_div_rtl(.a_i(a),.b_i(b),.z_o(q)). The C++ harness applies a,b and calls eval() once per pair. Throughput is about 40M pairs/s on an unloaded core, so the full 2^32 exhaustive run took 1m48s on 4 slices. The fixed format is binary16 (W=5, P=11).",
+  "combinational": true,
+  "formatsTested": [
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 4294967296,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "all 2^32 pairs, original RTL via Verilator, against a host _Float16 reference (double division then RNE; any NaN mapped to 0x7E00). Four slices of 2^30, 0 mismatches each. That reference agrees with the Python oracle on every pair of the next row (0 differences)."
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 2096000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "DUT against the exact-rational Python oracle fdiv_oracle.fdiv(5,11,..): 32,400 all-specials grid, 63,600 structured pairs (power-of-two by power-of-two with both signs, near-max and near-min neighbourhoods, 60,000 subnormal-numerator sweeps for underflow ties and rounding), plus 2,000,000 random pairs (uniform, exponent-biased, special-biased, near-overflow and near-2^-24 quotients). 0 mismatches. NaN-payload, zero/inf, sign, subnormal and rounding classes: 0 each."
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 537266912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "the SCORED Yosys gate netlist (score.py --netlist, simulated with Verilator and Yosys simcells.v): all 536,870,912 pairs with a in [24576,32768) against _Float16, plus the 396,000-pair structured and random set against the Python oracle. 0 mismatches."
+   },
+   {
+    "w": 12,
+    "p": 2,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "MY hand re-parameterisation (not the author's code; constants 11->P, 10->P-1, 5->W, 15->BIAS, DIVF 13->P+2, 23->2P+1, 24->2P+2), exhaustive against an exact integer reference (a double-based reference breaks at W>=10, so an integer one replaced it). Same 0 for (11,3) and (10,4) (268,435,456 each), (9,5), (11,2), (10,3), (10,2)."
+   },
+   {
+    "w": 0,
+    "p": 0,
+    "pairs": 3817748736,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "AGGREGATE row (w=0,p=0 is a placeholder): my re-parameterisation over ALL 66 formats with W>=2, P>=2, W+P<=14, every pair, 0 mismatches. The reference was a C++ double-division RNE packer for W<=9 and an exact integer one for W>=10, both cross-checked against the Python oracle (20,000 pairs per format on ten formats, 0 differences). The hand rewrite is correct for DIVF=P+2 across the tested formats."
+   },
+   {
+    "w": 8,
+    "p": 8,
+    "pairs": 20000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "my re-parameterisation, random and special-biased pairs against the double reference (plus 5,000,000 against the integer reference, 0). Not exhaustive: 2^32 pairs was not run under the machine load."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 20000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "my re-parameterisation, binary32 shape, random and special-biased pairs; 20,000,000 against the double reference and 5,000,000 against the integer reference, 0 mismatches. Same for (6,17) and (4,20) with 20,000,000 random pairs each."
+   }
+  ],
+  "conformance": "EXACT at binary16 (W=5, P=11), with no functional wrapper. 0 mismatches against the host _Float16 reference over all 2^32 pairs, and against the exact-rational Python oracle over 2,096,000 structured and random pairs. The scored Yosys gate netlist also agrees. So there is no NaN-payload, flush-to-zero, double-rounding, inf/zero special-case or overflow/underflow threshold difference to classify: zero mismatches, zero per class. The circuit is fixed-format, so the \"all pairs for W+P<=14\" check does not apply to it. I ran that check on my own hand re-parameterisation, which is not the author's code: all 66 formats W+P<=14 were exhaustive with 0 mismatches.",
+  "differences": [
+   "No functional difference found at binary16. Mutation check: removing sbit from the round-up term gives 5,664,720 mismatches in one 1/64 exhaustive slice and 15,554 of 196,000 pairs on the Python harness, so both harnesses can see rounding errors.",
+   "Ports are a_i, b_i, z_o, not a, b, q. A rename must first rename the internal signal q (the quotient) or two drivers of q result.",
+   "Five preprocessor lines (`ifndef, `define, `ifndef SYNTHESIS, `timescale, `endif) make the svGolf source gate refuse the file as written.",
+   "Fixed format: 5, 10, 15, 13 (DIVF), 24 and the 11-bit significand are hard-coded, with no W or P parameter, so it can only meet the fixed-format fdiv16 statement.",
+   "Uses run-time `/` and `%` on the 24-bit numerator and the 11-bit divisor. The repository's fdiv16 banlist rejects it: banlist.py reports banned cell $div (line 61 of my flat copy, line 66 of the original) and $mod (62, original 67). It is usable only as a reference or in a variant task without that ban.",
+   "Declares six `logic signed` vectors (expa, expb, exp_r, exp_f, biased, sh_amt), uses $signed casts and signed compares, and unary minus on constants. Signed declarations are outside ls-sv and the v1 tactic fragment.",
+   "A zero divisor makes `num / 0`, an x in 4-state semantics. The final ?: chain masks it. Measured: Icarus 4-state gives a known q for 1/0, 0/0, inf/0 and nan/0, and score/fourstate.py --task tasks/fdiv16 passes with no findings. The proof must carry this masking argument, because the x-free fragment has no division (CombKnownBits: xfWidth of div = none).",
+   "The header comment is stale: it mentions a `function` that does not exist in the file. Its claim of bit-exactness against numpy float16 is confirmed by my exhaustive run.",
+   "Area: as written, the Yosys-lowered / and % cost 2142.4 GE with depth 316, which is worse than the proved fdiv16 reference (1929.778 GE, depth 299) and the draft (2089.081 GE, depth 298), so it would not enter the fdiv16 leaderboard even if proved."
+  ],
+  "wrapperNeeded": "Function: none. Only a port rename is needed (a_i,b_i,z_o to a,b,q). Pipeline: (1) the pinned source gate refuses the five preprocessor lines (`ifndef/`define/`ifndef SYNTHESIS/`timescale/`endif), so score.py on the raw file fails; delete those lines and nothing else (diff checked). (2) To make one module named fdiv16 with ports a,b,q, rename the internal quotient signal q to something else BEFORE renaming z_o to q. A naive rename gives two continuous drivers of q (slang reports MultipleContAssigns, and score.py exits 1; I hit this). (3) A hierarchical wrapper is fine for Verilator and score.py. The sv_comb tactics cannot summarise module instances, so a real submission must be the flat single module.",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "2142.435 GE, depth 316, 1469 gates (score.py gated canonical flow, hierarchical wrapper plus a directive-stripped copy, top fdiv16). Flat single module renamed to fdiv16 with ports a,b,q: 2142.437 GE, depth 320, 1475 gates. Proved reference: 1929.778 GE, depth 299, 1293 gates. Draft baseline: 2089.081 GE, depth 298. Plain `yosys read_verilog -sv; synth -flatten` gives 3377 generic cells, matching the ~3.4k claimed.",
+   "notes": "The raw file reads fine with `read_verilog -sv` (exit 0, no warnings). score.py refuses the raw file at the source gate (five preprocessor lines) and scores the stripped copy. The gate netlist is functionally correct (see formatsTested). banlist.py --task tasks/fdiv16 on the flat module reports banned cells $div and $mod. score/fourstate.py passes with no findings. The gate mix is about 1.5k two-input gates, because Yosys lowers the 24-bit by 11-bit / and % to an unrolled divider whose area is worse than the hand-written 13-step restoring chain."
+  },
+  "extractor": {
+   "envelope": true,
+   "unsupported": [
+    "VariableSymbol:signed x6 (expa, expb, exp_r, exp_f, biased, sh_amt)"
+   ],
+   "notes": "extractors/sv/extract.py --top fdiv16 on the flat module exits 0 and writes a schema sv-0.2 envelope (about 247 KB for the wrapper plus dgrid pair). The only Unsupported nodes are the six signed variable declarations; Design2.hasUnsupported would refuse the design at the `design` stage. Other nodes the envelope carries are in or near the tactics' refusal list (read from PROVING.md and CombView.lean, not run through Lean): 6 signed Cast nodes ($signed), signed ops s>, s>= and s<=, run-time u/ and u% (CombView: only a literal divisor is accepted in a localparam, and word-level `/` is not in the v1 fragment), 22 Resize width conversions (the fragment wants operands exactly as wide as the target), indexed and constant part-selects with a localparam bound (qn[DIVF -: 11], qn[DIVF-13:0], sh_amt[4:0]), shift amounts that are expressions (siga << (4'd10 - la)), and concatenations inside ?: arms. The extractor needs pyslang from the user site, so run python3.12 without -I. With -I it dies with ModuleNotFoundError. Running the extractor on the hierarchical wrapper also works, but the tactics refuse instances."
+  },
+  "proofFeasibility": {
+   "judgement": "Not provable as written, because of the blockers below (read from PROVING.md, REFUSALS.md and the CombView/CombKnownBits sources, not run through Lean). Provable after a stated rewrite into the flat v1 fragment: 13 explicit restoring steps for the divide, unsigned offset-exponent arithmetic, named signals. That rewrite is the fdiv16 reference's datapath with a different exponent and rounding arrangement. The correctness argument is a variation of the already-proved fdiv16 math, so there is nothing new to discover. The whole 3.2G-pair exhaustive result plus my parametric experiment says the algorithm itself is right (DIVF=P+2 holds at every tested format).",
+   "blockers": [
+    "Run-time `/` and `%` (two cells): banned by the fdiv16 task banlist, outside the v1 tactic fragment, and the x-free knownness fragment has no division (xfWidth = none), so q's knownness would need a manual masking argument for b = 0. Keeping them would need an ls-sv/tactic PR (the maintainers approve) plus a variant task without the ban. The math would then be easier, since Nat division is the spec, but the tactic work is real.",
+    "Six signed declarations (expa, expb, exp_r, exp_f, biased, sh_amt), $signed casts and signed compares: Unsupported in the extractor and outside the fragment. Rewrite with unsigned wrap-around and an exponent offset, as the reference does (eoff = xa + lzb + 47 - xb - lza - adj, 7-bit unsigned).",
+    "Constructs the fragment refuses and the reference already works around: indexed or legacy part-selects (need localparam-bound declarations), shift amounts that are expressions (name them), concatenation operands and arms inside ?: (name the words), comparisons inside conditions (write them into one-bit signals), and operands not exactly as wide as the target (22 Resize nodes).",
+    "Fixed format: a proof is only of the fixed-format statement (like fdiv16's StatementFixed), not of the parametric fdiv #(W,P). A general (W,P) version would need affine-bounded generate structure. The priority-encoder or log-stage normaliser has a non-affine stage count, so it would have to become a P-stage or generate-loop chain. My hand re-parameterisation (loop-based, signed, uses / and %) shows the algorithm generalises but is itself far outside the fragment.",
+    "Different rounding structure from the reference: rounds the 11-bit significand first, handles the carry into the exponent, then re-rounds a separate subnormal path from the unrounded significand with G, R and an exact sticky bit, shifted by up to 23. The proof needs a new certificate lemma for that; the rounding core and certificate files cannot be reused unchanged.",
+    "The sv_equations heartbeat cost grows with site count: the reference is 111 sites at about 260k heartbeats, and this rewrite would be perhaps 150-200 sites."
+   ],
+   "estimate": "Extrapolated from the existing fdiv16 files, not measured. Rewritten SV: about 150-200 flat assign sites. Lean: reusable Nat-level facts already exist (DpModel, DpRound, DpCert, Cert16, about 1.4k lines: normalizer, quotient with sticky, exponent sum, rounding). New work: a BitVec model of the new netlist plus glue (DpBv 874 plus DpGlue 416 lines for the reference, so a similar 1.2-1.5k) and a new rounding-then-subnormal certificate of roughly 400-700 lines. Total new roughly 1.5-2.5k lines (about the size of the original WP-H2 effort), with a longer sv_equations run (maxHeartbeats raised to maybe 600k-1M). If run-time `/` and `%` were first added to the tactics, the quotient step drops out and the rest (about 1k lines) remains."
+  },
+  "verdict": "Correct and worth keeping as an independent, differently built reference for the same function as fdiv16 (priority-encoder normaliser, exact `/` and `%` quotient with sticky from the remainder, a separate single-rounding subnormal path). It is EXACT at binary16 (W=5, P=11) with no functional wrapper: all 2^32 pairs match _Float16, 2.1M structured and random pairs match the exact Python oracle, and the scored gate netlist agrees. As a task submission it is poor: banlist-rejected for `/` and `%`, signed declarations are outside ls-sv, it needs a flat rewrite and a manual proof, and it scores 2142 GE against the proved reference's 1930 GE. Its best uses are (1) a cross-check of the spec and oracle by an independent author, (2) a motivating case for the ls-sv PRs that add signed declarations and run-time `/` and `%` to the tactics, and (3) the starting algorithm for a (W,P)-parametric rewrite. My hand re-parameterisation matches the oracle on all 66 formats with W+P<=14, so the algorithm is generic (a parametric proof would need an affine-stage normaliser and a restoring chain in place of `/` and `%`).",
+  "measuredVsRead": "MEASURED. I fetched the file from GitHub and it is byte-identical to the search stage's copy (diff). Verilator lint warnings are only width and unused-bit ones (WIDTHEXPAND, WIDTHTRUNC, UNUSEDSIGNAL). Exhaustive 2^32 simulation of the unmodified RTL against _Float16 gave 0 mismatches. The Python exact oracle run gave 0 mismatches on 2.096M pairs, and the C++ host reference also agrees with the oracle there. A mutant that drops sbit from the round-up term is caught by both harnesses. The score.py gate refused the raw file (preprocessor lines) and scored the stripped copy at 2142.435 GE depth 316 (1469 gates), or 2142.437 GE depth 320 (1475 gates) as one flat module. A plain Yosys synth gave 3377 cells. The gate netlist was simulated with simcells.v: one 2^29 exhaustive slice and 396,000 oracle pairs, 0 mismatches. banlist.py reports $div and $mod for the fdiv16 task. fourstate.py passes. Icarus 4-state gives a known q for divide-by-zero cases. The extractor made an envelope whose only Unsupported nodes are six signed declarations. My hand re-parameterisation was run exhaustively on all 66 formats with W+P<=14 (3,817,748,736 pairs, 0 mismatches) and on four larger formats by sampling; my C++ references agree with the Python oracle (two reference bugs of mine, double overflow at W>=10 and an integer shift, were found and fixed). READ, not measured: all proof-feasibility judgements (the v1 fragment limits come from PROVING.md, REFUSALS.md and CombView.lean, CombKnownBits.lean; I did not run Lean or lake), the size estimates, the licence interpretation (only a missing LICENSE file observed), and the claim that the proved fdiv16 math is reusable (I skimmed DpModel's header and the plan, not the proofs). I did not run the repo's check.py postsynth, and I did not run 4-state simulation beyond six Icarus vectors.\""
+ },
+ {
+  "name": "drewbabel/riscv-vector rtl/fp_div_sqrt.sv (+ rtl/fp_pkg.sv)",
+  "url": "https://github.com/drewbabel/riscv-vector/blob/main/rtl/fp_div_sqrt.sv",
+  "license": "Apache-2.0 WITH SHL-2.1 (Solderpad Hardware License 2.1 wraparound, read from the LICENSE file of the fetched copy; option to treat as plain Apache-2.0). Stars and repo metadata not re-checked by me.",
+  "runAs": "Verilator 5.042 (--cc --exe --build -O3 --no-timing), my wrapper tb/dut_top.sv around fp_div_sqrt with -GExpW=W -GFracW=P-1, rm=3'b000, sqrt=0, core_en=1, rst_n pulsed low for 3 cycles, one-cycle start, read result when done=1; C++ harness tb/harness.cpp (and tb/harness_wide.cpp for >64-bit ports). Measured latency start edge to done: P+5 cycles for finite nonzero operands, 2 cycles for special operands (NaN/inf/zero); a new start is accepted in the DONE state. All under <scratchpad>/fdivsurvey/eval_drewbabel_riscv_vector_rtl_fp_div_sqrt_s/",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 2,
+    "p": 2,
+    "pairs": 256,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 3,
+    "p": 2,
+    "pairs": 1024,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 3,
+    "p": 3,
+    "pairs": 4096,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 3,
+    "p": 4,
+    "pairs": 16384,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 2,
+    "pairs": 4096,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 3,
+    "pairs": 16384,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 4,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 5,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 6,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 7,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 4,
+    "p": 8,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 2,
+    "pairs": 16384,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 3,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 4,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 5,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 6,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 7,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 6,
+    "p": 2,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 6,
+    "p": 3,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 6,
+    "p": 4,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 6,
+    "p": 5,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 6,
+    "p": 6,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 7,
+    "p": 2,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 7,
+    "p": 3,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 7,
+    "p": 4,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 7,
+    "p": 5,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 8,
+    "p": 2,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 8,
+    "p": 3,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 8,
+    "p": 4,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 9,
+    "p": 2,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 9,
+    "p": 3,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 10,
+    "p": 2,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "RTL all pairs"
+   },
+   {
+    "w": 5,
+    "p": 8,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 5,
+    "p": 9,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 6,
+    "p": 7,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 6,
+    "p": 8,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 7,
+    "p": 6,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 7,
+    "p": 7,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 8,
+    "p": 5,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 8,
+    "p": 6,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 9,
+    "p": 4,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 9,
+    "p": 5,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 10,
+    "p": 3,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 10,
+    "p": 4,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 11,
+    "p": 2,
+    "pairs": 12582912,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 11,
+    "p": 3,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 12,
+    "p": 2,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL 18.75% strided slices"
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 2200000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 8,
+    "p": 8,
+    "pairs": 2200000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 2200000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 11,
+    "p": 53,
+    "pairs": 2200000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 5,
+    "p": 16,
+    "pairs": 1000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 6,
+    "p": 32,
+    "pairs": 1000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 6,
+    "p": 20,
+    "pairs": 1000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 10,
+    "p": 30,
+    "pairs": 1000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 7,
+    "p": 40,
+    "pairs": 1000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   },
+   {
+    "w": 15,
+    "p": 113,
+    "pairs": 200000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "RTL random+corner vs python oracle"
+   }
+  ],
+  "conformance": "Bit-exact against the exact oracle at everything I tested, in the covered range P <= 2^(W-1). Real RTL, 0 mismatches: ALL pairs of the 32 covered formats with W+P <= 12 (149,153,024 pairs, vs my integer C++ reference); 18.75 percent of all pairs (strided slices of the a range, all b) of the 15 covered formats with W+P = 13 or 14 (490,733,568 pairs; the full 13/14-bit sweep was not feasible on the machine, load average 130 to 230); random+corner pairs vs fdiv_oracle.py: 2.2M each at (5,11), (8,8), (8,24), (11,53), 1M each at (5,16), (6,32), (6,20), (10,30), (7,40), 200k at the 128-bit-port format (15,113): 0 mismatches in every one. My combinational unroll of the divide path (comb/fdiv_comb.sv) matches the exact reference on ALL pairs of all 47 covered formats with W+P <= 14 (2,766,398,720 pairs, 0 mismatches); its lowered form fdiv_flat.sv: all pairs for the 32 formats with W+P <= 12 plus 1M random pairs each at (5,11), (8,8), (8,24), (11,53) vs the Python oracle, 0 mismatches. NaN results are always the canonical quiet NaN (sign 0), including sNaN, negative NaN and payload operands; x/0, inf/y, x/inf, 0/y signs, full subnormals, ties-to-even and overflow-to-infinity all agree. Classification of mismatches in the covered range: none in any class. Outside the covered range (guard removed in an experimental copy) the design is WRONG at some formats, see differences.",
+  "differences": [
+   "Interface and timing: the module is a sequential FSM (IDLE/PREP/ITER/ROUND/DONE) with clk, rst_n, core_en, start, sqrt, rm[2:0], a, b and outputs result, fflags, busy, done. It is not a combinational a,b->q circuit; measured P+5 cycles per division (P+2 restoring iterations), 2 cycles when an operand is NaN/inf/zero.",
+   "Extra functionality not in the spec: rm port with five RISC-V rounding modes (RNE only when rm=3'b000, which I pin), a square-root path (sqrt=0 pinned), fflags outputs (ignored). None changes the RNE divide result.",
+   "Covered (W,P) range: the RTL has an elaboration $error unless FracW < 2^(ExpW-1) and SigW <= 128, i.e. W>=2 and 2<=P<=2^(W-1) (checked with Verilator lint: USERERROR fires at (3,5)); covered formats include (2,2), (3,4), (4,8), (5,11), (5,16), (6,32), (8,8), (8,24), (11,53), (15,113). With the guard deleted in my experimental copy the design is still exact at (2,5), (2,6), (3,5..8) (exhaustive), (4,9) and (4,10) (sampled, 0 mismatches over 32 exponent/sign slices each) and (5,17) (1M random), but WRONG at (2,7), (2,8), (2,9), (2,10), (2,12), (3,9), (3,10), (4,14), (5,24): a huge quotient (for example a=0x1edc38a5, b=0x1 at (5,24)) wraps the W+2-bit exponent register and returns a signed zero instead of a signed infinity (also some subnormal-result errors at W=2); counts: (2,7) 256 of 2^18 pairs, (3,9) 1024 of 2^24, (2,10) 45044 of 2^24, 878 of 1M random at (3,10), 618 of 1M at (5,24). So the guard is real, though conservative at some formats.",
+   "Source constructs: module-header package import lists (import fp_pkg::a, fp_pkg::b;), package functions with for-loops, enum FSM, size casts N'(...), and an elaboration $error. Yosys 0.53 read_verilog -sv cannot read it (syntax error at line 4, and import of a package inside the module body is refused too; only fully qualified pkg::name works in expressions).",
+   "Repo state: created 2026-08-29, fp_div_sqrt.sv first committed 2026-10-16, own testbench only (random $urandom plus a few constants), no external users."
+  ],
+  "wrapperNeeded": "Functional wrapper: tie sqrt=0, rm=3'b000 (RNE), core_en=1; reset; drive start for one cycle; sample result when done. For the combinational svGolf flow a mechanical rewrite is also needed (not a thin wrapper): unroll the FSM into QuoW=P+2 identical restoring steps, inline the package functions, drop sqrt/flags. I wrote that rewrite (comb/fdiv_comb.sv, and a lowered comb/fdiv_flat.sv) and verified it.",
+  "yosys": {
+   "reads": false,
+   "geAtFormat": "Original: not scoreable by the combinational flow (sequential, and Yosys cannot read it). My unrolled combinational rewrite comb/fdiv_comb.sv scored with the pinned score.py (gated): (2,2) 142.316 GE depth 26; (3,3) 287.967 GE depth 40; (4,5) 630.260 GE depth 81; (8,8) 1388.511 GE depth 168; (5,11) 2031.765 GE depth 280 (1395 gates). The lowered comb/fdiv_flat.sv: (5,11) 2052.434 GE depth 271; (8,8) 1375.849 GE depth 164. (8,24) did not finish: the pinned flow's Yosys step timed out after 1800 s under machine load 100 to 230, so no number. For reference (read from the repo, not re-measured): fdiv16 first circuit 2089.081 GE depth 298, proved reference 1929.778 GE depth 299.",
+   "notes": "score.py on the original (gated, and --no-gate) fails: 'yosys failed: syntax error, unexpected TOK_ID, expecting ( or ; or #' at fp_div_sqrt.sv:4, the module-header import list. Further probes with small files: import pkg::* inside the module body is also a Yosys syntax error, only fully qualified pkg::name in expressions parsed; even if read, flip-flops are not priced by the GE table (exit 1). 'sequential: not scoreable by the combinational flow'. The area numbers above are for MY combinational unroll of the divide path, verified exact (see conformance), not for the author's file."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extract.py --top fp_div_sqrt fp_pkg.sv fp_div_sqrt.sv gives a symbolic sv-0.2 envelope (450,831 bytes) with 27 Unsupported nodes, plus constructs outside the combinational fragment: 1 AlwaysPosedge with 47 NonblockingAssign (the FSM), 14 Import nodes, an EnumType/EnumRef pair, GenerateIf, AlwaysComb with If/Case. First blockers: sequential logic itself, then the size casts, the user-function call fp_round_up in the tininess expression (line 195), the $error (line 55). My unroll comb/fdiv_comb.sv extracts with 26 Unsupported (6 net-z for wire-with-initializer, 16 explicit casts, 2 width conversions, 2 default-point-fold). My lowered comb/fdiv_flat.sv (logic+assign only, zero extension by concatenation/replication, exact-width localparams, no declarations in generate, two generate-for loops, about 44 assigns) extracts with ZERO Unsupported nodes (measured). Whether sv_structure/sv_equations accept it was NOT tested (Lean off limits); from design/fdiv-param/H2-NOTE.md (read, 2026-11-01 state) replication, indexed part selects (+:), constant part selects with literal bounds, and concatenation operands of + were refused by the tactics, and fdiv_flat.sv uses replication, +: selects and concatenation operands, so more lowering (named vectors, localparam-declared widths) is likely needed.",
+   "unsupported": [
+    "ConversionExpression:Explicit x25 (CntW'(QuoW-1), IExpW'(...), LzW'(fp_lzc(...)), FLEN'(fp_canon_nan(...)), (SigW+1)'(fp_round_up(...)), RemW'(div_rem), ...)",
+    "CallExpression x1 (fp_round_up(...) at line 195)",
+    "ElabSystemTaskSymbol:ElabSystemTask x1 ($error in the width guard, line 55)",
+    "AlwaysPosedge + NonblockingAssign x47 (sequential FSM; not Unsupported-tagged but outside the comb fragment)",
+    "Import x14 (package imports), EnumType/EnumRef (state_t)"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "Provable after a stated rewrite, not as is. The arithmetic is exact in the covered range, so a proof against the parametric fdiv statement can exist, but the sequential FSM, package imports and functions, casts and the elaboration $error are outside the sv_comb fragment, and the statement must be taken with the hypothesis 2<=W, 2<=P<=2^(W-1) (a family of fixed-size tasks, or a restricted inRange), because the design is wrong beyond the guard at several formats (measured).",
+   "estimate": "Netlist after the rewrite: about 44 assign sites plus 2 generate-for loops (P+2 restoring steps, P-step leading-zero chain). Math layer: same architecture as the repo's own fdiv16 reference (P+2 restoring steps, normalize, shift-right with sticky, RNE with carry into the exponent), whose proof took about 1000 lines at fixed format, with the rounding certificate and restore_spec already format-agnostic (read from design/fdiv-param notes); this design adds a parametric leading-zero normalizer lemma, the capped run-time right shift, and exponent arithmetic modulo 2^(W+2) needing P<=2^(W-1) range facts. My rough guess (not measured) is 1500 to 2500 lines of Lean math plus glue, several days to two weeks of focused work.",
+   "blockers": [
+    "Sequential FSM with registers and a start/done handshake: needs a combinational unroll (done by me, comb/fdiv_comb.sv, verified exact on all pairs for 47 formats with W+P<=14, and fdiv_flat.sv).",
+    "Packages, header import lists, user functions (fp_lzc, fp_round_up, ...), size casts, $error: Yosys 0.53 cannot read it and the extractor marks 27 Unsupported nodes; the lowered fdiv_flat.sv has 0 Unsupported in the envelope.",
+    "Possible tactic-fragment gaps for the lowered form (read from H2-NOTE, not tested): replication, indexed part selects, literal-bound part selects, concatenation operands of +, comparisons in ?: conditions; may need named vectors / localparam-declared widths.",
+    "Statement needs the covered-range hypothesis P<=2^(W-1): outside it the original is wrong (huge quotients wrap the W+2-bit exponent: signed zero instead of infinity), and the guard $error means the file will not elaborate there at all.",
+    "Parametric normalizer (leading-zero count over P bits), the capped shift (ShCap) and the W+2-bit signed exponent arithmetic are the new lemmas versus the fdiv16 reference proof."
+   ]
+  },
+  "verdict": "WRAPPER: functionally bit-exact (0 mismatches everywhere tested) at every covered (W,P), P<=2^(W-1), once rm=3'b000, sqrt=0, core_en=1 are tied and the start/done handshake is driven; DIFFERS (and refuses to elaborate) outside that range. It is sequential and unreadable by Yosys as written, so it is not scoreable or provable in the combinational flow until unrolled and lowered, which I did: comb/fdiv_comb.sv scores 2031.765 GE depth 280 at (5,11), comb/fdiv_flat.sv extracts with 0 Unsupported. Good candidate for a proof after that rewrite, same algorithm as the repo's fdiv16 reference.",
+  "measuredVsRead": "MEASURED: the real RTL (fp_div_sqrt.sv + fp_pkg.sv, unmodified) simulated in Verilator through my dut_top wrapper: exhaustive on all 32 covered formats with W+P<=12 against my integer C++ reference, 18.75 percent strided coverage of the 15 formats with W+P=13/14, random+corner sets against the independent fdiv_oracle.py at (5,11), (8,8), (8,24), (11,53), (5,16), (6,32), (6,20), (10,30), (7,40) and (15,113); my C++ reference agreed with the Python oracle on every pair of those Python-checked sets (about 14M pairs); cycle counts (P+5, or 2 for specials) measured per operation; the Verilator USERERROR guard firing; the guard-removed experiment (exhaustive or sampled at 13 formats, random at 5 more) with its mismatch counts; Yosys refusal of the original (several small probes); the pinned score.py numbers for my combinational rewrites; the extractor envelopes and their Unsupported nodes (original, comb, flat); equivalence of my rewrites (comb: all pairs for 47 formats W+P<=14; flat: all pairs for 32 formats plus 4M random vs the Python oracle). READ only: the RTL text itself (algorithm description, the five-state FSM, the unused sqrt path), the licence text, the repo history and star count (given in the task, not re-queried), the fdiv16 reference/proof sizes and area figures (from the repo docs and fdiv16_draft.sv), and the tactic-fragment limits (design/fdiv-param/H2-NOTE.md). NOT done: any Lean run (forbidden), so tactic acceptance and the proof-size estimate are judgement, not measurement; the full exhaustive sweep of the real RTL at W+P=13 and 14 (only 18.75 percent measured; the unrolled rewrite covers 100 percent); scoring at (8,24) and (11,53) (timeout under load); simulation of the real RTL at formats wider than (15,113) or with other rounding modes."
+ },
+ {
+  "name": "Berkeley HardFloat divSqrtRecFN_small (Verilog, Release 1)",
+  "url": "https://jhauser.us/arithmetic/HardFloat.html (zip http://www.jhauser.us/arithmetic/HardFloat-1.zip; local copy <scratchpad>/fdivsurvey/search_iterative/hf/HardFloat-1/)",
+  "license": "BSD-3-Clause (UC Regents 2019, COPYING.txt and per-file headers; read, not a concern)",
+  "runAs": "Sequential, simulated with Verilator 5.042 through my wrapper tb/hf_top.v (fNToRecFN x2 -> divSqrtRecFN_small#(W,P,0) with sqrtOp=0, control=1'b1, roundingMode=3'b000 -> recFNToFN). Testbench (tb/tb.cpp): nReset low for 2 ticks, wait inReady, apply a,b with inValid for one edge, tick until outValid, read q. Specialization RISCV/HardFloat_specialize.vi. Compared inline with my C++ 128-bit integer oracle (tb/oracle.h), which I cross-checked against fdiv_oracle.py (14.1M pairs, 0 disagreements: all 28 formats with W in 2..8, P in 2..8, W+P<=10 exhaustively, plus 12 larger formats at 400k generated pairs). Latency: operands with NaN/inf/zero give outValid after 1 edge; normal operands P+1 or P+2 edges counting the accepting edge as 1 (12 or 13 at (5,11), 25 or 26 at (8,24), 54 or 55 at (11,53)).",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 5,
+    "p": 9,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14, zero-init registers"
+   },
+   {
+    "w": 6,
+    "p": 8,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14"
+   },
+   {
+    "w": 7,
+    "p": 7,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14"
+   },
+   {
+    "w": 8,
+    "p": 6,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14"
+   },
+   {
+    "w": 9,
+    "p": 5,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14"
+   },
+   {
+    "w": 10,
+    "p": 4,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14"
+   },
+   {
+    "w": 11,
+    "p": 3,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, W+P=14 (the other 29 in-range formats with W+P<=13 were also exhaustive, 0 mismatches; 36 formats in all)"
+   },
+   {
+    "w": 4,
+    "p": 7,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, boundary p=2^(W-2)+3; also exhaustive with random initial registers"
+   },
+   {
+    "w": 3,
+    "p": 5,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "in range, boundary"
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 10000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "binary16, boundary; random+corner (subnormal-result, near-overflow, powers of two, specials), part with random initial state"
+   },
+   {
+    "w": 8,
+    "p": 8,
+    "pairs": 10000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "bfloat16, random+corner"
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 10000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "binary32, random+corner"
+   },
+   {
+    "w": 11,
+    "p": 53,
+    "pairs": 10000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "binary64, random+corner"
+   },
+   {
+    "w": 6,
+    "p": 19,
+    "pairs": 4000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "boundary p=2^(W-2)+3"
+   },
+   {
+    "w": 7,
+    "p": 35,
+    "pairs": 4000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "boundary p=2^(W-2)+3"
+   },
+   {
+    "w": 8,
+    "p": 53,
+    "pairs": 4000000,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "in range, k=61"
+   },
+   {
+    "w": 3,
+    "p": 6,
+    "pairs": 262144,
+    "mismatches": 3288,
+    "exhaustive": true,
+    "classes": "outside range (p one above bound): underflow/subnormal 3220, overflow-threshold 56, spurious NaN 12; e.g. a=1 b=2 got=0 want=0x40"
+   },
+   {
+    "w": 4,
+    "p": 8,
+    "pairs": 3000000,
+    "mismatches": 89903,
+    "exhaustive": false,
+    "classes": "outside range: underflow 73647, overflow-threshold 11858, spurious NaN 4398"
+   },
+   {
+    "w": 5,
+    "p": 12,
+    "pairs": 3000000,
+    "mismatches": 83173,
+    "exhaustive": false,
+    "classes": "outside range: underflow 59093, overflow-threshold 20143, spurious NaN 3937; e.g. a=0x1ab2 b=0xe800 got=0 want=1"
+   },
+   {
+    "w": 7,
+    "p": 36,
+    "pairs": 3000000,
+    "mismatches": 65733,
+    "exhaustive": false,
+    "classes": "outside range (p one above bound)"
+   },
+   {
+    "w": 2,
+    "p": 9,
+    "pairs": 4194304,
+    "mismatches": 2250776,
+    "exhaustive": true,
+    "classes": "W=2 (unsupported): underflow 1406700, spurious NaN 676316, overflow-threshold 167760; e.g. a=1 b=1 got=0 want=0x100"
+   },
+   {
+    "w": 9,
+    "p": 2,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "P=2 (below documented p>=3) still exact; all of (3..9,2) exhaustive, (10..12,2) 3M random"
+   }
+  ],
+  "conformance": "WRAPPER",
+  "differences": [
+   "IN DOCUMENTED RANGE (w>=3, p>=3, p<=2^(w-2)+3): no functional difference found. 0 mismatches in 2.63e9 pairs over 54 formats: all 36 formats with W+P<=14 exhaustively (2,391,773,184 pairs from zero-initialised registers, another 110,071,808 pairs for the formats with W+P<=12 with randomised initial register state), plus 132,000,000 random-and-corner pairs (36 small formats x 1M with random initial state, and 18 larger formats at 4M each, 10M each at (5,11),(8,8),(8,24),(11,53)). No NaN-payload, NaN-sign, flush-to-zero, rounding, overflow-threshold or special-case mismatch ever occurred.",
+   "NOT COMBINATIONAL: ports clock, nReset (asynchronous active-low), control, inValid, inReady, sqrtOp, outValid, sqrtOpOut, 3-bit roundingMode, exceptionFlags; operands/results are recoded W+P+1-bit words (the package converters are used in the wrapper); result valid on outValid for one cycle, then held until the next operation. Divide-only use needs sqrtOp=0, which leaves the sqrt datapath in the netlist.",
+   "OUTSIDE THE DOCUMENTED RANGE it is wrong, as the doc warns. Measured over 37 formats (73,689,408 pairs, 10,574,508 mismatches): W=2 fails for every P (e.g. (2,2): 92 of 256 pairs, first a=1 b=1 got=0 want=2; (2,9): 2,250,776 of 4,194,304 exhaustive). Sharp boundary in p: (3,5),(4,7),(5,11),(6,19),(7,35) pass, (3,6),(4,8),(5,12),(6,20),(7,36) fail (e.g. (3,6): 3,288 of 262,144 exhaustive; (5,12): 83,173 of 3M random, a=1ab2 b=e800 got=0 want=1). Mismatch classes outside range: subnormal/underflow results 6,374,811, spurious NaN 2,560,265, inf/zero special cases 998,370, overflow threshold 641,062; never sign-only, 1-ulp rounding or NaN payload. Cause is read from the source: the recoded zero code needs exp[W:W-2]==000, so the smallest subnormal exponent 2^(W-1)+2-(p-1) must stay >= 2^(W-2), i.e. p <= 2^(W-2)+3.",
+   "P=2 formats work although the doc requires p>=3: (3,2)..(9,2) exhaustive and (10,2),(11,2),(12,2) at 3M random pairs, 0 mismatches. The task's spec allows P>=2 and W>=2, so the task formats (W=2, or p above the bound) are not covered: W=2 never, p above 2^(W-2)+3 never.",
+   "Not tested by me: (15,113) binary128 (needs >64-bit ports in my testbench), (8,67) and larger (k>64), back-to-back operation while outValid is high, exception flags (unused), the other four rounding modes (pinned RNE), sqrt.",
+   "Latency is data dependent: 1 edge for NaN/inf/zero operands, P+1 or P+2 edges otherwise (skipCycle2 when the first quotient bit is 1).",
+   "Flat Yosys word-level cell count at (5,11) of my unrolled rewrite is 219 (excluding $scopeinfo), versus 120 for the repository's fdiv16 reference (same command, measured): the recoding conversions and the generic six-mode rounder add structure the task-specific reference does not have."
+  ],
+  "wrapperNeeded": "Yes, two levels. (1) To run it as a,b -> q at all: IEEE<->recoded conversion (fNToRecFN on both operands, recFNToFN on the result, both in the package), pin sqrtOp=0, control=1, roundingMode=000, and a clock/nReset/inValid/inReady/outValid handshake. With the RISCV specialization this alone is bit-exact with the task spec in range, including canonical NaN. (2) To enter the repository's combinational flow: a clocked, handshaking design cannot be a combinational a,b,q module, so I wrote an unrolled combinational rewrite, comb/hf_div_comb.v (about 85 lines; reuses fNToRecFN, recFNToRawFN, isSigNaNRecFN, roundRawFNToRecFN, recFNToFN unchanged, replaces the P+2-cycle restoring recurrence including the skipCycle2 rule by generate-for steps). It matches the oracle: exhaustive at (3,3),(3,4),(3,5),(4,5),(4,7),(6,6),(5,8),(7,5), random 2M pairs at (5,11),(8,8),(8,24) and 1M at (11,53),(6,19),(7,35),(5,10), 0 mismatches. Also needed: Verilator 5.042 rejects divSqrtRecFN_small.v:305 (`wire sqrtOpOut;` redeclares an ANSI output port) under every --language I tried (1364-2005, 1364-2001, 1800-2005, +1364-2005ext+v), contradicting the note that --language 1364-2005 works. I deleted that one line in a copy (patch/divSqrtRecFN_small.v); Yosys 0.53 accepts the original. For the source gate, the .v/.vi must also be preprocessed into one text with no `include/`define/`ifdef (I used verilator -E, stripped the `line markers).",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "Original: sequential, not scoreable by the combinational flow. score.py on a preprocessed flat copy (passes the source gate) fails with: netlist has cells the GE table does not price {$_DFFE_PN0P_:4,$_DFFE_PP_:32,$_SDFFCE_PN0P_:12,$_SDFFCE_PP0P_:2,$_SDFFCE_PP1P_:2} = 52 flip-flops at (5,11). My unrolled combinational rewrite hf_div_comb (flat preprocessed text, pinned score.py): (5,11) 2300.057 GE, depth 283, 1647 gates (repository fdiv16 reference: 1929.778 GE, depth 299, from its README, not re-measured); (8,8) 1483.492 GE depth 182; (4,7) 1111.197 depth 143; (5,9) 1661.467 depth 215; (6,8) 1432.826 depth 184; (3,3) 319.622 depth 44; (8,24) did not finish (score.py's yosys timeout of 1800 s, machine load average about 200 at the time, so not an intrinsic number). banlist.py (/ % **) passed and fourstate.py passed on the unrolled flat text at (5,11).",
+   "notes": "Yosys 0.53 read_verilog -sv -I src -I src/RISCV reads the original 6 files plus my wrapper without error, including the redeclared wire; hierarchy/proc/flatten/opt work. Without -I it stops with \"Can't open include file `HardFloat_specialize.vi'\" (score.py passes no -I). The source gate refuses the original files for compiler directives (`include, `ifdef/`else/`endif and every macro use, 60+ hits); a verilator -E preprocessed single file passes. The only `/` operators are constant ones in localparams of compressBy2/4 (unused by the divider)."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extract.py --top hf_top (pyslang is only in the user site-packages, so run python3.12 without -I) makes an envelope for the original multi-file design with -I src -I src/RISCV (797 KB, ext/orig.json), for the flat preprocessed copy (ext/flat.json, 58 Unsupported nodes in 10 modules: roundAnyRawFNToRecFN 28, divSqrtRecFNToRaw_small 11, fNToRecFN 4, recFNToFN 4, ...), and for my unrolled combinational rewrite (ext/comb.json, 68 Unsupported nodes). It also emits 3 AlwaysPosedge blocks for the sequential original, which a combinational task cannot use. First blockers, in module order: user function clog2 (SubroutineSymbol:Subroutine and the CallExpression / Syntax:InvocationExpression that calls it, in fNToRecFN, recFNToFN, divSqrtRecFNToRaw_small); `signed` nets/ports/regs (sExp*, trialRem, in_sExp, sAdjustedExp, sRoundedExp, c in lowMaskLoHi) with the ConversionExpression:width nodes they induce; wire declarations inside generate blocks and generate-if arms (NetSymbol:net-z, 22 to 34), with ContinuousAssignSymbol:InvalidExpression on adjustedSig and countSoFar; positional parameter overrides on instances (InstanceSymbol:override-untyped-width, 5); and in my unrolled rewrite HierarchicalValueExpression (St[s-1].remO). Read from PROVING.md (not measured by me): signed declarations, >>> and * and $clog2 localparams are outside the v1 fragment.",
+   "unsupported": [
+    "SubroutineSymbol:Subroutine (clog2)",
+    "CallExpression (clog2 call)",
+    "Syntax:InvocationExpression (clog2 in a width)",
+    "NetSymbol:signed",
+    "PortSymbol:signed",
+    "VariableSymbol:signed",
+    "ConversionExpression:width",
+    "NetSymbol:net-z (wires in generate blocks)",
+    "PortSymbol:net-z",
+    "ContinuousAssignSymbol:InvalidExpression (generate-if assigns)",
+    "InstanceSymbol:override-untyped-width",
+    "HierarchicalValueExpression (unrolled rewrite only)"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "As is: not at all (sequential with clock, async reset and handshake, and spec-incompatible ports; the tactics read a flat combinational netlist). After a stated rewrite: feasible in principle for a FIXED format such as (5,11), which would be a competing proved circuit for the fdiv16 task, but it is a clear step harder than the existing reference and loses on area. For the parametric fdiv#(W,P) over HardFloat's whole range it is blocked today by tool limits plus a large new math layer, so I would not start there. The functional claim itself is not the obstacle: the design is exactly the spec in range (0 mismatches in 2.63e9 pairs), so a proof against the trusted spec is not ruled out by a difference.",
+   "blockers": [
+    "Sequential: must be unrolled to a combinational netlist (done and verified in my hf_div_comb.v, but that is a rewrite, not the HardFloat text).",
+    "Fragment gaps measured by the extractor (68 Unsupported nodes in the unrolled version, 9 modules): user function clog2, signed nets/ports, wires inside generate blocks, generate-if arms with assigns, positional parameter overrides, hierarchical references, multi-module hierarchy; read from PROVING.md: >>> (used in lowMaskLoHi, sAdjustedExp>>>, sRoundedExp>>>), localparam forms and $clog2. The repo's own H2 note records that generate families and 2-D arrays put sv_structure on a slow path, so even the loop wants a flat rewrite (13 explicit steps at (5,11), P+1 explicit steps in general).",
+    "Parametric statement: lowMaskLoHi builds a signed vector of 2^(W+1)+1 bits and shifts it by a run-time amount; that width is not affine in W, which is outside the fragment (bounds affine in the parameters) and needs a different rounder structure for a W-parametric proof.",
+    "New math beyond the fdiv16 proof (read, estimated, not proved): value-preservation of fNToRecFN (clz via reverse and lowest-set-bit, normalise, recoded exponent) and recFNToFN (denormalise), the saturating exponent quotient, the skipCycle2 case split of the recurrence, and the generic round-to-nearest-even path of roundAnyRawFNToRecFN with its mask/carry/overflow/underflow logic specialised to one mode; the restoring-division invariant itself is the same shape as in the fdiv16 reference."
+   ],
+   "estimate": "Fixed (5,11) after a flat rewrite: the netlist is about 2x the reference (219 vs 120 word-level Yosys cells, measured), so a rough guess of 1500 to 2500 lines of plain-Lean math against the roughly 1000 lines for the fdiv16 reference, plus a netlist-flattening script. Parametric (W,P): not estimated beyond 'research project'; the unrolled rewrite also scores worse on area than the existing reference at (5,11) (2300.057 vs 1929.778 GE) while being shallower (283 vs 299), so it would only matter as a depth-oriented point."
+  },
+  "verdict": "WRAPPER. Functionally exact with the task spec across everything in HardFloat's documented range (w>=3, p>=3, p<=2^(w-2)+3): 0 mismatches in 2.63e9 pairs over 54 formats, 36 of them exhaustive, after a thin conversion and handshake wrapper (canonical NaN comes for free from the RISCV specialization). It is a sequential, handshaking design, so it cannot be scored or proved by the combinational flow as is; my unrolled combinational rewrite is verified equal and scores 2300.057 GE / depth 283 at (5,11) against the existing fdiv16 reference's 1929.778 GE / depth 299. Fails outside its range (W=2, p above 2^(w-2)+3). A proof is feasible only for a fixed format after a flat rewrite and is clearly harder than the existing reference; a parametric proof over its whole range is blocked by tool and math effort. Lower priority than a purpose-built combinational divider.",
+  "measuredVsRead": "MEASURED by me: Verilator 5.042 build of the unmodified design (the sqrtOpOut redeclaration error persists under every --language flag I tried); bit-exactness of divSqrtRecFN_small behind my IEEE wrapper against an independent C++ integer oracle, which I validated against fdiv_oracle.py (14.1M pairs, 0 disagreements): 36 in-range formats with W+P<=14 exhaustively (2.39e9 pairs) plus random-initial-register-state reruns, 54 in-range formats randomly (132M pairs), 37 out-of-range formats with their mismatch classes and counts, the sharp p<=2^(W-2)+3 boundary, W=2 failures, P=2 success, latencies (1 or P+1/P+2 edges); Yosys 0.53 reads original and flat text; score.py refusals (source gate on directives, flip-flop cells) and, for my own unrolled combinational rewrite, areas/depths at (3,3),(4,7),(5,9),(6,8),(5,11),(8,8) plus banlist and fourstate passes; extractor envelopes for the original, flat and unrolled variants with Unsupported node counts and kinds; the unrolled rewrite's equivalence to the oracle; word-level cell counts (219 vs 120). READ only: the documented range statement and the cause of the p bound (doc plus source reasoning, the bound's sharpness was measured), BSD-3-Clause terms, the fdiv16 reference score 1929.778 GE / depth 299 and its 1000-line proof size (repository README/H2-NOTE), which constructs are outside the sv_structure/sv_equations fragment (PROVING.md; I did not run Lean or the tactics), and the SoomRV/bsg_manycore/BSG-fork remarks from the candidate description, which I did not look at. NOT measured: (15,113), formats with W+P>64, non-RNE modes, sqrt, exception flags, (8,24) area (timed out under load), and any proof effort number, which is a guess from netlist size. Files: <scratchpad>/fdivsurvey/eval_Berkeley_HardFloat_divSqrtRecFN_small_Ve/ (tb/hf_top.v, tb/tb.cpp, tb/oracle.h, tb/gen.h, tb/agg.py, patch/divSqrtRecFN_small.v, comb/hf_div_comb.v, flat/hf_comb_pp.v, flat/score_5_11.json, ext/*.json, work/res/*.txt, work/orccheck.log)."
+ },
+ {
+  "name": "Berkeley HardFloat divSqrtRecFN_small (Verilog, Release 1) with fNToRecFN and recFNToFN",
+  "url": "https://github.com/mathis-s/SoomRV/tree/master/hardfloat (files byte-identical to the survey copy; upstream: John R. Hauser, Berkeley HardFloat Release 1, jhauser.us; Chisel original ucb-bar/berkeley-hardfloat)",
+  "license": "BSD-3-Clause (COPYING.txt: Berkeley HardFloat Release 1, (c) 2019 The Regents of the University of California, John R. Hauser). The SoomRV repository itself is MIT (257 stars); the 394 stars in the task text belong to ucb-bar/berkeley-hardfloat, the Chisel original, not to the Verilog copy.",
+  "runAs": "Sequential FSM (not combinational). Verilator 5.042 with my own wrapper hf_wrap (fNToRecFN x2 -> divSqrtRecFN_small with sqrtOp=0, roundingMode=3'b000=RNE, control=tininessAfterRounding -> recFNToFN) and my own C++ driver: apply a,b with inValid, count the start edge as cycle 1, run until outValid, read q. Latency measured: 1 cycle for NaN/inf/zero operands, P+1 or P+2 cycles otherwise (e.g. 12/13 at (5,11), 25/26 at (8,24), 54/55 at (11,53)). Both entry modes were used (from idle, and back to back in the outValid cycle), and a run with randomized initial register state (+verilator+rand+reset+2) also gave 0 mismatches. Also a combinational run-to-completion form (details under wrapperNeeded).",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 2,
+    "p": 2,
+    "pairs": 256,
+    "mismatches": 92,
+    "exhaustive": true,
+    "classes": "seq flush_to=84 overflow_edge=8"
+   },
+   {
+    "w": 2,
+    "p": 3,
+    "pairs": 1024,
+    "mismatches": 532,
+    "exhaustive": true,
+    "classes": "seq flush_to=368 special_operand=88"
+   },
+   {
+    "w": 2,
+    "p": 4,
+    "pairs": 4096,
+    "mismatches": 2204,
+    "exhaustive": true,
+    "classes": "seq flush_to=1296 other_subnormal=372"
+   },
+   {
+    "w": 2,
+    "p": 5,
+    "pairs": 16384,
+    "mismatches": 8500,
+    "exhaustive": true,
+    "classes": "seq flush_to=5952 spurious_nan=1236"
+   },
+   {
+    "w": 2,
+    "p": 6,
+    "pairs": 65536,
+    "mismatches": 34612,
+    "exhaustive": true,
+    "classes": "seq flush_to=15572 spurious_nan=10428"
+   },
+   {
+    "w": 2,
+    "p": 7,
+    "pairs": 262144,
+    "mismatches": 139472,
+    "exhaustive": true,
+    "classes": "seq flush_to=52988 spurious_nan=42136"
+   },
+   {
+    "w": 2,
+    "p": 8,
+    "pairs": 1048576,
+    "mismatches": 561472,
+    "exhaustive": true,
+    "classes": "seq flush_to=189028 spurious_nan=168900"
+   },
+   {
+    "w": 2,
+    "p": 9,
+    "pairs": 4194304,
+    "mismatches": 2250776,
+    "exhaustive": true,
+    "classes": "seq other_subnormal=707244 flush_to=697196"
+   },
+   {
+    "w": 2,
+    "p": 10,
+    "pairs": 16777216,
+    "mismatches": 8625356,
+    "exhaustive": true,
+    "classes": "seq other_subnormal=3509012 spurious_nan=2709824"
+   },
+   {
+    "w": 3,
+    "p": 2,
+    "pairs": 1024,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 3,
+    "p": 3,
+    "pairs": 4096,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 3,
+    "p": 4,
+    "pairs": 16384,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 3,
+    "p": 5,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 3,
+    "p": 6,
+    "pairs": 262144,
+    "mismatches": 3288,
+    "exhaustive": true,
+    "classes": "seq flush_to=3220 overflow_edge=56"
+   },
+   {
+    "w": 3,
+    "p": 7,
+    "pairs": 1048576,
+    "mismatches": 91940,
+    "exhaustive": true,
+    "classes": "seq off_by=65744 flush_to=16544"
+   },
+   {
+    "w": 3,
+    "p": 8,
+    "pairs": 4194304,
+    "mismatches": 375836,
+    "exhaustive": true,
+    "classes": "seq off_by=265264 other_subnormal=44696"
+   },
+   {
+    "w": 3,
+    "p": 9,
+    "pairs": 16777216,
+    "mismatches": 1522240,
+    "exhaustive": true,
+    "classes": "seq off_by=1070948 other_subnormal=221336"
+   },
+   {
+    "w": 4,
+    "p": 2,
+    "pairs": 4096,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 4,
+    "p": 3,
+    "pairs": 16384,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 4,
+    "p": 4,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 4,
+    "p": 5,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 4,
+    "p": 6,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 4,
+    "p": 7,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 4,
+    "p": 8,
+    "pairs": 16777216,
+    "mismatches": 188760,
+    "exhaustive": true,
+    "classes": "seq flush_to=187732 overflow_edge=1016"
+   },
+   {
+    "w": 5,
+    "p": 2,
+    "pairs": 16384,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 3,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 4,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 5,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 6,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 7,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 6,
+    "p": 2,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 6,
+    "p": 3,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 6,
+    "p": 4,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 6,
+    "p": 5,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 6,
+    "p": 6,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 7,
+    "p": 2,
+    "pairs": 262144,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 7,
+    "p": 3,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 7,
+    "p": 4,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 7,
+    "p": 5,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 8,
+    "p": 2,
+    "pairs": 1048576,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 8,
+    "p": 3,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 8,
+    "p": 4,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 9,
+    "p": 2,
+    "pairs": 4194304,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 9,
+    "p": 3,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 10,
+    "p": 2,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 8,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 6,
+    "p": 7,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 7,
+    "p": 6,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 8,
+    "p": 5,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 9,
+    "p": 4,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 10,
+    "p": 3,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 11,
+    "p": 2,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "seq"
+   },
+   {
+    "w": 5,
+    "p": 9,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 6,
+    "p": 8,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 7,
+    "p": 7,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 8,
+    "p": 6,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 9,
+    "p": 5,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 10,
+    "p": 4,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 11,
+    "p": 3,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 12,
+    "p": 2,
+    "pairs": 38354944,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq a-stride7"
+   },
+   {
+    "w": 2,
+    "p": 11,
+    "pairs": 1048576,
+    "mismatches": 520880,
+    "exhaustive": false,
+    "classes": "seq a-stride64 other_subnormal=227508 spurious_nan=175476"
+   },
+   {
+    "w": 2,
+    "p": 12,
+    "pairs": 4194304,
+    "mismatches": 2080612,
+    "exhaustive": false,
+    "classes": "seq a-stride64 other_subnormal=942016 spurious_nan=695204"
+   },
+   {
+    "w": 3,
+    "p": 10,
+    "pairs": 1048576,
+    "mismatches": 102848,
+    "exhaustive": false,
+    "classes": "seq a-stride64 off_by=67908 other_subnormal=14564"
+   },
+   {
+    "w": 3,
+    "p": 11,
+    "pairs": 4194304,
+    "mismatches": 365000,
+    "exhaustive": false,
+    "classes": "seq a-stride64 off_by=272344 other_subnormal=66060"
+   },
+   {
+    "w": 4,
+    "p": 9,
+    "pairs": 1048576,
+    "mismatches": 15872,
+    "exhaustive": false,
+    "classes": "seq a-stride64 flush_to=11044 other_subnormal=4740"
+   },
+   {
+    "w": 4,
+    "p": 10,
+    "pairs": 4194304,
+    "mismatches": 75852,
+    "exhaustive": false,
+    "classes": "seq a-stride64 other_subnormal=41208 flush_to=34244"
+   },
+   {
+    "w": 3,
+    "p": 5,
+    "pairs": 2130976,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 3,
+    "p": 6,
+    "pairs": 2125600,
+    "mismatches": 39923,
+    "exhaustive": false,
+    "classes": "seq rnd+corner flush_to=36359 spurious_nan=2587"
+   },
+   {
+    "w": 3,
+    "p": 12,
+    "pairs": 2125600,
+    "mismatches": 209081,
+    "exhaustive": false,
+    "classes": "seq rnd+corner off_by=122449 other_subnormal=34777"
+   },
+   {
+    "w": 4,
+    "p": 7,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 4,
+    "p": 8,
+    "pairs": 2136864,
+    "mismatches": 55870,
+    "exhaustive": false,
+    "classes": "seq rnd+corner flush_to=48910 overflow_edge=5299"
+   },
+   {
+    "w": 4,
+    "p": 12,
+    "pairs": 2125600,
+    "mismatches": 238071,
+    "exhaustive": false,
+    "classes": "seq rnd+corner off_by=100676 other_subnormal=49401"
+   },
+   {
+    "w": 4,
+    "p": 20,
+    "pairs": 2125600,
+    "mismatches": 200496,
+    "exhaustive": false,
+    "classes": "seq rnd+corner off_by=97963 other_subnormal=58297"
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner (binary16)"
+   },
+   {
+    "w": 5,
+    "p": 12,
+    "pairs": 2136864,
+    "mismatches": 37336,
+    "exhaustive": false,
+    "classes": "seq rnd+corner flush_to=29887 overflow_edge=6433"
+   },
+   {
+    "w": 6,
+    "p": 10,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 6,
+    "p": 12,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 6,
+    "p": 19,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner (boundary, in)"
+   },
+   {
+    "w": 6,
+    "p": 20,
+    "pairs": 2136864,
+    "mismatches": 26703,
+    "exhaustive": false,
+    "classes": "seq rnd+corner flush_to=19889 overflow_edge=5897"
+   },
+   {
+    "w": 7,
+    "p": 24,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 7,
+    "p": 35,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner (boundary, in)"
+   },
+   {
+    "w": 7,
+    "p": 36,
+    "pairs": 2136864,
+    "mismatches": 21921,
+    "exhaustive": false,
+    "classes": "seq rnd+corner flush_to=15269 overflow_edge=5735"
+   },
+   {
+    "w": 8,
+    "p": 8,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner (bfloat16)"
+   },
+   {
+    "w": 8,
+    "p": 12,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner (binary32)"
+   },
+   {
+    "w": 8,
+    "p": 40,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 9,
+    "p": 24,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 9,
+    "p": 40,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 10,
+    "p": 20,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 10,
+    "p": 30,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 11,
+    "p": 52,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 11,
+    "p": 53,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner (binary64)"
+   },
+   {
+    "w": 12,
+    "p": 52,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "seq rnd+corner"
+   },
+   {
+    "w": 5,
+    "p": 8,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 6,
+    "p": 7,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 7,
+    "p": 6,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 8,
+    "p": 5,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 9,
+    "p": 4,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 10,
+    "p": 3,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 11,
+    "p": 2,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 5,
+    "p": 9,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 6,
+    "p": 8,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 7,
+    "p": 7,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 8,
+    "p": 6,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 9,
+    "p": 5,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 10,
+    "p": 4,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 11,
+    "p": 3,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 12,
+    "p": 2,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "flat-rewrite hf_fdiv2 all pairs"
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "flat-rewrite hf_fdiv2 rnd+corner"
+   },
+   {
+    "w": 7,
+    "p": 35,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "flat-rewrite hf_fdiv2 rnd+corner"
+   },
+   {
+    "w": 7,
+    "p": 36,
+    "pairs": 2136864,
+    "mismatches": 21921,
+    "exhaustive": false,
+    "classes": "flat-rewrite hf_fdiv2 rnd+corner (out of region, same count as original)"
+   },
+   {
+    "w": 8,
+    "p": 8,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "flat-rewrite hf_fdiv2 rnd+corner"
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "flat-rewrite hf_fdiv2 rnd+corner"
+   },
+   {
+    "w": 11,
+    "p": 53,
+    "pairs": 2136864,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "flat-rewrite hf_fdiv2 rnd+corner"
+   }
+  ],
+  "conformance": "WRAPPER in a sharp region, DIFFERS outside it. The original HardFloat is EXACT (0 mismatches in 909,042,688 sequential-DUT pairs over 46 formats, of which the all-pairs part is 193.9M+469.8M+...; plus 57.6M random/corner pairs over 27 formats) for every format with W>=3 and 2<=P<=2^(W-2)+3, which includes binary16 (5,11) (on the boundary: 2^3+3 = 11), bfloat16 (8,8), binary32 (8,24), binary64 (11,53). It is wrong for W=2 (all P) and for P > 2^(W-2)+3. The region is exactly HardFloat's own documented constraint (HardFloat-Verilog.html section 2: w >= 3, p >= 3, p <= 2^(w-2)+3); measured: P=2 also works for W>=3 although the document says p>=3. The mechanism: the recoded exponent field has W+1 bits and encodes zero as exp[W:W-2]=000, so a deeply normalized subnormal (fraction 1) lands at field 2^(W-1)+3-P, which must stay >= 2^(W-2): P <= 2^(W-2)+3. Beyond that, the smallest subnormals decode as zero. Exhaustive (all pairs) on the sequential DUT: every format with W+P<=12 (45 formats, 193,870,080 pairs; in-region 0 mismatches) and the 7 in-region k=13 formats (469,762,048 pairs, 0 mismatches). In-region k=14: 8 formats, one a-value in 7 times against every b (306,839,552 pairs, 0 mismatches), because of CPU limits (the machine had load >150); no k=14 format was run on all pairs on the sequential design. Out-of-region k=13/14 formats: a-stride 64 only (15.7M pairs). Larger formats: 2,136,864 uniform+exponent-biased+corner-grid pairs per format at 27 formats (19 in-region, 0 mismatches; 8 out-of-region, all with mismatches). The oracle in the C++ driver is my own integer re-implementation, cross-checked against fdiv_oracle.py (exact rationals) on 887,808+2,460,672 pairs (all pairs for k<=9) with 0 differences; the in-region claims therefore rest on that equivalence, not on the Python oracle directly for k>=10. The flat rewrite L2 (W>=3) was run on ALL pairs for every W>=3 format with W+P<=12 (36 formats), the 7 k=13 and 8 k=14 in-region formats (2,147,483,648 pairs at k=14): 0 mismatches in region. L1 was only run on random/corner pairs, 2.1M each at (3,3),(5,11),(8,8),(8,24): 0 mismatches.",
+  "differences": [
+   "W=2 (all P): fails always; exhaustive 92/256 (2,2), 532/1024 (2,3), 2204/4096 (2,4), 8500/16384 (2,5), 8,625,356/16,777,216 (2,10). Example (2,3): a=0x0 b=0x1 got 0xe want 0x0 (spurious NaN); the field extraction in fNToRecFN needs W>=3 (exp[(W-3):0] is a reversed range).",
+   "P > 2^(W-2)+3 with W>=3: e.g. (3,6) 3,288 of 262,144 pairs wrong (exhaustive), (4,8) 188,760 of 16,777,216, (5,12) 37,336 of 2,136,864 random, (6,20) 26,703, (7,36) 21,921. Example (3,6): a=0x1 b=0x2 got 0x00 want 0x40 (flush to zero, 1 cycle: the operand was classified as zero); (4,8): a=0x1 b=0x2 got 0 want 0x300.",
+   "Mismatch classes outside the region (aggregated over the exhaustive runs with 20 out-of-region formats, 16,966,144 mismatches in 77,157,632 pairs): W=2: other_subnormal_range 5,587,852; spurious_nan 4,479,752; flush_to_zero_or_underflow_to_zero 2,771,440; overflow_edge_missed_inf 647,904; overflow_edge_spurious_inf 460,264; off_by_1ulp_subnormal_range 240,536; special_operand_case 35,344; nonzero_where_zero_expected 1,416. W>=3: off_by_1ulp_subnormal_range 1,742,208; flush_to_zero_or_underflow_to_zero 423,336; other_subnormal_range 398,300; spurious_nan 126,032; special_operand_case 39,556; overflow_edge_spurious_inf 12,204. Always on operands that are subnormal or extreme in the recoded range, never in the normal range alone.",
+   "NaN payload or sign differences: 0 in every run (class nan_payload_differs / nan_sign_differs never occurred): in-region NaN results always equal the canonical 0x7E00-style pattern, because the shipped default NaN equals the task's. No flush-to-zero, no double rounding, no truncation in the region; rounding mode input tied to RNE gives round-to-nearest-even exactly (tininess input irrelevant for the value).",
+   "The design is a multi-cycle FSM with state, not a combinational circuit: it needs clock, nReset, inValid and has inReady/outValid handshake. Original sources use `include, macros, `ifdef (source gate refuses), a user function clog2 with a loop, signed nets, an untyped parameter override style and wire declarations.",
+   "My flat rewrite hf_fdiv2 is only valid for W>=3 (builds fail or misbehave at W=2) and its out-of-region behaviour is not identical to the original at (3,7), (3,8), (3,9): mismatch counts 23,428 / 105,052 / 440,252 against 91,940 / 375,836 / 1,522,240 for the original (all exhaustive); all other W>=3 formats tested have identical mismatch counts."
+  ],
+  "wrapperNeeded": "Only the sequencing and the port list. No NaN canonicalization, no rounding-mode patching: the shipped HardFloat_specialize.vi default NaN is sign 0 / fraction MSB set = the task's canonical qNaN. (1) For simulation: hf_wrap (IEEE ports around the FSM, above). (2) To fit the task's combinational a,b,q ports the FSM must be unrolled; I did this in two forms. L1 = hf_flat.sv: a mechanical, directive-free preprocessing of the HardFloat files (macros expanded, `include inlined, `ifdef resolved with HardFloat_propagateNaNPayloads undefined) plus my top hf_fdiv in which the P+2 restoring steps are P+1 generate steps copying the original step expressions; converters and rounder are the original modules. L2 = hf_fdiv2.sv (222 lines): ONE flat module, no instances/functions/signed/unpacked arrays/wire, every signed expression re-expressed on its bits; valid for W>=3 only. Both are in comb/ of my directory. L1 and L2 keep the same round/guard/sticky structure; L2 is exactly equal to the sequential original on every tested in-region pair and differs from it only outside the region, at (3,7), (3,8), (3,9), (k<=12 exhaustive), where it makes fewer errors than the original.",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "Original sequential wrapper: sequential, not scoreable by the combinational flow (score.py refuses: unpriced cells $_DFFE_PN0P_:4, $_DFFE_PP_:32, $_SDFFCE_PN0P_:12, $_SDFFCE_PP0P_:2, $_SDFFCE_PP1P_:2 at (5,11) = 52 flip-flops; 25 flops at (3,3), 95 at (8,24); synth -flatten cell counts 384 / 1018 / 2197 at (3,3)/(5,11)/(8,24)). Combinational unrolled forms through the pinned score.py (gated, so they pass the source gate): L1 mechanical flatten+unroll hf_flat.sv/hf_fdiv: (3,3) 309.958 GE depth 44, (5,11) 2247.4 GE depth 318 (1601 gates), (8,8) 1456.826 GE depth 181. L2 flat rewrite hf_fdiv2.sv: (3,3) 305.292 GE depth 43, (5,11) 2309.054 GE depth 318 (1649 gates), (8,8) 1529.143 GE depth 191. Binary32 scoring did not finish in 15-19 minutes on the loaded machine for either form (not measured). For comparison the repository's fdiv16 reference scores 1929.778 GE depth 299 (measured now with the same script), so the HardFloat forms are 16-20% larger at binary16.",
+   "notes": "Yosys 0.53 read_verilog -sv reads the original files only with -I pointing at the include directory (`include of the .vi files); 0 warnings. The pinned source gate (srcgate.py) REFUSES the original text outright: 49 findings, all compiler directives/macros (`include in 6 files, ~35 macro uses like `floatControlWidth/`round_near_even, `ifdef/`else/`endif on HardFloat_propagateNaNPayloads). My preprocessed hf_flat.sv (0 backticks) passes the gate and Yosys. The first version of my flat rewrite hf_fdiv2 failed in Yosys: 'Failed to detect width of signal access conv[0].cs' (a packed 2-D array declared inside a generate block); fixed by hoisting. fourstate.py (pyslang + Yosys check) on the final hf_fdiv2 passes at (3,3),(5,11),(6,19),(8,24); it also caught a real double-driver of isZeroA/isZeroB (a naming collision of mine) that Verilator had silently accepted, so earlier conformance numbers of that first version were discarded and all hf_fdiv2 results above are for the fixed text."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extract.py --top hf_wrap -I src ... on the original sequential wrapper emits an 800 KB envelope (exit 0) with 58 Unsupported nodes and the sequential nodes AlwaysPosedge x3 / NonblockingAssign x14 (clocked: refused by the checker's combinational-only policy). Unsupported kinds on the original: NetSymbol:net-z 22 (plain `wire` nets), NetSymbol:signed 11, ConversionExpression:width 6, InstanceSymbol:override-untyped-width 5, PortSymbol:signed 4, CallExpression 2 + SubroutineSymbol 2 (user function clog2 with a loop) + Syntax:InvocationExpression 1, PortSymbol:net-z 2, ContinuousAssignSymbol:InvalidExpression 2, VariableSymbol:signed 1. On L1 (mechanical flatten + unroll, 61 sites): net-z 28, NetSymbol:signed 9, ElementSelect:default-point-index 5, override-untyped-width 5, NetSymbol:type 3 (unpacked arrays), PortSymbol:signed 3, ConversionExpression:width 3, CallExpression 2, SubroutineSymbol 2, PortSymbol:net-z 2, InvalidExpression 2. On L2 (my flat rewrite, W>=3, 222 lines: 104 Assign, 6 GenerateFor, 2 GenerateIf, 92 Var, 1 module, no instance): 0 Unsupported at all four probe points W=5,P=11 / W=3,P=3 / W=8,P=24 / W=6,P=19 (envelope + .probes.json sidecar written). Getting there took four extractor-driven fixes: wire -> logic, signed -> explicit sign bits, unpacked -> packed arrays, explicit casts (W+3)'(7) -> concatenation-literal localparams (a localparam assigned from an int expression gave ConversionExpression:width), parameters as `parameter int`, $clog2 as localparam. First blockers on the original, in order: (1) source gate: `include/macros/`ifdef; (2) sequential (clock, nonblocking, negedge nReset async reset); (3) user function clog2 and signed arithmetic (SIGNED and USERFN are 'later' rows in docs/sv-refusals); (4) wire nets and unpacked arrays.",
+   "unsupported": [
+    "NetSymbol:net-z (wire nets)",
+    "NetSymbol:signed / PortSymbol:signed / VariableSymbol:signed",
+    "ConversionExpression:width",
+    "InstanceSymbol:override-untyped-width",
+    "CallExpression + SubroutineSymbol (function clog2)",
+    "ContinuousAssignSymbol:InvalidExpression",
+    "ElementSelect:default-point-index (L1 only)",
+    "NetSymbol:type (unpacked arrays, L1 only)",
+    "AlwaysPosedge / NonblockingAssign (sequential; original only)"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "As is: no (sequential, directives, signed, a user function, instances; the checker is combinational-only and the tactics refuse hierarchy). After a stated rewrite: yes, in principle, for the restricted statement 'W>=3 and P<=2^(W-2)+3' (a new inRange for the task, since the shipped fdiv-param inRange is 2<=W and 2<=P and the original is provably wrong outside the region); the design is mathematically the textbook radix-2 RESTORING recurrence that the repository already has as a format-agnostic lemma (SpecFacts restore_spec) plus the rounding certificate for every format (design/fdiv-param/CertF.lean, 691 lines), so the hard rounding half is not new. Not proved here: no Lean was run. What is established is only the envelope side: my 222-line flat rewrite extracts with 0 Unsupported nodes, scores, passes fourstate and is exact on 2.1G+ in-region pairs.",
+   "estimate": "Parametric proof of hf_fdiv2: about 3,500 to 5,500 lines of Lean, 15 to 30 agent-days (my estimate by analogy with the fdiv16 proof of about 3,400 lines for ONE format and CertF's 691 for the parametric rounding; not measured). Pieces: recoded converter lemma incl. CLZ via reverse/lowest-set-bit OR chain and the exponent-field wrap (~600), the unrolled restoring recurrence by induction over the step index with the skipped last step when the first digit is 1 (~500), exponent saturation and the region lemma P<=2^(W-2)+3 that keeps the zero/special field disjoint (~400), rounding with lowMask/roundPos/carry/subnormal and overflow (~900), recFNToFN subnormal shift and specials (~400), BitVec model plus glue from sv_equations (~1,500). Fixed-size alternative: the same design specialized at (5,11) fits the existing fdiv16 task shape and costs about as much as the fdiv16 proof (~3,000 lines), but is 20% larger than the reference (2309 vs 1930 GE), so it would be a verified baseline, not a leaderboard improvement.",
+   "blockers": [
+    "Not combinational: needs the unrolled form (done: L1 and L2) and a restricted-range task statement (W>=3, P<=2^(W-2)+3) because the original is wrong outside it; the existing parametric task is 2<=W, 2<=P.",
+    "Tactic fragment unverified: L2 uses concatenations as operands of +,-,&, comparisons in ?: conditions, parameter-bounded part selects, packed 2-D rows indexed by a generate variable, run-time shifts; docs design/fdiv-param/H2-NOTE.md lists these as open gaps (G1 part selects, G2 loop-indexed 2-D rows, G3 comparisons in conditions, G4 concatenation operands) and G5 (a generate family puts sv_structure on a slow path that did not finish at 10x heartbeats); some may be fixed since that note. Lean could not be run to test sv_structure on hf_fdiv2.",
+    "Hierarchy is refused by the tactics (WP-I note), so everything has to be one flat module, two copies of the converter included.",
+    "Checker policy: sequential designs are refused; a sequential statement for the original FSM would need the unbuilt sequential layer.",
+    "Proof-size risk is in the recoded-exponent arithmetic (mod 2^(W+1) wraps, 3-bit zero/special field decode) which has no counterpart in the existing fdiv16 proof."
+   ]
+  },
+  "verdict": "WRAPPER, with a hard format region. The sequential HardFloat divider is bit-exact against the task spec for all W>=3 and 2<=P<=2^(W-2)+3 (binary16, bfloat16, binary32, binary64 inside; 0 mismatches in 909M sequential-DUT pairs over 46 formats plus 57.6M random/corner pairs over 27 formats, canonical NaN with no patching) and wrong outside it (W=2 always; P>2^(W-2)+3 on subnormal/extreme operands), which matches HardFloat's own documented constraint. It is not combinational and its text is refused by the source gate, so it is an interesting candidate only as a rewrite. I made that rewrite (comb/hf_fdiv2.sv, 222 lines, flat, W>=3): exact on every pair of 36 formats with W+P<=12 and the 15 in-region k=13/14 formats (2.15G pairs at k=14), extracts with 0 Unsupported nodes, passes fourstate and the source gate, scores 2309 GE / depth 318 at binary16 (the repository reference is 1930 / 299), 1529 GE at bfloat16. Provable in principle for a restricted-range statement, estimated 15 to 30 agent-days; not competitive on area against the existing binary16 reference, valuable as a second verified family and as the first parametric design with a documented partial (W,P) region.",
+  "measuredVsRead": "MEASURED by me: byte-identity of the 11 HardFloat files against GitHub; the Verilator runs and every mismatch count, class, example and latency above (my own wrapper, driver and integer oracle; the integer oracle itself was checked against fdiv_oracle.py exactly on all pairs for k<=9 and random pairs for 12 larger formats, 3.3M pairs, 0 differences); the exact region boundary (W=3: P 5 ok/6 bad; W=4: 7/8; W=5: 11/12; W=6: 19/20; W=7: 35/36) from exhaustive and random runs; Yosys 0.53 reads and synth cell/flop counts; the score.py refusals (source gate on the original, unpriced flops without the gate); the GE/depth numbers for L1/L2 and for the repository's fdiv16 reference; fourstate.py results; extractor Unsupported counts per kind on the original, L1 and L2; conformance of my L1 and L2 rewrites. READ only: the HardFloat documentation constraint (WebFetch of HardFloat-Verilog.html; the page text shows 'p <= 2(w-2)+3' with the superscript lost, which I read as 2^(w-2)+3 because it matches my measured boundary exactly); the derivation of why the boundary is 2^(W-2)+3 (my reading of fNToRecFN/recFNToRawFN; the numbers match the measurement but I did not instrument the signals); the repository's tactic fragment, the H2-NOTE gap list and the proof sizes (fdiv16 about 3,400 lines, CertF 691) and everything in proofFeasibility, including the 3,500 to 5,500 line estimate, which is a judgement, not a measurement; no Lean or lake was run, so sv_structure/sv_equations acceptance of hf_fdiv2 is unknown. Limits of my measurement: no k=14 format was run on ALL pairs on the sequential design (stride 7 only; the full k=14 exhaustive was done on my flat rewrite instead), the 64-bit driver cannot test k>64, the binary32 area was not obtained (scoring did not finish), and the 394-star count in the task text is the Chisel repo's, not SoomRV's (257).\""
+ },
+ {
+  "name": "XiangShan fudian FDIV (SRT16 divide / SRT4 sqrt unit, Chisel)",
+  "url": "https://github.com/OpenXiangShan/fudian/blob/pipeline/src/main/scala/fudian/FDIV.scala",
+  "license": "Mulan PSL v2 per the file header (permissive, has a patent clause). GitHub licenseInfo is null and the repository has no LICENSE file on branch pipeline (the API returned 404 for LICENSE). The file also says it contains components originally by Yifei He (XS-Verilog-Library int_div_radix_4_v1), whose licence I did not check. Confirm before copying anything into the repository.",
+  "runAs": "NOT run as Chisel output. A JDK exists (/opt/homebrew/opt/openjdk@11), so the earlier \"no JDK\" note was wrong. But Chisel 3.6.0 and Scala 2.13.10 have to be fetched from Maven Central with coursier or mill, and the permission system denied my download of the coursier launcher, so I did not work around it. Everything below was measured on my hand transliteration of the Scala into SystemVerilog, translit/fudian_fdiv.sv. It is divide-only, follows the Chisel 3.6 width rules as I read them, and keeps the FSM and every RegEnable enable cycle for cycle. Verilator runs it with a handshake testbench against a C++ exact reference. I validated that reference against fdiv_oracle.py: 390,000 random pairs over 14 formats up to (11,53) and all pairs of 11 tiny formats, 0 mismatches. The DUT also agrees with the Python oracle directly on 300,000 pairs each at (5,11) and (8,24). All files are under <scratchpad>/fdivsurvey/eval_XiangShan_fudian_FDIV_SRT16_divide_SRT4_/, in translit/ and tb/.",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 2,
+    "p": 9,
+    "pairs": 4194304,
+    "mismatches": 1747752,
+    "exhaustive": true,
+    "classes": "inf>sub, inf>zero, norm>inf, norm>zero, sub>inf, sub>zero(-1ulp and far), zero>inf. Example a=0x001,b=0x001 got 0 want 0x100"
+   },
+   {
+    "w": 2,
+    "p": 10,
+    "pairs": 16777216,
+    "mismatches": 7658120,
+    "exhaustive": true,
+    "classes": "same classes as (2,9)"
+   },
+   {
+    "w": 2,
+    "p": 11,
+    "pairs": 67108864,
+    "mismatches": 31955464,
+    "exhaustive": true,
+    "classes": "same classes as (2,9)"
+   },
+   {
+    "w": 2,
+    "p": 12,
+    "pairs": 268435456,
+    "mismatches": 130372620,
+    "exhaustive": true,
+    "classes": "same classes as (2,9); norm>zero 54.5M, sub>zero 73.6M"
+   },
+   {
+    "w": 3,
+    "p": 9,
+    "pairs": 16777216,
+    "mismatches": 3644,
+    "exhaustive": true,
+    "classes": "all zero>inf: sub/norm 3572 (a=0x001,b=0x501 got 0x700 want 0), zero/sub 60, sub/inf 12"
+   },
+   {
+    "w": 3,
+    "p": 10,
+    "pairs": 67108864,
+    "mismatches": 3623036,
+    "exhaustive": true,
+    "classes": "norm>zero 3.6M (a=0x008,b=0x001), zero>inf 18,556"
+   },
+   {
+    "w": 3,
+    "p": 11,
+    "pairs": 268435456,
+    "mismatches": 32889012,
+    "exhaustive": true,
+    "classes": "norm>zero, sub>inf, inf>sub, inf>norm, zero>inf, zero>norm, sub>zero"
+   },
+   {
+    "w": 4,
+    "p": 9,
+    "pairs": 67108864,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "none"
+   },
+   {
+    "w": 4,
+    "p": 10,
+    "pairs": 268435456,
+    "mismatches": 4,
+    "exhaustive": true,
+    "classes": "zero>inf: a=+-0 / b=+-0x0001, got 0x1e00 want 0"
+   },
+   {
+    "w": 5,
+    "p": 9,
+    "pairs": 268435456,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "none; the unrolled combinational rewrite is also exhaustive-clean here (268M, 0)"
+   },
+   {
+    "w": 5,
+    "p": 10,
+    "pairs": 2121104,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (2M random + 121k corner)"
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 62129600,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (binary16: 62M random, 130k corner cross product); plus 300k pairs checked directly against fdiv_oracle.py; the combinational rewrite had 33M random pairs, 0"
+   },
+   {
+    "w": 5,
+    "p": 12,
+    "pairs": 2138384,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 5,
+    "p": 16,
+    "pairs": 1176400,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 5,
+    "p": 17,
+    "pairs": 1186624,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (last exact P for W=5)"
+   },
+   {
+    "w": 5,
+    "p": 18,
+    "pairs": 1197136,
+    "mismatches": 17,
+    "exhaustive": false,
+    "classes": "zero>inf, zero/sub only: a=0,b=1 got 0x3e0000 want 0"
+   },
+   {
+    "w": 5,
+    "p": 19,
+    "pairs": 1207936,
+    "mismatches": 32,
+    "exhaustive": false,
+    "classes": "zero>inf, zero/sub only"
+   },
+   {
+    "w": 5,
+    "p": 20,
+    "pairs": 1219024,
+    "mismatches": 302,
+    "exhaustive": false,
+    "classes": "zero>inf: zero/sub, sub/norm, sub/inf (wrap class appears)"
+   },
+   {
+    "w": 6,
+    "p": 11,
+    "pairs": 2129600,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 6,
+    "p": 24,
+    "pairs": 2266256,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 6,
+    "p": 30,
+    "pairs": 1345744,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 6,
+    "p": 33,
+    "pairs": 1389376,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (last exact P for W=6)"
+   },
+   {
+    "w": 6,
+    "p": 34,
+    "pairs": 1404496,
+    "mismatches": 10,
+    "exhaustive": false,
+    "classes": "zero>inf, zero/sub only: a=0,b=1 got 0x7e00000000 want 0"
+   },
+   {
+    "w": 7,
+    "p": 17,
+    "pairs": 2186624,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 8,
+    "p": 9,
+    "pairs": 1112896,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (W = P-1 boundary is fine)"
+   },
+   {
+    "w": 8,
+    "p": 12,
+    "pairs": 2138384,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 52266256,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (binary32: 52M random, 266k corner); plus 300k pairs checked directly against fdiv_oracle.py; the combinational rewrite had 15M random, 0"
+   },
+   {
+    "w": 10,
+    "p": 12,
+    "pairs": 1138384,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 11,
+    "p": 24,
+    "pairs": 12266256,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none"
+   },
+   {
+    "w": 11,
+    "p": 53,
+    "pairs": 18746496,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "none (binary64: 18.7M random, 746k corner)"
+   },
+   {
+    "w": 4,
+    "p": 11,
+    "pairs": 1129600,
+    "mismatches": 39,
+    "exhaustive": false,
+    "classes": "zero>inf (zero/sub): a=0,b=1 got 0x3c00 want 0"
+   },
+   {
+    "w": 4,
+    "p": 12,
+    "pairs": 2138384,
+    "mismatches": 744,
+    "exhaustive": false,
+    "classes": "zero>inf: zero/sub, sub/norm, sub/inf"
+   },
+   {
+    "w": 4,
+    "p": 13,
+    "pairs": 2147456,
+    "mismatches": 2122,
+    "exhaustive": false,
+    "classes": "zero>inf: zero/sub, sub/norm, sub/inf"
+   },
+   {
+    "w": 4,
+    "p": 14,
+    "pairs": 1156816,
+    "mismatches": 2110,
+    "exhaustive": false,
+    "classes": "zero>inf: zero/sub, sub/norm, sub/inf"
+   },
+   {
+    "w": 4,
+    "p": 15,
+    "pairs": 1166464,
+    "mismatches": 2765,
+    "exhaustive": false,
+    "classes": "zero>inf: zero/sub, sub/norm, sub/inf"
+   },
+   {
+    "w": 3,
+    "p": 24,
+    "pairs": 2266256,
+    "mismatches": 1591260,
+    "exhaustive": false,
+    "classes": "inf>zero, norm>inf, norm>zero, sub>inf, sub>zero, zero>inf, zero>sub"
+   },
+   {
+    "w": 9,
+    "p": 9,
+    "pairs": 1112896,
+    "mismatches": 1037272,
+    "exhaustive": false,
+    "classes": "W >= P: NaN->normal, inf->normal, sign dropped (zero>zero:signonly), norm>norm far; output truncated by the Cat width quirk. Example a=0x1ff00 b=0x1ff00 got 0x3fe80 want 0x1ff80"
+   }
+  ],
+  "conformance": "REGION-LIMITED, measured on the transliteration (not on real Chisel output). Inside R = {9 <= P <= 2^(W-1)+1 and W < P} it is EXACT against the svGolf fdiv spec at RNE after the handshake wrapper: 0 mismatches over all pairs of (4,9) (67M) and (5,9) (268M), and over 1.1M to 62M sampled random plus corner pairs at each of 17 other in-region formats (binary16: 62M, binary32: 52M, binary64: 18.7M). Outside R it DIFFERS (classes below), or it cannot be elaborated (P < 9, read only). As a svGolf circuit it is UNUSABLE as is: it is a clocked FSM and the statement needs Unclocked with ports exactly a, b, q.",
+  "differences": [
+   "P < 9 cannot be elaborated (READ, not measured). udNeg(i)(itn_len-2, itn_len-13) and wsReg(itn_len-1, itn_len-13), with itn_len = P+4, have a negative low bit index when P < 9, and Chisel's bit-extract raises 'Invalid bit range'. This excludes bfloat16 (8,8), every FP8 format and every other P < 9 format. The (8,8) format the task mentioned does not build, and it would also hit the W >= P bug below. binary16 (P=11) is fine.",
+   "W >= P gives garbled output (measured at (9,9): 1,037,272 of 1,112,896 sampled pairs wrong, in every class). The special_sig Mux with 0.U(expWidth.W) gives combinedSig width max(P-1, W). When W > P-1, Cat(sign, exp, sig) is wider than W+P and Chisel's connect drops the TOP bits, losing the sign and the exponent MSB. (8,9) with W = P-1 is exact.",
+   "P > 2^(W-1)+1 gives wrong infinities for zero or tiny operands. Line 273 is overflow = infRes && !inv && !dz && !inf_div, with no !zero_div and no !div_inf. For a = +-0 and a subnormal divisor with leading-zero count >= 2^(W-1)+1, finalExp = lzc-1 reaches the infRes threshold, so +-0 is returned as +-inf. Example (4,10): a=0x0000, b=0x0001, got 0x1e00, want 0x0000. It is exactly 4 pairs in the exhaustive (4,10) run, as predicted. The boundary sits where the formula says: (5,17) and (6,33) are exact, (5,18) and (6,34) are not. Also (4,11) to (4,15) and (3,9).",
+   "P >= 2^(W-1)+4 breaks the (W+2)-bit modular finalExp sign tests (infRes, zeroRes). Underflow cases such as subnormal / large normal return inf instead of 0 (class sub/norm, zero->inf). Example (5,20): a=0x1000001, b=0x1f7ffff, got 0xf80000, want 0. Example (3,9): a=0x001, b=0x501, got 0x700, want 0. This class first shows at (5,20) and (4,12).",
+   "W in {2,3} with P >= 9 is broken at scale. (2,12): 130,372,620 of 268,435,456 pairs wrong, mostly normal/subnormal results flushed to 0 or turned into inf (aExpFix is only W+1 bits and cannot hold 2-P). (3,11): 32,889,012 of 268M. (3,10): 3,623,036 of 67M. (3,9): 3,644 of 16.8M, all zero->inf.",
+   "No NaN payload or sign differences inside R (every NaN result is sign 0, exponent all ones, fraction MSB set). No flush-to-zero, no double rounding and no tie errors inside R: (5,9) is exhaustive. rm is an input and only rm=0 is RNE. The branch that would turn an overflowing RNE round-up at maxNormExp into max-finite instead of inf is unreachable for normalized significands (integer argument: Ma/Mb >= 2-2^-P is impossible for P-bit significands). No such mismatch was ever observed.",
+   "Not covered: the repository's own generator and tests only cover binary32 and binary64 (ArgParser has --ftype 32|64). binary16 and every other format are unexercised upstream. Everything above about regions comes from my transliteration and my reading of Chisel width inference, which I could not confirm against real Chisel output."
+  ],
+  "wrapperNeeded": "To get a, b -> q: drive clock and reset, hold in_valid for the idle cycle that captures a and b, pin rm=0 (RNE), isSqrt=0 and kill=0, wait for out_valid, tick once, read result (it is registered, one cycle after out_valid), and ignore fflags. Measured latency from the in_valid edge to out_valid is N0+3 cycles for a normal quotient with N0=(P+1)>>2: 6 at binary16, 9 at binary32, 16 at binary64. A subnormal operand adds 1 (pre_0 state), and NaN/inf/zero operands take 2. The result is valid one cycle later and the unit is idle again one cycle after that. This wrapper cannot make it combinational: the svGolf statement requires Unclocked. A combinational version needs a rewrite (unrolling). I wrote one as a survey experiment, translit/fudian_fdiv_comb.sv, which is not fudian.",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "sequential: not scoreable by the combinational flow. The pinned scorer refused my sequential transliteration at (5,11) with exit 1: 'the netlist has cells the GE table does not price: $_DFFE_PP_ 368, $_DFFE_PN_ 19, $_SDFFCE_*, ...'. Survey rewrite (unrolled and combinational, my code, not fudian) at (5,11): the pinned flow TIMED OUT after 1800 s wall on the loaded machine, with ABC unfinished at about 6.4 CPU-min. The pre-ABC Yosys netlist has 12,103 gates (2-input gates plus MUX; 1499 XOR, 1311 OR, 749 XNOR, 619 NOT). So there is no GE figure. Rough guess, not measured: several times the 1929.778 GE of the fdiv16 reference, because it has 4 unrolled SRT16 iterations with speculative selection.",
+   "notes": "What 'reads' means here: Yosys 0.53 read_verilog -sv reads my transliteration at (5,11) (74 $dff cells, 6 memories replaced by registers) and the pinned srcgate accepted the flattened text. I did NOT read real Chisel output, so for that it is unknown. READ only: Chisel 3.6.0 Verilog normally contains `ifndef SYNTHESIS / RANDOMIZE_* blocks and $fwrite/$fatal assertion code (the Scala has an assert at line 227), which the svGolf source gate refuses (preprocessor directives, host access). It also has ~40 module instances (CSA3_2, CLZ, DivIterModule, SqrtIterModule, RoundingUnit), and svGolf supports only one file and loader-supported hierarchy."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extractor/sv/extract.py --top produced a schema sv-0.2 envelope for BOTH of my files, so envelope generation itself is not the blocker. Sequential transliteration: 2.2 MB, 5 AlwaysPosedge blocks (clocked processes, which the svGolf statement forbids) and 120+94+18+15+15+6+2 Unsupported nodes. Combinational rewrite: 1.9 MB, 373 Unsupported nodes. These come from my coding style (functions, unpacked arrays with variable selects, indexed part-selects, size casts). A flat rewrite would remove them. For real Chisel output the extractor result is unknown (not measured).",
+   "unsupported": [
+    "AlwaysPosedge (5 clocked blocks, sequential transliteration)",
+    "ElementSelectExpression:window-mismatch (120)",
+    "AssignmentExpression:target (94 in sequential, 49 in comb)",
+    "CallExpression (18) and SubroutineSymbol:Subroutine (6): user functions",
+    "RangeSelectExpression:dynamic-indexed (15 / 19): the -: selects",
+    "NamedValueExpression:type (15)",
+    "ConversionExpression:Explicit (2): size casts",
+    "ElementSelect:default-point-index (136, comb), NetSymbol:net-z (6, comb), VariableSymbol:default-point-array (5, comb)"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "As is: not at all. It is a clocked 6-state FSM with valid/ready handshake, kill, 3-bit rm and fflags. The svGolf statement requires Unclocked, ports exactly a, b, q and q = fdiv a b every cycle. It is also false for most of the (W,P) plane (see differences), so it cannot be submitted against an all-(W,P) statement. After a stated rewrite it is possible in principle but a large new proof with no area upside. The rewrite is unrolling to a combinational datapath, written as flat or generate-based assigns, with the format fixed or the task's inRange restricted to R. My fudian_fdiv_comb.sv shows the unrolling is mechanical and exact, though its constructs are outside the tactic fragment: it is exhaustive-clean at (4,9) and (5,9), and has 33M random pairs at (5,11) and 15M at (8,24), all 0 mismatches. Recommendation: low priority.",
+   "blockers": [
+    "Sequential FSM and registers: the statement is Unclocked. An unrolled rewrite is needed, with a run-time iteration count N0 = (P+1)>>2 (or fewer for subnormal results) turned into NIT = ((P+1)>>2)+1 masked iterations.",
+    "Region: correct only for 9 <= P <= 2^(W-1)+1 and W < P (measured). A parametric fdiv #(W,P) statement for all W>=2, P>=2 cannot hold, so it needs an inRange restriction or a fixed-format task (f16, (5,9), f32).",
+    "Tactic fragment: the design uses functions, unpacked 2-D arrays with variable selects, -: part-selects, size casts and a floor((P+1)/4) generate bound. design/fdiv-param/H2-NOTE.md already records that generate or always_comb forms put sv_structure on a path that did not finish at 10x heartbeats, so a flat netlist was needed even for fdiv16's 111 assigns.",
+    "Size: an unrolled f16 SRT16 has 4 iterations, each with a 4-comparator selection stage, two 15-bit CSAs, a 5-way speculative stage (5 x (13-bit CSA + 4 x CSA+adder sign extraction)) and OTFC muxes. That is of the order of 800 to 1200 assigns against the 111 of the fdiv16 reference. Pre-ABC gate count is 12,103, so a pinned-flow score would be several times the reference's 1929.778 GE.",
+    "New math with no reuse: SRT radix-4 digit-selection tables (mLookupTable: 4 x 8 constants with 10-bit truncated carry-save estimates), the carry-save residual invariant |w| <= (2/3)d under truncation error, the speculative second selection equalling the true second selection (13-bit estimates, 5 candidate digits), the on-the-fly Q / Q-1 conversion invariants, the final remainder-sign correction, the needShift/oddIter parity mapping, subnormal rounding via fewer iterations, and the modular (W+2)-bit exponent arithmetic including the zeroRes/subRes/infRes thresholds. The restoring-row induction and the M3a-d normalizer of the fdiv16 proof do not apply to SRT. Only the exponent, rounding and special-case certificates (M3e/M3f style) partly carry over."
+   ],
+   "estimate": "Fixed-format (5,11), flat rewrite: roughly 3,000 to 6,000 lines of Lean for the math layer, plus a design layer sized like the fdiv16 one (about 1,000 lines) and a sv_equations budget likely 10x the fdiv16 one (that one is 45 s at 600k heartbeats for 111 equations), i.e. several agent-weeks, with finite table checks by kernel decide over about 8 x 2^10 and 8 x 5 x 2^13 cases. Parametric in P adds symbolic LZC/normalizer and induction over the iteration count, roughly doubling it. The fdiv16 reference, at about 1000 lines, is the nearest benchmark."
+  },
+  "verdict": "DO NOT ADD AS A SVGOLF REFERENCE. fudian FDIV is a real, apparently correct SRT16 divider inside a narrow (W,P) region (binary16, binary32 and binary64 are in it, bfloat16 and the small formats are not), but it is sequential, shares logic with sqrt, is wrong outside the region in 4 distinct ways, and needs a mechanical-but-large unrolling plus a new SRT proof. That means thousands of lines of Lean for a circuit that scores several times worse than the restoring fdiv16 reference. Everything measured here is from my transliteration; the one step that would turn it into a measurement of the real design is running Chisel (cs launch or mill for chisel3 3.6.0, Scala 2.13.10, then `fudian.Generator --fu FDIV --ftype 32`), which needs the maintainers to allow the Maven Central download that was denied.",
+  "measuredVsRead": "MEASURED (on my SystemVerilog transliteration, never on Chisel output): exhaustive pass/fail over all pairs for 10 formats with 9 <= P and W+P <= 14 (1.3 billion pairs total; (4,9) and (5,9) clean, (4,10) exactly 4 failures, the rest broken); 2M to 62M random plus corner pairs at 31 other formats, including binary16, binary32 and binary64; the exact region boundaries P <= 2^(W-1)+1 (steps at (5,17)/(5,18) and (6,33)/(6,34)), the wrap class from P >= 2^(W-1)+4, and the W >= P output garbling at (9,9) vs (8,9); latency in cycles; the pinned scorer's refusal of the sequential design; the scorer timeout on my unrolled rewrite; the extractor's Unsupported counts; and exact agreement of the unrolled rewrite (exhaustive at (4,9) and (5,9), 33M random pairs at (5,11) and 15M at (8,24)). The C++ reference was cross-checked against fdiv_oracle.py. READ ONLY: that the real Chisel 3.6 width inference matches my transliteration (every region boundary depends on it; exactness inside the region is evidence of a correct transliteration but cannot prove fidelity); that P < 9 fails Chisel elaboration with 'Invalid bit range'; what the Chisel-emitted Verilog looks like and whether Yosys, the source gate or the extractor accept it; the README test claims; the proof-effort estimates (they come from the fdiv16 H2-NOTE and my own gate counts, not from any Lean run); and the licence situation. I did not run Lean."
+ },
+ {
+  "name": "RTLDesignSherpa math_ieee754_2008_fp32_divider (sean-galloway), fp32 only",
+  "url": "https://github.com/sean-galloway/RTLDesignSherpa/blob/HEAD/rtl/math/math_ieee754_2008_fp32_divider.sv",
+  "license": "MIT (SPDX header in all 12 fetched files). `gh repo view` now reports licenseInfo key \"mit\" (MIT License), 25 stars, last push 2026-11-01. The earlier note that GitHub detects no licence is out of date.",
+  "runAs": "Verilator 5.042 with a C++ harness that I wrote (<scratchpad>/fdivsurvey/eval_RTLDesignSherpa_math_ieee754_2008_fp32_d/work/tb.cpp). Reset, then apply a, b and i_valid for one clock edge, drive random garbage on i_a and i_b so the operands are not held, clock until ow_valid, and record the cycle count and ow_result. The top module is parameterised `-GSUBNORMAL_SUPPORT=1'b1`. Build files: the divider, mantissa_mult, math_multiplier_dadda_4to2_024 and the four modules it instantiates (math_adder_full, math_adder_half, math_adder_han_carlson_048, math_compressor_4to2, math_prefix_cell, math_prefix_cell_gray), all fetched from rtl/math/. The task's file list omitted those dependencies. Cycles counted with the accept edge as 1: specials take 1, normal results 9, results on the subnormal grid 10. These match the claim. Measured over 3,327,365 pairs: 142,917 took 1 cycle, 2,489,783 took 9 and 694,665 took 10.",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 3327365,
+    "mismatches": 43368,
+    "exhaustive": false,
+    "classes": "raw RTL FSM, SUBNORMAL_SUPPORT=1: nan_sign 43368; every other class 0. With the NaN-sign wrapper: 0 mismatches."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 50331648,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "all 2^23 divisor significands x 3 dividends x {normal results, subnormal-grid results}, RTL FSM vs independent integer oracle; exhaustive over divisors only. Instrumented over the normal-result half: max |B*r2-2^47| = 24,992,532 (equal to the generator's stated bound), k in [5,9] (needs [0,15]), max remainder 162,276,608."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 3327365,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "my unrolled combinational rewrites fdiv32_comb.sv (7 Dadda instances) and fdiv32_flat.sv (shift-add multipliers), NaN sign built in: 0 mismatches each on the same pairs."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 3327365,
+    "mismatches": 953713,
+    "exhaustive": false,
+    "classes": "default SUBNORMAL_SUPPORT=0 (FTZ), NaN sign fixed: 665,632 subnormal/underflow results flushed, 126,678 subnormal operand handling, 161,403 NaN-vs-non-NaN where a subnormal operand is treated as zero"
+   }
+  ],
+  "conformance": "EXACT after a thin wrapper (NaN sign forced to 0, SUBNORMAL_SUPPORT=1). Raw, the only mismatch class is the NaN sign. All other classes were 0 in every test.\n\nFormat: binary32 only, (W,P) = (8,24). The design is hard-wired to 32-bit operands, so the \"all pairs for W+P <= 14\" and \"(5,11), (8,8)\" runs do not apply. I could not run smaller formats at all.\n\nTests, all against <scratchpad>/fdivsurvey/fdiv_oracle.py (exact rational):\n(A) 3,327,365 pairs through the real RTL FSM: all-pairs over 230 interesting patterns (52,900), 600k uniform random, 500k with quotient exponent in [-30,6], 300k near overflow, 400k mid-range with structured significands, 400k with subnormal operands, 183,800 designed exact ties at the subnormal grid, 218,298 near-ties, 172,367 exact quotients, 400k same-significand/power-of-two, and 100k with a special operand (all NaN payloads and signs, inf, zero).\n Raw: 43,368 mismatches, all of class nan_sign. The example is a=00000001 b=ff800002 got=ffc00000 want=7fc00000. They are spread over the corner, uniform, subnormal and special sets.\n With the NaN-sign wrapper: 0 mismatches.\n(B) Divisor-exhaustive sweep on the real RTL, checked against an independent exact-integer oracle (64-bit floor division and RNE on the exact remainder). That oracle agreed with the Python oracle on 30,000 sampled pairs. Every one of the 2^23 divisor significands was run with 3 dividends (random, 0x7FFFFF, divisor-1), once for normal results and once for subnormal-grid and deep-underflow results (shift 1..26). That is 50,331,648 pairs with 0 mismatches. Max cycles were 9 and 10 respectively.\n(C) My unrolled combinational fdiv32_comb.sv and the shift-add fdiv32_flat.sv were each run on the 3,327,365 pairs: 0 mismatches against the oracle with no further wrapper.\n\nDefault parameter SUBNORMAL_SUPPORT=0, same 3.33M pairs, NaN sign fixed: 953,713 mismatches (28.7%). Classes: 665,632 subnormal or underflow results flushed to zero (e.g. a=00800000 b=3f800007 got=00000000 want=007ffff9), 126,678 subnormal operands treated as zero (a=00000001 b=00800000 got=00000000 want=34000000), and 161,403 where a subnormal operand turns the quotient into the NaN case (a=00000001 b=00000001 got=7fc00000 want=3f800000).\n\nNot covered: the 2^64 operand space is not exhausted. The divisor sweep used only 3 dividend choices per divisor.",
+  "differences": [
+   "NaN results carry sign sign_a^sign_b instead of 0 (43,368 of 3,327,365 raw test pairs, 1.3%). The payload is always the canonical 0x400000.",
+   "Default SUBNORMAL_SUPPORT=0 is flush-to-zero and fails 28.7% of my pairs. SUBNORMAL_SUPPORT=1 is required and then matches the spec.",
+   "The published module is sequential. Ports are i_clk, i_rst_n, i_a, i_b, i_valid, ow_result, ow_overflow, ow_underflow, ow_invalid, ow_valid, not a, b, q. Latency is 1, 9 or 10 cycles. Throughput is one result per roughly 10 cycles, since S_OUT blocks a new accept.",
+   "The file uses `timescale, `include of reset_defs.svh, and the macros ALWAYS_FF_RST and RST_ASSERTED (which expand to an async-reset always_ff), so it is not a plain a,b,q netlist.",
+   "Three extra flag outputs (overflow, underflow, invalid) that the spec does not have."
+  ],
+  "wrapperNeeded": "Three changes are needed, all in my copy.\n1. NaN sign: the RTL emits {sign_a^sign_b, 0xFF, 0x400000} for NaN results, so every NaN result needs its sign forced to 0. In the harness I did this as `q & 0x7FFFFFFF` on NaN outputs. In my combinational rewrite I changed the NaN constant to 32'h7FC00000. The repository's own testbench has the same convention: its oracle returns (sign<<31)|0x7FC00000 and accepts any NaN encoding.\n2. The parameter SUBNORMAL_SUPPORT must be 1. The default of 0 is flush-to-zero and does not meet the spec.\n3. Sequential to combinational: the published design is a clocked FSM with ports i_clk, i_rst_n, i_a, i_b, i_valid, ow_result and four flag/valid outputs. The spec's a, b, q circuit exists only after unrolling. I wrote one (fdiv32_comb.sv: each FSM register becomes a wire, the shared multiplier is instantiated 7 times, ports a, b, q, sign-0 NaN). I also wrote fdiv32_flat.sv, with the 7 Dadda instances replaced by generate-for shift-add multipliers so there are no module instances. Both are in my directory, not upstream code.",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "No pinned score exists for the published design. It is sequential, so the combinational flow cannot score it. score.py also refuses it at the source gate: it contains `timescale, `include, `define/`ifdef and macros. A flop-bearing netlist would then fail at the GE table, which prices no flip-flop. The pinned score on my two unrolled variants did NOT finish: score.py's 1800 s Yosys limit expired for both fdiv32_comb and fdiv32_flat, with ABC still running at about 20% CPU on a machine at load 120-220. Only the pre-ABC figure from the pinned flow's `synth -flatten` stage for fdiv32_flat was obtained: 25,480 gates, about 38.1k GE by ge.json weights. That is not a score, and the post-ABC area would be lower.",
+   "notes": "Yosys 0.53 reads the unmodified sources with `read_verilog -sv -I . <9 files>` and hierarchy -top -chparam SUBNORMAL_SUPPORT 1; proc, flatten and check report 0 problems. The 128-entry LUT becomes a ROM ($meminit, $memrd). The flattened sequential design has 9115 cells including 23 $adff and 1650 $scopeinfo cells."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extract.py --top math_ieee754_2008_fp32_divider -I . on the 9 files wrote a 6.3 MB envelope with 6 modules and 510 Instance nodes (3m50s CPU, 16 min wall under load). It printed 'warning: 1 compilation error diagnostic'. The cause is slang SlangError:UsedBeforeDeclared: w_prod is used at divider.sv:178 before its declaration (Yosys and Verilator accept this). That error cascades into InvalidExpression, Shift:invalid-compilation and Remainder:invalid-compilation nodes. First blockers: (1) the used-before-declared w_prod; (2) the 46 explicit casts 5'(i) in the two priority-encoder `for` loops; (3) `wire signed` / `logic signed` declarations; (4) the module hierarchy, since PROVING.md says sv_structure/sv_equations refuse instances and require flattening. On the combinational shift-add rewrite fdiv32_flat.sv the extractor takes 7 s (741 KB envelope) and reports exactly 5 Unsupported nodes, all `NetSymbol:signed` (the declarations ea_sub, eb_sub, ea_s, eb_s, e_f). The tactics themselves were not run, because Lean/lake were off limits.",
+   "unsupported": [
+    "SlangError:UsedBeforeDeclared (w_prod, line 178) plus its cascade InvalidExpression / Shift:invalid-compilation / Remainder:invalid-compilation",
+    "ConversionExpression:Explicit 5'(i) x46",
+    "NetSymbol:signed x5",
+    "VariableSymbol:signed x2",
+    "UninstantiatedDefSymbol:UninstantiatedDef x7 (prefix cells under generate-if)",
+    "NetSymbol:net-z x2 (w_cpa_a, w_cpa_b in the Dadda module)",
+    "510 module Instance nodes (not Unsupported in the envelope, but refused by sv_structure)",
+    "AlwaysPosedge (the FSM), a 128-entry case ROM, a `for` loop in always_comb, `$signed`"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "Provable only after a stated rewrite, not as is. The published module is a clocked FSM, so there is no combinational a,b,q circuit to state a theorem about. The rewrite is: unroll to combinational (done, 0 mismatches), flatten the 7 multiplier instances, drop `signed`, force NaN sign 0, and add a fixed-format (8,24) task in the style of fdiv16 (kind comb-fixed). The task's parametric statement cannot be proved for W,P other than (8,24), since the design is hard-wired. The statement itself is general, so a (8,24) instance is fine. The math is feasible: the architecture is an exact integer quotient plus remainder followed by textbook RNE, so there is no bounded-ulp approximation to argue around. The one genuinely new obligation compared with fdiv16 is the Newton error bound over all divisors.",
+   "blockers": [
+    "No instances: PROVING.md says sv_structure/sv_equations refuse module instances ('flatten it in the source'). The 7 multiplier uses must be flattened into single-bit assigns, or replaced by something in the fragment.",
+    "`*` between two variables is outside the fragment (only + - comparisons and run-time shifts are in). A multiplier has to be a bit-level netlist (the mul task's per-width Dadda references exist, and per-width multiplier proofs there are about 1400 code lines each) or a generate-for shift-and-add chain. My fdiv32_flat.sv uses the shift-add form and extracts cleanly.",
+    "`wire signed` and `$signed` (5 declarations) are Unsupported and must be rewritten as unsigned two's-complement arithmetic.",
+    "Procedural for loops, casts 5'(i), and used-before-declared must be removed (the priority encoders as ?: chains, which I did).",
+    "The Newton error bound: |B*r2 - 2^47| <= 24,992,532 for every one of 2^23 divisors. I measured it exhaustively on the RTL (it equals the generator's stated value), but a Lean proof needs it symbolically. Route: per-interval analysis over the 128 LUT seed buckets (a quadratic error recurrence plus rounding slack), then the deduction rem in [0,16B) with 8-unit bias. Exhaustive kernel `decide` over 8.4M divisors is not realistic, and native_decide adds Lean.ofReduceBool, outside the fdiv16 task's allowed axioms. A fresh fixed-format task could allow it.",
+    "The circuit is not minimal-dependency: three different paths (normal, subnormal-grid with m*B, deep flush) must each be tied to the spec's rounding."
+   ],
+   "estimate": "Roughly 2,500 to 6,000 lines of Lean in total (fdiv16's reference proof files total about 3,850 lines including its BitVec model and glue). This is an estimate, not a measurement: Newton/residual bound 800 to 1,500, exact-quotient and RNE core with exponent, overflow, subnormal-grid and deep-flush cases 1,000 to 2,000, glue from the netlist equations 500 to 1,000, multiplier lemma (shift-add form) 100 to 300 reused 7 times. sv_equations on a netlist this size (about 25k fine-grained gates after bit-blasting, a few hundred word-level assigns in the shift-add form) is likely the expensive step."
+  },
+  "verdict": "WRAPPER: exact at binary32 after a thin wrapper (NaN sign forced to 0, SUBNORMAL_SUPPORT=1), but a poor fit for the combinational flow as published. The 3.33M-pair test set and the 50.3M-pair divisor sweep showed 0 mismatches apart from the NaN sign. It is only (8,24), not parametric, and sequential (not scoreable). To use it for svGolf you would need a hand unrolling, flattening and a new fdiv32-fixed task, and a proof with a genuine Newton-bound lemma. As a source for a proof exercise it is the most mathematically interesting divider type surveyed. As a direct entry it is not usable.",
+  "measuredVsRead": "MEASURED by me, on the real RTL via Verilator 5.042: cycle counts (1, 9, 10); 3,327,365 oracle-checked pairs (43,368 raw NaN-sign mismatches, 0 after the NaN-sign wrapper; the default FTZ setting fails 953,713); 50,331,648 divisor-exhaustive pairs against an independent integer oracle (itself checked against the Python oracle on 30,000 pairs); instrumented max |B*r2-2^47| = 24,992,532 over all 2^23 divisors and k in [5,9] over 3 dividends per divisor; the exact equivalence (0 mismatches on 3.33M pairs) of my own unrolled combinational rewrites; Yosys 0.53 reads the sources; the source gate refuses the file; extractor results (including the one slang compile error and the Unsupported list on the original, and the 5 `NetSymbol:signed` on my flat rewrite). The pre-ABC 25,480 gates and 38.1k GE figure is read out of the pinned flow's synth log (not a score, and the pinned score timed out on both my variants because the machine was heavily loaded). READ, not run: the generator header's claims about the algorithm and that the Newton bound was checked at generate time (my measurement agrees with the number, but I did not run their generator); the upstream testbench's behaviour; all of PROVING.md's statements about which constructs the tactics accept (I ran no Lean and no tactic, so proof feasibility and the 2,500 to 6,000 line estimate are judgement); the claim that k stays in [5,9] holds for my 3 dividend choices only, not for all dividends. The candidate's own C++ model (234,881,023 cases) was not used; my numbers come from the RTL.\""
+ },
+ {
+  "name": "fontamsoc/hw cpu/fpu.sv, PUFDIVDSP2 variant (Newton-Raphson reciprocal + residual fix-up), binary32 fdiv path",
+  "url": "https://github.com/fontamsoc/hw/blob/HEAD/cpu/fpu.sv",
+  "license": "GPL-2.0-only (SPDX header in the file; gh repo view reports gpl-2.0; 9 stars). Fetched files carry the same header; my derived copies keep it.",
+  "runAs": "The real fpu module (RTL as fetched, +define+PUFDIVDSP2) in Verilator with a C++ harness: args_i = {rm=000, optype=16 (OP_DIV), gprid=0, rs1=a, rs2=b}, pulse stb_i one cycle, tick until rdy_o, read rslt_o. That is 18 clock edges counting the stb edge (DIVLAT=17 plus one result register) for every finite nonzero/nonzero division and 3 edges for the special cases (NaN, inf, zero), measured. For the combinational flow I hand-extracted the div path into fdiv32 (a[31:0], b[31:0], q[31:0]): fdiv32_faithful.sv (comb/, a line-by-line unrolling of the FSM schedule, keeps functions and signed nets) and two rewrites generated by flat/gen_flat.py (fdiv32_flat_mul.sv with `*`, 106 assigns + 1 ROM always_comb; fdiv32_flat_arr.sv with 6 multipliers as shift-add rows, 598 assigns). All three equal the real RTL on every one of 3,921,094 test pairs.",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 3921094,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "REAL RTL FSM vs exact-rational oracle (fdiv_oracle.py), rm=000. Sets: A uniform random 1,000,000; B structured random 1,500,000 (all quotient exponents, special fractions, subnormals, NaN payloads, both signs); C corner cross-product 535,824 (specials, subnormals, all powers of two, all-ones fractions, sNaN/qNaN/payload NaNs, +/-0, +/-inf, min/max normal); C2 powers of two x powers of two 77,284; D exact/tie cases in the subnormal-result region 294,009; E significand-hard cases 513,977 (seed-bin boundaries +/-3, +/-0x7fff..0x8001, exact multiples and +/-1 neighbours). Mismatch classes counted (NaN payload/sign, flush-to-zero, subnormal, rounding ulp1/>1, inf/zero special, overflow threshold, sign): all 0."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 16777216,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "REAL RTL FSM, ALL 2^23 divisor significands x 2 dividends (frac 0x7fffff and a pseudorandom one), same binade, vs hardware float32 division (itself checked against the oracle on binary32). Exhaustive over divisors, not over dividends."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 411041792,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "fdiv32_faithful.sv (Verilator) vs float32: 142,606,336 pairs = all 2^23 divisors x 17 dividends (0, max, equal, +/-1 neighbours, 12 random) plus 268,435,456 pairs = all 2^23 dividend fractions x 32 divisors (the extreme and midpoint significands of seed bins 0-7). Also |Qnr - floor(N*2^24/bSig)| <= 1 in every case (max 1; Qnr<floor and Qnr>floor both occur, 2.3M/12.5M and 9.4M/32.7M)."
+   },
+   {
+    "w": 8,
+    "p": 24,
+    "pairs": 75497472,
+    "mismatches": 0,
+    "exhaustive": false,
+    "classes": "fdiv32_flat_mul.sv vs float32: all 2^23 divisors x 9 dividends; fdiv32_flat_mul and fdiv32_flat_arr equal the real RTL on all 3,921,094 oracle-set pairs (0 diffs)."
+   }
+  ],
+  "conformance": "EXACT on everything measured, after the wrapper: 0 mismatches vs the exact-rational oracle on 3,921,094 binary32 pairs through the real RTL FSM, plus 0 mismatches vs hardware float32 division on 16.8M further real-RTL pairs (every one of the 2^23 divisor significands, two dividends each), 411M and 75M pairs through the derived combinational copies, and the NR reciprocal error bound holds for every divisor. Verdict class: WRAPPER (exact once rm is pinned to 000 and the FSM is wrapped or unrolled); the function itself matches the svGolf fdiv spec at (W,P)=(8,24) and covers no other (W,P) (parametric: false).",
+  "differences": [
+   "No functional difference found at (8,24): NaN operand or result gives 0x7fc00000, 0/0 and inf/inf give canonical NaN, x/0 and inf/y give inf with sign a^b, x/inf and 0/y give zero with sign a^b, subnormal operands and results are exact (gradual underflow), overflow gives inf, ties-to-even is exact: all agree with the oracle in 3.92M pairs (result classes in the oracle-checked sets: 2,521,772 normal, 377,301 zero, 301,869 inf, 241,659 subnormal, 478,493 NaN).",
+   "Interface/implementation differences, not functional: original is a clocked 18-cycle FSM (3 cycles for special cases) with rst_i, clk_i, stb_i, args_i, rdy_o and a flags output; takes a 3-bit rm (all 5 RISC-V modes, only 000 = RNE is the svGolf spec); binary32 only, so the design cannot instantiate any other (W,P).",
+   "As fetched it cannot go through svGolf tooling: source gate refuses ~50 preprocessor directives and an include; extractor-level blockers listed in extractor.unsupported; the hand-unrolled fdiv32_faithful.sv additionally fails the fourstate stage (run-time index x[i] in the clz64 loop function: signed 32-bit index outside [63:0]); the rewrites pass srcgate, banlist (/ % ** banned) and fourstate.",
+   "A negative control confirms the comparer is live: corrupting 2 of 513,977 outputs was reported as 2 mismatches (rounding_ulp1 and got_nan_want_norm). The task's format cap (W+P<=14 all pairs) is not applicable: the design only exists at W+P=32, so no small-format exhaustive run was possible."
+  ],
+  "wrapperNeeded": "Two layers. (1) To run the original at all: a sequential wrapper (pack args_i, rm=3'b000, optype 5'd16, strobe, wait for rdy_o); rm must be tied to 000 because the module takes all five RISC-V rounding modes (reserved codes 5-7 also behave as RNE in the rounder, but I only used 000); the fflags output is ignored. NaN results are already canonical (CANON_QNAN = 0x7fc00000), so no NaN canonicalization is needed. (2) To get something the combinational flow can score or extract: a HAND derivation (not a mechanical cut) that unrolls the 13-step multiplier schedule into wires, pins rm=RNE, drops flags and removes the preprocessor/include/FSM. Also, the repository's source gate refuses the original (`ifdef/`define/`include), and the original is a clocked FSM, so it is not scoreable by the combinational flow as is.",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "NOT obtained from the pinned flow. The pinned score.py run on fdiv32_faithful.sv died with 'yosys timed out after 1800s' (ABC had used 11.6 CPU-minutes without finishing; the machine was at load average ~200, ABC got ~20% of a core); two runs of the rewrites with the cap raised to 6 h (score/../tools/score_longtimeout.py, the repo's score.py otherwise unchanged) were stopped by me unfinished after ~25 min wall. UNPINNED estimate only (own script, `synth -flatten` + `abc -fast -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX`, gate counts weighted with the pinned ge.json): about 44.8k GE for fdiv32_flat_arr (29,523 gates), 44.9k for fdiv32_flat_mul (29,591), 45.1k for fdiv32_faithful (29,795); the pinned ABC script will give a different (likely smaller) number. The original fpu.sv is sequential: 'sequential: not scoreable by the combinational flow', and score.py's source gate rejects it before synthesis.",
+   "notes": "Yosys 0.53 `read_verilog -sv` reads the original fpu.sv with -DPUFDIVDSP2 -I cpu -I . (hierarchy -top fpu, exit 0) and all three combinational copies (the faithful one infers a 128x28 ROM $memrd from the case function). Gate stages on my copies: srcgate OK for all three; banlist (/ % **) OK; fourstate OK for flat_mul and flat_arr, FAILS for faithful (clz64 loop index). `*` is allowed by the banlist (only / % ** are banned)."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "extract.py --top ... writes an envelope in every case, but only the flat rewrites are clean. (1) Original fpu.sv (-I . -I cpu; the extractor has no -D, so it elaborated the DEFAULT digit-recurrence variant, not PUFDIVDSP2): 34 Unsupported nodes in 5 kinds. (2) fdiv32_faithful.sv: 14 Unsupported nodes: 7 NetSymbol:signed (aEU, bEU, divEb, nrRemS, divBs, divRc, pkShS), 3 user CallExpression (clz64 x2, seedf), 2 ConversionExpression:Explicit (24'(fracA/fracB)), 2 SubroutineSymbol (clz64, seedf). (3) fdiv32_flat_mul.sv and fdiv32_flat_arr.sv: 0 Unsupported nodes (107 and 599 processes). First blockers when going from the original: preprocessor (source gate), always_ff/FSM, signed exponents, user functions (clz loop, seed ROM, clog2), size casts. I could not run sv_structure/sv_equations (Lean slot busy), so tactic-fragment acceptance of the rewrites is read from PROVING.md section 4, not measured.",
+   "unsupported": [
+    "original fpu.sv: NetSymbol:signed x12",
+    "original fpu.sv: CallExpression (clog2) x10",
+    "original fpu.sv: VariableSymbol:signed x6",
+    "original fpu.sv: SubroutineSymbol x4",
+    "original fpu.sv: ConversionExpression:Explicit x2",
+    "faithful comb copy: NetSymbol:signed x7, CallExpression x3, ConversionExpression:Explicit x2, SubroutineSymbol x2",
+    "flat_mul / flat_arr: none"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "Provable only AFTER a stated rewrite, and the rewrite is already done and extractor-clean (fdiv32_flat_arr.sv, no `*`, 598 assigns, equal to the RTL on the whole test corpus). Feasible in principle for the fixed format (8,24) but a large, genuinely new proof; not provable for any other (W,P), and as fetched (FSM, preprocessor, signed, functions) not at all. Not attempted; nothing here was Lean-checked.",
+   "blockers": [
+    "The original is a clocked FSM with preprocessor/include/functions/signed nets/casts; svGolf needs the combinational unrolling (done by hand here, not mechanical).",
+    "`*` is outside the sv_comb tactic fragment (PROVING.md section 4: `x * y` is a word-level operator the tactics do not have). The design has 6 wide multiplies (24x28, 28x29, 24x28, 28x29, 25x28, 25x24), so they must become shift-add arrays (598 sites in flat_arr, vs 111 for the proved fdiv16; sv_equations cost unknown, fdiv16 took ~260k heartbeats) or be proved by hand like mul_n_byhand (1385 lines).",
+    "The main new mathematics, with no analogue in fdiv16: the fdiv16 proof closed its numerics by finite certificates (2^32 pairs); here the quotient pairs number 2^46, so an error analysis is needed for 128 seed bins, two fixed-point NR steps with truncation, then the +/-1 residual fix-up. Structure that helps (measured): y2 depends on the divisor only; over all 2^23 divisors e(D)=y2*D-2^50 lies in [-16,793,029, 8,383,406], i.e. |e|<=0.5004*2^25. By my own derivation (not machine-checked) the quotient estimate then satisfies |Qnr - N*2^24/D| <= |e|/2^25 + 1/8 <= 0.6255 < 1 for EVERY dividend N, hence |Qnr - floor| <= 1 and the single +/-1 fix-up gives the exact floor and exact remainder. The divisor-only fact is either an analytic bound (per-bin, the seed is a constant inside a bin so the first step is linear in D) or a kernel decide over 2^23 cases (heavy; native_decide/bv_decide are discouraged and external solvers unsupported).",
+    "The shared round/pack stage at 32 bits: denormalizing shift of 0..48 with sticky (49 cases instead of fdiv16's 13), carry into the exponent, overflow threshold, plus the 24-bit clz normalizers and the exponent offset arithmetic; reusable pattern from DpRound but not reusable code.",
+    "Statement shape: svGolf's fdiv task is parametric in (W,P) and the checker requires the top module's parameters to match the task's; this design fits only a fixed-size task with W=8,P=24 (like fdiv16 has no parameters), i.e. an `fdiv32` statement over an IEEE-754 binary32 spec function, or a parametric task whose inRange predicate is W=8 /\\ P=24.",
+    "Unverified tactic-fragment details I would expect to need small edits: a concatenation under ?: (dn = dlt ? {asig,1'b0} : {1'b0,asig}), the 128-arm case ROM, part-selects of product signals. Could not be run without Lean."
+   ],
+   "estimate": "About 4,000 to 7,000 lines of Lean (fdiv16 was 3,305 lines of math plus glue): ~600-1,000 NR error analysis and seed-table lemmas, ~400 fix-up and exact-quotient lemmas, ~800-1,200 rounding/packer/normalizer/exponent lemmas at 32 bits, ~300 special-case table, ~1,000-2,500 netlist glue and multiplier row lemmas for 598 sites; elaboration time likely far above the 120-second floor of the time-limit rule, so the netlist would need slimming (e.g. radix-4 rows or fused row sites). Rough, from reading and from sizes of the existing references, not measured."
+  },
+  "verdict": "WRAPPER: a real, exact binary32 divider (RNE, canonical NaN, full subnormals, 0 mismatches in 3.9M oracle pairs through the real FSM and about 500M further float32-referenced pairs, with the NR error bound holding for all 2^23 divisors), but only at (8,24), only after a wrapper/hand-unrolling, GPL-2.0-only, and the pinned area was not obtained (unpinned estimate about 45k GE). Provable only for the fixed format after a rewrite (done) and a large new NR error-analysis proof; promise as a leaderboard/proof target is moderate, as a second independent 'NR + residual' implementation it is good.",
+  "measuredVsRead": "MEASURED: the real RTL's behaviour (Verilator on the fetched fpu.sv with +define+PUFDIVDSP2) against the exact oracle on 3,921,094 pairs and against hardware float32 on 16.8M more; cycle counts (18 and 3); equality of my three derived combinational copies with the real RTL on all 3.92M oracle-set pairs; the 411M-pair and 75M-pair float32 sweeps; the internal property |Qnr - floor| <= 1 (read off the netlist's divQw signal in every sweep case); the NR reciprocal error range over all 2^23 divisors from an independent C++ integer model, cross-checked against the netlist's own y2 signal (0 differences); Yosys 0.53 reading; srcgate/banlist/fourstate results; the extractor's Unsupported counts; the pinned scorer's refusal of the original and its 1800 s timeout on the faithful copy; the unpinned abc -fast estimates. READ ONLY, not measured: the author's claim of an exhaustive Python and TestFloat validation (my sampling and divisor-exhaustive sweeps agree with it but do not cover all dividends, only the divisor-only bound plus my own derivation does); the other four rounding modes; whether the sv_comb tactics accept the rewrites (Lean not run); the derivation that the divisor-only bound implies the all-dividend quotient bound (hand argument, not machine-checked); the pinned svGolf area and depth (not obtained); every proof-size number (extrapolated from the fdiv16 reference sizes and PROVING.md). Note: all derived copies are my reading of the source, validated against the real RTL, not mechanically extracted.\""
+ },
+ {
+  "name": "Phy-Engine-Dev/Phy-Engine: test/0020.fp16_calc/fp16_div.v (module fp16_div_unit)",
+  "url": "https://github.com/Phy-Engine-Dev/Phy-Engine/blob/master/test/0020.fp16_calc/fp16_div.v",
+  "license": "Apache-2.0 (confirmed with gh repo view: apache-2.0, 0 stars, pushed 2026-10-17; the file's only commit is 63300a7a 'add fp16 test', 2026-01-13; local copy sha256 ca061499... is byte-identical to the upstream blob fetched via gh api)",
+  "runAs": "Simulated DIRECTLY, not transliterated. Verilator 5.042 --cc --exe --build -O3 --no-timing (warnings WIDTH/UNOPTFLAT etc. silenced, -Wno-fatal), top fp16_div_unit (ports a[15:0], b[15:0], y[15:0]), C++ harness tb/harness.cpp applying a,b, eval(), reading y. Purely combinational, so there is no start/done and no cycle count. Output y is q. About 20M pairs/s. Three independent references: (1) the exact-rational Python oracle fdiv_oracle.fdiv(5,11,a,b); (2) a C++ integer exact RNE binary16 divider (ref16, 64-bit integer long division with sticky); (3) float32 division of the two fp16 values rounded to _Float16 on arm64 clang (double rounding is innocuous for division at 24 >= 2*11+2 bits). refs (2) and (3) agree on all 2^32 pairs (0 disagreements). Files are all under the eval directory: orig/ (unmodified file), tb/, patched/, extract/, wrap/, score/.",
+  "combinational": true,
+  "formatsTested": [
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 4294967296,
+    "mismatches": 60,
+    "exhaustive": true,
+    "classes": "ORIGINAL file, vs the C++ integer ref (itself equal to the float16 ref on all 2^32 pairs, and equal to the Python oracle on all 60 mismatching rows): 60 = 15 magnitude pairs x 4 signs, all class 'exact tie 0x3FF.8 rounds to +-0 instead of +-0x0400'. Chunked 16 x 268,435,456, per-chunk counts 6,8,8,8,8,8,6,8 in the chunks with a in [0,0x4000) U [0x8000,0xC000)."
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 4606070,
+    "mismatches": 28,
+    "exhaustive": false,
+    "classes": "ORIGINAL file vs the independent Python oracle fdiv_oracle.fdiv(5,11,...): all special x special (x3 signs), specials x random, 1M uniform random, 900k subnormal-heavy, 400k extreme-exponent, every positive finite a x 40 powers of two (both orders), same-mantissa/near-equal sweeps. 28 mismatch occurrences = 23 distinct pairs, all the tie class; 0 NaN, 0 special, 0 flush, 0 other rounding."
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 4294967296,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "ONE-LINE PATCH (patched/fp16_div_patched.v): 0 mismatches vs the C++ integer ref and the float16 ref; also 0 on the 4,606,070-pair set vs the Python oracle."
+   },
+   {
+    "w": 5,
+    "p": 11,
+    "pairs": 4294967296,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "PATCH + latch-free defaults (extract/patched_defaults.v: the patch plus 21 default assignments at the top of the always block so no reg is partially assigned): 0 mismatches over all 2^32 pairs. This is the variant that passes extractor, fourstate and score."
+   }
+  ],
+  "conformance": "DIFFERS, narrowly. Exhaustive over ALL 2^32 (a,b) pairs of the real Verilog: 60 mismatching pairs (0.0000014%), one class. Everything else is exact: canonical NaN 0x7E00 for any NaN operand, inf/inf and 0/0; x/0 and inf/y give +-inf with sign a^b; x/inf and 0/y give +-0 with sign a^b; full subnormal operands and results; overflow gives inf; RNE everywhere else. Against the independent Python oracle on 4,606,070 random plus corner pairs the same design shows 28 mismatches (23 distinct pairs), all in the same class. A ONE-LINE patch (patched/fp16_div_patched.v) takes it to 0 mismatches over all 2^32 pairs, so EXACT after patch.",
+  "differences": [
+   "Only difference, 60 of 4,294,967,296 pairs (MEASURED, exhaustive, all four sign combinations of 15 magnitude pairs): when the exact quotient is the tie 0x3FF.8 ulp (largest subnormal plus half a subnormal ulp = 2047/2^25), RNE must round to even, which is the smallest normal 0x0400, but the design returns +-0 (0x0000 or 0x8000). Example a=0x07ff b=0x4000 got=0x0000 want=0x0400; also a=0x87ff b=0x4000 got=0x8000 want=0x8400; a=0x0bff b=0x4400; a=0x0fff b=0x4800; ... a=0x3fff b=0x7800 (|a| = 0x07ff + 0x400*k, |b| = 0x4000 + 0x400*k, k=0..14). Why only these: for two 11-bit significands a quotient just above the tie cannot occur, so the exact tie is the only way to reach 0x3FF.8 or above.",
+   "Mechanism (READ, then confirmed by the patch): after the underflow shift the code sets exp_res = 0. When the rounded significand carries into bit 10 (mant_round = 0x400, mant_round[11] stays 0), the exponent field is taken as exp_res[4:0] = 0 instead of 1, and mant_round[10:0] is nonzero so the zero branch is not taken. Result {sign, 5'd0, 10'd0} = +-0. Patch: add `if ((exp_res == 9'd0) && (mant_round[10] == 1'b1)) exp_field = 5'd1; else` before the existing exp_field selection. Patched file: 0 mismatches over all 2^32 pairs (MEASURED) and 0 over the 4,606,070-pair set vs the Python oracle (MEASURED).",
+   "Classes with ZERO mismatches (MEASURED): NaN payload or sign (always 0x7E00), flush-to-zero or denormal handling (subnormal operands and results are exact), inf/zero special cases, overflow and underflow thresholds, rounding other than the one tie, truncation, double rounding, any rounding-mode input (none exists).",
+   "Random testing does not find it: 1,000,000 uniform random pairs in my set contain no hit in expectation (60 / 2^32 per pair, about 0.014 expected). Only the structured sweep (every positive finite a times every power-of-two b) found them; the svGolf postsynth corner set (18x18 specials, 4000 random) would not either, but that stage compares ls-sv with the scored netlist, not with the spec, so only the proof can catch it.",
+   "Interface differences only: output port is y not q, module name fp16_div_unit, binary16 only (W=5,P=11, hard-coded, not parametric), no rounding-mode input."
+  ],
+  "wrapperNeeded": "None for conformance (the interface is already purely a,b -> y and the NaN is already canonical 0x7E00). For the svGolf fdiv16 task only a trivial port-list wrapper is needed: module fdiv16(input [15:0] a, b, output [15:0] q) instantiating fp16_div_unit with .y(q), kept in wrap/fdiv16_wrap.sv. With it banlist passes and score.py gives 2302.067 GE / depth 292 (vs 2294.736 for the bare top). The wrapper cannot fix the 60 wrong results. A one-line functional patch does (see differences).",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "binary16 (the only format). Pinned score.py (--top fp16_div_unit, source gate passes, flow 'gated: true'): ORIGINAL 2294.736 GE, depth 292, 1626 gates (AND 308, ANDNOT 98, MUX 177, NAND 508, NOR 38, NOT 30, OR 150, ORNOT 89, XNOR 136, XOR 92). As an fdiv16-port wrapper 2302.067 GE / depth 292 / 1627 gates. One-line patch alone 2316.405 GE / depth 296; patch + latch-free defaults 2307.064 GE / depth 291 / 1631 gates. For comparison, the proved reference tasks/fdiv16/reference/fdiv16.sv scores 1929.778 GE / depth 299 / 1293 gates, so this design is about 19% larger and not competitive on area (all measured with the pinned score.py in this session).",
+   "notes": "Yosys 0.53 read_verilog -sv reads it with no error. proc infers dead latches for 21 regs (exp_a_adj, exp_b_adj, exp_res, mant_a, mant_b, num, q, rem, mant_ext, uf_sh, tmp, sticky_u, guard, roundb, sticky, lsb, inc, mant_main, mant_round, exp_field, frac_field) because they are assigned only in the final else of an always @*; synthesis removes them so score.py sees only combinational gates. Pipeline stages run by me on the wrapped design: banlist PASSES (no / % ** operators); fourstate FAILS on the original ('proc inferred a latch for ...' those 21 regs), PASSES on the variants with default assignments at the top of the always block. I did NOT run check.py as a whole (it needs lake/Lean)."
+  },
+  "extractor": {
+   "envelope": true,
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl (the whole 133-line `always @*` block, span 210:5 to 342:8, left as one Unsupported process node; reason R5: 'exp_a_adj is not assigned on every path ... always @* would infer a latch')"
+   ],
+   "notes": "python3.12 extractors/sv/extract.py --top fp16_div_unit produced a 418 KB sv-0.2 envelope for the original: 1 Unsupported node total (the always @* above), plus Module x2, 25 Assign, 24 Instance with 144 PortConn (the 24 div_stage_u24_u11 stages), 106 Var, 12 Binary, 49 Ternary, 31 Concat, 66 BitSel, 23 PartSel. It is the extractor's rule R5 (every always @* target must be assigned on every path), same as the fourstate latch finding. After adding default assignments for the 21 partially assigned regs at the top of the block, the extractor gives 0 Unsupported and lowers the block to one AlwaysComb (30 Block, 107 BlockingAssign, 13 If, 1 Case with 15 CaseItem, 15 Reduce); the patched+defaults variant also extracts with 0 Unsupported. First blockers for the TACTICS (READ from svgolf/PROVING.md section 4 and 13 and design/fdiv-param/H2-NOTE.md, not run, because Lean was off limits): (1) 24 module instances of div_stage_u24_u11: sv_structure/sv_equations refuse instances ('cannot summarize module instances yet'); (2) the single always block is outside the always_comb fragment (a window written by several unconditional statements, if/else-if chains over several targets, a 15-arm case writing two targets per arm; only default-then-override `if (c) ...;` and single-target arms are accepted by sv_equations); (3) concatenations as operands of >=, +, - (G4 in H2-NOTE), e.g. rem_shift >= {1'b0,div}, {3'd0,exp_a_adj_w}+9'd15, and comparisons inside concatenations/conditions (G3); (4) signed exponent kept in 9 bits and tested through exp_res[8]."
+  },
+  "proofFeasibility": {
+   "judgement": "Not as is: the spec is FALSE for 60 inputs, so no proof of the unmodified file can exist (a proof attempt must end at those counterexamples, e.g. a=0x07ff b=0x4000), and the file is independently rejected by the extractor (R5) and the fourstate stage (latches) before any proof stage. After a stated rewrite it looks provable: apply the one-line tie patch, then rewrite into the flat-netlist style the fdiv16 reference proof already succeeded with (all comparisons named one-bit signals, concatenations named, 24 restoring stages written out as plain assigns instead of instances, no always @*, the 15-way case shifter replaced by a 4-stage mux shifter with a sticky bit, the exponent adjustment written as assigns, default-free dead regs dropped). The patched behaviour is exhaustively correct (0 mismatches over 2^32, measured), so the proof statement would be true. It would be a second, structurally different proof, not a reuse: the BitVec model and glue are netlist-specific.",
+   "blockers": [
+    "Functional bug: 60 pairs wrong (the exact tie 0x3FF.8 rounds to +-0 instead of +-0x0400); needs the one-line patch before anything can be proved.",
+    "always @* with 21 partially assigned regs: extractor R5 Unsupported and fourstate 'latch' failure; fix by defaults or by flattening to assigns.",
+    "24 submodule instances: the sv_comb tactics refuse instances; must be flattened to wires/assigns (about 24 x 5 = 120 plain sites).",
+    "always block shape outside the always_comb fragment (repeated unconditional reassignment of exp_res and mant_ext, multi-target case arms, if/else chain): must be rewritten as SSA-style assigns.",
+    "Concatenation operands of >= + - and comparisons inside concatenations (tactic gaps G3/G4 per H2-NOTE): must be rewritten with named words and implicit zero extension, as the fdiv16 reference does.",
+    "Proof effort and tactic cost scale: roughly 250 plain sites vs 111 in the reference, and the reference's sv_equations already needed about 275k heartbeats; I did not run it so the heartbeat budget and the solution time limit are open (task time_limit_s is 130 for fdiv16)."
+   ],
+   "estimate": "READ and ESTIMATED, not measured: about 250 plain sites after flattening (vs 111). The proof is roughly the size of the fdiv16 effort, i.e. 1500 to 2500 new Lean lines (the fdiv16 task has about 3200 non-trusted lines, of which the spec-level certificate Cert16/SpecFacts, about 850 lines, is shareable in idea), mostly the design-specific BitVec model plus glue, a 24-step restoring-division induction (the 13-step restRem induction generalizes), a 10-case priority-encoder normalizer (kernel decide over 2^10 fractions), the 9-bit exponent arithmetic, the 15-shift sticky underflow and the corrected round/carry. Value is as a structurally different proved solution or as a documented negative test (an unmodified-file proof must fail on the 60 pairs), not for score: it is 19% larger than the existing proved reference."
+  },
+  "verdict": "DIFFERS (60 of 2^32 pairs, one rounding-tie class), PATCHABLE to EXACT with one line (measured exhaustively). Interesting as a clean, readable, subnormal-correct binary16 divider with the same interface as svGolf fdiv16, and a good negative test: the unmodified file cannot be proved, and random testing (1M pairs) would not reveal why. Not worth proving for competition value: 2295 GE vs the existing proved reference's 1930 GE, binary16 only, and it needs a full flat rewrite (instances, always @*, latches) plus a fresh netlist-specific proof of roughly 1500-2500 lines. If anything is proved, prove the patched and flattened version as a second structurally different fdiv16 solution.",
+  "measuredVsRead": "MEASURED in this session: (a) the real unmodified Verilog simulated in Verilator over ALL 2^32 binary16 pairs against two independent references (C++ integer RNE divider and float32-division-rounded-to-_Float16, which agree on every pair) giving exactly 60 mismatches, all the 0x3FF.8 tie class, every one also checked against the Python oracle; (b) the same design on 4,606,070 random/corner/structured pairs against the Python oracle: 28 mismatches (23 distinct), same class; (c) my patched copy (one line) and patched+defaults copy, each exhaustively 0 mismatches over all 2^32 pairs, and the patched copy 0 vs the Python oracle on the 4.6M set; (d) Yosys 0.53 reads the file, pinned score.py areas/depths for the original, wrapped, patched, patched+defaults and the fdiv16 reference; banlist PASS and fourstate FAIL (21 latches) on the original, fourstate PASS with defaults; (e) the extractor's envelope, node counts and the single Unsupported node (R5), and 0 Unsupported after adding defaults. I did NOT measure: anything involving Lean (no sv_structure, sv_equations, sv_cover, check.py end to end, heartbeats, proof time); the claims about tactic blockers (instances, always_comb fragment, concatenation operands G3/G4) and the proof size and site-count estimates are READ from svgolf/PROVING.md, REFUSALS.md and design/fdiv-param/H2-NOTE.md plus my own structural count, not run. The mechanism of the bug is read from the source and confirmed only indirectly by the patch fixing all 60 cases without creating others. The earlier transliteration-based figures were superseded by the direct Verilator runs (same count, 60).\""
+ },
+ {
+  "name": "raphaelPinheiro26/tt_um_fp8_fpu (Tiny Tapeout FP8 E4M3 FPU; divide path = fp8_div_iter + fp8_normalize + fp8_round)",
+  "url": "https://github.com/raphaelPinheiro26/tt_um_fp8_fpu",
+  "license": "Apache-2.0 (1 star, pushed 2026-08-18; commit e5c4ad8aeec665d7c145a0b943d12f780ad1ff5b fetched)",
+  "runAs": "Real design: Verilator 5.042 --cc C++ harness (seq/tb_seq.cpp) on tiny_fp8_unit with the 11 upstream modules unmodified (RD_FIFO_DEPTH=4). It resets, drives issue_valid with opcode 5'b00011 and rm 0, waits for issue_ready, then reads wb_result at wb_valid with wb_ready=1 and records the cycle count. Two modes: isolated (one op at a time) and stream (all 65,536 pairs issued back to back, results collected in order). Combinational variant: comb/fdiv_comb.v, my wrapper that instantiates the unmodified fp8_unpack, fp8_pre_execute, fp8_execute_comb, fp8_normalize and fp8_round with opcode=DIV and rm=000, replacing fp8_div_iter by a 9-stage combinational unroll of its step equations, plus the NaN canonicalizer. Oracle: fdiv_oracle.fdiv(4,4,a,b).",
+  "combinational": false,
+  "formatsTested": [
+   {
+    "w": 4,
+    "p": 4,
+    "pairs": 65536,
+    "mismatches": 6482,
+    "exhaustive": true,
+    "classes": "RAW sequential design (real tiny_fp8_unit, opcode 3, rm 0), no wrapper: 6,482 mismatches, all in the NaN payload/sign class (6,474 operand-NaN propagation + 8 invalid-op 0x79), 0 in any other class"
+   },
+   {
+    "w": 4,
+    "p": 4,
+    "pairs": 65536,
+    "mismatches": 0,
+    "exhaustive": true,
+    "classes": "after the NaN-to-0x7C wrapper: 0 mismatches for the sequential isolated run, the sequential back-to-back stream run, the combinational unroll in Verilator, and the scored gate netlist of the unroll"
+   }
+  ],
+  "conformance": "WRAPPER. As shipped, tiny_fp8_unit is a sequential elastic FPU (issue/wb handshake), not a combinational divider, and only (W=4,P=4) exists. Driven through its handshake with opcode DIV (5'b00011) and rm 3'b000 (header ROUND_NEAREST = nearest-even), its output equals the exact oracle on all 65,536 operand pairs except where the oracle result is a NaN: raw output differs from the canonical NaN 0x7C on 6,482 pairs. After the one-line wrapper `is_nan(y) ? 8'h7C : y` it matches on 65,536 of 65,536 pairs, 0 mismatches, in both isolated and back-to-back stream mode. My combinational unroll of the 9 restoring steps (built from the unmodified upstream unpack/pre_execute/execute_comb/normalize/round modules) matches the sequential design bit for bit on all 65,536 pairs, and the pinned-flow gate netlist of that unroll also has 0 mismatches vs the oracle on all 65,536 pairs. Larger or other formats: not supported (all widths hardcoded), so the 2M-random requirement is vacuous; the 8-bit input space was covered exhaustively.",
+  "differences": [
+   "NaN payload/sign (the only functional difference, 6,482 of 65,536 pairs, 0 after wrapper): 6,474 are NaN-operand propagation, where the design returns {sign of the NaN operand, 1111, its payload} instead of 0x7C. Of these, 3,486 have sign bit 1 and 2,988 have sign 0 with payload != 100. 8 are the invalid operations (inf/inf, 0/0 in 4 sign combinations each), where it returns the fixed 0x79 (0_1111_001) instead of 0x7C. 498 propagated NaNs already equal 0x7C. Examples (a,b,got,want): (0x00,0x00,0x79,0x7C), (0x00,0x79,0x79,0x7C). Wrapper: map any NaN result to 8'h7C.",
+   "Rounding-mode input: five modes selectable through a 3-bit rm port. rm=3'b000 is round-to-nearest-even and must be pinned by the wrapper. No mismatch once pinned.",
+   "Opcode input: the unit has about 21 opcodes (add, sub, mul, div, sqrt, min, max, cvt and others). The wrapper must pin 5'b00011 (DIV).",
+   "Not combinational: issue_valid/issue_ready, wb_valid/wb_ready, an rd FIFO, 3 handshake registers and a 1 bit/cycle restoring FSM (fp8_div_iter). Measured latency from the accept edge to wb_valid is exactly 4 cycles for special-case operands (8,892 pairs) and exactly 14 cycles for real finite/finite divides (56,644 pairs). Back-to-back throughput is 9.64 cycles/op averaged over all pairs. Extra outputs (flags, exceptions, rd) are unused.",
+   "Format coverage: only (W=4,P=4), i.e. 1 sign, 4 exponent bits with bias 7, 3 fraction bits and IEEE-style inf/NaN at exponent 1111. Widths are hardcoded literals (4'b1111, 6'sd7, mA4/mB4, QDIV=5), so it is not parametric. The header's WIDTH/EXP_WIDTH/MANT_WIDTH macros do not drive the datapath.",
+   "No mismatch found in: inf/zero special cases and their signs, flush-to-zero (none, subnormals are exact), double rounding, exponent overflow/underflow thresholds, subnormal results."
+  ],
+  "wrapperNeeded": "Sequential original: (1) drive the handshake (issue_valid with issue_opcode=5'b00011, issue_rm=3'b000, issue_rd any, wb_ready=1, flush=0), wait 4 to 14 cycles for wb_valid, read wb_result. (2) Canonicalize NaNs: q = (q[6:3]==4'hF && q[2:0]!=0) ? 8'h7C : q. For svGolf's combinational port list a,b,q, a combinational unroll of the 9 restoring steps is needed (mine: comb/fdiv_comb.v, same step equations, verified equal to the FSM on all 65,536 pairs), plus a macro/include expansion pass. The source gate refuses `include and every `define use (24 findings on fp8_round.v alone), but passes the flat text after `verilator -E` with the `line markers stripped (comb/pre/fdiv_comb_pp.sv).",
+  "yosys": {
+   "reads": true,
+   "geAtFormat": "542.271 GE, depth 63 (411 gates: NAND 155, AND 87, ORNOT 34, OR 31, XNOR 28, MUX 25, ...) at (W=4,P=4), for MY combinational instantiation fdiv44 with ports a,b,q. This is the pinned score/score.py flow with the source gate ON, top fdiv44, on comb/pre/fdiv_comb_pp.sv. The scored gate netlist, simulated in Verilator with Yosys simcells, matches the oracle on all 65,536 pairs. The original sequential top is not scoreable: it has 199 flip-flops after generic synth, and the GE table prices no flip-flops. For context, the fdiv16 reference scores 1929.778 GE / depth 299 at binary16.",
+   "notes": "yosys 0.53 `read_verilog -sv -I.` reads all original files with no warnings in the combinational instantiation. The sequential top gives one warning, 'Replacing memory rd_fifo with list of registers'. Opcode and rm are constants in the instantiation, so the ADD/SUB/MULT/SQRT/SCALB/CVT logic folds away and 542 GE is the divide path only. Other pinned stages I ran on the flattened text: banlist (/ % **) passes; fourstate FAILS with one finding, a run-time index `mag[i]` in fp8_normalize's priority-encoder for loop (signed 32-bit index outside [9:0]). I did not run check.py itself, because its trusted stage builds Lean."
+  },
+  "extractor": {
+   "envelope": true,
+   "notes": "The source gate refuses the original files outright, because of `include and macro uses. The extractor's source gate plus symbolic extraction via svgolf/check/envelope.py (--top fdiv44) succeeds on the preprocessed single file and writes a 1.3 MB sv-0.2 envelope (comb/envcache/...). The envelope contains 50 Unsupported nodes, and the checker's `design` stage would reject it (loader + Design2.hasUnsupported); I did not run Lean, so loading itself is untested. By module: fp8_normalize 14, fp8_execute_comb 12, fdiv_div_unrolled (MY unroll) 12, fp8_round 6, fdiv_comb (MY wrapper) 5, fp8_unpack 1. So 33 come from upstream code and 17 from my wrapper's own style. First blockers by source order: (1) signed nets, variables and ports for the exponent arithmetic (about 32 nodes in total); (2) the procedural `for` loop in fp8_normalize; (3) the user `function do_round` and its call; (4) `localparam signed [5:0] CVT_EBASE = G + 4` (ConversionExpression:width); (5) in my wrapper only, unpacked arrays `wire [..] src[0:9]`, wire declaration initializers and genvar-indexed element selects.",
+   "unsupported": [
+    "VariableSymbol:signed (16)",
+    "PortSymbol:signed (9)",
+    "NetSymbol:signed (6)",
+    "ConversionExpression:width (2)",
+    "ForLoopStatement (1)",
+    "CallExpression (2, do_round)",
+    "SubroutineSymbol:Subroutine (1, do_round)",
+    "PortSymbol:net-z (1)",
+    "NetSymbol:net-z (4, wire declaration initializers, my wrapper)",
+    "NetSymbol:type (4, unpacked arrays, my wrapper)",
+    "ElementSelect:default-point-index (4, genvar-indexed array select, my wrapper)"
+   ]
+  },
+  "proofFeasibility": {
+   "judgement": "Provable after a stated rewrite; not as is. The divider is real, exact and tiny, and only needs a fixed-size task at (4,4) (design/fdiv-param option C, a family of fixed-size tasks, needs no change to Task.lean). Neither the shipped RTL nor my hierarchical unroll is in the tactic fragment. The proof is for a hand-flattened, DIV-only, RNE-only, combinational rewrite with the NaN canonicalizer folded in. The sequential original would need the repository's sequential layer and is not provable through the combinational interface.",
+   "estimate": "All of this is an estimate, none measured (Lean was not run). Rewrite: about 100 to 150 lines of flat SV, with all sites plain (no generate, no always_comb, per H2-NOTE G5). It would cover: classification and specials; subnormal pre-normalize by a 3-way priority; a 9-step restoring chain written out flat; the msb of the 6-bit quotient (only bits 5 or 4 can be the msb, so no priority-encoder loop is needed); and the exponent difference, with the subnormal right shift and the RNE round-up and overflow, all in unsigned two's-complement. Proof: roughly 300 to 700 lines of Lean. A naive single exhaustive `decide +kernel` over 65,536 pairs, scaled from aes_sbox (10.5 s for 256 inputs of a 113-site packed program), would come to roughly 45 to 90 minutes. That is far over the 130 to 400 s limits of existing tasks, so the proof should be decomposed. The pieces: specials by classification case split; the 8x8 significand pairs against the format-agnostic restore_spec in SpecFacts.lean; and normalize/round as a finite case table, linked to the spec via the format-agnostic certificate (certF_bridge / fdivF_cert in CertF.lean). By comparison, fdiv16 took about 1000 lines of math, and the parametric statement needs none of it for a fixed format.",
+   "blockers": [
+    "Not parametric: hardcoded to (4,4), so it only fits a fixed-size (4,4) task, not the parametric fdiv #(W,P).",
+    "Source gate: `include and macros in every file (mechanical: verilator -E removes them).",
+    "Sequential FSM plus elastic handshake, FIFO and 21-opcode datapath: needs a flat combinational DIV-only copy.",
+    "Extractor-unsupported constructs: signed arithmetic, procedural for loop (also refused by fourstate as a run-time index mag[i]), user function do_round, localparam signed with width conversion, unpacked arrays and wire initializers in the unroll.",
+    "Fragment restrictions from H2-NOTE: the 9-stage chain must be written flat, with no concatenation as a ?: arm or +,-,>= operand, and no operation as the left operand of a shift (name it first).",
+    "The spec wants 0x7C for every NaN result, but upstream returns 0x79 for invalid operations and a propagated payload and sign for NaN operands: the rewrite must canonicalize, so it is no longer upstream code."
+   ]
+  },
+  "verdict": "WRAPPER, one small format. It is exact for the spec at (W=4,P=4): 0 mismatches over all 65,536 pairs, after pinning opcode=DIV and rm=RNE and mapping every NaN to 0x7C, which fixes the only difference (6,482 NaN payload/sign pairs). It adds a new cheap (W,P) point and an exhaustively checkable independent algorithm. The shipped design is a sequential 21-opcode FPU, not a divider: 4/14-cycle latency, 199 flip-flops. Only my combinational unroll is scoreable, at 542.271 GE / depth 63. As submitted it cannot be proved: a flat DIV-only rewrite and a fixed-size (4,4) task statement are needed, and the proof would be moderate work. A useful data point, but not a general-purpose candidate: not parametric and no larger format.",
+  "measuredVsRead": "MEASURED (Verilator 5.042, Yosys 0.53, the repo's score/extract/gate tools, my own Python 3.12 comparison against fdiv_oracle): (a) the real sequential design's results for all 65,536 operand pairs in isolated and stream mode, and its latencies (4 and 14 cycles); (b) the mismatch counts and classes against the oracle, raw and after NaN canonicalization; (c) bit-exact equality of my combinational unroll with the sequential design on all pairs; (d) Yosys reading, the pinned score (542.271 GE, depth 63) and exhaustive simulation of the scored gate netlist; (e) the source-gate refusal of the original files and its acceptance of the preprocessed flat file, the banlist pass, the fourstate failure, and the extractor's 50 Unsupported nodes by kind and module; (f) 199 flip-flops of the sequential top. READ only, not measured: the README claim of 1,843,968 exhaustive vectors at RTL and gate level, the sby formal proofs, and the authors' Fraction golden model (I did not run any downloaded Python); that the authors' golden model's DIV rules match the spec (superseded by my direct oracle comparison); whether the other four rounding modes are right (not tested, irrelevant to the spec); the fdiv-param option-C interface and the 'must be flat' limit (taken from H2-NOTE and TASK.md); and the load_design_sv2 / tactic acceptance (not run, since Lean was busy). The proof-size and kernel-decide time figures are my estimates (scaled from the aes_sbox table in PROVING.md), not measurements. Artifacts are under <scratchpad>/fdivsurvey/eval_raphaelPinheiro26_tt_um_fp8_fpu_Tiny_Tap/ : seq/tb_seq.cpp, comb/fdiv_comb.v, comb/pre/fdiv_comb_pp.sv, comb/score_fdiv44.json, comb/score_fdiv44_netlist.v, tools/compare.py, and the envelope in comb/envcache/.\""
+ }
+]

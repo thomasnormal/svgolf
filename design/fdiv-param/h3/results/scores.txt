@@ -1,0 +1,12 @@
+# python3.12 score/score.py <file> --top fdiv --param W=<W> --param P=<P>   (area_ge depth gates)
+# flat fdiv16 reference (tasks/fdiv16/reference/fdiv16.sv, fixed size):  1929.778 GE  depth 299  (1293 gates)
+D1 fdivp.sv  (2,2)   93.322   20    72
+D1 fdivp.sv  (5,11)  1911.446 300   1290
+D1 fdivp.sv  (8,8)   1251.195 181   859
+D1 fdivp.sv  (8,24)  7450.536 1256  4905
+D1 fdivp.sv  (11,53) not measured: score.py did not finish within 9 minutes under load
+D2 fdivp2.sv (2,2)   96.32    18    76
+D2 fdivp2.sv (5,11)  2314.058 295   1618
+D2 fdivp2.sv (8,8)   1498.496 179   1040
+D2 fdivp2.sv (8,24)  9813.601 1279  6899
+D2 fdivp2.sv (11,53) not measured

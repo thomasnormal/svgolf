@@ -1,0 +1,48 @@
+{
+ "rows": [
+  {
+   "area_ge": 447.976,
+   "area_mge": 447976,
+   "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+   "depth": 40,
+   "gates": {
+    "AND": 69,
+    "ANDNOT": 1,
+    "MUX": 2,
+    "NAND": 144,
+    "NOT": 1,
+    "OR": 1,
+    "XNOR": 3,
+    "XOR": 99
+   },
+   "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+   "name": "mul_array",
+   "num_gates": 320,
+   "rtlil_sha256": "c5a15869043637d0dcadbc5fda58433f1509670d3be32bd2a8abe1923cc94645",
+   "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+   "seconds": 0.84,
+   "tag": "mul_array_N8",
+   "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  {
+   "area_ge": 451.31,
+   "area_mge": 451310,
+   "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+   "depth": 30,
+   "gates": {
+    "AND": 70,
+    "NAND": 150,
+    "XNOR": 8,
+    "XOR": 96
+   },
+   "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+   "name": "mul_tree_h",
+   "num_gates": 324,
+   "rtlil_sha256": "5c2220e89bb50abe92062691da2087219a65aa5050dc3fdfb2bdc5889e7c5fbd",
+   "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+   "seconds": 0.75,
+   "tag": "mul_tree_h_N8",
+   "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  }
+ ]
+}

@@ -1,0 +1,55 @@
+# The svGolf website (site/build.py), built from this repository and deployed to GitHub Pages.
+# Settings > Pages > Source: "GitHub Actions". The optional secret SITE_DENYLIST (a JSON list in
+# site/config.json's denylist format) adds entries the build must not find in its output.
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch lean-surfaces at the revision lake-manifest.json pins (the files the site reads)
+        run: |
+          rev=$(python3 -c 'import json; print(next(p["rev"] for p in json.load(open("lake-manifest.json"))["packages"] if p["name"].strip("\u00ab\u00bb") == "lean-models"))')
+          dep=.lake/packages/lean-models
+          git init -q "$dep"
+          git -C "$dep" remote add origin https://github.com/thomasnormal/lean-surfaces
+          git -C "$dep" sparse-checkout set --no-cone /LeanModels/ /docs/sv-refusals.json /extractors/sv/ /tools/gen_sv_refusals.py
+          git -C "$dep" fetch -q --depth 1 --filter=blob:none origin "$rev"
+          git -C "$dep" checkout -q FETCH_HEAD
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the site
+        env:
+          SITE_DENYLIST: ${{ secrets.SITE_DENYLIST }}
+        run: |
+          deny=()
+          if [ -n "$SITE_DENYLIST" ]; then
+            printf '%s' "$SITE_DENYLIST" > "$RUNNER_TEMP/denylist.json"
+            deny=(--denylist "$RUNNER_TEMP/denylist.json")
+          fi
+          python3 site/build.py --offline --revision "${GITHUB_SHA::12}" --out _site "${deny[@]}"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

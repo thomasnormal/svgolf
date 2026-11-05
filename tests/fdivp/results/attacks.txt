@@ -1,0 +1,357 @@
+# Attacks and negatives of task fdivp: simulation records (2026-11-02, Verilator 5.042 against tests/fdivp/validate/oracle.h)
+
+## exhaustive counts at small formats (validate.py --design ... --bad --formats 2,2 3,4 4,6 5,5 7,3 2,8 3,7 8,2)
+== inc_tie_odd
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 8, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 132, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 1816, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 2092, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 1744, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 512, "mode": "exhaustive"}
+{"W": 3, "P": 7, "K": 10, "pairs": 1048576, "mismatches": 1024, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 1520, "mode": "exhaustive"}
+tests/fdivp/attacks/inc_tie_odd.sv: wrong somewhere, as expected
+== dsh_wrap64
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 104, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 7, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 2056, "mode": "exhaustive"}
+tests/fdivp/attacks/dsh_wrap64.sv: wrong somewhere, as expected
+== ew_narrow
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 1792, "mode": "exhaustive"}
+{"W": 3, "P": 7, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+tests/fdivp/attacks/ew_narrow.sv: wrong somewhere, as expected
+== zero_by_zero_inf
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 4, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 4, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 4, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 4, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 4, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 4, "mode": "exhaustive"}
+{"W": 3, "P": 7, "K": 10, "pairs": 1048576, "mismatches": 4, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 4, "mode": "exhaustive"}
+tests/fdivp/attacks/zero_by_zero_inf.sv: wrong somewhere, as expected
+== rr_sticky_dropped
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 4, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 1968, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 138736, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 166704, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 191988, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 55676, "mode": "exhaustive"}
+{"W": 3, "P": 7, "K": 10, "pairs": 1048576, "mismatches": 107860, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 194040, "mode": "exhaustive"}
+tests/fdivp/attacks/rr_sticky_dropped.sv: wrong somewhere, as expected
+finished
+
+## the two format-dependent attacks at the scoring point and at the large formats (validate.py --exhaustive / --samples 500000)
+== dsh_wrap64 at (5,11) exhaustive
+{"W": 5, "P": 11, "K": 16, "pairs": 4294967296, "mismatches": 0, "mode": "exhaustive"}
+tests/fdivp/attacks/dsh_wrap64.sv: all agree
+== ew_narrow at (5,11) exhaustive
+{"W": 5, "P": 11, "K": 16, "pairs": 4294967296, "mismatches": 0, "mode": "exhaustive"}
+tests/fdivp/attacks/ew_narrow.sv: all agree
+== dsh_wrap64 at (8,24) sampled 500000
+{"W": 8, "P": 24, "K": 32, "pairs": 1032400, "mismatches": 22113, "mode": "sampled"}
+tests/fdivp/attacks/dsh_wrap64.sv: MISMATCHES 22113
+== ew_narrow at (8,24) sampled 500000
+{"W": 8, "P": 24, "K": 32, "pairs": 1032400, "mismatches": 0, "mode": "sampled"}
+tests/fdivp/attacks/ew_narrow.sv: all agree
+== dsh_wrap64 at (11,53) sampled 500000
+{"W": 11, "P": 53, "K": 64, "pairs": 1032400, "mismatches": 58782, "mode": "sampled"}
+tests/fdivp/attacks/dsh_wrap64.sv: MISMATCHES 58782
+== ew_narrow at (11,53) sampled 500000
+{"W": 11, "P": 53, "K": 64, "pairs": 1032400, "mismatches": 0, "mode": "sampled"}
+tests/fdivp/attacks/ew_narrow.sv: all agree
+finished
+
+## the post-synthesis check ALONE (source gate bypassed; ls-sv against the design's own scored netlist, so a wrong-but-consistent design passes) and the advisory oracle on the 4443 vectors of the full mode
+inc_tie_odd light passes 99 7.8
+inc_tie_odd full passes 4443 50.6
+dsh_wrap64 light passes 99 6.3
+dsh_wrap64 full passes 4443 49.5
+ew_narrow light passes 99 6.0
+ew_narrow full passes 4443 51.5
+zero_by_zero_inf light passes 99 6.8
+zero_by_zero_inf full passes 4443 66.2
+rr_sticky_dropped light passes 99 6.9
+rr_sticky_dropped full passes 4443 68.4
+inc_tie_odd vectors 4443 functional {"checked": 4443, "mismatches": 4, "examples": [{"point": "W=5,P=11", "inputs": {"a": "0x1", "b": "0x4000"}, "expected": {"q": "0x0"}, "got": {"q": "0x1"}}, {"point": "W=5,P=11", "inputs": {"a": "0x8001", "b": "0x4000"}, "expected": {"q": "0x8000"}, "got": {"q": "0x8001"}}, {"point": "W=5,P=11", "in
+dsh_wrap64 vectors 4443 functional {"checked": 4443, "mismatches": 0, "examples": []}
+ew_narrow vectors 4443 functional {"checked": 4443, "mismatches": 0, "examples": []}
+zero_by_zero_inf vectors 4443 functional {"checked": 4443, "mismatches": 4, "examples": [{"point": "W=5,P=11", "inputs": {"a": "0x0", "b": "0x0"}, "expected": {"q": "0x7e00"}, "got": {"q": "0x7c00"}}, {"point": "W=5,P=11", "inputs": {"a": "0x8000", "b": "0x0"}, "expected": {"q": "0x7e00"}, "got": {"q": "0xfc00"}}, {"point": "W=5,P=11", "in
+rr_sticky_dropped vectors 4443 functional {"checked": 4443, "mismatches": 590, "examples": [{"point": "W=5,P=11", "inputs": {"a": "0x400", "b": "0x3bff"}, "expected": {"q": "0x401"}, "got": {"q": "0x400"}}, {"point": "W=5,P=11", "inputs": {"a": "0x3c00", "b": "0x3bff"}, "expected": {"q": "0x3c01"}, "got": {"q": "0x3c00"}}, {"point": "W=5,P=
+
+## negatives (neg_val)
+== div_op (good)
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+tests/fdivp/negative/div_op.sv: all agree
+== rm_pin (good)
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+tests/fdivp/negative/rm_pin.sv: all agree
+== status_flag (good)
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+tests/fdivp/negative/status_flag.sv: all agree
+== const_nan (bad)
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 188, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 12988, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 925436, "mode": "exhaustive"}
+tests/fdivp/negative/const_nan.sv: wrong somewhere, as expected
+finished
+
+## baselines through the post-synthesis check at (5,11), full mode
+fdivp_d1 FAILED Reject ls-sv does not support this design: it loads with an unsupported node (DESIGN fdiv processes=1 unsupported=true), and svgolf-eval cannot run it (svgolf-eval: vector 'a=0 b=0': 'a' is not declared). This is an ls-sv limit, not a disagreement: no proof about such a design can hold. Rewrite it without  5.8
+fdivp_d2 OK vectors 4458 ms/vec 33.491 functional {"checked": 4458, "mismatches": 0, "examples": []} 154.2
+fdiv16_flat OK vectors 4543 ms/vec 7.878 functional {"checked": 4543, "mismatches": 0, "examples": []} 39.7
+
+## the Newton reference's attacks (2026-11-04, Verilator 5.042 against tests/fdivp/validate/oracle.h; run_v.py exhaustive)
+## counts at small formats (run_v.py W P --sv tests/fdivp/attacks/<name>.sv, the formats 2,2 3,4 4,6 7,3 2,8 5,5 8,2 2,6 3,6)
+== newton_f_minus2
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 48, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 7616, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 670984, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 390064, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 370884, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 643808, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 390648, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 26828, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 151120, "mode": "exhaustive"}
+== newton_ge1_const
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 8, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 1612, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 150424, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 97504, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 93464, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 172492, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 516, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 4228, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 30872, "mode": "exhaustive"}
+== newton_ni_minus1
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 4756, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 576772, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 193996, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 1824, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 515576, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 20032, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 123888, "mode": "exhaustive"}
+== newton_no_ge2
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 196, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 28, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 84, "mode": "exhaustive"}
+== newton_r0_off
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 77636, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 2156, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 15844, "mode": "exhaustive"}
+== newton_rnz_no2mb
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 140, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 20, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 60, "mode": "exhaustive"}
+== newton_rnz_nomb
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 4, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 72, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 892, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 1240, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 256, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 1348, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 1012, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 44, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 204, "mode": "exhaustive"}
+## W = 2, P = 2..12 for the four attacks whose wrong formats depend on P
+== newton_no_ge2
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 3, "K": 5, "pairs": 1024, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 4, "K": 6, "pairs": 4096, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 5, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 28, "mode": "exhaustive"}
+{"W": 2, "P": 7, "K": 9, "pairs": 262144, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 9, "K": 11, "pairs": 4194304, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 10, "K": 12, "pairs": 16777216, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 11, "K": 13, "pairs": 67108864, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 12, "K": 14, "pairs": 268435456, "mismatches": 0, "mode": "exhaustive"}
+== newton_rnz_no2mb
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 3, "K": 5, "pairs": 1024, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 4, "K": 6, "pairs": 4096, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 5, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 20, "mode": "exhaustive"}
+{"W": 2, "P": 7, "K": 9, "pairs": 262144, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 9, "K": 11, "pairs": 4194304, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 10, "K": 12, "pairs": 16777216, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 11, "K": 13, "pairs": 67108864, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 12, "K": 14, "pairs": 268435456, "mismatches": 0, "mode": "exhaustive"}
+== newton_r0_off
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 3, "K": 5, "pairs": 1024, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 4, "K": 6, "pairs": 4096, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 5, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 2156, "mode": "exhaustive"}
+{"W": 2, "P": 7, "K": 9, "pairs": 262144, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 9, "K": 11, "pairs": 4194304, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 10, "K": 12, "pairs": 16777216, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 11, "K": 13, "pairs": 67108864, "mismatches": 303536, "mode": "exhaustive"}
+{"W": 2, "P": 12, "K": 14, "pairs": 268435456, "mismatches": 19599156, "mode": "exhaustive"}
+== newton_ni_minus1
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 3, "K": 5, "pairs": 1024, "mismatches": 72, "mode": "exhaustive"}
+{"W": 2, "P": 4, "K": 6, "pairs": 4096, "mismatches": 712, "mode": "exhaustive"}
+{"W": 2, "P": 5, "K": 7, "pairs": 16384, "mismatches": 4008, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 20032, "mode": "exhaustive"}
+{"W": 2, "P": 7, "K": 9, "pairs": 262144, "mismatches": 32, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 1824, "mode": "exhaustive"}
+{"W": 2, "P": 9, "K": 11, "pairs": 4194304, "mismatches": 158464, "mode": "exhaustive"}
+{"W": 2, "P": 10, "K": 12, "pairs": 16777216, "mismatches": 2548948, "mode": "exhaustive"}
+{"W": 2, "P": 11, "K": 13, "pairs": 67108864, "mismatches": 16538852, "mode": "exhaustive"}
+{"W": 2, "P": 12, "K": 14, "pairs": 268435456, "mismatches": 84638624, "mode": "exhaustive"}
+## all 2^32 pairs at the scoring point (5,11) for the two attacks that are wrong only at P = 6 above
+== newton_no_ge2 at (5,11) exhaustive
+{"W": 5, "P": 11, "K": 16, "pairs": 4294967296, "mismatches": 0, "mode": "exhaustive"}
+== newton_rnz_no2mb at (5,11) exhaustive
+{"W": 5, "P": 11, "K": 16, "pairs": 4294967296, "mismatches": 0, "mode": "exhaustive"}
+## the SRT reference's attacks (2026-11-05, Verilator 5.042 against tests/fdivp/validate/oracle.h; validate.py --bad, exhaustive)
+## counts at small formats (validate.py --design tests/fdivp/attacks/<name>.sv --bad --formats 2,2 3,4 4,6 7,3 2,8 5,5 8,2 2,6 3,6);
+## every pair at W = 2, P = 2..12: tests/fdivp/results/srt_mutants.txt (S0's ten mutants, the same changes)
+== srt_qds_t2_d0
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 612, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 724, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 2820, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 12, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 116, "mode": "exhaustive"}
+== srt_qds_t1_d0
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 2716, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 2036, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 2880, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 100, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 588, "mode": "exhaustive"}
+== srt_qds_tm_d7
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 0, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 1356, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 284, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 2820, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 36, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 272, "mode": "exhaustive"}
+== srt_no_corr
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 1252, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 126504, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 96984, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 56676, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 132260, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 3632, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 26068, "mode": "exhaustive"}
+== srt_drop_carry
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 20, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 1352, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 81264, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 194264, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 48832, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 203756, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 194564, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 3076, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 17936, "mode": "exhaustive"}
+== srt_no_cin
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 72, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 7756, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 562084, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 772544, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 266760, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 695952, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 779252, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 16776, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 116356, "mode": "exhaustive"}
+== srt_sticky_sign
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 1096, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 74036, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 96008, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 28104, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 90608, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 1844, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 14792, "mode": "exhaustive"}
+== srt_stages_m1
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 84, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 10276, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 792708, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 636804, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 532184, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 767460, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 586240, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 32692, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 179656, "mode": "exhaustive"}
+== srt_otfc_um
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 0, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 1440, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 227588, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 97008, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 168160, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 258212, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 0, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 8420, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 50028, "mode": "exhaustive"}
+== srt_otfc_digit
+{"W": 2, "P": 2, "K": 4, "pairs": 256, "mismatches": 20, "mode": "exhaustive"}
+{"W": 3, "P": 4, "K": 7, "pairs": 16384, "mismatches": 2148, "mode": "exhaustive"}
+{"W": 4, "P": 6, "K": 10, "pairs": 1048576, "mismatches": 227804, "mode": "exhaustive"}
+{"W": 7, "P": 3, "K": 10, "pairs": 1048576, "mismatches": 145392, "mode": "exhaustive"}
+{"W": 2, "P": 8, "K": 10, "pairs": 1048576, "mismatches": 190396, "mode": "exhaustive"}
+{"W": 5, "P": 5, "K": 10, "pairs": 1048576, "mismatches": 212992, "mode": "exhaustive"}
+{"W": 8, "P": 2, "K": 10, "pairs": 1048576, "mismatches": 195068, "mode": "exhaustive"}
+{"W": 2, "P": 6, "K": 8, "pairs": 65536, "mismatches": 7672, "mode": "exhaustive"}
+{"W": 3, "P": 6, "K": 9, "pairs": 262144, "mismatches": 48864, "mode": "exhaustive"}
+finished

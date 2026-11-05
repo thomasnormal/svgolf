@@ -1,0 +1,3 @@
+The redistribution and use of this software (with or without changes) is allowed without the payment of fees or royalties provided that the terms of the licenses of the different source files used is respected. Most of the source and header files in the XKCP are released to the public domain and associated to the CC0 (http://creativecommons.org/publicdomain/zero/1.0/) deed, but there are exceptions.
+
+In general, the redistribution of this software should include a copy of this file. However, if only a part of the software is redistributed or used, the portions that are no longer relevant may be removed. Hints are given below whether a file is used in libXKCP, UnitTests, Benchmarks or KeccakSum.

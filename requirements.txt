@@ -1,0 +1,3 @@
+# The SystemVerilog frontend of lean-surfaces' extractor (extractors/sv/extract.py, Python 3.12).
+# Pinned: the version is part of every envelope's cache key (check/envelope.py).
+pyslang==11.0.0

@@ -1,0 +1,124 @@
+  have hfw := f.hw
+  have hfp := f.hp
+  have ht : f.t = f.p - 1 := rfl
+  -- unpack and classify
+  have b_s : f_s 0 = decide ((sF f av + sF f bv) % 2 = 1) :=
+    g_s f av bv _ f_s f_a f_b (by omega) ha hb eq_s_plain_0
+  have b_ea : f_ea_nz 0 = decide (eF f av ≠ 0) :=
+    g_nz f av _ _ f_ea_nz f_a (by omega) (by omega) ha eq_ea_nz_plain_1
+  have b_eb : f_eb_nz 0 = decide (eF f bv ≠ 0) :=
+    g_nz f bv _ _ f_eb_nz f_b (by omega) (by omega) hb eq_eb_nz_plain_2
+  have b_cn : f_c_nan 0 = decide (cNanN f av bv) :=
+    g_cnan f av bv _ _ _ f_c_nan f_ea_nz f_eb_nz f_a f_b (by omega) (by omega) (by omega) ha hb b_ea b_eb
+      eq_c_nan_plain_3
+  have b_ci : f_c_inf 0 = decide (cInfN f av bv) :=
+    g_cinf f av bv _ _ _ f_c_inf f_ea_nz f_eb_nz f_a f_b (by omega) (by omega) (by omega) ha hb b_eb
+      eq_c_inf_plain_4
+  have b_cz : f_c_zero 0 = decide (cZeroN f av bv) :=
+    g_czero f av bv _ _ _ f_c_zero f_ea_nz f_eb_nz f_a f_b (by omega) (by omega) (by omega) ha hb b_ea
+      eq_c_zero_plain_5
+  -- row 0 of the normalizer
+  have hn0a := g_n0 f av _ (by omega) f_na_r f_a f_ea_nz ha b_ea eq_na_r_plain_6
+  have hn0b := g_n0 f bv _ (by omega) f_nb_r f_b f_eb_nz hb b_eb eq_nb_r_plain_7
+  have hy0a := g_y0 f av _ _ _ (by omega) (by omega) (by omega) f_ya_r f_a f_ea_nz ha b_ea eq_ya_r_plain_8
+  have hy0b := g_y0 f bv _ _ _ (by omega) (by omega) (by omega) f_yb_r f_b f_eb_nz hb b_eb eq_yb_r_plain_9
+  -- the normalizer rows
+  have hrows_a := norm_rows f.p _ _ (by omega) f.hp (by omega) f_na_r f_ya_r (sigN f av) (xeN f av) hn0a hy0a
+    eq_na_r_norm_0 eq_ya_r_norm_2
+  have hrows_b := norm_rows f.p _ _ (by omega) f.hp (by omega) f_nb_r f_yb_r (sigN f bv) (xeN f bv) hn0b hy0b
+    eq_nb_r_norm_1 eq_yb_r_norm_3
+  have hna_top := hrows_a (f.p - 1) (Nat.le_refl _)
+  have hnb_top := hrows_b (f.p - 1) (Nat.le_refl _)
+  have hwe : ((f.w : Int) + (f.p : Int) + 1).toNat = f.w + f.p + 1 := by omega
+  rw [hwe] at hna_top hnb_top
+  have hna_val : XF.val (fun x => f_na_r ((f.p - 1) * f.p + x)) f.p = naN f av := congrArg Prod.fst hna_top
+  have hnb_val : XF.val (fun x => f_nb_r ((f.p - 1) * f.p + x)) f.p = naN f bv := congrArg Prod.fst hnb_top
+  have hya_val : XF.val (fun x => f_ya_r ((f.p - 1) * (f.w + f.p + 1) + x)) (f.w + f.p + 1) = yaN f av :=
+    congrArg Prod.snd hna_top
+  have hyb_val : XF.val (fun x => f_yb_r ((f.p - 1) * (f.w + f.p + 1) + x)) (f.w + f.p + 1) = yaN f bv :=
+    congrArg Prod.snd hnb_top
+  have hrtop : rmN ((f.p : Int)) ((f.p : Int) + -1) 0 = (f.p - 1) * f.p :=
+    rmN_eq _ _ _ f.p (f.p - 1) 0 (by omega) (by omega) (by omega)
+  have hrtopE : rmN ((f.w : Int) + (f.p : Int) + 1) ((f.p : Int) + -1) 0 = (f.p - 1) * (f.w + f.p + 1) :=
+    rmN_eq _ _ _ (f.w + f.p + 1) (f.p - 1) 0 (by omega) (by omega) (by omega)
+  have hrtop2 : rmN ((f.p : Int) + 1) ((f.p : Int) + 2) 0 = (f.p + 2) * (f.p + 1) :=
+    rmN_eq _ _ _ (f.p + 1) (f.p + 2) 0 (by omega) (by omega) (by omega)
+  -- the extensions of the normalized operands
+  have hnbx : XF.val (fun x => f_nbx x) (f.p + 1) = naN f bv :=
+    g_ext f.p _ _ f_nbx f_nb_r (by rw [hrtop]; exact hnb_val) eq_nbx_plain_10
+  have hr0 : XF.val (fun x => f_rr x) (f.p + 1) = naN f av :=
+    g_ext f.p _ _ f_rr f_na_r (by rw [hrtop]; exact hna_val) eq_rr_plain_11
+  -- the datapath, for finite nonzero operands
+  have hdp : ¬ (cNanN f av bv ∨ cInfN f av bv ∨ cZeroN f av bv) →
+      f_ovf 0 = decide (ovfN f av bv) ∧ XF.val (fun x => f_mag x) (f.w + f.t) = magN f av bv := by
+    intro hns
+    have hfa : eF f av ≠ 2 ^ f.w - 1 ∧ ¬ (eF f av = 0 ∧ fF f av = 0) := by
+      unfold cNanN cInfN cZeroN nanN infN zeroN at hns
+      omega
+    have hfb : eF f bv ≠ 2 ^ f.w - 1 ∧ ¬ (eF f bv = 0 ∧ fF f bv = 0) := by
+      unfold cNanN cInfN cZeroN nanN infN zeroN at hns
+      omega
+    obtain ⟨la, hla, hna_def, hya_lt, hya_l, hna_lo, hna_hi⟩ := norm_facts f av hfa.2 hfa.1
+    obtain ⟨lb, hlb, hnb_def, hyb_lt, hyb_l, hnb_lo, hnb_hi⟩ := norm_facts f bv hfb.2 hfb.1
+    have hp2 : 2 ^ f.p = 2 * 2 ^ f.t := two_pow_t f
+    have hnb0 : 0 < naN f bv := by have := Nat.two_pow_pos f.t; omega
+    have hnalt : naN f av < 2 * naN f bv := by omega
+    have hdiv := div_rows f.p f_rr f_dd f_qq f_nbx (naN f av) (naN f bv) f.hp hnb0 hnb_hi hnalt hnbx hr0
+      eq_qq_div_0 eq_dd_div_1 eq_rr_div_2
+    obtain ⟨hrowsd, hqqval⟩ := hdiv
+    have hqq : XF.val (fun x => f_qq x) (f.p + 2) = qqN f av bv := hqqval
+    have hrr_top := hrowsd (f.p + 2) (Nat.le_refl _)
+    have hqq_lt : qqN f av bv < 2 ^ (f.p + 2) := by
+      have hl := XF.val_lt f_qq (f.p + 2)
+      rw [hqq] at hl
+      exact hl
+    have hp21 : 2 ^ (f.p + 2) = 2 * 2 ^ (f.p + 1) := pow_succ2 (f.p + 1)
+    have hqm_lt : qmN f av bv < 2 ^ (f.p + 1) := by
+      unfold qmN
+      split <;> omega
+    -- quotient normalization
+    have b_adj : (f_adj 0).toNat = adjN f av bv := g_adj f.p (qqN f av bv) f_adj f_qq hqq eq_adj_plain_12
+    have b_qm : XF.val (fun x => f_qm x) (f.p + 1) = qmN f av bv :=
+      g_qm f.p _ (qqN f av bv) (by omega) f_qm f_qq hqq eq_qm_plain_13
+    -- the exponent
+    have b_emw := g_emw f _ (by omega) f_emw f_onesW eq_onesW_plain_14 eq_emw_plain_15
+    have hEWe : ((f.w : Int) + (f.p : Int) + 1 + -1).natAbs + 1 = f.w + f.p + 1 := by omega
+    have b_E := g_E _ _ (ZN f) _ _ (yaN f av) (yaN f bv) f.emax (adjN f av bv) f_E f_ya_r f_yb_r f_emw f_adj
+      (by unfold ZN; congr 1 <;> omega) (by omega) (by omega)
+      (by rw [hEWe, hrtopE]; exact hya_val) (by rw [hEWe, hrtopE]; exact hyb_val) b_emw b_adj eq_E_plain_16
+    have hEVp : XF.val (fun x => f_E x) _ = EN f av bv := b_E
+    have hEV : XF.val (fun x => f_E x) (f.w + f.p + 1) = EN f av bv := by
+      rw [← hEWe]; exact b_E
+    have b_ovf : f_ovf 0 = decide (ovfE f (EN f av bv)) :=
+      g_ovf f (EN f av bv) _ _ _ f_ovf f_E (by omega) (by omega) (by omega) hEV eq_ovf_plain_17
+    have b_dsh := g_dsh f (EN f av bv) _ _ f_dsh f_E (by omega) (by omega) hEVp eq_dsh_plain_18
+    have b_qs : XF.val (fun x => f_qs x) (f.p + 1) = qsN f av bv :=
+      g_qs f.p _ (qmN f av bv) (dshE f (EN f av bv)) f_qs f_qm f_dsh b_qm b_dsh eq_qs_plain_19
+    have b_inc : f_inc 0 = decide (incN f av bv) := by
+      have h := g_inc f.p _ _ (qsN f av bv) (qmN f av bv) (qqN f av bv) (rrN f av bv) (dshE f (EN f av bv)) _
+        (by omega) (by omega) f_qs f_qm f_dsh f_qq f_rr f_inc b_qs b_qm b_dsh hqq (by rw [hrtop2]; exact hrr_top) rfl hqm_lt
+        eq_inc_plain_20
+      rw [h]
+      exact decide_eq_decide.2 Iff.rfl
+    have b_ef : XF.val (fun x => f_ef x) f.w = efN f av bv :=
+      g_ef f (EN f av bv) _ _ _ _ f_ef f_E (by omega) (by omega) (by omega) (by omega) hEVp eq_ef_plain_21
+    have hinc : (f_inc 0).toNat = if incN f av bv then 1 else 0 := by
+      rw [b_inc]
+      by_cases h : incN f av bv <;> simp [h]
+    have b_mag := g_mag f.t f.w _ _ _ f.p (qsN f av bv) (efN f av bv) (if incN f av bv then 1 else 0)
+      (by omega) (by omega) (by omega) (by omega) (by omega) f_mag f_qs f_ef f_inc b_qs b_ef hinc
+      eq_mag_plain_22
+    have hMe : ((f.w : Int) + (f.p : Int) + -2).natAbs + 1 = f.w + f.t := by omega
+    rw [hMe] at b_mag
+    refine ⟨?_, b_mag⟩
+    rw [b_ovf]
+    exact decide_eq_decide.2 Iff.rfl
+  -- the output
+  have hfield := g_qfield _ _ _ f.w (f_c_nan 0) (f_c_inf 0) (f_c_zero 0) (f_ovf 0) f_q f_onesW f_mag (by omega)
+    (by omega) eq_onesW_plain_14 eq_q_plain_24
+  have hout := g_out _ _ f.w _ (f.w + f.p) (by omega) (by omega) (by omega) _ (by omega)
+    (f_c_nan 0) (f_c_inf 0) (f_c_zero 0) (f_ovf 0) (f_s 0) _ f_q f_mag _ eq_q_plain_23 hfield eq_q_plain_25
+    eq_q_lo_0
+  rw [hout]
+  exact g_final f av bv (f_c_nan 0) (f_c_inf 0) (f_c_zero 0) (f_ovf 0) (f_s 0) _ f_mag _ _ _ (by omega)
+    (by omega) b_cn b_ci b_cz b_s hdp rfl rfl

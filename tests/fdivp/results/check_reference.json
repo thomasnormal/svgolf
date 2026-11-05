@@ -1,0 +1,85 @@
+{
+  "accepted": true,
+  "stage": "done",
+  "task": "fdivp",
+  "score": {
+    "area_ge": 2166.076,
+    "area_mge": 2166076,
+    "depth": 289,
+    "gates": {
+      "AND": 285,
+      "ANDNOT": 72,
+      "MUX": 194,
+      "NAND": 440,
+      "NOR": 35,
+      "NOT": 34,
+      "OR": 131,
+      "ORNOT": 124,
+      "XNOR": 121,
+      "XOR": 79
+    },
+    "num_gates": 1515,
+    "params": {
+      "P": 11,
+      "W": 5
+    }
+  },
+  "stage_seconds": {
+    "comparator": 42.4,
+    "design": 1.86,
+    "fourstate": 0.24,
+    "leanchecker": 20.65,
+    "postsynth": 54.38,
+    "ppa": 0.0,
+    "score": 1.83,
+    "solution": 28.77,
+    "trusted": 1075.37
+  },
+  "postsynth": {
+    "mode": "full",
+    "vectors": 4443,
+    "full_vectors": 4443,
+    "fixed": 130,
+    "task_corners": 324,
+    "random": 4000,
+    "lssv_ms_per_vector": 12.006,
+    "mismatches": 0,
+    "functional": {
+      "checked": 4443,
+      "examples": [],
+      "mismatches": 0
+    },
+    "point": "W=5,P=11",
+    "seed": "9b5e7285cb28a6d4b6859d0b13887a9b45c87190f9bbc573beaa355a509a9efd"
+  },
+  "comparator": {
+    "accepted": true,
+    "axioms": [
+      "Quot.sound",
+      "propext",
+      "Classical.choice"
+    ]
+  },
+  "design": {
+    "exit": 0,
+    "seconds": 1.86,
+    "unsupported_free_points": 6
+  },
+  "extract_probe_points": [
+    "W=2,P=2",
+    "W=2,P=3",
+    "W=3,P=2",
+    "W=3,P=4",
+    "W=4,P=5",
+    "W=5,P=11",
+    "W=8,P=8",
+    "W=8,P=24"
+  ],
+  "ppa": {
+    "available": false,
+    "area_um2_sky130": null,
+    "delay_ps_sky130": null,
+    "cells_sky130": null
+  },
+  "note": "check.py tasks/fdivp reference/fdivp.sv reference/fdivp.lean --postsynth full --ppa auto, 2026-11-02 (the pinned liberty was absent in this run; see check_reference_ppa.json), a loaded shared machine; the trusted stage (a cold lake build of the worktree) is not a measurement of anything"
+}

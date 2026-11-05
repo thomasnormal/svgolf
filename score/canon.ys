@@ -1,0 +1,36 @@
+# svGolf PINNED scoring flow, stage 1 of 2: CANONICALIZATION. Do not edit: a
+# change here is a change to every score. score.py fills the @NAME@
+# placeholders and records this file's sha256 (`canon_script_sha256`) in every
+# result.
+#
+#   @SOURCES@  read_verilog -sv lines, one per (source-gated) source file
+#   @TOP@      the task's top module
+#   @CHPARAM@  " -chparam <name> <value>" per parameter override (may be empty)
+#   @RTLIL@    output file: the canonical RTLIL that stage 2 (svgolf.ys) reads
+#
+# The frontend's design, elaborated at the scoring point, processes lowered
+# (`proc`) and flattened (what `synth -flatten` does first anyway), with every
+# source location (`src`), every original hierarchical name (`hdlname`) and
+# every non-port name removed: `rename -hide` makes them private and
+# `rename -enumerate` numbers them. Stage 2 reads this text in a FRESH Yosys
+# process. Why two processes: Yosys's results depend on process-global state
+# (its IdString table, whose interning order the frontend's history of names
+# such as `$and$design.sv:42$17` decides), so the same circuit written with a
+# different layout, different names or a different item order synthesizes to
+# a different netlist when frontend and synthesis share one process, even
+# after the names are stripped (measured: fdiv16 gave 9 scores over 34
+# variants of one design). A fresh process reading the canonical RTLIL makes
+# the score a function of the circuit's expression structure only (README.md,
+# "Scoring").
+@SOURCES@
+hierarchy -check -top @TOP@@CHPARAM@
+proc
+flatten -noscopeinfo
+hierarchy -top @TOP@
+setattr -unset src
+setattr -mod -unset src
+setattr -unset hdlname
+setattr -mod -unset hdlname
+rename -hide
+rename -enumerate
+write_rtlil @RTLIL@

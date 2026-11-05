@@ -1,0 +1,15 @@
+sv_comb profile: auto 49986k heartbeats
+sv_comb profile: inRange 27240k heartbeats
+sv_comb profile: driverDisjoint 30276k heartbeats
+sv_comb profile: rankDecreases 110323k heartbeats
+HEARTBEATS 239215
+sv_comb profile: auto 50025k heartbeats
+sv_comb profile: inRange 27272k heartbeats
+sv_comb profile: driverDisjoint 30287k heartbeats
+<scratchpad>/wph3/d3/lin/lin_struct.lean:42:4: error: Tactic `simp` failed with a nested error:
+(deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.
+exit 1 in 31 s

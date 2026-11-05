@@ -1,0 +1,40 @@
+{
+  "_comment": "A FIXTURE task, not a competition task: the positive case of the clocked checker (PLAN4 Gate 2). Its design is reference/cnt.sv; tests/checker/test_clocked.py runs it.",
+  "name": "seq_counter",
+  "title": "N-bit counter with enable and synchronous reset (clocked-checker fixture)",
+  "status": "fixture",
+  "kind": "seq-family",
+  "clock": "clk",
+  "reset": {"port": "rst", "level": 1},
+  "top": "cnt",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {"name": "clk", "width": "1"},
+      {"name": "rst", "width": "1"},
+      {"name": "en", "width": "1"}
+    ],
+    "outputs": [
+      {"name": "q", "width": "N"}
+    ]
+  },
+  "statement": {
+    "module": "tests.seq_counter.Spec",
+    "constant": "SvGolf.Tests.SeqCounter.Statement"
+  },
+  "probe_points": ["N=1", "N=2", "N=3", "N=8"],
+  "scoring": {
+    "params": {"N": 8},
+    "depth_budget": null
+  },
+  "backstop_points": [{"N": 8}],
+  "allowed_axioms": ["propext", "Classical.choice", "Quot.sound"],
+  "allow_bv_decide": false,
+  "time_limit_s": 600,
+  "oracle": "oracle.py"
+}

@@ -1,0 +1,33 @@
+sv_equations: the netlist view and the obligations
+  (Boolean equations: every supported read is known in a settled state, `CombKnown.reads_known`)
+  eq_s_plain_0 : st.boolAt "s" 0 = (st.boolAt "a" (↑W + ↑P + -1).toNat ^^ st.boolAt "b" (↑W + ↑P + -1).toNat)
+  eq_ea_nz_plain_1 : st.boolAt "ea_nz" 0 = XF.any (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "a" ((↑P - 1).toNat + x)
+  eq_eb_nz_plain_2 : st.boolAt "eb_nz" 0 = XF.any (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "b" ((↑P - 1).toNat + x)
+  eq_c_nan_plain_3 : st.boolAt "c_nan" 0 =
+  (((((XF.all (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "a" ((↑P - 1).toNat + x)) &&
+          XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "a" x) ||
+        (XF.all (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "b" ((↑P - 1).toNat + x)) &&
+          XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "b" x) ||
+      (((XF.all (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "a" ((↑P - 1).toNat + x)) &&
+            !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "a" x) &&
+          XF.all (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "b" ((↑P - 1).toNat + x)) &&
+        !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "b" x) ||
+    (!st.boolAt "ea_nz" 0 && !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "a" x) && !st.boolAt "eb_nz" 0 &&
+      !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "b" x)
+  eq_c_inf_plain_4 : st.boolAt "c_inf" 0 =
+  (((XF.all (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "a" ((↑P - 1).toNat + x)) &&
+      !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "a" x) ||
+    !st.boolAt "eb_nz" 0 && !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "b" x)
+  eq_c_zero_plain_5 : st.boolAt "c_zero" 0 =
+  (((XF.all (↑W + ↑P + -2 - (↑P - 1) + 1).toNat fun x => st.boolAt "b" ((↑P - 1).toNat + x)) &&
+      !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "b" x) ||
+    !st.boolAt "ea_nz" 0 && !XF.any (↑P - 1 + -1 + 1).toNat fun x => st.boolAt "a" x)
+  eq_na_r_plain_6 : ∀ (k : Nat),
+  k < P →
+    st.boolAt "na_r" k =
+      if k < (↑P - 1 + -1 + 1).toNat then st.boolAt "a" k else st.boolAt "ea_nz" (k - (↑P - 1 + -1 + 1).toNat)
+  eq_nb_r_plain_7 : ∀ (k : Nat),
+  k < P →
+    st.boolAt "nb_r" k =
+      if k < (↑P - 1 + -1 + 1).toNat then st.boolAt "b" k else st.boolAt "eb_nz" (k - (↑P - 1 + -1 + 1).toNat)
+  eq_ya_r_plain_8 : ∀ (k :

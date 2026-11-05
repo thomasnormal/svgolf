@@ -1,0 +1,10 @@
+{
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "title": "Bitwise AND",
+ "subtitle": "A toy task that runs the whole pipeline: y = a & b on N bits.",
+ "references": {
+  "band": "One AND gate per bit: `assign y = a & b;`.",
+  "band_lp": "The same circuit, with local parameters in the header (the port widths) and in the body."
+ },
+ "baselines": {}
+}

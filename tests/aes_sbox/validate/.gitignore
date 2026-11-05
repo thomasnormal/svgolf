@@ -1,0 +1,4 @@
+# The Boyar-Peralta netlists are fetched and cached here by validate.py (pinned URL and sha256),
+# never committed: they carry no licence.
+SLP_AES_*.txt
+*.part

@@ -1,0 +1,118 @@
+{
+  "name": "add",
+  "title": "N-bit adder with carry in and carry out (warm-up)",
+  "status": "ready",
+  "kind": "comb-family",
+  "top": "add_n",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "a",
+        "width": "N"
+      },
+      {
+        "name": "b",
+        "width": "N"
+      },
+      {
+        "name": "cin",
+        "width": "1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "s",
+        "width": "N"
+      },
+      {
+        "name": "cout",
+        "width": "1"
+      }
+    ]
+  },
+  "statement": {
+    "module": "tasks.add.Spec",
+    "constant": "SvGolf.Tasks.Add.Statement"
+  },
+  "banlist": {
+    "operators": [
+      "+",
+      "-",
+      "*",
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "Run-time addition is the task. Yosys's alumacc merges + and - chains into the same $alu/$macc cells as *, so all of + - * / % ** are banned on run-time operands. Constant arithmetic (N-1, i+1 over a genvar, $clog2(N)) stays allowed."
+  },
+  "probe_points": [
+    "N=1",
+    "N=2",
+    "N=3",
+    "N=16",
+    "N=32",
+    "N=64"
+  ],
+  "scoring": {
+    "params": {
+      "N": 16
+    },
+    "depth_budget": null
+  },
+  "backstop_points": [
+    {
+      "N": 16
+    },
+    {
+      "N": 32
+    },
+    {
+      "N": 64
+    }
+  ],
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "postsynth": {
+    "random": 4000,
+    "_comment": "The checker's postsynth stage (README.md, `postsynth` in the task.json table): the fixed corners (134 vectors at N = 16), the harvested comparison constants and 4000 seeded random vectors; ls-sv about 0.3 ms per vector for the ripple reference."
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/add_n.sv",
+      "lean": "reference/add_n.lean",
+      "note": "proved with the sv_comb tactics (sv_structure, sv_equations) and LeanModels.Sv.CombLib: the intended workflow, see PROVING.md"
+    },
+    {
+      "sv": "reference/add_proc.sv",
+      "lean": "reference/add_proc.lean",
+      "note": "the same ripple adder with the carry cell as an always_comb if/else inside the generate loop (WP-G): proved with the same tactics through the lowering (sv_structure returns noSelfRead_k; the bridge satisfiedAt_of_lowered is local to the file)"
+    },
+    {
+      "sv": "reference/add_proc_m.sv",
+      "lean": "reference/add_proc_m.lean",
+      "note": "the same ripple adder with the WHOLE bit cell, carry and sum, in ONE always_comb body that writes two windows (WP-G S1b gate d): the proof is add_proc.lean's, character for character (tests/add/same_proof.py pins that), because sv_equations names a fact by its signal and the ordinal of the window that writes it"
+    },
+    {
+      "sv": "reference/add_mux.sv",
+      "lean": "reference/add_mux.lean",
+      "note": "the same ripple adder written with ~ and the conditional expression ?: (WP-G S2: e[i] = ~(a[i] ^ b[i]); c[i+1] = e[i] ? a[i] : c[i]; s[i] = ~(e[i] ^ c[i])): proved with the same tactics, the carry cell's ?: reads as an if on e[i] (the same score as add_n: Yosys normalizes both to one netlist)"
+    },
+    {
+      "sv": "reference/add_n_byhand.sv",
+      "lean": "reference/add_n_byhand.lean",
+      "note": "the same design (byte-identical to the first), proved with no tactic: the measured baseline of the proof effort"
+    }
+  ]
+}

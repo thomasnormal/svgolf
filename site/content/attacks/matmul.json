@@ -1,0 +1,12 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {},
+ "attacks": {
+  "acc_2w": "The accumulator is only 2W bits wide and sign-extended to AccW bits: wrong when AccW > 2W and a dot product leaves the 2W-bit range.",
+  "done_early": "`done` rises one step early (`k == N - 2`), while `C` still lacks the last product.",
+  "missing_sign_ext": "Each W × W product is sign-extended to 2W bits only, then zero-extended into the accumulator: wrong for a negative product when AccW > 2W.",
+  "no_clear_on_start": "The accumulators are cleared by the reset but not by `start`, so every transaction after the first adds onto the previous result.",
+  "off_by_one_k": "The step counter starts at 1, so the last product never reaches `C` and `done` rises a cycle early.",
+  "unsigned_product": "The entries are multiplied as unsigned numbers (zero-extended part-selects): wrong for a negative entry when AccW > W ≥ 2."
+ }
+}

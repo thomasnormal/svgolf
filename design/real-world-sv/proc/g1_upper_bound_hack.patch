@@ -1,0 +1,75 @@
+--- a/extractors/sv/extract.py	2026-11-01 18:34:38
++++ b/extractors/sv/extract.py	2026-11-01 18:36:58
+@@ -24945,6 +24945,19 @@
+                 "`always` procedure)" % (style, written[1], style))
+ 
+     body = m.body
++    if (_SYM is not None and not os.environ.get("HACK_NO_STAR") and pk == ProceduralBlockKind.Always and type(body).__name__ == "TimedStatement"):
++        tn = type(body.timing).__name__
++        level = tn == "ImplicitEventControl"
++        if tn == "EventListControl":
++            try:
++                level = all(type(ev).__name__ == "SignalEventControl" and ev.edge == EdgeKind.None_
++                            and ev.iffCondition is None for ev in body.timing.events)
++            except Exception:
++                level = False
++        if tn == "SignalEventControl" and body.timing.edge == EdgeKind.None_ and body.timing.iffCondition is None:
++            level = True
++        if level:
++            return {"kind": "AlwaysComb", "span": span, "body": convert_stmt(sm, body.stmt)}
+     if pk == ProceduralBlockKind.AlwaysComb:
+         return {
+             "kind": "AlwaysComb",
+@@ -29202,7 +29215,8 @@
+                 return None, "type"
+             packed = None
+             if type_syntax is not None and type_syntax.kind in (
+-                    SyntaxKind.BitType, SyntaxKind.LogicType, SyntaxKind.RegType):
++                    SyntaxKind.BitType, SyntaxKind.LogicType, SyntaxKind.RegType,
++                    SyntaxKind.ImplicitType):
+                 packed = _syntax_packed_dims(sm, type_syntax)
+                 if packed is not None and len(packed) != ndims:
+                     packed = None
+@@ -29280,7 +29294,7 @@
+     dtype, reason = _dtype_sym(sm, m.type, tsyn)
+     if dtype is None:
+         return unsupported(sm, m, "PortSymbol:" + reason)
+-    if direction == "out" and _sym_net_z(isym, dtype):
++    if _SYM is None and direction == "out" and _sym_net_z(isym, dtype):
+         return unsupported(sm, m, "PortSymbol:net-z")
+     result = {
+         "kind": "Port",
+@@ -30360,9 +30374,18 @@
+     dtype, reason = _dtype_sym(sm, m.type, _decl_type_syntax(m))
+     if dtype is None:
+         return unsupported(sm, m, "NetSymbol:" + reason)
++    init = m.initializer
++    if _SYM is not None:
++        var = {"kind": "Var", "span": sym_span(sm, m), "name": m.name, "width": dtype, "init": None}
++        if m.type.isSigned:
++            var["signed"] = True
++        if init is None:
++            return var
++        return [var, {"kind": "Assign", "span": sym_span(sm, m),
++                      "target": {"kind": "Ident", "span": sym_span(sm, m), "width": dtype.get("resolved"), "name": m.name},
++                      "value": convert_sym_expr(sm, init)}]
+     if _sym_net_z(m, dtype):
+         return unsupported(sm, m, "NetSymbol:net-z")
+-    init = m.initializer
+     result = {
+         "kind": "Net",
+         "span": sym_span(sm, m),
+@@ -32229,10 +32252,11 @@
+     sources with a parameter of the same name must neither receive the
+     point nor make the design's point look rejected (a testbench's
+     `#(.N(v))` and `name.sem` override the DUT alone)."""
+-    if not _SYM_PARAM_OVERRIDES:
++    if not _SYM_PARAM_OVERRIDES and top is None:
+         return Compilation()
+     options = CompilationOptions()
+-    options.paramOverrides = list(_SYM_PARAM_OVERRIDES)
++    if _SYM_PARAM_OVERRIDES:
++        options.paramOverrides = list(_SYM_PARAM_OVERRIDES)
+     if top is not None:
+         options.topModules = {top}
+     return Compilation(pyslang.Bag([options]))

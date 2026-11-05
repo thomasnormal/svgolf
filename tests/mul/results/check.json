@@ -1,0 +1,158 @@
+{
+  "accepted": true,
+  "errors": [],
+  "score": {
+    "area_ge": 1962.576,
+    "area_mge": 1962576,
+    "depth": 88,
+    "gates": {
+      "AND": 269,
+      "ANDNOT": 1,
+      "MUX": 2,
+      "NAND": 672,
+      "NOT": 1,
+      "OR": 1,
+      "XNOR": 3,
+      "XOR": 459
+    },
+    "num_gates": 1408,
+    "params": {
+      "N": 16
+    }
+  },
+  "stage": "done",
+  "stage_dir": "<tmpdir>/svgolf-check-fwjvut1_",
+  "stages": {
+    "banlist": {
+      "backstop": [],
+      "diagnostics": [],
+      "front": [],
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/",
+        "%",
+        "**"
+      ]
+    },
+    "comparator": {
+      "exit": 0,
+      "result": {
+        "accepted": true,
+        "axioms": [
+          "propext",
+          "Quot.sound",
+          "Classical.choice"
+        ],
+        "errors": [],
+        "goal": "Submission.Goal",
+        "kernel_accepts": true,
+        "solution": "Submission.solution",
+        "submission_constants_used": 422,
+        "syntactic_match": true
+      },
+      "seconds": 13.44
+    },
+    "design": {
+      "exit": 0,
+      "seconds": 9.51
+    },
+    "extract": {
+      "exit": 0,
+      "extractor": "<lean-surfaces>/extractors/sv/extract.py",
+      "extractor_sha256": "29b805fd13e912c0350de597923dfcafe3e1f4f8cf9ea29ef869c0bbc54bb5a7",
+      "lean_surfaces": "2e8c8b2814f75e700d6ffcac161000df47bfc985+dirty",
+      "parameters": [
+        "N"
+      ],
+      "probe_points": [
+        "N=1",
+        "N=2",
+        "N=3",
+        "N=4",
+        "N=8",
+        "N=16",
+        "N=32"
+      ]
+    },
+    "imports": {
+      "imports": [
+        "Submission.Design",
+        "SvGolf.Comb",
+        "LeanModels.Sv.Gen2",
+        "LeanModels.Sv.Hier2Gen",
+        "LeanModels.Sv.Comb2",
+        "LeanModels.Sv.Known2"
+      ],
+      "rejected": []
+    },
+    "integrity": {
+      "changed": [],
+      "changed_by_end": [],
+      "files": 15632
+    },
+    "leanchecker": {
+      "exit": 0,
+      "seconds": 17.05
+    },
+    "score": {
+      "area_ge": 1962.576,
+      "area_mge": 1962576,
+      "depth": 88,
+      "depth_budget": null,
+      "gated": true,
+      "gates": {
+        "AND": 269,
+        "ANDNOT": 1,
+        "MUX": 2,
+        "NAND": 672,
+        "NOT": 1,
+        "OR": 1,
+        "XNOR": 3,
+        "XOR": 459
+      },
+      "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "ignored_cells": {},
+      "num_gates": 1408,
+      "params": {
+        "N": 16
+      },
+      "script_sha256": "f9bdc97b9b0a6be124dd233dd4f9f92793a3f12ae0398a892721298cb85cf1c0",
+      "sources": [
+        {
+          "canonical_sha256": "35cd59047177145d5e16417d3a3c83a8a1af93e6936861a066e8e0255461e40f",
+          "path": "<tmpdir>/svgolf-check-fwjvut1_/design.sv",
+          "sha256": "35cd59047177145d5e16417d3a3c83a8a1af93e6936861a066e8e0255461e40f"
+        }
+      ],
+      "top": "mul_n",
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "solution": {
+      "exit": 0,
+      "messages": "SVGOLF_ELAPSED 8.41\n",
+      "seconds": 8.41,
+      "time_limit_s": 1800
+    },
+    "source": {
+      "canonical_sha256": "35cd59047177145d5e16417d3a3c83a8a1af93e6936861a066e8e0255461e40f",
+      "findings": [],
+      "sha256": "66686a9d4c60cc9484a7fc673c5a8e2b73f30e25f9f6ddaccccbf3d51bf3bd23"
+    },
+    "task": {
+      "parameters": [
+        "N"
+      ],
+      "statement": "SvGolf.Tasks.Mul.Statement",
+      "time_limit_s": 1800,
+      "top": "mul_n",
+      "verify_time_limit_s": 900
+    },
+    "trusted": {
+      "exit": 0,
+      "seconds": 1.09
+    }
+  },
+  "task": "mul"
+}

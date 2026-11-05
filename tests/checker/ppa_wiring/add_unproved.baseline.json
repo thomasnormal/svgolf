@@ -1,0 +1,149 @@
+{
+  "accepted": false,
+  "errors": [
+    "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design, score, postsynth); the proof stages were not run, so the design is not accepted"
+  ],
+  "score": {
+    "area_ge": 112.0,
+    "area_mge": 112000,
+    "depth": 33,
+    "gates": {
+      "NAND": 48,
+      "XOR": 32
+    },
+    "num_gates": 80,
+    "params": {
+      "N": 16
+    }
+  },
+  "stage": "unproved",
+  "stage_dir": "<volatile>",
+  "stages": {
+    "banlist": {
+      "backstop": [],
+      "diagnostics": [],
+      "front": [],
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/",
+        "%",
+        "**"
+      ]
+    },
+    "design": {
+      "exit": 0,
+      "seconds": "<volatile>",
+      "unsupported_free_points": 4
+    },
+    "extract": {
+      "exit": 0,
+      "extractor": "<volatile>",
+      "extractor_sha256": "<volatile>",
+      "lean_surfaces": "<volatile>",
+      "parameters": [
+        "N"
+      ],
+      "probe_points": [
+        "N=1",
+        "N=2",
+        "N=3",
+        "N=16",
+        "N=32",
+        "N=64"
+      ]
+    },
+    "fourstate": {
+      "diagnostics": [],
+      "findings": [],
+      "passed": true,
+      "point": {
+        "N": 16
+      },
+      "seconds": "<volatile>"
+    },
+    "postsynth": {
+      "envelope_sha256": "<volatile>",
+      "fixed": 134,
+      "fuel": 100000,
+      "full_vectors": 4132,
+      "functional": {
+        "checked": 4132,
+        "examples": [],
+        "mismatches": 0
+      },
+      "harvest_vectors": 0,
+      "harvested_constants": 0,
+      "lssv_design": "DESIGN add_n processes=34 unsupported=false",
+      "lssv_ms_per_vector": "<volatile>",
+      "lssv_timing": "<volatile>",
+      "mismatches": 0,
+      "mode": "full",
+      "netlist_sha256": "3b7da549a07e36ecd2615bea0205e996b239e7d12cb3917bc04666d5ac4b4cd3",
+      "outputs": [
+        "cout",
+        "s"
+      ],
+      "point": "N=16",
+      "random": 4000,
+      "salted": false,
+      "seconds": "<volatile>",
+      "seed": "efb7fed387c86cbde7b7cbe59b98c582ced6221ee1d114f9cea95c25f5dcd877",
+      "sveval_sha256": "<volatile>",
+      "t_harvest_s": "<volatile>",
+      "t_lssv_s": "<volatile>",
+      "t_netlist_build_s": "<volatile>",
+      "t_netlist_run_s": "<volatile>",
+      "t_reread_s": "<volatile>",
+      "task_corners": 0,
+      "vectors": 4132,
+      "verilator": "<volatile>"
+    },
+    "score": {
+      "area_ge": 112.0,
+      "area_mge": 112000,
+      "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "depth": 33,
+      "depth_budget": null,
+      "gated": true,
+      "gates": {
+        "NAND": 48,
+        "XOR": 32
+      },
+      "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "ignored_cells": {},
+      "num_gates": 80,
+      "params": {
+        "N": 16
+      },
+      "rtlil_sha256": "0699af350c19ae28f07e4abd195e746ea9888b6ce94feeb0a43f52c15a0a6622",
+      "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "seconds": "<volatile>",
+      "sources": [
+        {
+          "canonical_sha256": "e0e932a3ae8a04ac79f407e839b2394287dc32d493b7f699d3001872b580dde0",
+          "path": "<volatile>",
+          "sha256": "e0e932a3ae8a04ac79f407e839b2394287dc32d493b7f699d3001872b580dde0"
+        }
+      ],
+      "top": "add_n",
+      "yosys_version": "<volatile>"
+    },
+    "source": {
+      "canonical_sha256": "e0e932a3ae8a04ac79f407e839b2394287dc32d493b7f699d3001872b580dde0",
+      "findings": [],
+      "sha256": "6579283e86a83926c68dbaa616514d26e83f7ede393aad333cafb7af3cc47ec5"
+    },
+    "task": {
+      "parameters": [
+        "N"
+      ],
+      "statement": "SvGolf.Tasks.Add.Statement",
+      "time_limit_s": 120,
+      "top": "add_n",
+      "verify_time_limit_s": 900
+    }
+  },
+  "task": "add"
+}

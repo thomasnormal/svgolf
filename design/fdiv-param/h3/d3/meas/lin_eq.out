@@ -1,0 +1,774 @@
+sv_comb profile: auto 49939k heartbeats
+sv_comb profile: inRange 27116k heartbeats
+sv_comb profile: width 23930k heartbeats
+sv_comb profile: bitRead 19486k heartbeats
+sv_comb profile: cover 143236k heartbeats
+sv_comb profile: inputsKnown 5910k heartbeats
+HEARTBEATS 319677
+<scratchpad>/wph3/d3/lin/lin_eq.lean:24:97: error: unsolved goals
+case inRange_1
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 0 ≤ ↑P + -1
+
+case inRange_2
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 0 ≤ ↑P + 2
+
+case inRange_3
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 0 ≤ ↑W + ↑P + -1
+
+case inRange_4
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 1 ≤ ↑P
+
+case inRange_5
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑P - 1 ≤ ↑W + ↑P + -2
+
+case inRange_6
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 0 ≤ ↑P - 1 + -1
+
+case inRange_7
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑P - 1 ≤ ↑W + ↑P
+
+case inRange_8
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P + -1 → 0 ≤ i + 1 ∧ i + 1 ≤ ↑P + -1
+
+case inRange_9
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P + 2 → 0 ≤ ↑P + -i + 1 ∧ ↑P + -i + 1 ≤ ↑(↑P + 1).natAbs
+
+case inRange_10
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P + 2 → 0 ≤ i ∧ i ≤ ↑P + 1
+
+case inRange_11
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P + 2 → 0 ≤ i + 1 ∧ i + 1 ≤ ↑P + 2
+
+case inRange_12
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P - 1 + -1 → 0 ≤ i ∧ i ≤ ↑(↑W + ↑P + -1).natAbs
+
+case width_1
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 1 + (↑P - 1 + -1 + 1).toNat = P
+
+case width_2
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ if ↑(max (↑W + ↑P + -2 - (↑P - 1) + 1).toNat 32) < ↑W + ↑P + 1 then ↑W + ↑P + -2 - (↑P - 1) + 1 ≤ max (↑W + ↑P + 1) 0
+  else ↑W + ↑P + -2 - (↑P - 1) + 1 ≤ ↑(max (↑W + ↑P + -2 - (↑P - 1) + 1).toNat 32)
+
+case width_3
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 1 + P = P + 1
+
+case width_4
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ (↑W + ↑P + 1).toNat = (↑W + ↑P + 1 + -1).natAbs + 1
+
+case width_5
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ (↑W + -1).natAbs ≤ (↑W + ↑P + 1 + -1).natAbs
+
+case width_6
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ if max (↑W + -1 + 1).toNat 32 < (↑W + -1).natAbs + 1 then ↑W + -1 ≤ ↑(↑W + -1).natAbs
+  else ↑W + -1 + 1 ≤ ↑(max (↑W + -1 + 1).toNat 32)
+
+case width_7
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ (↑W + -1).natAbs + 1 + (↑P + -1).toNat = (↑W + ↑P + -2).natAbs + 1
+
+case width_8
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ if ↑(max ((↑W + -1).natAbs + 1) (max 32 (↑W + ↑P + -2 - (↑P - 1) + 1).toNat)) < ↑W + ↑P + -2 - (↑P - 1) + 1 then
+    (↑W + -1).natAbs + 1 ≤ (↑W + ↑P + -2 - (↑P - 1) + 1).toNat
+  else
+    (↑W + -1).natAbs + 1 ≤ max ((↑W + -1).natAbs + 1) (max 32 (↑W + ↑P + -2 - (↑P - 1) + 1).toNat) ∧
+      ↑W + ↑P + -2 - (↑P - 1) + 1 ≤ ↑(max ((↑W + -1).natAbs + 1) (max 32 (↑W + ↑P + -2 - (↑P - 1) + 1).toNat))
+
+case bitRead_1
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P + 2 → ↑P + -i + 1 ≤ ↑(↑P + 1).natAbs
+
+case bitRead_2
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P - 1 + -1 → i ≤ ↑(↑W + ↑P + -2).natAbs
+
+case cover_1
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑W + ↑P + -1 < ↑(↑W + ↑P + -1).natAbs + 1
+
+case cover_2
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_3
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_4
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P - 1 + -1 + 1 → k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_5
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_6
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P - 1 + -1 + 1 → k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_7
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_8
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P - 1 + -1 + 1 → k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_9
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_10
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P - 1 + -1 + 1 → k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_11
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_12
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P - 1 + -1 + 1 → k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_13
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P - 1 + -1 + 1 → k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_14
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -1).natAbs + 1
+
+case cover_15
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat),
+    k < P →
+      rmN (↑P) 0 0 ≤ rmN (↑P) (↑P + -1) 0 + k ∧ rmN (↑P) (↑P + -1) 0 + k < rmN (↑P) 0 0 + P ∨
+        ∃ i,
+          ↑i < ↑P + -1 ∧
+            rmN (↑P) (↑i + 1) 0 ≤ rmN (↑P) (↑P + -1) 0 + k ∧ rmN (↑P) (↑P + -1) 0 + k < rmN (↑P) (↑i + 1) 0 + P
+
+case cover_16
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∃ i, ↑i < ↑P + 2 ∧ ↑P + -↑i ≤ ↑P ∧ ↑P < ↑P + -↑i + 1
+
+case cover_17
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∃ i, ↑i < ↑P + 2 ∧ ↑P + -↑i ≤ ↑P ∧ ↑P < ↑P + -↑i + 1
+
+case cover_18
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), k < P + 1 → ∃ i, ↑i < ↑P + 2 ∧ ↑P + -↑i + 1 ≤ 1 + ↑k ∧ 1 + k < (↑P + -↑i + 1).toNat + 1
+
+case cover_19
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), k < P + 1 → ∃ i, ↑i < ↑P + 2 ∧ ↑P + -↑i + 1 ≤ ↑k ∧ k < (↑P + -↑i + 1).toNat + 1
+
+case cover_20
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat),
+    ↑k < ↑W + ↑P + 1 →
+      rmN (↑W + ↑P + 1) 0 0 ≤ rmN (↑W + ↑P + 1) (↑P + -1) 0 + k ∧
+          rmN (↑W + ↑P + 1) (↑P + -1) 0 + k < rmN (↑W + ↑P + 1) 0 0 + (↑W + ↑P + 1).toNat ∨
+        ∃ i,
+          ↑i < ↑P + -1 ∧
+            rmN (↑W + ↑P + 1) (↑i + 1) 0 ≤ rmN (↑W + ↑P + 1) (↑P + -1) 0 + k ∧
+              rmN (↑W + ↑P + 1) (↑P + -1) 0 + k < rmN (↑W + ↑P + 1) (↑i + 1) 0 + (↑W + ↑P + 1).toNat
+
+case cover_21
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑W + ↑P + 1 + -1 < ↑(↑W + ↑P + 1 + -1).natAbs + 1
+
+case cover_22
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + 1 + -2 - ↑W + 1 → W + k < (↑W + ↑P + 1 + -1).natAbs + 1
+
+case cover_23
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + -1 + 1 → k < (↑W + ↑P + 1 + -1).natAbs + 1
+
+case cover_24
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑W + ↑P + 1 + -1 < ↑(↑W + ↑P + 1 + -1).natAbs + 1
+
+case cover_25
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∃ i, ↑i < ↑P + 2 ∧ ↑P + -↑i ≤ ↑P ∧ ↑P < ↑P + -↑i + 1
+
+case cover_26
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∃ i, ↑i < ↑P + 2 ∧ ↑P + -↑i + 1 ≤ 0
+
+case cover_27
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat),
+    k < P + 1 →
+      rmN (↑P + 1) 0 0 ≤ rmN (↑P + 1) (↑P + 2) 0 + k ∧ rmN (↑P + 1) (↑P + 2) 0 + k < rmN (↑P + 1) 0 0 + (P + 1) ∨
+        ∃ i,
+          ↑i < ↑P + 2 ∧
+            rmN (↑P + 1) (↑i + 1) 0 ≤ rmN (↑P + 1) (↑P + 2) 0 + k ∧
+              rmN (↑P + 1) (↑P + 2) 0 + k < rmN (↑P + 1) (↑i + 1) 0 + (P + 1)
+
+case cover_28
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ 0 < P
+
+case cover_29
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑W + ↑P + 1 + -1 < ↑(↑W + ↑P + 1 + -1).natAbs + 1
+
+case cover_30
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + -1 + 1 → k < (↑W + ↑P + 1 + -1).natAbs + 1
+
+case cover_31
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑P + -1 → 1 + k < P + 1
+
+case cover_32
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (k : Nat), ↑k < ↑W + ↑P + -2 - (↑P - 1) + 1 → P - 1 + k < (↑W + ↑P + -2).natAbs + 1
+
+case cover_33
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ↑P - 1 + -1 < ↑(↑W + ↑P + -2).natAbs + 1
+
+case cover_34
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int),
+    0 ≤ i →
+      i < ↑P + -1 →
+        (rmN (↑P) 0 0 ≤ rmN (↑P) i (↑P + -1) ∧ rmN (↑P) i (↑P + -1) < rmN (↑P) 0 0 + P ∨
+            ∃ i_1,
+              ↑i_1 < ↑P + -1 ∧
+                rmN (↑P) (↑i_1 + 1) 0 ≤ rmN (↑P) i (↑P + -1) ∧ rmN (↑P) i (↑P + -1) < rmN (↑P) (↑i_1 + 1) 0 + P) ∧
+          ∀ (k : Nat),
+            k < P →
+              rmN (↑P) 0 0 ≤ rmN (↑P) i 0 + k ∧ rmN (↑P) i 0 + k < rmN (↑P) 0 0 + P ∨
+                ∃ i_1,
+                  ↑i_1 < ↑P + -1 ∧
+                    rmN (↑P) (↑i_1 + 1) 0 ≤ rmN (↑P) i 0 + k ∧ rmN (↑P) i 0 + k < rmN (↑P) (↑i_1 + 1) 0 + P
+
+case cover_35
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int),
+    0 ≤ i →
+      i < ↑P + -1 →
+        (rmN (↑P) 0 0 ≤ rmN (↑P) i (↑P + -1) ∧ rmN (↑P) i (↑P + -1) < rmN (↑P) 0 0 + P ∨
+            ∃ i_1,
+              ↑i_1 < ↑P + -1 ∧
+                rmN (↑P) (↑i_1 + 1) 0 ≤ rmN (↑P) i (↑P + -1) ∧ rmN (↑P) i (↑P + -1) < rmN (↑P) (↑i_1 + 1) 0 + P) ∧
+          ∀ (k : Nat),
+            ↑k < ↑W + ↑P + 1 →
+              rmN (↑W + ↑P + 1) 0 0 ≤ rmN (↑W + ↑P + 1) i 0 + k ∧
+                  rmN (↑W + ↑P + 1) i 0 + k < rmN (↑W + ↑P + 1) 0 0 + (↑W + ↑P + 1).toNat ∨
+                ∃ i_1,
+                  ↑i_1 < ↑P + -1 ∧
+                    rmN (↑W + ↑P + 1) (↑i_1 + 1) 0 ≤ rmN (↑W + ↑P + 1) i 0 + k ∧
+                      rmN (↑W + ↑P + 1) i 0 + k < rmN (↑W + ↑P + 1) (↑i_1 + 1) 0 + (↑W + ↑P + 1).toNat
+
+case cover_36
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int),
+    0 ≤ i →
+      i < ↑P + 2 →
+        ∀ (k : Nat),
+          k < P + 1 →
+            rmN (↑P + 1) 0 0 ≤ rmN (↑P + 1) i 0 + k ∧ rmN (↑P + 1) i 0 + k < rmN (↑P + 1) 0 0 + (P + 1) ∨
+              ∃ i_1,
+                ↑i_1 < ↑P + 2 ∧
+                  rmN (↑P + 1) (↑i_1 + 1) 0 ≤ rmN (↑P + 1) i 0 + k ∧
+                    rmN (↑P + 1) i 0 + k < rmN (↑P + 1) (↑i_1 + 1) 0 + (P + 1)
+
+case cover_37
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int),
+    0 ≤ i →
+      i < ↑P + 2 →
+        (∃ i_1, ↑i_1 < ↑P + 2 ∧ ↑P + -↑i_1 + 1 ≤ max (↑P + -i + 1) 0 ∧ ↑P + -i < max (↑P + -↑i_1 + 1) 0) ∧
+          (∀ (k : Nat),
+              k < P + 1 →
+                ∃ i_1,
+                  ↑i_1 < ↑P + 2 ∧
+                    rmN (↑P + 1) (↑i_1) 0 ≤ rmN (↑P + 1) i 0 + k ∧
+                      rmN (↑P + 1) i 0 + k < rmN (↑P + 1) (↑i_1) 0 + (P + 1)) ∧
+            ∀ (k : Nat),
+              k < P + 1 →
+                rmN (↑P + 1) 0 0 ≤ rmN (↑P + 1) i 0 + k ∧ rmN (↑P + 1) i 0 + k < rmN (↑P + 1) 0 0 + (P + 1) ∨
+                  ∃ i_1,
+                    ↑i_1 < ↑P + 2 ∧
+                      rmN (↑P + 1) (↑i_1 + 1) 0 ≤ rmN (↑P + 1) i 0 + k ∧
+                        rmN (↑P + 1) i 0 + k < rmN (↑P + 1) (↑i_1 + 1) 0 + (P + 1)
+
+case cover_38
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∀ (i : Int), 0 ≤ i → i < ↑P - 1 + -1 → i < ↑(↑W + ↑P + -2).natAbs + 1
+
+case inputsKnown_1
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∃ v, st.lookup "a" = some v ∧ v.allKnown = true ∧ v.width = (↑W + ↑P + -1).natAbs + 1
+
+case inputsKnown_2
+W P : Nat
+hW : 2 ≤ W
+hP : 2 ≤ P
+hc : CombDesign (d3.sem W P)
+ha : Acyclic (d3.sem W P)
+st : SvState
+heqs : CombEqs (d3.sem W P) st
+hsh : StateShape (d3.sem W P) st
+⊢ ∃ v, st.lookup "b" = some v ∧ v.allKnown = true ∧ v.width = (↑W + ↑P + -1).natAbs + 1
+sv_comb profile: auto 49917k heartbeats
+sv_comb profile: inRange 27124k heartbeats
+sv_comb profile: width 23922k heartbeats
+sv_comb profile: bitRead 19434k heartbeats
+<scratchpad>/wph3/d3/lin/lin_eq.lean:29:97: error: (deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.
+exit 1 in 30 s

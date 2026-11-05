@@ -1,0 +1,139 @@
+{
+  "name": "matmul",
+  "title": "N x N signed matrix multiplication, clocked: C = A.B over W-bit two's-complement entries, wrapping at AccW bits, within a declared latency",
+  "status": "ready",
+  "_status": [
+    "The status block of PLAN4.md section 1, as of 11/04 (Gate 3 steps 4 to 6):",
+    "trusted statement: complete    run2 proof: complete    checker: complete",
+    "post-synthesis: complete       E transport: pending (Gate 4)",
+    "Statement txtask-v1; proof reference/matmul_g1.lean (lat = N); check.py accepts it (tx-family, the clocked score and post-synthesis at (2,4,8) and (4,8,32)); the six attacks of tests/matmul/attacks/ fail at solution (tests/expected.json)."
+  ],
+  "kind": "tx-family",
+  "top": "matmul",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    },
+    {
+      "name": "W",
+      "range": "1 <= W"
+    },
+    {
+      "name": "AccW",
+      "range": "1 <= AccW"
+    }
+  ],
+  "_range_comment": "Spec.lean's `task.inRange` also requires N*N*W < 2^31 and N*N*AccW < 2^31 (C10): every width and index expression of the interface stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
+  "ports": {
+    "inputs": [
+      {
+        "name": "clk",
+        "width": "1"
+      },
+      {
+        "name": "rst",
+        "width": "1"
+      },
+      {
+        "name": "start",
+        "width": "1"
+      },
+      {
+        "name": "A",
+        "width": "N*N*W"
+      },
+      {
+        "name": "B",
+        "width": "N*N*W"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "done",
+        "width": "1"
+      },
+      {
+        "name": "C",
+        "width": "N*N*AccW"
+      }
+    ]
+  },
+  "clock": "clk",
+  "reset": {
+    "port": "rst",
+    "level": 1
+  },
+  "_clock_comment": "The one clock (rising edge; the source gate's clocked rules, PLAN4.md Gate 2 step 2) and the synchronous, active-high reset, held at least one cycle (C1).",
+  "protocol": {
+    "contract": "TxTask",
+    "start": "start",
+    "done": "done",
+    "operands": [
+      "A",
+      "B"
+    ],
+    "payload": [
+      "C"
+    ],
+    "_comment": "Informative copy of Spec.lean's `task` (C1 to C5, SvGolf/TaskSeq.lean): `start` a one-cycle pulse raised only when idle; A and B held from the start entry through the entry whose edge first shows done = 1; done within lat cycles of the edge that samples start, then done = 1 and C = A.B until the next start. The proof file declares its latency function and the number n = lat 4 8 32 (PLAN4.md Gate 2 step 1); the reference's latency is N (n = 4 at the scoring point)."
+  },
+  "statement": {
+    "module": "tasks.matmul.Spec",
+    "constant": "SvGolf.Tasks.Matmul.Statement",
+    "_comment": "Of type (Nat -> Nat -> Nat -> Design2) -> (Nat -> Nat -> Nat -> Nat) -> Prop: the design family sem N W AccW and the latency function lat N W AccW. The checker's goal is `Statement design.sem lat ∧ lat 4 8 32 = n` (C3)."
+  },
+  "banlist": {
+    "operators": [],
+    "_comment": "No banlist (C6, ruled 11/03): every run-time operator is allowed, * included. The task is the schedule (how many multipliers, how many cycles), and the score prices both."
+  },
+  "probe_points": [
+    "N=1,W=1,AccW=1",
+    "N=2,W=3,AccW=5",
+    "N=3,W=4,AccW=8",
+    "N=4,W=8,AccW=32"
+  ],
+  "scoring": {
+    "params": {
+      "N": 4,
+      "W": 8,
+      "AccW": 32
+    },
+    "depth_budget": null,
+    "_comment": "C7 (ruled 11/03, sky130 the ranked metric): area = sky130 A0' um^2 including the flops (dfxtp_1); time = n x the register-to-register period in ps from the pinned liberty (clock-to-Q and setup included, no other per-cycle overhead), n the declared latency at this point. The leaderboard keeps the Pareto frontier of (area, time); a tie in both keeps the earlier record; one submission declares one latency. NAND2 gate equivalents and unit depth are reported as extra columns."
+  },
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "postsynth": {
+    "points": [
+      {
+        "N": 2,
+        "W": 4,
+        "AccW": 8
+      },
+      {
+        "N": 4,
+        "W": 8,
+        "AccW": 32
+      }
+    ],
+    "seeds": 3,
+    "reset_cycles": 1,
+    "txns": 24,
+    "time_limit_s": 900,
+    "_comment": "The clocked post-synthesis check (PLAN4.md Gate 2 step 4, Gate 3 step 5) at the two points: for each seed s < seeds, the netlist starts from a randomized state, reset is held for reset_cycles cycles (1, the least C1 allows, so a design that needs a longer reset fails), and then oracle.py's txns(params, s, txns) run, with no other idle cycles: the first transaction's gap is the idle time after the release (0, 1 and N + 3 cycles for seeds 0, 1, 2). Binding: (i) the netlist against ls-sv cycle by cycle, done every cycle and C where done = 1; (ii) C where done = 1 against oracle.py's good. Field names are this task's proposal for the tx-family kind; check/postsynth.py's config() learns them with the kind."
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/matmul_g1.sv",
+      "lean": "reference/matmul_g1.lean",
+      "note": "G1: N*N parallel multiply-accumulate units and one step counter k, A and B captured into shift registers at start, latency N (done shows N snapshots after the start's; PLAN4.md Gate 3)."
+    }
+  ]
+}

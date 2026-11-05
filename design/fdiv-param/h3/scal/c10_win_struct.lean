@@ -1,0 +1,16 @@
+import LeanModels.Sv.Ingest2
+import SvGolf.LoadSv
+import SvGolf.Comb
+import LeanModels.Sv.CombEqTactic
+import LeanModels.Sv.CombLib
+
+open LeanModels.Sv LeanModels.Sv.CombView LeanModels.Sv.CombLib LeanModels.Sv.CombEq SvGolf
+set_option maxRecDepth 100000
+
+load_sv c10_win from "<scratchpad>/wph3/g0/chain/c10_win.sv" (top := "c10_win")
+
+set_option maxHeartbeats 4000000 in
+theorem c10_win_struct (W P : Nat) (hW : 2 ≤ W) (hP : 2 ≤ P) :
+    CombDesign (c10_win.sem W P) ∧ Acyclic (c10_win.sem W P) := by
+  sv_structure (rank := rippleRank (fun p => p / 2) (fun _ _ _ => 0))
+  all_goals (intros; omega)

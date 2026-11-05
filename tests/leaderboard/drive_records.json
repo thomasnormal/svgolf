@@ -1,0 +1,107 @@
+{
+ "_comment": "The two A0' blocks of the add reference add_n (its record of 10-29, which has no sky130 columns, kept here as tests/leaderboard/drive_base/d4a292db...: leaderboard/data's add record was re-seeded under sky130_a0_v3 on 11/04) as score/ppa.py (sky130_a0_v3) weighs it with every input driven by sky130_fd_sc_hd__buf_8 (`buf_8`, the default) and by sky130_fd_sc_hd__buf_1 (`buf_1`, `--input-drive`), recorded by the review of sky130_a0_v3 (11/04). tests/leaderboard/test_leaderboard.py (PpaInputDriveTest) adds them to that record to rebuild the review's three records: `honest_buf8` (the buf_8 block), `claims_buf1` (the buf_8 block with setup.input_drive relabelled buf_1, the record hash recomputed: the first attack) and `honest_buf1` (the buf_1 block: a record made while the task's drive was buf_1, the second attack's old record); `record_hash` pins each rebuild to the review's record.",
+ "base_record": "drive_base/d4a292db6bfa1fa3a6c637f9d3a2543e73690ada085467527dfc8cec7b8ba89b",
+ "blocks": {
+  "buf_1": {
+   "area_e4um2_sky130": 4604416,
+   "area_um2_sky130": 460.4416,
+   "available": true,
+   "cell_hist_sky130": {
+    "nand2_1": 48,
+    "xor2_1": 32
+   },
+   "cells_sky130": 80,
+   "constants": false,
+   "critical": {
+    "cells": 32,
+    "edge": "r",
+    "output": "s[15]"
+   },
+   "delay_ps_sky130": 2602,
+   "legality": {
+    "cells_outside_tables": 0,
+    "over_max_capacitance": 0,
+    "over_max_transition": 0,
+    "table_reads_outside": 0,
+    "worst_load_ratio": 0.13,
+    "worst_transition_ratio": 0.165
+   },
+   "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+   "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+   "netlist_sha256": "3b7da549a07e36ecd2615bea0205e996b239e7d12cb3917bc04666d5ac4b4cd3",
+   "ppa_pins_sha256": "5846a93e436f5130bf7bf76e38eed066772d952342cb48e2da916560d1fb21c4",
+   "ppa_script_sha256": "60e57424500574cdc5fca5a6e431ef3f504019d8cd75caf7d4d6c663ff79d0ae",
+   "ppa_version": "sky130_a0_v3",
+   "repair": {
+    "buffers": 0,
+    "cells_before": 80,
+    "method": "buffer_trees_v1",
+    "netlist_sha256": "ac214a9f04d7e6d97447f0cf81c012f4905f276361278a247a31b0c089a2dab3",
+    "nets_buffered": 0,
+    "rounds": 1,
+    "tie_cells": 0
+   },
+   "setup": {
+    "input_drive": "sky130_fd_sc_hd__buf_1",
+    "pi_slew_ps": 50,
+    "po_load_ff": 10,
+    "tables": "no extrapolation",
+    "wires": "none"
+   },
+   "unit_depth": 33
+  },
+  "buf_8": {
+   "area_e4um2_sky130": 4604416,
+   "area_um2_sky130": 460.4416,
+   "available": true,
+   "cell_hist_sky130": {
+    "nand2_1": 48,
+    "xor2_1": 32
+   },
+   "cells_sky130": 80,
+   "constants": false,
+   "critical": {
+    "cells": 32,
+    "edge": "r",
+    "output": "s[15]"
+   },
+   "delay_ps_sky130": 2590,
+   "legality": {
+    "cells_outside_tables": 0,
+    "over_max_capacitance": 0,
+    "over_max_transition": 0,
+    "table_reads_outside": 0,
+    "worst_load_ratio": 0.13,
+    "worst_transition_ratio": 0.165
+   },
+   "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+   "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+   "netlist_sha256": "3b7da549a07e36ecd2615bea0205e996b239e7d12cb3917bc04666d5ac4b4cd3",
+   "ppa_pins_sha256": "5846a93e436f5130bf7bf76e38eed066772d952342cb48e2da916560d1fb21c4",
+   "ppa_script_sha256": "60e57424500574cdc5fca5a6e431ef3f504019d8cd75caf7d4d6c663ff79d0ae",
+   "ppa_version": "sky130_a0_v3",
+   "repair": {
+    "buffers": 0,
+    "cells_before": 80,
+    "method": "buffer_trees_v1",
+    "netlist_sha256": "ac214a9f04d7e6d97447f0cf81c012f4905f276361278a247a31b0c089a2dab3",
+    "nets_buffered": 0,
+    "rounds": 1,
+    "tie_cells": 0
+   },
+   "setup": {
+    "input_drive": "sky130_fd_sc_hd__buf_8",
+    "pi_slew_ps": 50,
+    "po_load_ff": 10,
+    "tables": "no extrapolation",
+    "wires": "none"
+   },
+   "unit_depth": 33
+  }
+ },
+ "record_hash": {
+  "claims_buf1": "a7ddc468068beacfc4992381c7131ea5159a04d38432db1af8b63de384fda119",
+  "honest_buf1": "e9f846553a1b3981c160108febb2b49113909f84b3c73f9aa53a32dd4ec4f04f",
+  "honest_buf8": "d321c2ed88d923e06c13d9e9f734818da10809e6cf4b1894cdbfe1eb0286a851"
+ }
+}

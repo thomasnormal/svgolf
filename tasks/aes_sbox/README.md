@@ -1,0 +1,238 @@
+# Task `aes_sbox`: the AES S-box
+
+The most golfed Boolean function in cryptography: eight bits in, eight bits out, the substitution
+box of AES (FIPS 197, Section 5.1.1). A 256-entry lookup table scores 786.9 GE in our flow; the
+published 113-gate Boyar-Peralta circuit scores 201.0 GE, almost four times smaller (and about
+twice as deep), so there is real room under both axes. It is **fixed size** (`CombTask.StatementFixed`,
+no parameter, the scoring point is the one point; `fdivp` states one such fixed-size statement per format), and it has a **proved
+reference**, the 113-gate circuit (`reference/sbox_bp.lean`, the first fixed-size tactic proof and the
+first with 113 plain sites: `PROVING.md`, section 12). No operator is banned.
+
+## The circuit
+
+Write a module with exactly this header (port names, directions, widths and order matter; the
+module must be called `aes_sbox` and has **no parameter**):
+
+```systemverilog
+module aes_sbox (
+  input  logic [7:0] x,
+  output logic [7:0] y
+);
+```
+
+It must compute, combinationally, `y = S(x)`, the AES S-box: for the byte `x` (bit 7 is the most
+significant bit, as in the standard)
+
+1. `b` = the multiplicative inverse of `x` in GF(2^8) = GF(2)[z]/(z^8 + z^4 + z^3 + z + 1), and `0`
+   for `x = 0`;
+2. `y = b ^ rotl(b,1) ^ rotl(b,2) ^ rotl(b,3) ^ rotl(b,4) ^ 8'h63`, i.e. bit by bit
+   `y[i] = b[i] ^ b[(i+4) mod 8] ^ b[(i+5) mod 8] ^ b[(i+6) mod 8] ^ b[(i+7) mod 8] ^ c[i]` with
+   `c = 8'h63`.
+
+Examples (the standard's own): `S(8'h53) = 8'hed` (Section 5.1.1), `S(8'h00) = 8'h63`,
+`S(8'hff) = 8'h16`; the first row of Table 4 is `63 7c 77 7b f2 6b 6f c5 30 01 67 2b fe d7 ab 76`.
+The function is a permutation of the bytes with no fixed point.
+
+## The statement (`Spec.lean`, trusted)
+
+```lean
+def task : CombTask where
+  inRange N := N = 0
+  inputs _ := [("x", 8)]
+  outputs _ := [("y", 8)]
+  fn _ := fun (x, ()) => (sbox x, ())
+
+abbrev Statement : LeanModels.Sv.Design2 → Prop := task.StatementFixed
+```
+
+`sbox x = affine (ginv x)` is defined ALGEBRAICALLY in `Spec.lean`, as the standard defines it
+(`xtime`, shift-and-add `gmul`, `ginv a = a^254` by repeated squaring, `affine` with `0x63`); the
+256-entry table of FIPS 197 appears there only as a cross-check (a `decide +kernel` example that the
+algebra reproduces it, and the standard's worked values). `CombTask.StatementFixed d` is
+`task.SatisfiedAt 0 d` (`SvGolf/Task.lean`): the design's input ports are exactly `x` (8 bits) and
+its output ports exactly `y` (8 bits); every run terminates under every schedule and stimulus;
+no process is clocked; and every cycle whose stimulus drives `x` with a known value ends with
+`y = sbox x`. A submission proves `SvGolf.Tasks.AesSbox.Statement Submission.design.sem`.
+`REVIEW.md` is the statement's review (what it says, where the standard backs it, the cheating
+surfaces and the defences).
+
+## Rules for this task
+
+* **No operator is banned** (`task.json` `banlist.operators` is empty; the Yosys backstop for
+  `$alu`/`$macc`/`$mul` cells is therefore off). A lookup table, `case`, `+ - *`, a tower-field
+  derivation, anything the checker admits is a legal entry and scores what it scores; the table is
+  legal and simply loses.
+* **Write in the ls-sv subset.** The design must load in ls-sv's symbolic mode (the checker's
+  `design` stage): continuous assigns, `generate for`, selects, concatenations, `always_comb` with
+  `case` and `if` (the 256-entry table loads; `tests/aes_sbox/baselines/sbox_table.sv` is its
+  baseline, `check.py --unproved` admits it, and `reference/sbox_table.{sv,lean}` PROVES it).
+  Which of these the `sv_comb` tactics can PROVE today is a separate question: they read flat
+  continuous assigns over `& | ^ ~ !`, the reductions, `&& ||`, `== !=` and `?:` with known constants
+  (the Boyar-Peralta netlist, with its XNORs written `a ^ b ^ 1'b1`), and `always_comb` bodies that are
+  an `if` tree or a plain `case` with a `default` and single-assignment arms (the 256-entry table:
+  `reference/sbox_table.{sv,lean}`). `check.py --unproved --tactics` says whether yours is inside before
+  you try; the proof route for a design outside is by hand through the semantics.
+* **The proof is for the one point** (fixed size): a closed statement about 256 inputs. It is a
+  finite check once the netlist's equations are derived (`decide +kernel` over the 256 inputs of a closed
+  function is kernel evaluation), so no induction over a parameter is involved; the work is in the glue
+  (`PROVING.md`, section 12: `sv_structure` and `sv_equations` decide the obligations of a flat netlist, so
+  the reference is one `sv_structure` call, one `sv_equations` call and the arithmetic). `bv_decide` would suit a fixed-size subgoal, but it runs an external SAT solver, which the checker does not support
+  (decided 2026-11-01; `svgolf/README.md`, "`bv_decide`"): `allow_bv_decide` is `false`, and proofs use `propext`,
+  `Classical.choice`, `Quot.sound` only. `native_decide`, `sorry` and `admit` never pass.
+* **Proof time limit: 120 s** (`task.json`), the one limit of every task (svGolf `README.md`, "Proof effort"): three cold runs of the reference's `solution` stage, 2026-10-31, measured 53.7, 51.0 and 50.9 s (`score/time_limits.json`; the first limit, 385 s, came from 96.0, 95.1 and 90.9 s of a proof written before the tactics decided the flat netlist's obligations); the other stages of `check.py` add the comparator (19 s) and `leanchecker` (47 to 50 s), which the limit does not count.
+* **Scoring**: fixed size, no parameter override, no depth budget. The ranked score is sky130 A0'
+  (decided 11/03; svGolf `README.md`, "Scoring"): the cell area in um^2 and the critical-path delay
+  in ps of the scored netlist of the pinned two-stage Yosys + ABC flow (`score/canon.ys`,
+  `score/svgolf.ys`), weighed by `score/ppa.py` (`sky130_a0_v3`); the leaderboard keeps their Pareto
+  frontier (the Boyar-Peralta reference 892.1056 um^2 at 4297 ps, `score/tests/ppa/expected_ppa.json`).
+  Area in NAND2 gate equivalents (`score/ge.json`) and depth in gates are extra columns. The score
+  depends on the circuit's expression structure, not on its layout or names. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score". One caveat found
+  by this task: for a FLAT NETLIST the order of the statements moves the score (see Findings).
+* **Post-synthesis check (`task.json` `postsynth`) is EXHAUSTIVE.** The input space has 256
+  values: the generic fixed vectors (all-0, all-1, walking ones and zeros) are 18 distinct inputs and
+  the task lists the other 238 as its `corners`, so ls-sv's reading and the scored netlist are
+  compared on EVERY input, in the full mode and, with `light_vectors` 1000, in the light mode too
+  (the light mode keeps at most (1000 - 2) / 4 = 249 corners and always the fixed vectors);
+  `random` is 0. `tests/aes_sbox/validate/validate.py` (step `vectors`) recomputes both sets from
+  the checker's own functions. The sampling limit of the post-synthesis check (README.md, "Checker
+  v0 limits") does not apply to this task: a one-input disagreement between ls-sv and Yosys cannot
+  hide (`tests/aes_sbox/attacks/case_missing_x.sv` differs on exactly one input).
+* No x or z value may arise (README.md, "Rules"): no x/z literal digit outside a casez/casex item
+  wildcard (the source gate; so no `default: y = 'x` and no unreachable-arm `8'bx`), and no
+  undriven net, latch or out-of-range select (the `fourstate` stage). The goalpost passes both.
+* **Input drive** (the sky130 score, `sky130_a0_v3`): every primary input is driven by `sky130_fd_sc_hd__buf_8`,
+  the default (`task.json` names no `input_drive`), standing for the on-chip bus or register that feeds the block; the
+  record says so in `ppa.setup.input_drive` (score/PPA.md, "The input drive").
+
+## What counts as a solution
+
+`check.py` accepting `solution.sv` + `Solution.lean`:
+
+```bash
+python3.12 check.py tasks/aes_sbox solution.sv Solution.lean
+```
+
+All stages pass: the source gate, the pinned extractor, the banlist (empty), the 4-state rules, ls-sv
+loading the design, the proof of `Submission.Goal` compiling within the time limit, the comparator
+and `leanchecker` (allowed axioms only), scoring, and the exhaustive post-synthesis check.
+
+## Comparison points (with provenance)
+
+Areas are this repository's pinned flow (Yosys 0.53 + ABC, `score/ge.json`), re-measured by
+`tests/run.py` from `tests/expected.json`; the published gate counts and depths are of the netlist
+FILES, which `tests/aes_sbox/validate/validate.py` parses and checks (they are copied there, with
+their sha256), not the papers' figures.
+
+| design | where | published (file) | ours: GE | ours: depth | proved |
+|---|---|---|---|---|---|
+| 256-entry `case` table | `reference/sbox_table.sv` (a reference; `tests/aes_sbox/baselines/sbox_table.sv` is the same design) | n/a | 786.894 (612 gates) | 11 | yes: `reference/sbox_table.lean` (one line, `by sv_exhaustive`: the `case` as a word-level table lookup, the 256 inputs by kernel evaluation; `solution` stage 26.1, 25.0, 24.7 s cold) |
+| Boyar-Peralta, 113 gates | `reference/sbox_bp.sv` (the reference) | 113 gates (32 AND, 77 XOR, 4 XNOR), depth 27 | 200.986 (123 gates) | 21 | yes: `reference/sbox_bp.lean` |
+| Boyar-Peralta, depth 16 | `tests/aes_sbox/baselines/sbox_bp_d16.sv` | 125 gates (34 AND, 87 XOR, 4 XNOR), depth 16 | 216.322 (131 gates) | 18 | no (simulation) |
+
+* The 113-gate circuit: J. Boyar and R. Peralta, "A new combinational logic minimization technique
+  with applications to cryptology", SEA 2010 (LNCS 6049); its journal version J. Boyar, P. Matthews
+  and R. Peralta, "Logic minimization techniques with applications to cryptology", J. Cryptology
+  26(2), 2013. The netlist is `SLP_AES_113.txt` on the authors' page
+  (<https://www.cs.yale.edu/homes/peralta/CircuitStuff/>), fetched 2026-10-30, sha256
+  `de1d21c8...b55c0`. Verified here: 113 gates, 32 AND, 77 XOR, 4 XNOR, depth 27 levels, and it
+  equals the FIPS table on all 256 inputs. Recalled, NOT verified: which paper first printed the
+  113-gate figure.
+* The depth-16 circuit: J. Boyar and R. Peralta, "A small depth-16 circuit for the AES S-box", IFIP
+  SEC 2012; the page's file `AESDEPTH16SIZE125` (fetched 2026-10-30, sha256 `b72f635d...f162`) has
+  125 gates and depth 16 (both verified here); the paper's own figure is recalled to be 128 gates,
+  not verified. In our flow it is 7.6% larger and 3 levels shallower than the 113-gate circuit: a
+  second point of the Pareto front.
+* "Depth" in the published columns counts the levels of the gate-level netlist; ours is the depth
+  of the mapped Yosys netlist after ABC, which re-derives the network (so it is not the same
+  number: 27 published, 21 ours, for the same circuit).
+* Not built (recalled from the literature, NOT checked): Canright's tower-field S-box (CHES 2005),
+  and smaller or shallower circuits since (Reyhani-Masoleh et al. 2018, Maximov-Ekdahl 2019).
+
+## The reference solution (`reference/`)
+
+`reference/sbox_bp.sv` is the 113-gate Boyar-Peralta straight-line program translated gate for gate
+(`assign t = a ^ b;`, `a & b`, XNOR as `a ^ b ^ 1'b1`, the file's `U<i>`/`S<i>` as `x[7-i]`/`y[7-i]`): a flat
+netlist of 113 continuous assigns over 105 internal bits. It loads in ls-sv with no unsupported node and is
+inside the tactic fragment (`check.py --unproved --tactics`).
+
+**Score**: **200.986 GE, depth 21** (123 gates after ABC).
+
+**The proof**, `reference/sbox_bp.lean` (202 code lines in the leaderboard's count, 295 lines; generated from
+the netlist by `tests/aes_sbox/validate/gen_bp_proof.py`, which `tests/run.py` checks; about 100 lines are
+mathematics, the rest tables). Route: the structure theorem is one `sv_structure (rank := …)` call (the design
+is a flat netlist: every site plain, no parameter, so the tactic decides the four obligations as closed
+statements about the site list); the ports by `sv_interface`; the equations by `sv_equations`, which also
+decides the in-range, width, bit-read and coverage obligations of such a design and hands over the 113
+equations under their stable names (`eq_y14_1`, …, `eq_y_1` … `eq_y_8`); the arithmetic is a plain-Lean
+straight-line program over a packed `Nat` environment, evaluated by the kernel on all 256 inputs, plus one
+induction over the gate list. Axioms `propext`, `Classical.choice`, `Quot.sound`; no `native_decide`.
+
+### Proof effort (measured 2026-10-31, WP-P3b)
+
+Sequential elaboration (`lake env lean -DElab.async=false`, `LEAN_NUM_THREADS=2`, CPU seconds, shared laptop):
+
+| theorem | seconds | heartbeats (millions) |
+|---|---|---|
+| `bp_struct` (`CombDesign ∧ Acyclic`, `sv_structure`) | 12.2 | 127 |
+| `bp_interface` (`sv_interface`) | 6.1 | 54 |
+| `bp_correct` (256 inputs, kernel) | 10.5 | 66 |
+| `solution` (`sv_equations` 11 s of 23) | 23.3 | 394 (set 1 000) |
+| the other small lemmas | under 0.1 each | about 1 each |
+
+About 48 s of CPU for the file, `.olean` 18.2 MB; three cold `check.py` runs: `solution` stage 53.7, 51.0 and
+50.9 s (WP-A1, with the structure theorem applied by hand and `sv_equations` leaving 221 coverage goals:
+99 s of CPU for the file, 654 lines, `solution` stage 96.0, 95.1 and 90.9 s). `sv_structure` on the same design
+is linear in the number of sites (12 s at 113; before WP-P3b: `n^1.9`, 63 s of `simp` at 60 gates, 4 min 23 s and then
+`maximum recursion depth` at 113). The numbers, before and after, are in `PROVING.md`, section 12.
+
+## Validation (`tests/aes_sbox/validate/`)
+
+`validate.py` (all of it quick, 20 s, run by `tests/run.py`):
+
+| step | what |
+|---|---|
+| `table` | `oracle.py` = FIPS 197 Table 4 on all 256 entries; the table parsed from the NIST PDF (`vectors.json`, source and date in it); the S-box is a permutation |
+| `anchors` | `S(53)=ed`, `S(00)=63`, `S(ff)=16`, row 0 of Table 4, `{57}*{13}={fe}`, `{57}*{83}={c1}` |
+| `aes` | a textbook AES-128 on the oracle's table reproduces the FIPS 197 (2001) Appendix C.1 ciphertext and agrees with OpenSSL's AES-128 on 300 random blocks |
+| `bp` | both Boyar-Peralta `.sv` files are their netlist files gate for gate (same gates, order, names), each netlist equals the table on all 256 inputs, gate counts and depths as quoted |
+| `sim` | Verilator on ALL 256 inputs for every reference and baseline (0 mismatches), and for every functionally wrong negative design (at least one) |
+
+`gen_bp_proof.py --check` (run by `tests/run.py`, step `layout`) regenerates the reference proof from the netlist and compares.
+
+## Negative designs (`tests/aes_sbox/negative/`) and attacks (`tests/aes_sbox/attacks/`)
+
+| design | what it tries | rejected at |
+|---|---|---|
+| `negative/no_constant.sv` | the affine constant `0x63` forgotten (the circuit with its XNORs as XORs): wrong on all 256 inputs | `solution` |
+| `negative/one_entry.sv` | a 256-entry table with `S(0x53)` one bit off: right on 255 of 256 inputs | `solution` |
+| `negative/reversed_bits.sv` | the right circuit fed `x` bit-reversed (the bit-order mistake): wrong on 240 | `solution` |
+| `negative/inverse_sbox.sv` | the inverse S-box (decryption), same shape and cost: wrong on 254 | `solution` |
+| `negative/wrong_names.sv` | the right circuit on ports `a`, `s` | `solution` (the interface conjunct) |
+| `negative/undriven_bit.sv` | `y[0]` never assigned | `fourstate` |
+| `negative/x_default.sv` | a correct table with an unreachable `default: y = 8'bxxxxxxxx` | `source` |
+| `attacks/case_missing_x.sv` | a table omitting `S(0x53)` and sending it to `default: y = 8'bx` (Yosys is free to fill the hole with the cheapest value) | `source`; the exhaustive post-synthesis check alone also rejects it |
+| `attacks/case_missing_nodefault.sv` | the same table with no default (an inferred latch) | `fourstate` |
+| `attacks/unique_case_partial.sv` | `unique case` with a missing entry (a synthesis don't-care) | `source` |
+| `attacks/unique_zero_ge.sv` | a correct S-box, then a `unique case` arm that never matches: ls-sv computes the S-box, Yosys a constant (0 GE, the exploit class the source gate exists for) | `source`; post-synthesis alone rejects it on every vector |
+| `attacks/tactics_reference` | ADVISORY: the reference is inside the tactic fragment and the oracle agrees on all 256 inputs | admitted (`unproved`) |
+| `attacks/table_unproved` | ADVISORY: the `case` table loads (no unsupported node) and reaches `unproved`; its tactic verdict is pinned | admitted (`unproved`) |
+
+`tests/expected.json` lists the stage of each; the READMEs in the three directories have the details.
+
+## Findings
+
+* **Statement order moves the score of a flat netlist.** The canonical flow makes the score
+  independent of layout and renaming (all 16 layout and renaming variants of `sbox_bp.sv`, and the
+  one with the declarations hoisted, have a byte-identical canonical RTLIL), but not of the ORDER of the 113 assigns: reordering them (the `canon` step's
+  `reverse` and four seeded shuffles) scores 201.654, 198.986, 200.988, 209.321 and 199.652 GE
+  against 200.986. A player can golf a netlist by permuting its statements (here by about 1%
+  better, 4% worse), and the existing designs' "reordering has not moved a score" does not hold
+  here. `sbox_bp.sv` is therefore NOT in `tests/expected.json`'s `canonical_layout` (that step
+  requires the reordered scores equal). Decided (2026-10-31): this stays as it is. The checker scores the
+  statements in the order given, and a golfer is expected to run the pinned flow (or ABC) on candidate orders
+  and submit the best one, like any other structural choice.
+* **`sv_structure` does not scale to 113 plain sites** (`n^1.9`: 63 s of `simp` at 60 gates, 4 min 23 s and a
+  recursion-depth failure at 113). The reference proof applies the library theorem by hand and decides the two
+  quadratic obligations (one driver per bit, the rank) in the kernel: 19 s. Numbers, goal shapes and the
+  smallest tactic changes: `PROVING.md`, section 12.
+* See `REVIEW.md` for the statement's review.

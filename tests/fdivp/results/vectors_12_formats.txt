@@ -1,0 +1,37 @@
+(8,24): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(8,24) verilator: {"vectors": 200000, "mismatches": 0} 
+(11,53): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(11,53) verilator: {"vectors": 200000, "mismatches": 0} 
+(2,30): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(2,30) verilator: {"vectors": 200000, "mismatches": 0} 
+(6,30): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(6,30) verilator: {"vectors": 200000, "mismatches": 0} 
+(15,48): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(15,48) verilator: {"vectors": 200000, "mismatches": 0} 
+(2,62): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(2,62) verilator: {"vectors": 200000, "mismatches": 0} 
+(3,60): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(3,60) verilator: {"vectors": 200000, "mismatches": 0} 
+(12,20): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(12,20) verilator: {"vectors": 200000, "mismatches": 0} 
+(20,12): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(20,12) verilator: {"vectors": 200000, "mismatches": 0} 
+(16,16): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(16,16) verilator: {"vectors": 200000, "mismatches": 0} 
+(4,20): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(4,20) verilator: {"vectors": 200000, "mismatches": 0} 
+(10,40): 200000 vectors, oracle_int vs Fraction oracle on 2000: 0 disagreements
+python model vs oracle_int mismatches: 0 
+(10,40) verilator: {"vectors": 200000, "mismatches": 0} 
+finished

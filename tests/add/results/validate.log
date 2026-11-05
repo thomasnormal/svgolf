@@ -1,0 +1,10 @@
+plan: N=1: 8, N=2: 32, N=3: 128, N=4: 512, N=5: 2048, N=6: 317, N=7: 318, N=8: 319, N=13: 324, N=16: 327, N=31: 342, N=32: 343, N=33: 344, N=64: 375 vectors (seed 20261028); Icarus Verilog version 12.0 (stable) ()
+[ok] reference ripple (correct): {'vectors': 5737, 'icarus_bad': 0, 'src_bad': 0, 'rev_bad': 0, 'ic_vs_run2': 0}
+[ok] reference sklansky (correct): {'vectors': 5737, 'icarus_bad': 0, 'src_bad': 0, 'rev_bad': 0, 'ic_vs_run2': 0}
+[ok] reference kogge-stone (correct): {'vectors': 5737, 'icarus_bad': 0, 'src_bad': 0, 'rev_bad': 0, 'ic_vs_run2': 0}
+[ok] baseline yosys + (correct): {'vectors': 5737, 'icarus_bad': 0, 'src_bad': 0, 'rev_bad': 0, 'ic_vs_run2': 0}
+[ok] negative no_cin (wrong): {'vectors': 5737, 'icarus_bad': 2725, 'src_bad': 2725, 'rev_bad': 2725, 'ic_vs_run2': 0}
+[ok] negative cout_off (wrong): {'vectors': 5737, 'icarus_bad': 1405, 'src_bad': 1405, 'rev_bad': 1405, 'ic_vs_run2': 0}
+[ok] negative carry_bug (wrong): {'vectors': 5737, 'icarus_bad': 3444, 'src_bad': 3444, 'rev_bad': 3444, 'ic_vs_run2': 0}
+[ok] negative only_n16 (wrong): {'vectors': 5737, 'icarus_bad': 4984, 'src_bad': 4984, 'rev_bad': 4984, 'ic_vs_run2': 0}
+validate: PASS

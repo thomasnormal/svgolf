@@ -1,0 +1,2 @@
+{"W": 5, "P": 11, "K": 16, "pairs": 4294967296, "mismatches": 0, "mode": "exhaustive"}
+{"W": 8, "P": 8, "K": 16, "pairs": 4294967296, "mismatches": 0, "mode": "exhaustive"}

@@ -1,0 +1,26 @@
+module c10_whole #(parameter int W = 5, parameter int P = 11) (
+  input  logic [W+P-1:0] a, input logic [W+P-1:0] b, output logic [W+P-1:0] q);
+  localparam integer K = W + P;
+  localparam integer T = P - 1;
+  logic [K-1:0] x0;
+  logic [K-1:0] x1;
+  logic [K-1:0] x2;
+  logic [K-1:0] x3;
+  logic [K-1:0] x4;
+  logic [K-1:0] x5;
+  logic [K-1:0] x6;
+  logic [K-1:0] x7;
+  logic [K-1:0] x8;
+  logic [K-1:0] x9;
+  assign x0 = a ^ b;
+  assign x1 = x0 & a;
+  assign x2 = x1 ^ a;
+  assign x3 = x2 & a;
+  assign x4 = x3 ^ a;
+  assign x5 = x4 & a;
+  assign x6 = x5 ^ a;
+  assign x7 = x6 & a;
+  assign x8 = x7 ^ a;
+  assign x9 = x8 & a;
+  assign q = x9;
+endmodule

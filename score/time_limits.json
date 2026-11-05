@@ -1,0 +1,68 @@
+{
+  "_comment": "Cold runs of the honest references through check.py (`stages.solution.seconds`: the compile of the reference's Solution.lean, nothing else), the input of score/time_limits.py, which holds every task to the one limit of 120 s (decided 2026-11-02) and flags T above the 60 s target, T = the largest run of the slowest reference of the task. Re-measure after a change of the tactic library, the toolchain or the machine: put the new runs here and run `python3 score/time_limits.py --check`. Not hashed by the checker.",
+  "environment": {
+    "date": "2026-10-30",
+    "machine": "Apple M2 Pro, 12 cores, 16 GB, macOS 27.2; a shared development machine: other users' jobs ran throughout (load average 5.0 to 8.8 at the start of the runs), nothing of this package ran concurrently",
+    "build": "COLD per run: a new process and a fresh staging directory (--stage-dir, removed beforehand) for every run, one run at a time through a Lean-slot wrapper (LEAN_NUM_THREADS=2, nice 19); the project build (lake build SvGolf tasks svgolf-eval) was warm and up to date, not timed; the OS file cache was not purged",
+    "lean_cache": "svGolf and LeanModels.Sv .olean files built and current, the staged Submission/*.olean built from scratch inside each run; lean-toolchain leanprover/lean4:v4.33.0-rc1",
+    "postsynth_mode": "light (check.py's default; the proof limit counts the solution stage only, the mode does not enter it)",
+    "reference_commit": "94c4308ccb6cbd710158669e9aa71a478a95529d + the uncommitted WP-C2/WP-C3 edits of the working tree (check.py, check/postsynth.py)",
+    "measured_with": "check.py TASK reference/<stem>.sv reference/<stem>.lean --stage-dir <fresh> --json; scratch: wpc2/cold_runs.py, plan_cold.json"
+  },
+  "tasks": {
+    "add": {
+      "references": {
+        "add_n": [12.11, 9.57, 9.49],
+        "add_n_byhand": [3.0]
+      }
+    },
+    "_example": {
+      "references": {
+        "band": [2.09, 2.0, 2.1],
+        "band_lp": [2.13, 2.08, 2.11]
+      }
+    },
+    "mul": {
+      "references": {
+        "mul_tree_h": [71.31, 69.21, 71.31],
+        "mul_tree": [87.09, 86.76, 99.98],
+        "mul_wallace": [42.16],
+        "mul_n": [37.25],
+        "mul_n_byhand": [12.35]
+      }
+    },
+    "aes_sbox": {
+      "references": {
+        "sbox_bp": [53.73, 51.04, 50.91],
+        "sbox_table": [26.12, 24.98, 24.65]
+      },
+      "why": "WP-P3b, 2026-10-31 06:39 to 06:46: three cold check.py runs of the reference (fresh --stage-dir each, --postsynth full, one run at a time inside one Lean-slot acquisition with nothing else on the slot, LEAN_NUM_THREADS=2, nice 19, the project build warm and the LeanModels.Sv tactic modules of the wpp3b worktree); default (asynchronous) elaboration; the committed reference (sv_structure and sv_equations decide the flat netlist's obligations; solution carries maxHeartbeats 1000000). Whole check.py runs: 136, 127 and 130 s (comparator 19, leanchecker 47 to 50). Replaces WP-A1's 96.04, 95.07 and 90.9 s of the proof that applied comb_acyclic_view by hand. sbox_table (`by sv_exhaustive`, 2026-11-03 20:34 to 20:38): three cold check.py runs (fresh --stage-dir each, --postsynth light, one run at a time inside one Lean-slot acquisition with nothing else on the slot, LEAN_NUM_THREADS=2, nice 19, load average 7.4 to 11.2 from other users' jobs; the sv-exhaustive worktree): whole check.py runs 81, 83 and 80 s (comparator 20 to 22, leanchecker 22 to 24)"
+    },
+    "clmul": {
+      "references": {
+        "clmul_n": [7.42, 7.66, 7.66]
+      },
+      "why": "WP-T-CLMUL gate 2, 2026-11-01 15:56 to 15:59: three cold check.py runs of the reference (fresh --stage-dir each, --postsynth full, --ppa require, one run at a time inside one Lean-slot acquisition, LEAN_NUM_THREADS=2, nice 19, the project build warm); default (asynchronous) elaboration; whole check.py runs about 55 s each (comparator 14, leanchecker 13 to 14, postsynth 10); a loaded shared machine (load average 6 to 10)"
+    },
+    "fdivp": {
+      "references": {
+        "fdivp": [70.26, 64.48, 71.58],
+        "fdivp_newton": [49.92, 48.6, 52.67],
+        "fdivp_srt": [78.58, 73.19, 69.92]
+      },
+      "why": "2026-11-03, the self-contained reference (the fold of the former 16-bit task and of fdivp's Dp* proof library into reference/fdivp.lean; only LeanModels.Sv.Lib prebuilt): three cold check.py runs, fresh --stage-dir each, one run at a time, each taking the Lean slot itself (LEAN_NUM_THREADS=2, nice 19), load average 9.5, 6.0, 6.8 at the start; leanchecker 39.4, 35.2, 44.6 s. Replaces WP-H3 gate 2's 31.0, 26.0, 24.8 s (2026-11-02, the proof library prebuilt in the tasks library, load 14, 11, 8). fdivp_newton: 2026-11-04 03:31 to 03:44, the Newton reference (b3fcfd85, self-contained like fdivp.lean), three cold check.py runs (--no-score) the same way, load average 6.1, 4.1, 4.9 when each took the slot; leanchecker 33.9, 34.0, 35.9 s, comparator 21.0, 23.4, 23.5 s. Replaced 2026-11-04 22:54 to 23:05 by three runs the same way after the Newton mathematics moved from the prebuilt LeanModels/Sv/Lib/Newton.lean into the reference (its section NwCore, compiled in the solution stage), load average 6.1, 9.9, 6.6 when each took the slot; leanchecker 39.4, 39.4, 38.5 s, comparator 24.1, 25.9, 22.7 s; one run just before the move, the same way, at load 9.5: 46.87 s. fdivp_srt: 2026-11-05 01:50 to 02:03, the SRT reference (on svgolf-prep 06f2a700: its core in section SrCore, the shared obligations taken from sv_structure), three cold check.py runs (--no-score) the same way, each started only at a 1-minute load average below 8: 7.7, 7.4, 6.7 when each took the slot (10.5, 6.7, 7.4 at the end); leanchecker 49.4, 47.6, 46.1 s, comparator 29.3, 27.6, 29.6 s. Above the 60 s target, under the 120 s limit; at load 10 to 17 the stage measured 92 to 121 s before the merge onto the shared obligations (tests/fdivp/results/srt_S0.md, sections 11 to 13)"
+    },
+    "matmul": {
+      "references": {
+        "matmul_g1": [9.56, 8.68, 8.56]
+      },
+      "why": "PLAN4 Gate 3 step 6, 2026-11-04 01:43 to 02:13 CET: three cold check.py runs of the reference at 1c17536f (fresh --stage-dir each, the default scoring, which for a clocked task is the clocked score, postsynth at (2,4,8) and (4,8,32) and --ppa require; --postsynth full; one run per Lean-slot acquisition, LEAN_NUM_THREADS=2, nice 19, the project build warm), at load 5.3, 5.3 and 5.4; other workflows' Lean jobs held the slot between the runs, never during one. Whole check.py runs 74.8, 66.5 and 67.9 s (comparator 11.8 to 14.1 s, leanchecker 14.4 to 16.4 s, postsynth 16.7 to 17.1 s for both points). The proof imports LeanModels.Sv and SvGolf.Seq (built, not part of the solution stage)"
+    },
+    "sorter": {
+      "references": {
+        "sorter_ins": [7.24, 7.24, 7.59]
+      },
+      "why": "PLAN4 Gate 5 (the sorter, as Gate 3 step 6), 2026-11-04 10:08 to 10:21 CET: three cold check.py runs of the reference at 039c2162 (fresh --stage-dir each, the default scoring, which for a stream-family task is the clocked score, postsynth at (3,4) and (8,8) and --ppa require; --postsynth full; one run per Lean-slot acquisition, LEAN_NUM_THREADS=2, nice 19, the project build warm), at load 9.7, 9.9 and 6.4 when each took the slot; other workflows' Lean jobs held the slot between the runs, never during one. Whole check.py runs 54, 53 and 67 s (comparator 13.3 to 18.2 s, leanchecker 16.5 to 16.9 s, postsynth 6.8 to 7.2 s for both points). The proof imports LeanModels.Sv and SvGolf.Seq (built, not part of the solution stage)"
+    }
+  }
+}

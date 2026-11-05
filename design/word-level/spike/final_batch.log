@@ -1,0 +1,82 @@
+sites rewritten: 23 of 23
+=== S1Recognizer
+[PProcess.assign "y" (PExpr.binary (SymBinOp.m0 BinOp.add) (PExpr.ident "a") (PExpr.ident "b"))]
+[PProcess.assign "y"
+    (PExpr.binary (SymBinOp.m0 BinOp.add) (PExpr.resize 5 (PExpr.ident "a")) (PExpr.resize 5 (PExpr.ident "b")))]
+[PProcess.assign "y" (PExpr.resize 3 (PExpr.binary (SymBinOp.m0 BinOp.add) (PExpr.ident "a") (PExpr.ident "b")))]
+"ERR: operator `+` is outside the v1 fragment (it has the bitwise gates `&`, `|`, `^`, the logical `&&`, `||` and `==`, `!=`; arithmetic, ordering comparisons and shifts are word-level operators)"
+"ERR: operator `+` is outside the v1 fragment (it has the bitwise gates `&`, `|`, `^`, the logical `&&`, `||` and `==`, `!=`; arithmetic, ordering comparisons and shifts are word-level operators)"
+"ERR: width conversion (an operand is not as wide as its context at the default parameters, so slang inserted an implicit zero-extension or truncation; the v1 fragment needs every operand exactly as wide as its target: widen or narrow it explicitly)"
+["ERR: width conversion (an operand is not as wide as its context at the default parameters, so slang inserted an implicit zero-extension or truncation; the v1 fragment needs every operand exactly as wide as its target: widen or narrow it explicitly)",
+  "ERR: width conversion (an operand is not as wide as its context at the default parameters, so slang inserted an implicit zero-extension or truncation; the v1 fragment needs every operand exactly as wide as its target: widen or narrow it explicitly)"]
+["ERR: operator `+` is outside the v1 fragment (it has the bitwise gates `&`, `|`, `^`, the logical `&&`, `||` and `==`, `!=`; arithmetic, ordering comparisons and shifts are word-level operators)"]
+[["ok 1 reads", "ok 1 reads"]]
+--- S1Recognizer 8 s
+=== S2a_ext
+'LeanModels.Sv.ie_resize_leaf' depends on axioms: [propext, Quot.sound]
+--- S2a_ext 2 s
+=== S3Glue
+'LeanModels.Sv.XF.bv_addBits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LeanModels.Sv.XF.bv_subBits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LeanModels.Sv.XF.bv_zext' depends on axioms: [propext, Quot.sound]
+--- S3Glue 1 s
+=== S4Example
+'LeanModels.Sv.add_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LeanModels.Sv.add_wide_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LeanModels.Sv.addw_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+--- S4Example 1 s
+=== B2Shape
+svgolf/design/word-level/spike/B2Shape.lean:482:41: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2Shape.lean:482:77: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2Shape.lean:525:16: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2Shape.lean:526:16: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2Shape.lean:527:16: warning: This simp argument is unused:
+
+
+'LeanModels.Sv.B2.ashape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LeanModels.Sv.B2.ie_resize_leaf' depends on axioms: [propext, Quot.sound]
+--- B2Shape 3 s
+=== B2ShapeDw
+svgolf/design/word-level/spike/B2ShapeDw.lean:482:41: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2ShapeDw.lean:482:77: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2ShapeDw.lean:525:16: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2ShapeDw.lean:526:16: warning: This simp argument is unused:
+
+
+svgolf/design/word-level/spike/B2ShapeDw.lean:527:16: warning: This simp argument is unused:
+
+
+'LeanModels.Sv.B2.ashape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LeanModels.Sv.B2.ie_resize_leaf' depends on axioms: [propext, Quot.sound]
+--- B2ShapeDw 3 s
+=== B2ShapePrint
+st : SvState
+N k : Nat
+b : Bool
+hb :
+  XF.addBits (N + 1)
+      (fun x =>
+        XF.addBits (N + 1) (fun x => XF.zext (if False then 1 else N) (fun x => st.boolAt (Acc.whole "a").name x) x)
+          (N + 1) (fun x => XF.zext (if False then 1 else N) (fun x => st.boolAt (Acc.whole "b").name x) x) x)
+      (N + 1) (fun x => XF.zext 1 (fun x => st.boolAt (Acc.whole "cin").name x) x) k =
+    b
+⊢ True
+--- B2ShapePrint 2 s
+
+real	2m12.525s
+user	0m17.867s
+sys	0m7.038s

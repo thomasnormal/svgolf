@@ -1,0 +1,1585 @@
+{
+ "schema": "ws4-x3/1",
+ "summary": {
+  "references": 18,
+  "references_with_acyclic_certificate": 18,
+  "references_certificate_on_loaded_design": 15,
+  "references_certificate_on_lowered_design": 3,
+  "references_assign_only": 15,
+  "references_with_procedural_decisions": 3,
+  "references_with_conditional_operator": 4,
+  "references_with_settled_x_decision": 0,
+  "references_with_transient_x_decision": 3,
+  "records": 4,
+  "records_identical_to_a_reference": 4,
+  "records_assign_only_with_certificate_on_loaded_design": 4,
+  "records_with_procedural_decisions": 0
+ },
+ "records": [
+  {
+   "task": "_example",
+   "record_hash": "6b60e5737bf39087f5e2861dc99f39d84437cd9569ba905e69f12ec2873215a8",
+   "player": "svgolf-reference",
+   "lean_name": "band.lean",
+   "identical_to_reference": "svgolf/tasks/_example/reference/band.lean",
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "task": "_example",
+   "record_hash": "fc1173e2f974e72344aa4fa67ccd084bec33c431ade281efd576efc773cc2e58",
+   "player": "svgolf-reference",
+   "lean_name": "band_lp.lean",
+   "identical_to_reference": "svgolf/tasks/_example/reference/band_lp.lean",
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "task": "add",
+   "record_hash": "d4a292db6bfa1fa3a6c637f9d3a2543e73690ada085467527dfc8cec7b8ba89b",
+   "player": "svgolf-reference",
+   "lean_name": "add_n.lean",
+   "identical_to_reference": "svgolf/tasks/add/reference/add_n_byhand.lean",
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "task": "mul",
+   "record_hash": "6811ad4e47f2936f108d7191f5ae62c130311a759e5f7cc5a76a95eb22fb3e60",
+   "player": "svgolf-reference",
+   "lean_name": "mul_n.lean",
+   "identical_to_reference": "svgolf/tasks/mul/reference/mul_n_byhand.lean",
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  }
+ ],
+ "references": [
+  {
+   "kind": "reference",
+   "task": "_example",
+   "sv": "svgolf/tasks/_example/reference/band.sv",
+   "lean": "svgolf/tasks/_example/reference/band.lean",
+   "top": "band",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "band_acyclic",
+      "target": "design.sem",
+      "proved_by": "explicit rank",
+      "also_CombDesign": false
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "by hand (own lemmas)",
+    "lines": 234
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 1
+    },
+    "elaborated_processes": 1,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "_example",
+   "sv": "svgolf/tasks/_example/reference/band_lp.sv",
+   "lean": "svgolf/tasks/_example/reference/band_lp.lean",
+   "top": "band",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "band_acyclic",
+      "target": "design.sem",
+      "proved_by": "explicit rank",
+      "also_CombDesign": false
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "by hand (own lemmas)",
+    "lines": 240
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 1
+    },
+    "elaborated_processes": 1,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "add",
+   "sv": "svgolf/tasks/add/reference/add_n.sv",
+   "lean": "svgolf/tasks/add/reference/add_n.lean",
+   "top": "add_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "add_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 146
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 4
+    },
+    "elaborated_processes": 34,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "add",
+   "sv": "svgolf/tasks/add/reference/add_proc.sv",
+   "lean": "svgolf/tasks/add/reference/add_proc.lean",
+   "top": "add_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "add_struct",
+      "target": "lowered",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb",
+     "satisfiedAt_of_lowered"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 177
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 4,
+     "AlwaysComb": 1
+    },
+    "elaborated_processes": 50,
+    "decision_sites": [
+     {
+      "kind": "if",
+      "check": "None_",
+      "reads": {
+       "p": "other process"
+      },
+      "in_process": "AlwaysComb",
+      "default": null,
+      "elaborated_copies": 16,
+      "offset": 683
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "lowered"
+    ],
+    "procedural_decision_sites": 1,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 1,
+    "transient_x_decision_sites_on_internal_signals": 1,
+    "assign_only": false,
+    "transfer_route": "R-COMB with always_comb (gate G-B) + a lemma lifting the LOWERED design's certificate to the source design"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "add",
+   "sv": "svgolf/tasks/add/reference/add_proc_m.sv",
+   "lean": "svgolf/tasks/add/reference/add_proc_m.lean",
+   "top": "add_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "add_struct",
+      "target": "lowered",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_lowered"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 162
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 3,
+     "AlwaysComb": 1
+    },
+    "elaborated_processes": 34,
+    "decision_sites": [
+     {
+      "kind": "if",
+      "check": "None_",
+      "reads": {
+       "p": "other process"
+      },
+      "in_process": "AlwaysComb",
+      "default": null,
+      "elaborated_copies": 16,
+      "offset": 733
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "lowered"
+    ],
+    "procedural_decision_sites": 1,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 1,
+    "transient_x_decision_sites_on_internal_signals": 1,
+    "assign_only": false,
+    "transfer_route": "R-COMB with always_comb (gate G-B) + a lemma lifting the LOWERED design's certificate to the source design"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "add",
+   "sv": "svgolf/tasks/add/reference/add_mux.sv",
+   "lean": "svgolf/tasks/add/reference/add_mux.lean",
+   "top": "add_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "add_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 162
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 5
+    },
+    "elaborated_processes": 50,
+    "decision_sites": [
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "e": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 16,
+      "offset": 682
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 1,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "add",
+   "sv": "svgolf/tasks/add/reference/add_n_byhand.sv",
+   "lean": "svgolf/tasks/add/reference/add_n_byhand.lean",
+   "top": "add_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "ripple_acyclic",
+      "target": "design.sem",
+      "proved_by": "explicit rank",
+      "also_CombDesign": false
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "by hand (own lemmas)",
+    "lines": 775
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 4
+    },
+    "elaborated_processes": 34,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "aes_sbox",
+   "sv": "svgolf/tasks/aes_sbox/reference/sbox_bp.sv",
+   "lean": "svgolf/tasks/aes_sbox/reference/sbox_bp.lean",
+   "top": "aes_sbox",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "bp_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 295
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 113
+    },
+    "elaborated_processes": 113,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "aes_sbox",
+   "sv": "svgolf/tasks/aes_sbox/reference/sbox_table.sv",
+   "lean": "svgolf/tasks/aes_sbox/reference/sbox_table.lean",
+   "top": "aes_sbox",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "tbl_struct",
+      "target": "lowered",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_lowered"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 287
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "AlwaysComb": 1
+    },
+    "elaborated_processes": 1,
+    "decision_sites": [
+     {
+      "kind": "case",
+      "check": "None_",
+      "reads": {
+       "x": "input"
+      },
+      "in_process": "AlwaysComb",
+      "default": true,
+      "elaborated_copies": 1,
+      "offset": 402
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "lowered"
+    ],
+    "procedural_decision_sites": 1,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 1,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": false,
+    "transfer_route": "R-COMB with always_comb (gate G-B) + a lemma lifting the LOWERED design's certificate to the source design"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "clmul",
+   "sv": "svgolf/tasks/clmul/reference/clmul_n.sv",
+   "lean": "svgolf/tasks/clmul/reference/clmul_n.lean",
+   "top": "clmul_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "clmul_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 284
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 5
+    },
+    "elaborated_processes": 287,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "fdiv16",
+   "sv": "svgolf/tasks/fdiv16/reference/fdiv16.sv",
+   "lean": "svgolf/tasks/fdiv16/reference/fdiv16.lean",
+   "top": "fdiv16",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "fdiv_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 288
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 111
+    },
+    "elaborated_processes": 111,
+    "decision_sites": [
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nza": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3049
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nzb": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3081
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "za8": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3225
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "za4": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3298
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "za2": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3373
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "za1": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3437
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "zb8": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3588
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "zb4": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3661
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "zb2": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3736
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "zb1": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3800
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4255
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4363
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4471
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4578
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4684
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4790
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4896
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5002
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5108
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5215
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5325
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5437
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5549
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5695
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nrm": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6083
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "big": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6097
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "sh": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6216
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "sh": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6285
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "sh": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6366
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "sh": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6447
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nrm": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 6642
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_nan": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 7079
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_inf": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 7096
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_zero": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 7113
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "ovf": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 7132
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 35,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "fdiv16",
+   "sv": "svgolf/tasks/fdiv16/reference/fdiv16_gen.sv",
+   "lean": "svgolf/tasks/fdiv16/reference/fdiv16_gen.lean",
+   "top": "fdiv16",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "fdiv_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 120
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 34
+    },
+    "elaborated_processes": 114,
+    "decision_sites": [
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "ea_nz": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3578
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "eb_nz": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3619
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "na_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 3740
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nb_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 3806
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "na_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 3872
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nb_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 3937
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 13,
+      "offset": 4395
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4654
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "E": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5104
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "E": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5497
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_inf": "other process",
+       "c_nan": "other process",
+       "c_zero": "other process",
+       "ovf": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5694
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_zero": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 5739
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 12,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "fdivp",
+   "sv": "svgolf/tasks/fdivp/reference/fdivp.sv",
+   "lean": "svgolf/tasks/fdivp/reference/fdivp.lean",
+   "top": "fdiv",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "fdiv_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 117
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 34
+    },
+    "elaborated_processes": 114,
+    "decision_sites": [
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "ea_nz": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 1990
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "eb_nz": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 2031
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "na_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 2152
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nb_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 2218
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "na_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 2284
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "nb_r": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 10,
+      "offset": 2349
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 13,
+      "offset": 2807
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "qq": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3159
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "E": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3541
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "E": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 3830
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_inf": "other process",
+       "c_nan": "other process",
+       "c_zero": "other process",
+       "ovf": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4027
+     },
+     {
+      "kind": "?:",
+      "check": "",
+      "reads": {
+       "c_zero": "other process"
+      },
+      "in_process": "assign",
+      "default": null,
+      "elaborated_copies": 1,
+      "offset": 4072
+     }
+    ]
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 12,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "mul",
+   "sv": "svgolf/tasks/mul/reference/mul_n.sv",
+   "lean": "svgolf/tasks/mul/reference/mul_n.lean",
+   "top": "mul_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "mul_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 133
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 11
+    },
+    "elaborated_processes": 1026,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "mul",
+   "sv": "svgolf/tasks/mul/reference/mul_n_byhand.sv",
+   "lean": "svgolf/tasks/mul/reference/mul_n_byhand.lean",
+   "top": "mul_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "mul_acyclic",
+      "target": "design.sem",
+      "proved_by": "explicit rank",
+      "also_CombDesign": false
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "by hand (own lemmas)",
+    "lines": 1805
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 11
+    },
+    "elaborated_processes": 1026,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "mul",
+   "sv": "svgolf/tasks/mul/reference/mul_tree.sv",
+   "lean": "svgolf/tasks/mul/reference/mul_tree.lean",
+   "top": "mul_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "tree_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 433
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 20
+    },
+    "elaborated_processes": 3076,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "mul",
+   "sv": "svgolf/tasks/mul/reference/mul_wallace.sv",
+   "lean": "svgolf/tasks/mul/reference/mul_wallace.lean",
+   "top": "mul_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "tape_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 370
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 11
+    },
+    "elaborated_processes": 1541,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  },
+  {
+   "kind": "reference",
+   "task": "mul",
+   "sv": "svgolf/tasks/mul/reference/mul_tree_h.sv",
+   "lean": "svgolf/tasks/mul/reference/mul_tree_h.lean",
+   "top": "mul_n",
+   "proof": {
+    "acyclic_theorems": [
+     {
+      "theorem": "tree_struct",
+      "target": "design.sem",
+      "proved_by": "sv_structure",
+      "also_CombDesign": true
+     }
+    ],
+    "bridge": [
+     "satisfiedAt_of_comb"
+    ],
+    "knownness": "sv_equations known_*",
+    "lines": 417
+   },
+   "design": {
+    "errors": [],
+    "process_sites_by_kind": {
+     "assign": 18
+    },
+    "elaborated_processes": 1480,
+    "decision_sites": []
+   },
+   "verdict": {
+    "acyclic_certificate": true,
+    "certificate_targets": [
+     "design.sem"
+    ],
+    "procedural_decision_sites": 0,
+    "conditional_operator_sites": 0,
+    "settled_x_decision_sites": 0,
+    "transient_x_decision_sites": 0,
+    "transient_x_decision_sites_on_internal_signals": 0,
+    "assign_only": true,
+    "transfer_route": "R-COMB assign-only (E-core-0, gate G-A) + R-DESIGN2, with the proof's own certificate"
+   }
+  }
+ ]
+}

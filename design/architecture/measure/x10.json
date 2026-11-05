@@ -1,0 +1,2259 @@
+{
+ "schema": "ws4-x10/1",
+ "fixtures": {
+  "uq_case_nomatch": {
+   "note": "unique case, no default, s = 3 matches no item (a preceding default assignment: no latch)",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 9  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 12  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1"
+    ],
+    "rc": 1,
+    "messages": [
+     "[9] %Error: dut.sv:5: Assertion failed in tb.dut: unique case, but none matched for '2'h3'",
+     "%Error: <scratchpad>/arch/m-x10/uq_case_nomatch/dut.sv:5: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.35,
+    "survivors": [],
+    "area_ge": 11.332,
+    "depth": 4,
+    "gates": {
+     "AND": 2,
+     "NAND": 2,
+     "NOT": 2,
+     "OR": 2,
+     "ORNOT": 2
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/uq_case_nomatch/tb.sv:84: $finish called at 3"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/uq_case_nomatch/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      3,
+      6,
+      9
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "uq_case_nomatch_hold": {
+   "note": "unique case, no default and no preceding assignment: s = 3 holds y in simulation",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=1",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=1",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     ":4: value is unhandled for priority or unique case statement",
+     "         Time: 9  Scope: tb.dut",
+     ":4: value is unhandled for priority or unique case statement",
+     "         Time: 12  Scope: tb.dut",
+     ":4: value is unhandled for priority or unique case statement"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1"
+    ],
+    "rc": 1,
+    "messages": [
+     "[9] %Error: dut.sv:4: Assertion failed in tb.dut: unique case, but none matched for '2'h3'",
+     "%Error: <scratchpad>/arch/m-x10/uq_case_nomatch_hold/dut.sv:4: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.33,
+    "survivors": [],
+    "area_ge": 11.332,
+    "depth": 4,
+    "gates": {
+     "AND": 2,
+     "NAND": 2,
+     "NOT": 2,
+     "OR": 2,
+     "ORNOT": 2
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/uq_case_nomatch_hold/tb.sv:84: $finish called"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/uq_case_nomatch_hold/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=1",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=1",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      4,
+      6,
+      8
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "pr_case_nomatch": {
+   "note": "priority case, s = 3 matches no item",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 9  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 12  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1"
+    ],
+    "rc": 1,
+    "messages": [
+     "[9] %Error: dut.sv:5: Assertion failed in tb.dut: priority case, but non-match found for '2'h3'",
+     "%Error: <scratchpad>/arch/m-x10/pr_case_nomatch/dut.sv:5: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.28,
+    "survivors": [],
+    "area_ge": 11.332,
+    "depth": 4,
+    "gates": {
+     "AND": 2,
+     "NAND": 2,
+     "NOT": 2,
+     "OR": 2,
+     "ORNOT": 2
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/pr_case_nomatch/tb.sv:84: $finish called at 3"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/pr_case_nomatch/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      3,
+      6,
+      9
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "uq_case_overlap": {
+   "note": "unique case (1'b1): s = 11 matches two items, s = 00 none",
+   "violating_cycles": [
+    0,
+    3,
+    4,
+    6,
+    8,
+    9,
+    10
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "warnings": [
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 0  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 0  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement"
+    ]
+   },
+   "verilator": {
+    "cycles": [],
+    "rc": 1,
+    "messages": [
+     "[0] %Error: dut.sv:5: Assertion failed in tb.dut: unique case, but none matched for '1'h1'",
+     "%Error: <scratchpad>/arch/m-x10/uq_case_overlap/dut.sv:5: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.27,
+    "survivors": [],
+    "area_ge": 2.333,
+    "depth": 1,
+    "gates": {
+     "MUX": 1
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=1",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/uq_case_overlap/tb.sv:84: $finish called at 3"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/uq_case_overlap/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": "no trace",
+    "yosys_netlist": {
+     "differs_at": [
+      0,
+      8,
+      9,
+      10
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "uq0_case_overlap": {
+   "note": "unique0 case (1'b1): s = 11 matches two items (no match is allowed for unique0)",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": [
+     "W:CaseDefault"
+    ]
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/uq0_case_overlap/tb.sv:84: $finish called at "
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0"
+    ],
+    "rc": 1,
+    "messages": [
+     "[9] %Error: dut.sv:5: Assertion failed in tb.dut: unique0 case, but multiple matches found for '1'h1'",
+     "%Error: <scratchpad>/arch/m-x10/uq0_case_overlap/dut.sv:5: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.28,
+    "survivors": [],
+    "area_ge": 3.0,
+    "depth": 2,
+    "gates": {
+     "NAND": 3
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=1",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/uq0_case_overlap/tb.sv:84: $finish called at "
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/uq0_case_overlap/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      8
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "pr_case_overlap": {
+   "note": "priority case (1'b1): overlap is allowed (first wins), no match (s = 00) is a violation",
+   "violating_cycles": [
+    0,
+    6,
+    10
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "warnings": [
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 0  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement",
+     "         Time: 0  Scope: tb.dut",
+     ":5: value is unhandled for priority or unique case statement"
+    ]
+   },
+   "verilator": {
+    "cycles": [],
+    "rc": 1,
+    "messages": [
+     "[0] %Error: dut.sv:5: Assertion failed in tb.dut: priority case, but non-match found for '1'h1'",
+     "%Error: <scratchpad>/arch/m-x10/pr_case_overlap/dut.sv:5: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.3,
+    "survivors": [],
+    "area_ge": 2.333,
+    "depth": 1,
+    "gates": {
+     "MUX": 1
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/pr_case_overlap/tb.sv:84: $finish called at 3"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/pr_case_overlap/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": "no trace",
+    "yosys_netlist": {
+     "differs_at": [
+      10
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "uq_case_full": {
+   "note": "control: unique case covering every 2-state value (only the x selector violates)",
+   "violating_cycles": [
+    6
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     ":4: value is unhandled for priority or unique case statement",
+     "         Time: 18  Scope: tb.dut",
+     "<scratchpad>/arch/m-x10/uq_case_full/tb.sv:84: $finish called at 33 ("
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=01 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/uq_case_full/vl/tb.sv:84: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 33ps; walltime 0.000 s; speed 122.222 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.31,
+    "survivors": [],
+    "area_ge": 6.999,
+    "depth": 2,
+    "gates": {
+     "MUX": 3
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/uq_case_full/tb.sv:84: $finish called at 33 ("
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/uq_case_full/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      6
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      6
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "uq_if_nomatch": {
+   "note": "unique if without else: s = 2, 3 take no branch",
+   "violating_cycles": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "error": "-x10/uq_if_nomatch/dut.sv:5: Syntax in assignment statement l-value.\n<scratchpad>/arch/m-x10/uq_if_nomatch/dut.sv:6: syntax error\n<scratchpad>/arch/m-x10/uq_if_nomatch/dut.sv:6: Syntax in assignment statement l-value.\n"
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0"
+    ],
+    "rc": 1,
+    "messages": [
+     "[6] %Error: dut.sv:5: Assertion failed in tb.dut: 'unique if' statement violated",
+     "%Error: <scratchpad>/arch/m-x10/uq_if_nomatch/dut.sv:5: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 1,
+    "seconds": 0.13,
+    "survivors": [],
+    "error": "{\n  \"error\": \"yosys failed (exit 1):\\n<scratchpad>/arch/m-x10/uq_if_nomatch/dut.sv:5: ERROR: syntax error, unexpected TOK_IF, expecting TOK_CASE or TOK_CASEX or TOK_CASEZ\\n\"\n}\n"
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [
+     "ConditionalStatement:Unique"
+    ],
+    "envelope": "<scratchpad>/arch/m-x10/uq_if_nomatch/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported statement 'ConditionalStatement:Unique' [ConditionalStatement:Unique: unique if (s == 2'd0) y = d[0];",
+     "else if (s == 2'd1) y = d[1];]",
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 2,
+     "reference_length": 0
+    },
+    "yosys_netlist": "no trace",
+    "model_run2": "no trace"
+   }
+  },
+  "uq_if_overlap": {
+   "note": "unique if: s = 11 makes two conditions true",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "error": "-x10/uq_if_overlap/dut.sv:5: Syntax in assignment statement l-value.\n<scratchpad>/arch/m-x10/uq_if_overlap/dut.sv:6: syntax error\n<scratchpad>/arch/m-x10/uq_if_overlap/dut.sv:6: Syntax in assignment statement l-value.\n"
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0"
+    ],
+    "rc": 1,
+    "messages": [
+     "[9] %Error: dut.sv:4: Assertion failed in tb.dut: 'unique if' statement violated",
+     "%Error: <scratchpad>/arch/m-x10/uq_if_overlap/dut.sv:4: Verilog $stop",
+     "Aborting..."
+    ]
+   },
+   "yosys": {
+    "rc": 1,
+    "seconds": 0.14,
+    "survivors": [],
+    "error": "{\n  \"error\": \"yosys failed (exit 1):\\n<scratchpad>/arch/m-x10/uq_if_overlap/dut.sv:4: ERROR: syntax error, unexpected TOK_IF, expecting TOK_CASE or TOK_CASEX or TOK_CASEZ\\n\"\n}\n"
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [
+     "ConditionalStatement:Unique"
+    ],
+    "envelope": "<scratchpad>/arch/m-x10/uq_if_overlap/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported statement 'ConditionalStatement:Unique' [ConditionalStatement:Unique: unique if (s[0]) y = d[0];",
+     "else if (s[1]) y = d[1];",
+     "else y = 1'b0;]",
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 0
+    },
+    "yosys_netlist": "no trace",
+    "model_run2": "no trace"
+   }
+  },
+  "pr_if_nomatch": {
+   "note": "priority if without else: s = 00 takes no branch",
+   "violating_cycles": [
+    0,
+    6,
+    10
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "error": "-x10/pr_if_nomatch/dut.sv:5: Syntax in assignment statement l-value.\n<scratchpad>/arch/m-x10/pr_if_nomatch/dut.sv:6: syntax error\n<scratchpad>/arch/m-x10/pr_if_nomatch/dut.sv:6: Syntax in assignment statement l-value.\n"
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=01 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/pr_if_nomatch/vl/tb.sv:84: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 33ps; walltime 0.000 s; speed 166.667 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 1,
+    "seconds": 0.28,
+    "survivors": [],
+    "error": "{\n  \"error\": \"yosys failed (exit 1):\\n<scratchpad>/arch/m-x10/pr_if_nomatch/dut.sv:5: ERROR: syntax error, unexpected TOK_IF, expecting TOK_CASE or TOK_CASEX or TOK_CASEZ\\n\"\n}\n"
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [
+     "ConditionalStatement:Priority"
+    ],
+    "envelope": "<scratchpad>/arch/m-x10/pr_if_nomatch/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported statement 'ConditionalStatement:Priority' [ConditionalStatement:Priority: priority if (s[0]) y = d[0];",
+     "else if (s[1]) y = d[1];]",
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 0
+    },
+    "yosys_netlist": "no trace",
+    "model_run2": "no trace"
+   }
+  },
+  "attr_full_case": {
+   "note": "(* full_case *) on a case with no item for s = 3",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": [
+     "W:CaseDefault"
+    ]
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_full_case/tb.sv:84: $finish called at 33"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=01 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/attr_full_case/vl/tb.sv:84: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 33ps; walltime 0.000 s; speed 163.366 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.33,
+    "survivors": [],
+    "area_ge": 11.332,
+    "depth": 4,
+    "gates": {
+     "AND": 2,
+     "NAND": 2,
+     "NOT": 2,
+     "OR": 2,
+     "ORNOT": 2
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_full_case/tb.sv:84: $finish called at 33"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/attr_full_case/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=0",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      6
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      3,
+      6,
+      9
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "attr_parallel_case": {
+   "note": "(* parallel_case *) on overlapping items: s = 11 matches two",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": [
+     "W:CaseDefault"
+    ]
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_parallel_case/tb.sv:84: $finish called a"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=01 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/attr_parallel_case/vl/tb.sv:84: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 33ps; walltime 0.000 s; speed 161.765 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.25,
+    "survivors": [],
+    "area_ge": 3.0,
+    "depth": 2,
+    "gates": {
+     "NAND": 3
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=1",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_parallel_case/tb.sv:84: $finish called a"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/attr_parallel_case/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=1",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=0"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      6
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      8
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "attr_keep": {
+   "note": "(* keep *) on a wire: no functional meaning, an area meaning",
+   "violating_cycles": [
+    6
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_keep/tb.sv:84: $finish called at 33 (1s)"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=01 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/attr_keep/vl/tb.sv:84: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 33ps; walltime 0.000 s; speed 74.830 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.37,
+    "survivors": [],
+    "area_ge": 1.333,
+    "depth": 1,
+    "gates": {
+     "AND": 1
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_keep/tb.sv:84: $finish called at 33 (1s)"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/attr_keep/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=0",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=0",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=1",
+     "CYCLE 6 s=x1 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=0",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      6
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "x_dontcare": {
+   "note": "an x literal as a don't-care for s = 3",
+   "violating_cycles": [
+    3,
+    4,
+    6,
+    8,
+    9
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=x",
+     "CYCLE 4 s=11 d=0100 y=x",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=x",
+     "CYCLE 9 s=11 d=1001 y=x",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/x_dontcare/tb.sv:84: $finish called at 33 (1s"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=0",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=01 d=1111 y=1",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=0",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/x_dontcare/vl/tb.sv:84: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 33ps; walltime 0.000 s; speed 93.750 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.42,
+    "survivors": [],
+    "area_ge": 11.332,
+    "depth": 4,
+    "gates": {
+     "AND": 2,
+     "NAND": 2,
+     "NOT": 2,
+     "OR": 2,
+     "ORNOT": 2
+    },
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=1",
+     "CYCLE 4 s=11 d=0100 y=0",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=0",
+     "CYCLE 9 s=11 d=1001 y=1",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/x_dontcare/tb.sv:84: $finish called at 33 (1s"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/x_dontcare/dut.sv.json"
+   },
+   "model": {
+    "cycles": [
+     "CYCLE 0 s=00 d=0101 y=1",
+     "CYCLE 1 s=01 d=0101 y=0",
+     "CYCLE 2 s=10 d=0100 y=1",
+     "CYCLE 3 s=11 d=1011 y=x",
+     "CYCLE 4 s=11 d=0100 y=x",
+     "CYCLE 5 s=10 d=1011 y=0",
+     "CYCLE 6 s=x1 d=1111 y=x",
+     "CYCLE 7 s=01 d=1010 y=1",
+     "CYCLE 8 s=11 d=0110 y=x",
+     "CYCLE 9 s=11 d=1001 y=x",
+     "CYCLE 10 s=00 d=1111 y=1"
+    ],
+    "lines": [
+     "PORT s in 2",
+     "PORT d in 4",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      3,
+      4,
+      6,
+      8,
+      9
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      3,
+      4,
+      8,
+      9
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    },
+    "model_run2": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 11,
+     "reference_length": 11
+    }
+   }
+  },
+  "mem_rw_plain": {
+   "note": "a read during a write of the same address (cycles 2, 4)",
+   "violating_cycles": [
+    2,
+    4
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 we=1 wa=00 ra=01 wd=0001 rd=xxxx",
+     "CYCLE 1 we=1 wa=01 ra=00 wd=0010 rd=0001",
+     "CYCLE 2 we=1 wa=01 ra=01 wd=0100 rd=0010",
+     "CYCLE 3 we=0 wa=00 ra=01 wd=1111 rd=0100",
+     "CYCLE 4 we=1 wa=00 ra=00 wd=1000 rd=0001",
+     "CYCLE 5 we=0 wa=00 ra=00 wd=0000 rd=1000"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/mem_rw_plain/tb.sv:68: $finish called at 18 ("
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 we=1 wa=00 ra=01 wd=0001 rd=0000",
+     "CYCLE 1 we=1 wa=01 ra=00 wd=0010 rd=0001",
+     "CYCLE 2 we=1 wa=01 ra=01 wd=0100 rd=0010",
+     "CYCLE 3 we=0 wa=00 ra=01 wd=1111 rd=0100",
+     "CYCLE 4 we=1 wa=00 ra=00 wd=1000 rd=0001",
+     "CYCLE 5 we=0 wa=00 ra=00 wd=0000 rd=1000"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/mem_rw_plain/vl/tb.sv:68: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 18ps; walltime 0.000 s; speed 97.297 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 1,
+    "seconds": 0.35,
+    "survivors": [],
+    "error": "{\n  \"error\": \"the netlist has cells the GE table does not price: {'$_DFFE_PP_': 16, '$_DFF_P_': 4} (a combinational task's netlist should contain only the gates of `abc -g`; latches and flip-flops are not scored)\"\n}\n",
+    "note": "netlist from the pinned flow run directly (score.py does not price flip-flops)",
+    "cycles": [
+     "CYCLE 0 we=1 wa=00 ra=01 wd=0001 rd=xxxx",
+     "CYCLE 1 we=1 wa=01 ra=00 wd=0010 rd=0001",
+     "CYCLE 2 we=1 wa=01 ra=01 wd=0100 rd=0010",
+     "CYCLE 3 we=0 wa=00 ra=01 wd=1111 rd=0100",
+     "CYCLE 4 we=1 wa=00 ra=00 wd=1000 rd=0001",
+     "CYCLE 5 we=0 wa=00 ra=00 wd=0000 rd=1000"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/mem_rw_plain/tb.sv:68: $finish called at 18 ("
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [
+     "AssignmentExpression:target",
+     "NamedValueExpression:type"
+    ],
+    "envelope": "<scratchpad>/arch/m-x10/mem_rw_plain/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported statement 'AssignmentExpression:target' [AssignmentExpression:target: mem[wa] <= wd;]",
+     "PORT clk in 1",
+     "PORT we in 1",
+     "PORT wa in 2",
+     "PORT ra in 2",
+     "PORT wd in 4",
+     "PORT rd out 4"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      0
+     ],
+     "only_on_violating": false,
+     "on_non_violating": [
+      0
+     ],
+     "on_clean_cycles": [
+      0
+     ],
+     "trace_length": 6,
+     "reference_length": 6
+    },
+    "yosys_netlist": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 6,
+     "reference_length": 6
+    },
+    "model_run2": "no trace"
+   }
+  },
+  "attr_no_rw_check": {
+   "note": "a read during a write of the same address (cycles 2, 4), with (* no_rw_check *)",
+   "violating_cycles": [
+    2,
+    4
+   ],
+   "from_repo": null,
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 we=1 wa=00 ra=01 wd=0001 rd=xxxx",
+     "CYCLE 1 we=1 wa=01 ra=00 wd=0010 rd=0001",
+     "CYCLE 2 we=1 wa=01 ra=01 wd=0100 rd=0010",
+     "CYCLE 3 we=0 wa=00 ra=01 wd=1111 rd=0100",
+     "CYCLE 4 we=1 wa=00 ra=00 wd=1000 rd=0001",
+     "CYCLE 5 we=0 wa=00 ra=00 wd=0000 rd=1000"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_no_rw_check/tb.sv:68: $finish called at "
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 we=1 wa=00 ra=01 wd=0001 rd=0000",
+     "CYCLE 1 we=1 wa=01 ra=00 wd=0010 rd=0001",
+     "CYCLE 2 we=1 wa=01 ra=01 wd=0100 rd=0010",
+     "CYCLE 3 we=0 wa=00 ra=01 wd=1111 rd=0100",
+     "CYCLE 4 we=1 wa=00 ra=00 wd=1000 rd=0001",
+     "CYCLE 5 we=0 wa=00 ra=00 wd=0000 rd=1000"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/attr_no_rw_check/vl/tb.sv:68: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 18ps; walltime 0.000 s; speed 57.325 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 1,
+    "seconds": 0.27,
+    "survivors": [],
+    "error": "{\n  \"error\": \"the netlist has cells the GE table does not price: {'$_DFFE_PP_': 16, '$_DFF_P_': 4} (a combinational task's netlist should contain only the gates of `abc -g`; latches and flip-flops are not scored)\"\n}\n",
+    "note": "netlist from the pinned flow run directly (score.py does not price flip-flops)",
+    "cycles": [
+     "CYCLE 0 we=1 wa=00 ra=01 wd=0001 rd=xxxx",
+     "CYCLE 1 we=1 wa=01 ra=00 wd=0010 rd=0001",
+     "CYCLE 2 we=1 wa=01 ra=01 wd=0100 rd=0010",
+     "CYCLE 3 we=0 wa=00 ra=01 wd=1111 rd=0100",
+     "CYCLE 4 we=1 wa=00 ra=00 wd=1000 rd=0001",
+     "CYCLE 5 we=0 wa=00 ra=00 wd=0000 rd=1000"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/attr_no_rw_check/tb.sv:68: $finish called at "
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [
+     "AssignmentExpression:target",
+     "NamedValueExpression:type"
+    ],
+    "envelope": "<scratchpad>/arch/m-x10/attr_no_rw_check/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported statement 'AssignmentExpression:target' [AssignmentExpression:target: mem[wa] <= wd;]",
+     "PORT clk in 1",
+     "PORT we in 1",
+     "PORT wa in 2",
+     "PORT ra in 2",
+     "PORT wd in 4",
+     "PORT rd out 4"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      0
+     ],
+     "only_on_violating": false,
+     "on_non_violating": [
+      0
+     ],
+     "on_clean_cycles": [
+      0
+     ],
+     "trace_length": 6,
+     "reference_length": 6
+    },
+    "yosys_netlist": {
+     "differs_at": [],
+     "only_on_violating": false,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 6,
+     "reference_length": 6
+    },
+    "model_run2": "no trace"
+   }
+  },
+  "rbw_comb": {
+   "note": "always_comb that reads a variable before writing it (Examples/system-verilog/sem2/rbw_comb)",
+   "violating_cycles": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "from_repo": "Examples/system-verilog/sem2/rbw_comb/rbw_comb.sv",
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 a=00 y=00",
+     "CYCLE 1 a=01 y=00",
+     "CYCLE 2 a=10 y=01",
+     "CYCLE 3 a=11 y=10"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_comb/tb.sv:37: $finish called at 12 (1s)"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 a=00 y=00",
+     "CYCLE 1 a=01 y=01",
+     "CYCLE 2 a=10 y=10",
+     "CYCLE 3 a=11 y=11"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/rbw_comb/vl/tb.sv:37: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 12ps; walltime 0.000 s; speed 57.971 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.18,
+    "survivors": [],
+    "area_ge": 0.0,
+    "depth": 0,
+    "gates": {},
+    "cycles": [
+     "CYCLE 0 a=00 y=00",
+     "CYCLE 1 a=01 y=01",
+     "CYCLE 2 a=10 y=10",
+     "CYCLE 3 a=11 y=11"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_comb/tb.sv:37: $finish called at 12 (1s)"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/rbw_comb/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported process 'AlwaysComb:self-read' [AlwaysComb:self-read: always_comb block reads bits [1:0] of 't' before writing them on some path through its body, and writes them later on that path: IEEE 1800-2023 \u00a79.2.2.2.1 leaves the variables a block writes out of its implic",
+     "PORT a in 2",
+     "PORT y out 2"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      1,
+      2,
+      3
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 4,
+     "reference_length": 4
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      1,
+      2,
+      3
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 4,
+     "reference_length": 4
+    },
+    "model_run2": "no trace"
+   }
+  },
+  "rbw_held": {
+   "note": "always_comb that reads a variable before writing it (Examples/system-verilog/sem2/rbw_held)",
+   "violating_cycles": [
+    0,
+    1,
+    2
+   ],
+   "from_repo": "Examples/system-verilog/sem2/rbw_held/rbw_held.sv",
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 c=0 a=00 b=01 y=01",
+     "CYCLE 1 c=0 a=00 b=10 y=01",
+     "CYCLE 2 c=1 a=11 b=10 y=11"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_held/tb.sv:40: $finish called at 9 (1s)"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 c=0 a=00 b=01 y=01",
+     "CYCLE 1 c=0 a=00 b=10 y=10",
+     "CYCLE 2 c=1 a=11 b=10 y=11"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/rbw_held/vl/tb.sv:40: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 9ps; walltime 0.000 s; speed 35.857 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.27,
+    "survivors": [],
+    "area_ge": 4.666,
+    "depth": 1,
+    "gates": {
+     "MUX": 2
+    },
+    "cycles": [
+     "CYCLE 0 c=0 a=00 b=01 y=01",
+     "CYCLE 1 c=0 a=00 b=10 y=10",
+     "CYCLE 2 c=1 a=11 b=10 y=11"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_held/tb.sv:40: $finish called at 9 (1s)"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/rbw_held/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported process 'AlwaysComb:self-read' [AlwaysComb:self-read: always_comb block reads bits [1:0] of 't' before writing them on some path through its body, and writes them later on that path: IEEE 1800-2023 \u00a79.2.2.2.1 leaves the variables a block writes out of its implic",
+     "PORT c in 1",
+     "PORT a in 2",
+     "PORT b in 2",
+     "PORT y out 2"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      1
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 3
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      1
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 3,
+     "reference_length": 3
+    },
+    "model_run2": "no trace"
+   }
+  },
+  "rbw_cond": {
+   "note": "always_comb that reads a variable before writing it (Examples/system-verilog/sem2/rbw_cond)",
+   "violating_cycles": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "from_repo": "Examples/system-verilog/sem2/rbw_cond/rbw_cond.sv",
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 a=1 b=0 c=0 y=0",
+     "CYCLE 1 a=1 b=0 c=1 y=0",
+     "CYCLE 2 a=1 b=0 c=0 y=1",
+     "CYCLE 3 a=0 b=1 c=0 y=1",
+     "CYCLE 4 a=0 b=1 c=1 y=1"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_cond/tb.sv:54: $finish called at 15 (1s)"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 a=1 b=0 c=0 y=0",
+     "CYCLE 1 a=1 b=0 c=1 y=1",
+     "CYCLE 2 a=1 b=0 c=0 y=0",
+     "CYCLE 3 a=0 b=1 c=0 y=1",
+     "CYCLE 4 a=0 b=1 c=1 y=0"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/rbw_cond/vl/tb.sv:54: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 15ps; walltime 0.000 s; speed 53.381 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.27,
+    "survivors": [],
+    "area_ge": 2.333,
+    "depth": 1,
+    "gates": {
+     "MUX": 1
+    },
+    "cycles": [
+     "CYCLE 0 a=1 b=0 c=0 y=0",
+     "CYCLE 1 a=1 b=0 c=1 y=1",
+     "CYCLE 2 a=1 b=0 c=0 y=0",
+     "CYCLE 3 a=0 b=1 c=0 y=1",
+     "CYCLE 4 a=0 b=1 c=1 y=0"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_cond/tb.sv:54: $finish called at 15 (1s)"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/rbw_cond/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported process 'AlwaysComb:self-read' [AlwaysComb:self-read: always_comb block reads bit [0] of 't' before writing it on some path through its body, and writes it later on that path: IEEE 1800-2023 \u00a79.2.2.2.1 leaves the variables a block writes out of its implicit sens",
+     "PORT a in 1",
+     "PORT b in 1",
+     "PORT c in 1",
+     "PORT y out 1"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      1,
+      2,
+      4
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 5,
+     "reference_length": 5
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      1,
+      2,
+      4
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 5,
+     "reference_length": 5
+    },
+    "model_run2": "no trace"
+   }
+  },
+  "rbw_part": {
+   "note": "always_comb that reads a variable before writing it (Examples/system-verilog/sem2/rbw_part)",
+   "violating_cycles": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "from_repo": "Examples/system-verilog/sem2/rbw_part/rbw_part.sv",
+   "slang": {
+    "diags": []
+   },
+   "icarus": {
+    "cycles": [
+     "CYCLE 0 a=00 b=00 y=00",
+     "CYCLE 1 a=00 b=01 y=00",
+     "CYCLE 2 a=11 b=10 y=01",
+     "CYCLE 3 a=01 b=11 y=10"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_part/tb.sv:42: $finish called at 12 (1s)"
+    ]
+   },
+   "verilator": {
+    "cycles": [
+     "CYCLE 0 a=00 b=00 y=00",
+     "CYCLE 1 a=00 b=01 y=01",
+     "CYCLE 2 a=11 b=10 y=10",
+     "CYCLE 3 a=01 b=11 y=11"
+    ],
+    "rc": 0,
+    "messages": [
+     "- <scratchpad>/arch/m-x10/rbw_part/vl/tb.sv:42: Verilog $finish",
+     "- S i m u l a t i o n   R e p o r t: Verilator 5.042 2025-11-02",
+     "- Verilator: $finish at 12ps; walltime 0.000 s; speed 55.814 ns/s",
+     "- Verilator: cpu 0.000 s on 1 threads; alloced 0 MB"
+    ]
+   },
+   "yosys": {
+    "rc": 0,
+    "seconds": 0.18,
+    "survivors": [],
+    "area_ge": 0.0,
+    "depth": 0,
+    "gates": {},
+    "cycles": [
+     "CYCLE 0 a=00 b=00 y=00",
+     "CYCLE 1 a=00 b=01 y=01",
+     "CYCLE 2 a=11 b=10 y=10",
+     "CYCLE 3 a=01 b=11 y=11"
+    ],
+    "warnings": [
+     "<scratchpad>/arch/m-x10/rbw_part/tb.sv:42: $finish called at 12 (1s)"
+    ]
+   },
+   "extract": {
+    "rc": 0,
+    "unsupported": [],
+    "envelope": "<scratchpad>/arch/m-x10/rbw_part/dut.sv.json"
+   },
+   "model": {
+    "cycles": [],
+    "lines": [
+     "ERROR: run2: unsupported: unsupported process 'AlwaysComb:self-read' [AlwaysComb:self-read: always_comb block reads bits [3:2] of 't' before writing them on some path through its body, and writes them later on that path: IEEE 1800-2023 \u00a79.2.2.2.1 leaves the variables a block writes out of its implic",
+     "PORT a in 2",
+     "PORT b in 2",
+     "PORT y out 2"
+    ]
+   },
+   "compare_to_icarus": {
+    "verilator": {
+     "differs_at": [
+      1,
+      2,
+      3
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 4,
+     "reference_length": 4
+    },
+    "yosys_netlist": {
+     "differs_at": [
+      1,
+      2,
+      3
+     ],
+     "only_on_violating": true,
+     "on_non_violating": [],
+     "on_clean_cycles": [],
+     "trace_length": 4,
+     "reference_length": 4
+    },
+    "model_run2": "no trace"
+   }
+  }
+ }
+}

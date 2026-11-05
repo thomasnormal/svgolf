@@ -1,0 +1,84 @@
+svGolf
+Copyright 2026 Thomas Ahle
+
+Licensed under the Apache License, Version 2.0 (SPDX-License-Identifier:
+Apache-2.0); see LICENSE.
+
+svGolf requires lean-surfaces (https://github.com/thomasnormal/lean-surfaces), under the same license, as
+a Lake dependency; none of it is copied here.
+
+This repository includes third-party material, listed below with its source
+and its terms. A file that came with a notice keeps it.
+
+- tasks/sorter/reference/sorter_ins.sv
+- tests/sorter/attacks/early_valid.sv
+- tests/sorter/attacks/missing_else.sv
+- tests/sorter/attacks/push_own_value.sv
+- tests/sorter/attacks/reset_keeps_cells.sv
+- tests/sorter/attacks/signed_order.sv
+- tests/sorter/attacks/token_self.sv
+- tests/sorter/attacks/top_not_drained.sv
+    Adapted from andrewpeck/cell-sort (cell_sort.sv, unit_cell.sv), commit
+    cfc46709eaa911858136c2300327ca73bf1eb9a0. Copyright (c) 2024-2025 Andrew Peck.
+    MIT License; the notice is kept in each file, with the changes made.
+
+- design/tasks-week2/keccak_round/xkcp/
+    KeccakF-{200,400,800,1600}.txt: unmodified copies of the Keccak team's
+    tests/TestVectors/KeccakF-<b>-IntermediateValues.txt of XKCP
+    (https://github.com/XKCP/XKCP), fetched 2026-10-30. XKCP's LICENSE: "Most of the
+    source and header files in the XKCP are released to the public domain and
+    associated to the CC0 (http://creativecommons.org/publicdomain/zero/1.0/) deed,
+    but there are exceptions"; the exceptions it lists are other files. The part of
+    that LICENSE that covers these files is copied beside them (xkcp/LICENSE).
+
+- tasks/aes_sbox/reference/sbox_bp.sv
+- tasks/aes_sbox/reference/sbox_bp.lean
+- tests/aes_sbox/baselines/sbox_bp_d16.sv
+- design/tasks-week2/aes_sbox/reference/sbox_bp.sv
+- design/exh/mut/sbox_bp_mut.sv
+- tests/aes_sbox/negative/no_constant.sv
+- tests/aes_sbox/negative/undriven_bit.sv
+- tests/aes_sbox/negative/reversed_bits.sv
+- tests/aes_sbox/negative/wrong_names.sv
+- tests/aes_sbox/attacks/unique_zero_ge.sv
+    Gate-for-gate translations (the .lean file is generated from the first .sv; the
+    _mut file, the four negatives and the attack are copies with a deliberate
+    defect, each named in its header) of two AES S-box circuits published by the Circuit
+    Minimization Team (Joan Boyar, René Peralta and coauthors) on
+    https://www.cs.yale.edu/homes/peralta/CircuitStuff/CMT.html: the netlist files
+    SLP_AES_113.txt (113 gates, depth 27; the page credits it to Cagdas Calik's
+    improvement of an earlier circuit there) and AESDEPTH16SIZE125 (125 gates, depth
+    16), fetched 2026-10-30. The netlist files themselves are not included
+    (tests/aes_sbox/validate/validate.py fetches them and checks a pinned sha256).
+    The technique: J. Boyar and R. Peralta, "A new combinational logic minimization
+    technique with applications to cryptology", SEA 2010, LNCS 6049; J. Boyar,
+    P. Matthews and R. Peralta, "Logic minimization techniques with applications to
+    cryptology", Journal of Cryptology 26(2), 2013; J. Boyar and R. Peralta, "A small
+    depth-16 circuit for the AES S-box", IFIP SEC 2012. The page states no license;
+    the circuits are credited to their authors here and in each file's header.
+
+- tasks/fdivp/reference/fdivp_srt.sv
+- tasks/fdivp/reference/LICENSES/
+- tests/fdivp/attacks/srt_drop_carry.sv
+- tests/fdivp/attacks/srt_no_cin.sv
+- tests/fdivp/attacks/srt_no_corr.sv
+- tests/fdivp/attacks/srt_otfc_digit.sv
+- tests/fdivp/attacks/srt_otfc_um.sv
+- tests/fdivp/attacks/srt_qds_t1_d0.sv
+- tests/fdivp/attacks/srt_qds_t2_d0.sv
+- tests/fdivp/attacks/srt_qds_tm_d7.sv
+- tests/fdivp/attacks/srt_stages_m1.sv
+- tests/fdivp/attacks/srt_sticky_sign.sv
+    The radix-4 SRT core of fdivp_srt.sv (the rest of that design is svGolf's) is
+    adapted from CORE-V Wally (https://github.com/openhwgroup/cvw), commit
+    c1e386b5d1155e92e21593a7986999274f086729: src/fpu/fdivsqrt/fdivsqrtiter.sv,
+    fdivsqrtstage4.sv, fdivsqrtuslc4cmp.sv, fdivsqrtuotfc4.sv and fdivsqrtpostproc.sv,
+    src/generic/csa.sv and src/generic/mux.sv. Written by David Harris, Katherine
+    Parry and Cedar Turek; modified by Kevin Kim, Alessandro Maiuolo and James Stine.
+    Copyright (C) 2021-26 Harvey Mudd College & Oklahoma State University.
+    SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1 (the Apache License 2.0 with the
+    Solderpad Hardware License v2.1 exception); the license texts are in
+    tasks/fdivp/reference/LICENSES/ (Apache-2.0.txt, SHL-2.1.txt). The ten attacks
+    are copies of the design with one change each. Every file keeps the notice and
+    lists the changes made. The selection constants that fdivp_srt.lean and
+    tests/fdivp/results/srt_model.py restate are Wally's.

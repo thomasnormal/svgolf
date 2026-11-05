@@ -1,0 +1,122 @@
+[
+ {
+  "name": "KemetCore hapi_fp32_div (HapiCore fp32 divide)",
+  "url": "https://github.com/Lord1Egypt/KemetCore/blob/main/projects/hapicore/rtl/hapi_fp32_div.sv",
+  "license": "Apache-2.0 (repo-level LICENSE; file has no header); 3 stars; not legally reviewed",
+  "kind": "Combinational, single module, ports a, b, y; `/` and `%` on a 51-bit dividend (one exact quotient plus remainder-sticky, then single RNE)",
+  "formats": "binary32 only (W=8, P=24); not parametric",
+  "conformance": "EXACT at (8,24) with only a port rename y to q. 0 mismatches vs exact oracle on 7,258,897 pairs; 0 vs host float32 on about 26.3 billion pairs (exhaustive over b for 1.0/b, 0x1/b, 0x7F7FFFFF/b); mutation checks (no sticky, ties up) caught. Samples, not a proof.",
+  "differences": "No functional difference found. Output port is y, not q. Fixed format. Uses runtime `/` and `%`: banlist rejects (lines 76, 77). Icarus 4-state: internal quotient is x when b is zero, output never x in 400k pairs. fourstate: 2 run-time index findings. Extractor: 8 Unsupported (5 signed declarations, clz24 call and declaration).",
+  "ge": "Pinned score did not finish (1800 s limit; later 1h36 run killed under load about 200). Unofficial abc -fast proxy about 21,600 GE; pre-ABC 15,106 gates. Not comparable with D1's 7450.5 / 1256 at (8,24).",
+  "provable": "Not as is. Only for a fixed fdiv32 variant task that lifts the `/ %` ban, after a rewrite (evaluator's fdiv32r.sv: 0 Unsupported, passes srcgate and fourstate, fails only banlist) plus either word-level udiv/umod tactics with a fourstate rule for division by zero, or a 28-step restoring chain. Estimate 2.5-4.5k Lean lines (guess).",
+  "useFor": "Independent cross-check of spec/oracle at binary32 and motivating case for `/ %` tactic support. Not a golf entry (banned) and not a first proof target."
+ },
+ {
+  "name": "DGrid dgrid_fp16_div_rtl (SoC4-A correctly-rounded FP16 divider)",
+  "url": "https://github.com/haritha-debug/SOC_4_Flat/blob/main/artix7_full_DDR_COMPLETE/verilog/dgrid_fp16_div_rtl.sv",
+  "license": "None declared (no LICENSE file; all rights reserved by default). Do not copy; reimplement from the algorithm. Not legally reviewed.",
+  "kind": "Combinational, ports a_i, b_i, z_o; integer `/` and `%` on 24-bit and 11-bit significands; separate single-rounding subnormal path",
+  "formats": "binary16 only (W=5, P=11); constants hard-coded",
+  "conformance": "EXACT at binary16 after deleting 5 preprocessor lines and renaming ports. 0 mismatches over all 2^32 pairs vs _Float16; 0 over 2,096,000 pairs vs exact oracle; scored gate netlist also 0 (2^29 slice plus 396k pairs). Mutation (drop sbit) caught (5.66M mismatches in one slice).",
+  "differences": "No functional difference. Rename: first rename internal q before z_o to q (else two drivers). Source gate refuses 5 directive lines. Six `logic signed` declarations are Unsupported in the extractor. Run-time `/` `%` rejected by banlist ($div, $mod). A zero divisor yields internal x masked by the final ?: chain; fourstate passes. Evaluator's own re-parameterisation is exact at all 66 formats with W+P<=14 (not the author's code).",
+  "ge": "2142.435 GE / depth 316 (stripped copy); flat single module 2142.437 / 320. Reference 1929.778 / 299, draft 2089.081 / 298. Yosys-lowered `/` `%` costs more than a hand restoring chain.",
+  "provable": "After a stated rewrite: the 13-step restoring chain written flat, unsigned offset exponent, named signals; that is essentially the fdiv16 reference datapath with a different rounding arrangement. Estimate 1.5-2.5k lines (guess). Fixed fdiv16 only; not the parametric statement.",
+  "useFor": "Independent exact binary16 reference (spec cross-check). Not a baseline: banlist-rejected and 11% larger than the reference. Algorithm is the starting point of a parametric rewrite."
+ },
+ {
+  "name": "drewbabel/riscv-vector rtl/fp_div_sqrt.sv (+ rtl/fp_pkg.sv)",
+  "url": "https://github.com/drewbabel/riscv-vector/blob/main/rtl/fp_div_sqrt.sv",
+  "license": "Apache-2.0 WITH SHL-2.1 (Solderpad wraparound, option to treat as plain Apache-2.0); not legally reviewed",
+  "kind": "Iterative: one restoring quotient bit per cycle, FSM IDLE/PREP/ITER/ROUND/DONE; P+5 cycles for finite nonzero operands, 2 for specials; sqrt path and 5 rounding modes unused",
+  "formats": "Parametric in ExpW and FracW. Covered by its own elaboration $error: W>=2 and 2<=P<=2^(W-1), SigW<=128. Includes (2,2), (4,4), (5,11), (8,8), (8,24), (11,53), (15,113).",
+  "conformance": "WRAPPER: exact once rm=000, sqrt=0, core_en=1 are tied and start/done is driven. 0 mismatches on the real RTL over ALL pairs of the 32 covered formats with W+P<=12 and 18.75% strided slices of 15 formats with W+P=13/14; 0 mismatches on 1-2.2M random and corner pairs vs the exact oracle at (5,11), (8,8), (8,24), (11,53), (5,16), (6,32), (6,20), (10,30), (7,40) and 200k at (15,113). NaN results always canonical sign-0.",
+  "differences": "Sequential, not a,b to q. Outside the guard the file does not elaborate. With the guard removed (experimental copy): still exact at (2,5), (2,6), (3,5..8), (4,9), (4,10), (5,17); WRONG at (2,7..12), (3,9), (3,10), (4,14), (5,24): the W+2-bit exponent wraps and a huge quotient returns a signed zero instead of infinity. Yosys 0.53 cannot read it (module-header imports). Repo created 2026-08-29, 1 star, own random testbench only.",
+  "ge": "Original not scoreable. Evaluator's unrolled combinational rewrite: (2,2) 142.316 / 26; (3,3) 287.967 / 40; (4,5) 630.260 / 81; (8,8) 1388.511 / 168; (5,11) 2031.765 / 280 (lowered flat 2052.434 / 271; 1375.849 / 164 at (8,8)); (8,24) timed out. D1 at (8,8) is 1251.2 / 181; reference at (5,11) 1929.8 / 299.",
+  "provable": "After a stated rewrite, with the region as hypothesis (narrower inRange). Evaluator's fdiv_flat.sv extracts with 0 Unsupported and is oracle-exact (all pairs for 32 formats with W+P<=12, 1M random at four formats); tactic acceptance NOT tested (replication, +: selects, concatenation operands likely need lowering). About 44 assigns plus 2 generate loops versus D2's about 90 sites, so likely the cheapest parametric target under the n^2 tactic cost. Estimate 1.5-2.5k lines assuming the H3 math layer exists (guess).",
+  "useFor": "Best third-party PROOF TARGET (parametric, covers W=2, same architecture as our reference). Weak depth-oriented baseline at (5,11): 2031.8 GE beats the fdiv16 draft starter (2089.081)."
+ },
+ {
+  "name": "Berkeley HardFloat divSqrtRecFN_small (Verilog Release 1) with fNToRecFN and recFNToFN; two independent evaluations",
+  "url": "https://jhauser.us/arithmetic/HardFloat.html (copies: github.com/mathis-s/SoomRV/tree/master/hardfloat, bsg-external/HardFloat; Chisel original ucb-bar/berkeley-hardfloat)",
+  "license": "BSD-3-Clause (UC Regents; COPYING.txt and per-file headers). The 394 stars belong to the Chisel original, not SoomRV's Verilog copy (257). Not legally reviewed.",
+  "kind": "Iterative radix-2 restoring FSM in recoded format; IEEE wrapper (fNToRecFN x2, recFNToFN), sqrtOp=0, roundingMode=000; 1 cycle for specials, P+1 or P+2 otherwise",
+  "formats": "Measured exact for W>=3 and 2<=P<=2^(W-2)+3 (documented p>=3 but P=2 also works). Includes (5,11) on the boundary, (8,8), (8,24), (11,53). Wrong for W=2 and for P>2^(W-2)+3.",
+  "conformance": "WRAPPER in region: 0 mismatches in about 2.63e9 pairs over 54 formats (36 in-range formats with W+P<=14 exhaustively, plus 132M random and corner pairs; the second evaluation 909M exhaustive-DUT pairs over 46 formats plus 57.6M random and corner pairs over 27 formats). Canonical NaN with no patch (RISCV specialization). DIFFERS outside the region.",
+  "differences": "Outside region mismatch classes: subnormal/underflow results, spurious NaN, inf/zero special cases, overflow-threshold; never NaN payload, NaN sign, or 1-ulp rounding in the normal range. Boundary located exactly at W=3..7 (P 5/6, 7/8, 11/12, 19/20, 35/36); W=2 always fails (e.g. (2,2): 92 of 256). Verilator 5.042 rejects divSqrtRecFN_small.v:305 (redeclared port) under every --language tried; delete that line in a copy. Source gate refuses `include/`ifdef/macros; Yosys needs -I. Not tested: k>64, non-RNE modes, back-to-back beyond a few runs.",
+  "ge": "Original not scoreable (52 flops at (5,11)). Evaluator unrolls: (5,11) 2300.057 / 283 (A), 2247.4 / 318 (L1), 2309.054 / 318 (L2); (8,8) 1483.5 / 182, 1456.8 / 181, 1529.1 / 191; (3,3) 319.6 / 44, 310.0 / 44, 305.3 / 43; (4,7) 1111.2 / 143. (8,24) did not finish. Reference 1929.8 / 299.",
+  "provable": "After a stated rewrite, with region hypothesis 3<=W, P<=2^(W-2)+3. L2 (222 lines, flat, W>=3) extracts with 0 Unsupported, is exact on every pair of all in-region formats up to W+P=14 (2.15G pairs at k=14) and 1M-2M random at (5,11), (8,8), (8,24), (11,53), passes fourstate; tactic acceptance not tested (104 assigns plus 6 generate loops, so tactic cost likely high). New math beyond fdiv16: recoded-exponent conversion, skipCycle2, generic rounder. Estimates 3.5-5.5k lines (15-30 agent-days) for parametric, about 1.5-2.5k for fixed (5,11) (guesses).",
+  "useFor": "Second region family and a differential oracle at W>=3 for big formats (TestFloat pedigree). Lower priority as a proof target. Not a baseline (16-20% larger than reference at binary16)."
+ },
+ {
+  "name": "XiangShan fudian FDIV (SRT16 divide / SRT4 sqrt, Chisel)",
+  "url": "https://github.com/OpenXiangShan/fudian/blob/pipeline/src/main/scala/fudian/FDIV.scala",
+  "license": "Mulan PSL v2 per file headers; GitHub shows no licence and the repo has no LICENSE file; file also contains components by Yifei He with an unchecked licence. Not legally reviewed.",
+  "kind": "Iterative Chisel generator, 6-state FSM, valid/ready, kill, rm, fflags; N0+3 cycles (6 at binary16)",
+  "formats": "Generic by construction, but measured on a transliteration to be exact only for about 9<=P<=2^(W-1)+1 and W<P (binary16, binary32, binary64 inside; (8,8) outside and P<9 reportedly fails to elaborate, read not measured)",
+  "conformance": "UNUSABLE as is. NOT run as Chisel (Maven download denied by the permission classifier). On the evaluator's SystemVerilog transliteration: exact in region (all pairs of (4,9) and (5,9); 1.1M-62M samples at 17 other formats), differs outside. Fidelity of the transliteration to real Chisel width inference is unconfirmed.",
+  "differences": "Four failure classes outside the region (transliteration): W>=P garbles the output (Cat width quirk; (9,9) 1,037,272 of 1,112,896 sampled wrong); P>2^(W-1)+1 returns infinity for zero or tiny operands ((4,10): a=0x0000 b=0x0001 got 0x1e00); P>=2^(W-1)+4 wraps the (W+2)-bit exponent; W in {2,3} with P>=9 broken at scale. Chisel 3.6 Verilog would carry `ifndef SYNTHESIS`, $fwrite/$fatal and about 40 instances.",
+  "ge": "Not scoreable (flops); unrolled rewrite timed out at 1800 s; pre-ABC 12,103 gates at (5,11).",
+  "provable": "Not as is. After unrolling and flattening it is a large new SRT proof (selection tables, carry-save residual invariant, on-the-fly conversion); 3-6k lines for a fixed format (guess), with no area upside.",
+  "useFor": "Nothing now. Revisit only if the maintainers allow the Chisel dependency download."
+ },
+ {
+  "name": "RTLDesignSherpa math_ieee754_2008_fp32_divider (sean-galloway)",
+  "url": "https://github.com/sean-galloway/RTLDesignSherpa/blob/HEAD/rtl/math/math_ieee754_2008_fp32_divider.sv",
+  "license": "MIT (SPDX headers in all 12 fetched files); 25 stars; not legally reviewed",
+  "kind": "Iterative FSM, run-to-completion (1, 9 or 10 cycles): 128-entry seed LUT, two Newton refinements on one shared 24x24 multiplier, exact integer residual, 4-step reduction, RNE on the exact remainder",
+  "formats": "binary32 only (W=8, P=24); the generator is fp32-specific",
+  "conformance": "WRAPPER: exact with NaN sign forced to 0 and SUBNORMAL_SUPPORT=1. Raw RTL: 43,368 mismatches in 3,327,365 oracle pairs, all NaN sign (it emits sign_a^sign_b). Divisor-exhaustive sweep (all 2^23 divisor significands x 3 dividends x normal and subnormal-grid results): 0 mismatches in 50,331,648 pairs vs an independent integer oracle.",
+  "differences": "Default SUBNORMAL_SUPPORT=0 is flush-to-zero and fails 953,713 of 3.33M pairs (28.7%): flushed subnormal results, subnormal operands read as zero, subnormal operand turning the quotient into NaN. Sequential, ports i_clk, i_rst_n, i_valid, extra flags. Source gate refuses `timescale, `include and macros. Extractor: slang UsedBeforeDeclared (w_prod), 46 casts, signed nets, 510 instances.",
+  "ge": "No pinned score (source gate, flops, timeouts). Unrolled flat variant pre-ABC 25,480 gates, about 38.1k GE by ge.json weights (not a score).",
+  "provable": "After a stated rewrite: unrolled, 7 multipliers flattened to shift-add, signed removed, NaN sign 0; fixed-format fdiv32 only. Needs a symbolic Newton error bound |B*r2-2^47|<=24,992,532 over 2^23 divisors; exhaustive kernel decide over 8.4M divisors is unrealistic. Estimate 2.5-6k lines (guess).",
+  "useFor": "A mathematically interesting proof exercise (exact residual, no bounded-ulp argument) but not a baseline or first target."
+ },
+ {
+  "name": "fontamsoc/hw cpu/fpu.sv, PUFDIVDSP2 variant (Newton-Raphson reciprocal + residual fix-up)",
+  "url": "https://github.com/fontamsoc/hw/blob/HEAD/cpu/fpu.sv",
+  "license": "GPL-2.0-only (SPDX header; GitHub reports gpl-2.0); 9 stars. Copyleft: derived rewrites inherit it. Not legally reviewed.",
+  "kind": "Iterative FSM inside a Zfinx FPU (DIVLAT 17, 18 cycles measured; 3 for specials): 128-entry seed, 2 NR iterations, 6 wide multiplies, +/-1 fix-up, shared round/pack",
+  "formats": "binary32 only (W=8, P=24)",
+  "conformance": "WRAPPER: exact once rm=000 is pinned and the FSM is driven. 0 mismatches in 3,921,094 oracle pairs through the real RTL; 0 in 16.8M float32-referenced pairs (all 2^23 divisor significands x 2 dividends); 411M and 75M pairs through derived combinational copies; canonical NaN already 0x7fc00000. |Qnr-floor|<=1 in every sweep case.",
+  "differences": "No functional difference at (8,24). Clocked 18-cycle FSM with a 3-bit rm (all five RISC-V modes) and fflags. Source gate refuses about 50 directives and an include. Extractor on original: 34 Unsupported (signed, clog2 calls, functions). Evaluator's faithful copy fails fourstate (clz64 loop index); flat rewrites pass srcgate, banlist and fourstate.",
+  "ge": "Pinned not obtained (1800 s timeout; 6 h runs killed). Unofficial abc -fast estimates: about 44.8k GE flat_arr, 44.9k flat_mul, 45.1k faithful (not a score).",
+  "provable": "After a stated rewrite (fdiv32_flat_arr.sv: no `*`, 598 assigns, 0 Unsupported, equal to the real RTL on all test pairs), fixed (8,24) only. `*` is outside the fragment, so 6 multiplies become shift-add rows or hand multiplier proofs. New math: NR error analysis over 128 seed bins (evaluator's hand derivation: divisor-only bound |e|<=0.5004*2^25 gives |Qnr-q|<=0.6255). Estimate 4-7k lines (guess).",
+  "useFor": "Independent second Newton-plus-residual implementation. GPL and size make it a poor target; not a baseline."
+ },
+ {
+  "name": "Phy-Engine-Dev/Phy-Engine test/0020.fp16_calc/fp16_div.v (module fp16_div_unit)",
+  "url": "https://github.com/Phy-Engine-Dev/Phy-Engine/blob/master/test/0020.fp16_calc/fp16_div.v",
+  "license": "Apache-2.0 (0 stars); not legally reviewed",
+  "kind": "Combinational, ports a, b, y; 24 unrolled restoring stages (instances) plus one always @* block; exact remainder as sticky",
+  "formats": "binary16 only (W=5, P=11)",
+  "conformance": "DIFFERS: exactly 60 of 4,294,967,296 pairs wrong (exhaustive, real Verilog, vs C++ integer reference and float16 reference, which agree on all pairs); one class. A one-line patch gives 0 mismatches over all 2^32, and the patched-with-defaults variant too. Against the Python oracle: 28 mismatches (23 distinct pairs) in 4,606,070 pairs, same class.",
+  "differences": "The only difference: when the exact quotient is the tie 0x3FF.8 ulp, RNE must round to the smallest normal 0x0400 but the design returns +-0 (examples a=0x07ff b=0x4000 got 0x0000 want 0x0400; a=0x87ff b=0x4000 got 0x8000 want 0x8400; |a|=0x07ff+0x400k, |b|=0x4000+0x400k, k=0..14, four sign combinations). Cause: after the underflow shift exp_res is 0 and the exponent field takes exp_res[4:0]=0 instead of 1 when the rounded significand carries into bit 10. About 1M uniform random pairs would hit it with expected 0.014; only the structured sweep found it. NaN, inf/zero, subnormal operands/results, overflow all exact. Output port y.",
+  "ge": "2294.736 / 292 (1626 gates); as fdiv16-port wrapper 2302.067 / 292; patched 2316.405 / 296; patched plus latch-free defaults 2307.064 / 291. Reference 1929.778 / 299 (+19%).",
+  "provable": "Unmodified file: no, the spec is false at those 60 pairs. Patched and flattened: plausible. Blockers: extractor rule R5 (always @* with 21 partially assigned regs) and fourstate latch finding; 24 module instances (tactics refuse); always block outside the always_comb fragment; concatenation operands. Roughly 250 plain sites versus 111 in the reference. Estimate 1.5-2.5k lines (guess).",
+  "useFor": "Real-world NEGATIVE TEST for tests/fdiv16: a published binary16 divider that random post-synthesis vectors miss and only a proof catches. Patched flat copy is a second structurally different proof target, but 19% larger than the reference, so not a baseline."
+ },
+ {
+  "name": "raphaelPinheiro26/tt_um_fp8_fpu (Tiny Tapeout FP8 E4M3 FPU; divide path fp8_div_iter + fp8_normalize + fp8_round)",
+  "url": "https://github.com/raphaelPinheiro26/tt_um_fp8_fpu",
+  "license": "Apache-2.0 (1 star); not legally reviewed",
+  "kind": "Sequential elastic-pipeline FPU with about 21 opcodes and a 1 bit/cycle restoring FSM; 4 cycles for specials, 14 for finite divides; 199 flops",
+  "formats": "(W=4, P=4) only (1 sign, 4 exponent bits with bias 7, 3 fraction bits, IEEE-style inf/NaN at exponent 1111); widths hard-coded",
+  "conformance": "WRAPPER: opcode DIV (5'b00011), rm 3'b000, NaN canonicalizer `is_nan(y) ? 8'h7C : y`. Raw output differs on 6,482 of 65,536 pairs (6,474 NaN-operand propagation with sign and payload kept, 8 invalid operations returning 0x79); after the wrapper 0 of 65,536 (isolated and back-to-back stream). Combinational unroll equals the FSM on all 65,536 pairs; scored gate netlist 0 mismatches.",
+  "differences": "Only the NaN payload and sign class. Rounding mode input (use nearest-even) and opcode input must be pinned. Not parametric. Source gate refuses `include and macros (flat text after verilator -E passes). fourstate: one run-time index `mag[i]` in fp8_normalize. Extractor: 50 Unsupported (33 upstream, 17 from the evaluator's wrapper style: signed, for loop, do_round function, unpacked arrays). Authors' claim of 1,843,968-vector sign-off and sby proofs unverified.",
+  "ge": "542.271 GE / depth 63 (411 gates) for the evaluator's combinational unroll (fdiv44, ports a, b, q, pinned score.py with gate on). Original sequential top is not scoreable.",
+  "provable": "After a stated rewrite: flat, DIV-only, RNE-only, NaN canonicalizer folded in, 9-step restoring chain written flat; fixed (4,4) task only. Naive single exhaustive decide over 65,536 pairs would take about 45-90 minutes (scaled from aes_sbox), so decompose (specials, 8x8 significand pairs against restore_spec, normalize/round as a finite table). Estimate 0.3-0.7k lines (guess).",
+  "useFor": "Cheapest PROOF TARGET and a new (W,P) point. Not a general-purpose candidate and no baseline value beyond (4,4)."
+ },
+ {
+  "name": "TEA SFU_FP16.v function fp16_div (Xingzhi-Zhou/TEA) - search stage only, not evaluated",
+  "url": "https://github.com/Xingzhi-Zhou/TEA/blob/main/hdl/SFU_FP16.v",
+  "license": "None (all rights reserved by default); not legally reviewed",
+  "kind": "Verilog function buried in a sequential SFU module; 56-bit `/` with 40 guard bits plus remainder sticky, generic RNE packer, gradual underflow",
+  "formats": "binary16 only; canonical NaN 0x7E00 hard-coded",
+  "conformance": "EXACT at search stage: on a wrapper the search agent extracted, exhaustive 2^32 pairs with 0 mismatches; a Python transliteration also agrees on 3.1M mixed and structured pairs. No separate evaluation was run and the extracted wrapper is not the original file.",
+  "differences": "Needs extraction of the function into a wrapper module; no licence. 18.5k cells generic synth, much larger than the others.",
+  "ge": "Not scored (18.5k generic cells at search stage).",
+  "provable": "Not assessed; would need the same rewrite class as DGrid (it has `/`).",
+  "useFor": "Second independent binary16 exhaustive cross-check of the oracle (with DGrid). Replace DGrid with it only if a licence-free path matters."
+ }
+]

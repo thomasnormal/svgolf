@@ -1,0 +1,11 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "drop_carry": "Every adder row drops its carry out.",
+  "mul_star": "The right function through the banned run-time `*`.",
+  "narrow_out": "The product `p` is 2N - 1 bits wide instead of 2N.",
+  "only_n16": "Correct only at the scoring width N = 16, zero elsewhere.",
+  "top_shift": "The top half of the product is read from the wrong bits."
+ },
+ "attacks": {}
+}

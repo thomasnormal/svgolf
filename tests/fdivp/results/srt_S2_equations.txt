@@ -1,0 +1,274 @@
+-- fdivp SRT gate S2 (2026-11-04): the equations `sv_equations?` prints for baselines/fdivp_srt.sv (the S1 file,
+-- sha256 f7b6aaa1...ceac4) at symbolic W, P: the 19 equations of the family `srt` and the 19 plain sites of the core
+-- (mbn .. tm, the row-0 sites, rs, qq, rnz), verbatim. All 69 sites printed, no refusal (srt_S0.md section 8).
+  eq_mbn_plain_12 : ∀ (k : Nat), k < (↑P + -1).natAbs + 1 → st.boolAt "mbn" k = !st.boolAt "mb" k
+  eq_dv_plain_13 : ∀ (k : Nat),
+  k < (↑P + 6 + -1).natAbs + 1 →
+    st.boolAt "dv" k =
+      if k < (↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width then
+        if k < { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width then
+          { bits := #[Logic.l0, Logic.l0, Logic.l0] }.boolAt k
+        else st.boolAt "mb" (k - { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width)
+      else
+        { bits := #[Logic.l0, Logic.l0, Logic.l0] }.boolAt
+          (k - ((↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width))
+  eq_d2_plain_14 : ∀ (k : Nat),
+  k < (↑P + 6 + -1).natAbs + 1 →
+    st.boolAt "d2" k =
+      if k < (↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width then
+        if k < { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width then
+          { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.boolAt k
+        else st.boolAt "mb" (k - { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width)
+      else
+        { bits := #[Logic.l0, Logic.l0] }.boolAt
+          (k - ((↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width))
+  eq_nd1_plain_15 : ∀ (k : Nat),
+  k < (↑P + 6 + -1).natAbs + 1 →
+    st.boolAt "nd1" k =
+      if k < (↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width then
+        if k < { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width then
+          { bits := #[Logic.l0, Logic.l0, Logic.l0] }.boolAt k
+        else st.boolAt "mbn" (k - { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width)
+      else
+        { bits := #[Logic.l1, Logic.l1, Logic.l1] }.boolAt
+          (k - ((↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0] }.width))
+  eq_nd2_plain_16 : ∀ (k : Nat),
+  k < (↑P + 6 + -1).natAbs + 1 →
+    st.boolAt "nd2" k =
+      if k < (↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.width then
+        if k < { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.width then
+          { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+        else st.boolAt "mbn" (k - { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.width)
+      else
+        { bits := #[Logic.l1, Logic.l1] }.boolAt
+          (k - ((↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.width))
+  eq_zw_plain_17 : ∀ (k : Nat), k < (↑P + 6 + -1).natAbs + 1 → st.boolAt "zw" k = false
+  eq_xw_plain_18 : ∀ (k : Nat),
+  k < (↑P + 6 + 1).natAbs + 1 →
+    st.boolAt "xw" k =
+      if k < (↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width then
+        if k < { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width then
+          { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.boolAt k
+        else st.boolAt "ma" (k - { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width)
+      else
+        { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.boolAt
+          (k - ((↑P + -1).natAbs + 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width))
+  eq_da_plain_19 : ∀ (k : Nat), k < Int.natAbs 2 + 1 → st.boolAt "da" k = st.boolAt "dv" ((↑P + -1).toNat + k)
+  eq_t2_plain_20 : ∀ (k : Nat),
+  k < Int.natAbs 6 + 1 →
+    st.boolAt "t2" k =
+      if st.boolAt "da" (Int.toNat 2) = true then
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l1, Logic.l1, Logic.l1, Logic.l0, Logic.l1, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l1, Logic.l0, Logic.l1, Logic.l0, Logic.l1] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l1] }.boolAt k
+      else
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l1, Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l1] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+  eq_t1_plain_21 : ∀ (k : Nat),
+  k < Int.natAbs 6 + 1 →
+    st.boolAt "t1" k =
+      if st.boolAt "da" (Int.toNat 2) = true then
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l1, Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+      else
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l1, Logic.l1, Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l1, Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k
+  eq_t0_plain_22 : ∀ (k : Nat),
+  k < Int.natAbs 6 + 1 →
+    st.boolAt "t0" k =
+      if st.boolAt "da" (Int.toNat 2) = true then
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+      else
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+  eq_tm_plain_23 : ∀ (k : Nat),
+  k < Int.natAbs 6 + 1 →
+    st.boolAt "tm" k =
+      if st.boolAt "da" (Int.toNat 2) = true then
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l1, Logic.l0, Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l0, Logic.l1, Logic.l0] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l0, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l1, Logic.l1, Logic.l1, Logic.l0, Logic.l1, Logic.l0] }.boolAt k
+      else
+        if st.boolAt "da" (Int.toNat 1) = true then
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l1, Logic.l1, Logic.l1, Logic.l1, Logic.l0, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+        else
+          if st.boolAt "da" 0 = true then
+            { bits := #[Logic.l0, Logic.l1, Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+          else { bits := #[Logic.l1, Logic.l1, Logic.l0, Logic.l0, Logic.l1, Logic.l1, Logic.l0] }.boolAt k
+  eq_ws_plain_24 : ∀ (k : Nat), k < (↑P + 6).toNat → st.boolAt "ws" k = st.boolAt "xw" ((2 * ((↑P + 2) / 2) - ↑P).toNat + k)
+  eq_wc_plain_25 : ∀ (k : Nat), k < (↑P + 6).toNat → st.boolAt "wc" k = false
+  eq_u_plain_26 : ∀ (k : Nat), k < (↑P + 2).toNat → st.boolAt "u" k = false
+  eq_um_plain_27 : ∀ (k : Nat), k < (↑P + 2).toNat → st.boolAt "um" k = true
+  eq_rs_plain_28 : ∀ (k : Nat),
+  k < (↑P + 6 + -1).natAbs + 1 →
+    st.boolAt "rs" k =
+      XF.addBits ((↑P + 6 + -1).natAbs + 1) (fun x => st.boolAt "ws" (rmN (↑P + 6) ((↑P + 2) / 2 + 1) 0 + x))
+        ((↑P + 6 + -1).natAbs + 1) (fun x => st.boolAt "wc" (rmN (↑P + 6) ((↑P + 2) / 2 + 1) 0 + x)) k
+  eq_qq_plain_29 : ∀ (k : Nat),
+  k < (↑P + 1).natAbs + 1 →
+    st.boolAt "qq" k =
+      if st.boolAt "rs" (↑P + 6 + -1).toNat = true then st.boolAt "um" (rmN (↑P + 2) ((↑P + 2) / 2 + 1) 0 + k)
+      else st.boolAt "u" (rmN (↑P + 2) ((↑P + 2) / 2 + 1) 0 + k)
+  eq_rnz_plain_30 : st.boolAt "rnz" 0 = XF.any ((↑P + 6 + -1).natAbs + 1) fun x => st.boolAt "rs" x
+  eq_es_srt_0 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < Int.toNat 8 →
+        st.boolAt "es" (rmN 8 (↑i) 0 + k) =
+          XF.addBits (Int.toNat 8) (fun x => st.boolAt "ws" (rmN (↑P + 6) (↑i) (↑P + -2) + x)) (Int.toNat 8)
+            (fun x => st.boolAt "wc" (rmN (↑P + 6) (↑i) (↑P + -2) + x)) k
+  eq_yb_srt_1 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < Int.toNat 7 →
+        st.boolAt "yb" (rmN 7 (↑i) 0 + k) =
+          (st.boolAt "es" (rmN 8 (↑i) 1 + k) ^^
+            { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l1] }.boolAt k)
+  eq_g2_srt_2 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    st.boolAt "g2" i =
+      decide
+        (XF.val (fun x => st.boolAt "yb" (rmN 7 (↑i) 0 + x)) (max (Int.toNat 7) (Int.natAbs 6 + 1)) ≥
+          XF.val (fun x => st.boolAt "t2" x) (max (Int.toNat 7) (Int.natAbs 6 + 1)))
+  eq_g1_srt_3 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    st.boolAt "g1" i =
+      decide
+        (XF.val (fun x => st.boolAt "yb" (rmN 7 (↑i) 0 + x)) (max (Int.toNat 7) (Int.natAbs 6 + 1)) ≥
+          XF.val (fun x => st.boolAt "t1" x) (max (Int.toNat 7) (Int.natAbs 6 + 1)))
+  eq_g0_srt_4 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    st.boolAt "g0" i =
+      decide
+        (XF.val (fun x => st.boolAt "yb" (rmN 7 (↑i) 0 + x)) (max (Int.toNat 7) (Int.natAbs 6 + 1)) ≥
+          XF.val (fun x => st.boolAt "t0" x) (max (Int.toNat 7) (Int.natAbs 6 + 1)))
+  eq_gm_srt_5 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    st.boolAt "gm" i =
+      decide
+        (XF.val (fun x => st.boolAt "yb" (rmN 7 (↑i) 0 + x)) (max (Int.toNat 7) (Int.natAbs 6 + 1)) ≥
+          XF.val (fun x => st.boolAt "tm" x) (max (Int.toNat 7) (Int.natAbs 6 + 1)))
+  eq_mm_srt_6 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 6).toNat →
+        st.boolAt "mm" (rmN (↑P + 6) (↑i) 0 + k) =
+          if st.boolAt "g2" i = true then st.boolAt "nd2" k
+          else
+            if st.boolAt "g1" i = true then st.boolAt "nd1" k
+            else
+              if st.boolAt "g0" i = true then st.boolAt "zw" k
+              else if st.boolAt "gm" i = true then st.boolAt "dv" k else st.boolAt "d2" k
+  eq_sm_srt_7 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 6).toNat →
+        st.boolAt "sm" (rmN (↑P + 6) (↑i) 0 + k) =
+          (st.boolAt "ws" (rmN (↑P + 6) (↑i) 0 + k) ^^ st.boolAt "wc" (rmN (↑P + 6) (↑i) 0 + k) ^^
+            st.boolAt "mm" (rmN (↑P + 6) (↑i) 0 + k))
+  eq_cy_srt_8 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 6).toNat →
+        st.boolAt "cy" (rmN (↑P + 6) (↑i) 0 + k) =
+          (st.boolAt "ws" (rmN (↑P + 6) (↑i) 0 + k) && st.boolAt "wc" (rmN (↑P + 6) (↑i) 0 + k) ||
+              st.boolAt "ws" (rmN (↑P + 6) (↑i) 0 + k) && st.boolAt "mm" (rmN (↑P + 6) (↑i) 0 + k) ||
+            st.boolAt "wc" (rmN (↑P + 6) (↑i) 0 + k) && st.boolAt "mm" (rmN (↑P + 6) (↑i) 0 + k))
+  eq_ws_srt_9 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 6).toNat →
+        st.boolAt "ws" (rmN (↑P + 6) (↑i + 1) 0 + k) =
+          if k < { bits := #[Logic.l0, Logic.l0] }.width then { bits := #[Logic.l0, Logic.l0] }.boolAt k
+          else st.boolAt "sm" (rmN (↑P + 6) (↑i) 0 + (k - { bits := #[Logic.l0, Logic.l0] }.width))
+  eq_wc_srt_10 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 6).toNat →
+        st.boolAt "wc" (rmN (↑P + 6) (↑i + 1) 0 + k) =
+          if k < 1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width then
+            if k < { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width then
+              { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.boolAt k
+            else st.boolAt "g1" (i + (k - { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width))
+          else
+            st.boolAt "cy"
+              (rmN (↑P + 6) (↑i) 3 + (k - (1 + { bits := #[Logic.l0, Logic.l0, Logic.l0, Logic.l0, Logic.l0] }.width)))
+  eq_uq1_srt_11 : ∀ (i : Nat), ↑i < (↑P + 2) / 2 + 1 → st.boolAt "uq1" i = (st.boolAt "g2" i || !st.boolAt "g0" i)
+  eq_uq0_srt_12 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    st.boolAt "uq0" i = (st.boolAt "g1" i && !st.boolAt "g2" i || st.boolAt "gm" i && !st.boolAt "g0" i)
+  eq_um1_srt_13 : ∀ (i : Nat), ↑i < (↑P + 2) / 2 + 1 → st.boolAt "um1" i = (!st.boolAt "g1" i && st.boolAt "gm" i)
+  eq_um0_srt_14 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    st.boolAt "um0" i = (st.boolAt "g2" i || st.boolAt "g0" i && !st.boolAt "g1" i || !st.boolAt "gm" i)
+  eq_us_srt_15 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < P →
+        st.boolAt "us" (rmN (↑P) (↑i) 0 + k) =
+          if st.boolAt "g0" i = true then st.boolAt "u" (rmN (↑P + 2) (↑i) 0 + k)
+          else st.boolAt "um" (rmN (↑P + 2) (↑i) 0 + k)
+  eq_ums_srt_16 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < P →
+        st.boolAt "ums" (rmN (↑P) (↑i) 0 + k) =
+          if st.boolAt "g1" i = true then st.boolAt "u" (rmN (↑P + 2) (↑i) 0 + k)
+          else st.boolAt "um" (rmN (↑P + 2) (↑i) 0 + k)
+  eq_u_srt_17 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 2).toNat →
+        st.boolAt "u" (rmN (↑P + 2) (↑i + 1) 0 + k) =
+          if k < 2 then if k = 0 then st.boolAt "uq0" (i + k) else st.boolAt "uq1" (i + (k - 1))
+          else st.boolAt "us" (rmN (↑P) (↑i) 0 + (k - 2))
+  eq_um_srt_18 : ∀ (i : Nat),
+  ↑i < (↑P + 2) / 2 + 1 →
+    ∀ (k : Nat),
+      k < (↑P + 2).toNat →
+        st.boolAt "um" (rmN (↑P + 2) (↑i + 1) 0 + k) =
+          if k < 2 then if k = 0 then st.boolAt "um0" (i + k) else st.boolAt "um1" (i + (k - 1))
+          else st.boolAt "ums" (rmN (↑P) (↑i) 0 + (k - 2))

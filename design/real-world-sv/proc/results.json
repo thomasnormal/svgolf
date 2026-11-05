@@ -1,0 +1,52 @@
+{
+ "survey_real_files": {
+  "population": 216,
+  "tiers": {
+   "T0 today": 23,
+   "T1 nets/typeless dims": 61,
+   "T2 +@*": 78,
+   "T3 +local decls": 79,
+   "T4 +loops/functions": 97
+  }
+ },
+ "rb0_cpu_blocks": {
+  "population": 79,
+  "already_clean": 6,
+  "blocker_free_by_tier": {
+   "T1 nets": 13,
+   "+topModules": 21,
+   "T2 +@*": 27,
+   "T3 +local": 28,
+   "T4 +loops/functions": 29
+  }
+ },
+ "probes": {
+  "extracted": 240,
+  "extractor_level_flips_T0_to_T4": 54,
+  "real_design_stage_flips": 34,
+  "wire_typeless": 17,
+  "nonansi_eventlist": 1,
+  "always_star": 1,
+  "local_decl": 2,
+  "loops_functions": 13,
+  "package_functions_maybe": 2
+ },
+ "survey_loops": {
+  "files_with_for": 63,
+  "for_loops": 296,
+  "counted_shapes": 286,
+  "files_all_loops_admitted_no_break_while": 52,
+  "files_loops_only_in_comb_blocks": 31
+ },
+ "survey_subroutines": {
+  "subroutines": 167,
+  "files": 50,
+  "functions": 157,
+  "tasks": 10,
+  "with_return": 21,
+  "with_for": 28,
+  "non_input_args": 12,
+  "static": 110,
+  "automatic": 57
+ }
+}

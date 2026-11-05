@@ -1,0 +1,100 @@
+# svGolf: its own Lake project (see README.md).
+#
+# svGolf uses lean-surfaces the way an outside user would: it requires its root
+# package `lean-models` by git, at a pinned revision, and imports
+# `LeanModels.Sv.*` only (never `Examples.*`, never `LeanModels.Python.*`).
+# The packages (mathlib and friends) are the dependency's, at the revisions its
+# manifest pins (lake-manifest.json lists them). Nothing in `LeanModels.Sv`
+# imports Mathlib, so building svGolf never builds Mathlib either.
+name = "svgolf"
+defaultTargets = ["SvGolf", "tasks", "tests", "svgolf-eval"]
+
+[[require]]
+name = "lean-models"
+git = "https://github.com/thomasnormal/lean-surfaces"
+rev = "c1c06b1eff5fc4f70c7c090a5f63645233640995"
+
+# The framework: trusted task-statement helpers (`SvGolf.Task`), proof
+# helpers (`SvGolf.Comb`) and the `load_sv` command (`SvGolf.LoadSv`).
+[[lean_lib]]
+name = "SvGolf"
+
+# What a player needs: the task statements (`tasks/<name>/Spec.lean`), collected
+# by the aggregator `tasks.lean`. A task ships no proof library (reusable proof
+# code is in `LeanModels.Sv.Lib`). Reference solutions are NOT in this library:
+# they are checked exactly like submissions, by `check.py` (see `tests/run.py`).
+[[lean_lib]]
+name = "tasks"
+roots = ["tasks"]
+
+# The checker's ls-sv evaluator (`check/SvEval.lean`): `design.sem` at the
+# scoring point, run by `run2` on many input vectors, for the `postsynth` stage
+# (`check/postsynth.py`). Native code: building it compiles the C of the
+# `LeanModels.Sv` closure it imports (`LeanModels.Sv.Ingest2`) into the
+# dependency's `.lake/build/ir`, next to the oleans svGolf already builds there.
+[[lean_exe]]
+name = "svgolf-eval"
+root = "check.SvEval"
+
+# The refutations of the negative designs (`tests/<name>/negative/Refute.lean`),
+# collected by the aggregator `tests.lean`.
+#
+# DESIGNS ARE BUILD INPUTS. `load_sv` extracts a `.sv` file at ELABORATION
+# time (the extractor's output is a cache under `.lake/envelopes/`, never
+# committed), so Lake must know about the `.sv` files, or editing a negative
+# design would re-elaborate nothing and its refutation would look green
+# unchecked. As in lean-surfaces' own `lakefile.toml` (its `svEnvelopes`),
+# `needs` mixes each named target's trace into every module of this library,
+# so a changed design, a changed extractor or a changed extraction script
+# re-elaborates the refutations. Per-library, not per-module: one `.sv` edit
+# re-elaborates all of them, and `.sv` files nothing loads (references,
+# baselines, banlist negatives) are covered too. Over-invalidation is the
+# safe direction.
+[[lean_lib]]
+name = "tests"
+roots = ["tests"]
+needs = ["taskDesigns", "taskFiles", "testDesigns", "svExtractor", "svLowerProc",
+         "envelopeScript", "sourceGate"]
+
+[[input_dir]]
+name = "taskDesigns"
+path = "tasks"
+text = true
+filter = { extension = ["sv"] }
+
+# The task files (`task.json`): `load_sv` takes a design's top module and probe
+# points from its task, so a changed task re-elaborates the refutations too.
+[[input_dir]]
+name = "taskFiles"
+path = "tasks"
+text = true
+filter = { extension = ["json"] }
+
+[[input_dir]]
+name = "testDesigns"
+path = "tests"
+text = true
+filter = { extension = ["sv"] }
+
+# The pinned lean-surfaces extractor `load_sv` runs (in the dependency), and the
+# lowering it imports.
+[[input_file]]
+name = "svExtractor"
+path = ".lake/packages/lean-models/extractors/sv/extract.py"
+text = true
+
+[[input_file]]
+name = "svLowerProc"
+path = ".lake/packages/lean-models/extractors/sv/lower_proc.py"
+text = true
+
+# svGolf's one extraction path (source gate, then the extractor), and the gate.
+[[input_file]]
+name = "envelopeScript"
+path = "check/envelope.py"
+text = true
+
+[[input_file]]
+name = "sourceGate"
+path = "score/srcgate.py"
+text = true

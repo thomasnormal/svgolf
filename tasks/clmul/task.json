@@ -1,0 +1,94 @@
+{
+  "name": "clmul",
+  "title": "N-bit carry-less multiplier (product of polynomials over GF(2)): p = a (x) b on 2N-1 bits, without run-time + - *",
+  "status": "ready",
+  "kind": "comb-family",
+  "top": "clmul_n",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "a",
+        "width": "N"
+      },
+      {
+        "name": "b",
+        "width": "N"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "p",
+        "width": "2*N-1"
+      }
+    ]
+  },
+  "statement": {
+    "module": "tasks.clmul.Spec",
+    "constant": "SvGolf.Tasks.Clmul.Statement"
+  },
+  "banlist": {
+    "operators": [
+      "+",
+      "-",
+      "*"
+    ],
+    "_comment": "The task is to build a carry-less product from XOR/AND networks, so the arithmetic that would build the integer product (or the Kronecker trick: spread the bits, multiply as integers, read the parities) is banned at run time: * and the + - that Yosys merges into the same $macc/$alu cells. / % ** are not banned: they cannot reach this function (tests/clmul/negative/kronecker_mul.sv is the only trick found, and it needs *). Constant arithmetic (parameter expressions, genvar indices) stays allowed."
+  },
+  "probe_points": [
+    "N=1",
+    "N=2",
+    "N=3",
+    "N=4",
+    "N=5",
+    "N=8",
+    "N=16",
+    "N=32"
+  ],
+  "scoring": {
+    "params": {
+      "N": 16
+    },
+    "depth_budget": null
+  },
+  "backstop_points": [
+    {
+      "N": 1
+    },
+    {
+      "N": 2
+    },
+    {
+      "N": 3
+    },
+    {
+      "N": 16
+    }
+  ],
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "references": [
+    {
+      "sv": "reference/clmul_n.sv",
+      "lean": "reference/clmul_n.lean",
+      "note": "the N x N array (AND partial products, XOR rows, no carries; mul_n's shape) proved with the sv_comb tactics (sv_structure with a lexicographic rank, sv_interface, sv_equations, sv_cover, sv_bridge) and the plain-Lean arithmetic in the file: the row invariant by induction and the collapse of the Spec's double sum; see PROVING.md, section 3.1"
+    }
+  ],
+  "postsynth": {
+    "random": 500,
+    "light_vectors": 100,
+    "time_limit_s": 900,
+    "_comment": "The fixed corners (130 vectors at N = 16), the harvested comparison constants and 500 seeded random vectors in FULL mode; the LIGHT mode runs light_vectors = 100 of them. ls-sv's run2 costs about 18 ms per vector (both schedules) on the array reference (330 vectors in 6.5 s of ls-sv time, 2026-11-01), so the budget is generous; the flat 32-bit baselines are 10 to 20 times slower per vector and are not checked at N = 32."
+  },
+  "oracle": "oracle.py"
+}

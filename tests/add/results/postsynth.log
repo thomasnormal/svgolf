@@ -1,0 +1,16 @@
+[ok] reference/add_n.sv N=16: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n.sv N=32: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n.sv N=64: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n_sklansky.sv N=16: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n_sklansky.sv N=32: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n_sklansky.sv N=64: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n_kogge_stone.sv N=16: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n_kogge_stone.sv N=32: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] reference/add_n_kogge_stone.sv N=64: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] negative/plus.sv N=16: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] negative/plus.sv N=32: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] negative/plus.sv N=64: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] validate/cmp_carry.sv N=16: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] validate/cmp_carry.sv N=32: netlist of the pinned flow, 5005 vectors, 0 mismatches
+[ok] validate/cmp_carry.sv N=64: netlist of the pinned flow, 5005 vectors, 0 mismatches
+postsynth: PASS

@@ -1,0 +1,86 @@
+{
+  "name": "_example",
+  "title": "N-bit bitwise AND (toy task: exercises the pipeline)",
+  "status": "ready",
+  "kind": "comb-family",
+  "top": "band",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "a",
+        "width": "N"
+      },
+      {
+        "name": "b",
+        "width": "N"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "y",
+        "width": "N"
+      }
+    ]
+  },
+  "statement": {
+    "module": "tasks._example.Spec",
+    "constant": "SvGolf.Tasks.Example.Statement"
+  },
+  "banlist": {
+    "operators": [
+      "+",
+      "-",
+      "*",
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "The toy bans run-time arithmetic only to exercise the banlist end to end (tests/_example/negative/arith_and.sv)."
+  },
+  "probe_points": [
+    "N=1",
+    "N=2",
+    "N=3",
+    "N=16"
+  ],
+  "scoring": {
+    "params": {
+      "N": 16
+    },
+    "depth_budget": null
+  },
+  "backstop_points": [
+    {
+      "N": 16
+    }
+  ],
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "postsynth": {
+    "random": 4000,
+    "_comment": "The checker's postsynth stage (README.md, `postsynth` in the task.json table): the fixed corners (130 vectors at N = 16), the harvested comparison constants and 4000 seeded random vectors, each through ls-sv (`svgolf-eval`, about 0.05 ms per vector here) and the scored netlist (Verilator)."
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/band.sv",
+      "lean": "reference/band.lean"
+    },
+    {
+      "sv": "reference/band_lp.sv",
+      "lean": "reference/band_lp.lean",
+      "note": "localparams in the header (port widths) and in the body (constant arithmetic)"
+    }
+  ]
+}

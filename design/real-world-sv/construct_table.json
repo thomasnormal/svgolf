@@ -1,0 +1,1288 @@
+[
+ {
+  "construct": "module instantiation",
+  "implementations": 141,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads: named, `.name` and `.*` connections, parameter overrides all flatten (r10,r11,k02,k03,x05,x14); recursion refused (r12, le-recursion); instance arrays refused",
+  "tacticStatus": "REFUSED: every instance (sv_structure I0 message; by-hand proof only, ripple_fa)",
+  "scorerStatus": "Yosys reads instances",
+  "registerRows": [
+   "tl-sv-structure-fragment",
+   "le-recursion",
+   "hi-instance-array",
+   "F3B"
+  ],
+  "priority": "high",
+  "suggestion": "Tactics: WP-I summary of flattened instances; then recursion by induction (F3B) for Karatsuba, bitonic sort, popcount trees"
+ },
+ {
+  "construct": "comparisons",
+  "implementations": 117,
+  "topics": [
+   "arx",
+   "fpdiv",
+   "sbox",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "loads (signed forms too: g20)",
+  "tacticStatus": "unsigned comparisons accepted at assign/leaf level (g23, r06); REFUSED in `?:`/`if` conditions (x28,w08,g22) and signed (`s<`, g20)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "high",
+  "suggestion": "Tactics: comparison as a one-bit condition (Part.cmp, B2 gate 3c); today write it into a one-bit signal first (r06 accepted)"
+ },
+ {
+  "construct": "part-select +: -:",
+  "implementations": 114,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads; run-time base `a[s +: 4]` stopped by the fourstate stage when the index can leave the range (f26); constant ranges fine",
+  "tacticStatus": "constant ranges on PARAMETER-WIDTH signals accepted (s04-s07); on literal-width signals REFUSED as `legacy part select` (x01,x07,x11,x24,x25,r01); indexed `+:`/`-:` refused (k18)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "sel-legacy-range",
+   "sel-dyn-indexed",
+   "sg-fs-index",
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "high",
+  "suggestion": "Tactics/extractor: take the symbolic Select path for literal bounds too (fixed-size tasks chacha_qr/aes_sbox/keccak depend on it; workaround: declare widths through a localparam W, x40)"
+ },
+ {
+  "construct": "procedural for loop",
+  "implementations": 112,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "REFUSED: extractor emits Unsupported ForLoopStatement; the `int i` header becomes a LocalDecl the loader rejects (`integer i` = VariableSymbol:signed); `^=`/`+=` refused (probes p01,f01,c05-c09,x20)",
+  "tacticStatus": "n/a (design never loads); even then sv_structure has no loop rule",
+  "scorerStatus": "Yosys 0.53 reads constant-bound loops; NOT `break`, `while`, `foreach` (y9,f02,y14); svGolf fourstate stage also refuses `b[i]` with a signed 32-bit counter (sg-fs-loop-index)",
+  "registerRows": [
+   "st-for",
+   "ld-localdecl",
+   "st-compound",
+   "sg-fs-loop-index"
+  ],
+  "priority": "high",
+  "suggestion": "Extractor: desugar statically bounded for-loops in always_comb (accumulate `acc=acc OP e(i)`, per-bit writes) into the SSA/array chain the tactics already prove; give fourstate an interval rule for counters with static bounds"
+ },
+ {
+  "construct": "replication",
+  "implementations": 104,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads (c04,f21,x30,r18)",
+  "tacticStatus": "REFUSED by sv_structure: `replication (outside the v1 fragment)`; the AND-mask `a & {N{b[i]}}`, zero padding and `{N{1'b0}}` all hit it",
+  "scorerStatus": "Yosys reads it",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "high",
+  "suggestion": "Tactics: add a replication constructor with affine count (Sk.repl + shape theorem + xfWidth case); unlocks AND-mask partial products in clmul/mul/AND-OR muxes"
+ },
+ {
+  "construct": "unpacked array",
+  "implementations": 102,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "parameter-sized arrays REFUSED (`pp[N]`: ElementSelect:default-point-index / default-point-array; f18,c01; 27+14 of 213 real files); literal-size with constant index loads (f19,k10); run-time-indexed reads of unpacked arrays are non-affine selects (tactics refuse)",
+  "tacticStatus": "literal-size, constant index: accepted (f19,k10); rest n/a",
+  "scorerStatus": "Yosys 0.53 cannot read `localparam T [4] = '{..}` (x08,p20) or `'{default:'0}` (w2); unpacked wire/reg arrays are read",
+  "registerRows": [
+   "dc-unpacked",
+   "ex-assign-pattern",
+   "sel-array-dynamic",
+   "AGGR"
+  ],
+  "priority": "high",
+  "suggestion": "Extractor: rewrite parameter-sized unpacked arrays indexed affinely to packed 2-D arrays (accepted today); ROM tables stay case statements (sbox_table reference)"
+ },
+ {
+  "construct": "function (any)",
+  "implementations": 96,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "REFUSED: any user function call is Unsupported CallExpression (p04-p06,x03,x09,k05); function members show as SubroutineSymbol",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys 0.53 cannot read `return` (syntax error, p04,p06,f11,x03); name-assignment functions and loops inside functions are read",
+  "registerRows": [
+   "ex-user-call",
+   "ld-localdecl"
+  ],
+  "priority": "high",
+  "suggestion": "Inline calls in the extractor with fresh SSA temporaries (USERFN needs the 4-state rule for unassigned locals); steer contestants to name-assignment style because `return` is not scoreable"
+ },
+ {
+  "construct": "wire / implicit-net declarations (`wire [N-1:0] x;`, `input [7:0] a`, non-ANSI headers); NOT in the survey vocabulary, count is an estimate of the entries labelled Verilog",
+  "implementations": 79,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "REFUSED: every `wire`/implicit-net declaration, scalar or vector, port or internal, ANSI or non-ANSI: `assign target 'x' undeclared` (scalar, v11-v14) or 'unrecoverable packed dimensions' (vector, v01-v08, s01-s03, g02, f17); only `logic`/`reg` variables load; 26 of 213 self-contained real files carry NetSymbol:net-z",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads all of it",
+  "registerRows": [
+   "dc-net-z",
+   "ld-init-expr",
+   "NETRES"
+  ],
+  "priority": "high",
+  "suggestion": "Extractor: map a `wire` with exactly one continuous driver per bit to `logic` + assign (z cannot arise); recover packed dims of implicit-type nets from the syntax. Cheapest high-reach fix: all Verilog-2001-style code needs it"
+ },
+ {
+  "construct": "generate-if",
+  "implementations": 77,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads (top-level, in loops, nested), case-generate refused (g09)",
+  "tacticStatus": "REFUSED when inside a generate loop (f23,w07) or at top level (w02b): `conditional generate`; prefix adders (`if (i >= STEP)`) and Dadda columns need it",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment",
+   "ge-unconditional"
+  ],
+  "priority": "high",
+  "suggestion": "Tactics: conditional generate inside loops (per-index case split on an affine condition); the register names it a stage-2 lane"
+ },
+ {
+  "construct": "local variables in blocks",
+  "implementations": 66,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "REFUSED: block-local `logic t;` => LocalDecl, loader rejects the whole envelope (f07,p11); generate-local `logic w;` => GenerateDecl:Var (f35,x31,c11)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads both; `automatic` locals in always_comb are unreadable (w1)",
+  "registerRows": [
+   "ld-localdecl",
+   "le-generate-decl",
+   "st-local-decl"
+  ],
+  "priority": "high",
+  "suggestion": "Loader/extractor: hoist block- and generate-local variables to uniquely named module-level variables (a no-op for latch-free combinational code)"
+ },
+ {
+  "construct": "always @*",
+  "implementations": 57,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "REFUSED: `always @*` is Unsupported TimedStatement:ImplicitEventControl (f06, c09; 25 of 213 self-contained real files)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads it",
+  "registerRows": [
+   "pr-implicit-event"
+  ],
+  "priority": "high",
+  "suggestion": "Extractor: accept `always @*` as `always_comb` when the always_comb guards (no self-read, no latch) hold; rewrite only, no proof-layer change"
+ },
+ {
+  "construct": "automatic function",
+  "implementations": 51,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "same as FN (automatic functions, packages' functions: k05)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "as FN",
+  "registerRows": [
+   "ex-user-call"
+  ],
+  "priority": "high",
+  "suggestion": "as FN"
+ },
+ {
+  "construct": "cast type'(x)",
+  "implementations": 49,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "REFUSED: ConversionExpression:Explicit for `N'(x)`, `(2*N)'(a)`, `op_e'(x)` (f16,k06,k07,p14; 19 of 213 real files)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads size casts incl. parameter-sized ones (p14,y13)",
+  "registerRows": [
+   "cv-explicit"
+  ],
+  "priority": "high",
+  "suggestion": "FOLDS lane: lower widening/narrowing casts to Resize with symbolic size; workaround today: assign into a wider signal (implicit extension is accepted)"
+ },
+ {
+  "construct": "unique case",
+  "implementations": 39,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "extractor accepts `unique case`, but the SOURCE GATE rejects it first (f04,x12,p07)",
+  "tacticStatus": "n/a (never reached)",
+  "scorerStatus": "Yosys reads `unique` as full_case/parallel_case (the reason for the gate)",
+  "registerRows": [
+   "sg-qualifiers",
+   "st-cond-qual",
+   "WP5"
+  ],
+  "priority": "high",
+  "suggestion": "Policy decision: either lower `unique case` with a default to plain `case` (obligation-free) or implement WP5; 12% of entries use it, mostly lowRISC/PULP style"
+ },
+ {
+  "construct": "casez",
+  "implementations": 13,
+  "topics": [
+   "clmul",
+   "arx",
+   "fpdiv",
+   "sbox",
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "REFUSED: Unsupported CaseStatement:WildcardJustZ (f05,x13; 5 real files)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads it; svGolf source gate admits z/? wildcard digits in casez items",
+  "registerRows": [
+   "st-casez",
+   "sg-casez-x"
+  ],
+  "priority": "high",
+  "suggestion": "Extractor: lower casez/casex items to masked equalities in an if-chain (pure sugar); if-chain priority encoders already prove (comb_ovr/prio_enc.sv, x22,k14)"
+ },
+ {
+  "construct": "concatenation",
+  "implementations": 195,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads; fixed-width streaming `{<<{a}}` is expanded to part-selects (p13)",
+  "tacticStatus": "whole RHS and operands of `+` accepted (r08 `{1'b0,a}+{1'b0,b}+ci`, s04); REFUSED as assignment target (f15), with `'0` in ?: arms (c10) and for constant part-selects of literal-width signals (see PSL)",
+  "scorerStatus": "reads (not streaming)",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "see part-select row; concat targets via lowering to per-window assigns"
+ },
+ {
+  "construct": "ternary ?:",
+  "implementations": 154,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads",
+  "tacticStatus": "accepted at RHS level; REFUSED with `'0` arms (r17,c10) or a comparison/`+` as condition (x28,f38,g22)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "B2 gate 3c style: comparisons as conditions; `'0` arms -> sized literals in the extractor"
+ },
+ {
+  "construct": "always_comb",
+  "implementations": 131,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted",
+  "tacticStatus": "if/else trees, default-then-override, multi-window bodies, plain case with default: accepted by sv_structure (f03,f08,g06,k14,r05a,r16); `sv_equations` still refuses multi-window bodies (S1b gate d in flight)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment",
+   "tl-lowercomb-shapes"
+  ],
+  "priority": "medium",
+  "suggestion": "finish S1b gate d; SSA temporaries"
+ },
+ {
+  "construct": "named port connection",
+  "implementations": 127,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads",
+  "tacticStatus": "as module instantiation",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "with module instantiation"
+ },
+ {
+  "construct": "localparam",
+  "implementations": 126,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads (sized `logic [15:0]` r14,k08; int/integer)",
+  "tacticStatus": "int/integer localparams from literals, params, `+ - *` by literal, `/ %` by literal accepted; sized `logic [..]` localparams, `$clog2` refused (r14,k08,f22); ternary is not in the localparam grammar (PROVING sec 4, not probed); a 2-state `int` with `/` needs `integer`",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "sized constants as literals; ternary localparams by case split"
+ },
+ {
+  "construct": "genvar",
+  "implementations": 122,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "as generate-for",
+  "tacticStatus": "as generate-for",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "le-generate-genvar-step"
+  ],
+  "priority": "medium",
+  "suggestion": "as generate-for"
+ },
+ {
+  "construct": "generate-for",
+  "implementations": 120,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads for `g++`; strides (`i+=2`, `i=i*2`) refused by the loader (f24, le-generate-genvar-step); a non-literal start loads (w04)",
+  "tacticStatus": "two levels deep accepted; header must be `g = <int>; g < <affine>; g++` (w04 start = localparam refused); 3 deep refused (k15)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "le-generate-genvar-step",
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "allow strides/starts via normalising loops in the extractor"
+ },
+ {
+  "construct": "shift << >>",
+  "implementations": 91,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads",
+  "tacticStatus": "`<<`/`>>` run-time accepted (gate 3a, f27 shapes, x27 `8'b1 << s`); operand an operation or amount an expression/param refused (r13,r15)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "B2 gate 3c/3d"
+ },
+ {
+  "construct": "packed array",
+  "implementations": 87,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads (1-D, 2-D, 3-D)",
+  "tacticStatus": "1-D and 2-D accepted; 3-D refused; non-affine bounds refused (`[N/2-1:0]`, `[N*N-1:0]`: g12-g14)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "affine-bound relaxation: `N/2` with a hypothesis, as localparam division already does"
+ },
+ {
+  "construct": "$clog2",
+  "implementations": 82,
+  "topics": [
+   "clmul",
+   "arx",
+   "fpdiv",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "loads in widths and constants (f22,f27)",
+  "tacticStatus": "REFUSED: `$clog2` in a localparam (f22) or in packed bounds `[$clog2(N)-1:0]` (f27): not affine",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "Tactics: accept $clog2 as an uninterpreted monotone function with the two characteristic inequalities, or let tasks pass log-width as a second parameter"
+ },
+ {
+  "construct": "case",
+  "implementations": 81,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted: plain case with default",
+  "tacticStatus": "accepted for sized-literal items, `default`, single-assignment arms (sbox_table reference, f03, r05a); REFUSED for begin/end arms (g05), non-literal items (`case (1'b1)`, w01), missing default",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "arms as trees (S3b)"
+ },
+ {
+  "construct": "unsigned + -",
+  "implementations": 63,
+  "topics": [
+   "clmul",
+   "arx",
+   "fpdiv",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "loads",
+  "tacticStatus": "`+ -` accepted at context-determined RHS positions (r07,r08,r05a), not in self-determined ones",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "B2 gates 3b-3d"
+ },
+ {
+  "construct": "import package",
+  "implementations": 62,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "package-scoped constants/calls/casts refused (k04,k05,k06); `import` not probed in ls-sv",
+  "tacticStatus": "n/a",
+  "scorerStatus": "UNREADABLE: Yosys 0.53 rejects every `import` (module header, body, $unit: z1,z2,z4,f10,y1); `pkg::name` references are read",
+  "registerRows": [
+   "le-param-package",
+   "dc-member-kinds"
+  ],
+  "priority": "medium",
+  "suggestion": "Cannot be scored; document that only `pkg::X` qualified references (and only after ls-sv learns ParamRef:package) are portable"
+ },
+ {
+  "construct": "unsized constants",
+  "implementations": 58,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted (`: 0` arm ok, w03)",
+  "tacticStatus": "`'0/'1` inside an operator refused (r17,c10); whole-RHS fill fine",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "extractor: fills -> sized literal"
+ },
+ {
+  "construct": "`define macros",
+  "implementations": 55,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "SOURCE GATE rejects every `define / macro use (m1)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads (pre-processor)",
+  "registerRows": [
+   "sg-macro",
+   "MACROS"
+  ],
+  "priority": "medium",
+  "suggestion": "MACROS lane: expand user macros in the gate"
+ },
+ {
+  "construct": "dynamic bit-select",
+  "implementations": 53,
+  "topics": [
+   "clmul",
+   "fpdiv",
+   "sbox",
+   "hashround",
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "loads when the index width fits the range (k16)",
+  "tacticStatus": "REFUSED: non-affine index (k16,k17)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "sel-dyn-signed-base",
+   "sg-fs-index"
+  ],
+  "priority": "medium",
+  "suggestion": "dynamic selects as mux trees (SELFEAT)"
+ },
+ {
+  "construct": "signed arithmetic",
+  "implementations": 52,
+  "topics": [
+   "fpdiv",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "signed ports/variables REFUSED (PortSymbol:signed: f14, 27 real files VariableSymbol:signed)",
+  "tacticStatus": "n/a / `s<`,`s>>>` refused (g11,g20)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "dc-signed",
+   "SIGNED"
+  ],
+  "priority": "medium",
+  "suggestion": "SIGNED lane: signed Resize/compare"
+ },
+ {
+  "construct": "multi-dimensional array",
+  "implementations": 50,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "packed 2-D loads; 3-D packed loads (g15); unpacked see unpacked array",
+  "tacticStatus": "2-D packed accepted, 3-D packed refused (g15)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "3-D packed needed for Keccak planes: stage-2 lane"
+ },
+ {
+  "construct": "typedef",
+  "implementations": 47,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "`typedef logic [N-1:0] word_t` refused: unrecoverable packed dimensions (g17); enum typedef + cast refused (k07)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads (typedef at $unit with struct port crashes: y5)",
+  "registerRows": [
+   "dc-member-kinds",
+   "ld-init-expr",
+   "cv-explicit"
+  ],
+  "priority": "medium",
+  "suggestion": "alias typedefs resolved by the extractor"
+ },
+ {
+  "construct": "enum",
+  "implementations": 46,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "enum cast refused (k06,k07); enum constants as sized localparams refused by tactics (k08)",
+  "tacticStatus": "k08: localparam not int",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "cv-explicit",
+   "pa-enum-point"
+  ],
+  "priority": "medium",
+  "suggestion": "enum -> int/localparam constants in the extractor"
+ },
+ {
+  "construct": "$signed/$unsigned",
+  "implementations": 34,
+  "topics": [
+   "clmul",
+   "fpdiv",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "`$signed()/$unsigned()` calls load (g11,g20)",
+  "tacticStatus": "signed results refused",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "dc-signed"
+  ],
+  "priority": "medium",
+  "suggestion": "SIGNED lane"
+ },
+ {
+  "construct": "division / %",
+  "implementations": 33,
+  "topics": [
+   "arx",
+   "fpdiv",
+   "sbox",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "constant `/ %` fine; non-affine `%`/`*` genvar indices fail in tactics (x36 `(x+1)%5`)",
+  "tacticStatus": "non-affine index refused (x36)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "modulo-indexed generate for Keccak: WP-F2"
+ },
+ {
+  "construct": "arithmetic shift >>>",
+  "implementations": 25,
+  "topics": [
+   "arx",
+   "fpdiv",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "loads",
+  "tacticStatus": "REFUSED (`>>>`, signed `>>`: g11)",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "medium",
+  "suggestion": "signed lane"
+ },
+ {
+  "construct": "recursion",
+  "implementations": 7,
+  "topics": [
+   "clmul",
+   "bitops",
+   "arith"
+  ],
+  "lsSvStatus": "REFUSED: recursive instantiation outside the tier (r12)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads (hierarchy)",
+  "registerRows": [
+   "le-recursion",
+   "F3B"
+  ],
+  "priority": "medium",
+  "suggestion": "F3B"
+ },
+ {
+  "construct": "wire declaration with initializer",
+  "implementations": 3,
+  "topics": [
+   "sbox"
+  ],
+  "lsSvStatus": "REFUSED: `wire x = e` => NetSymbol:net-z (x10) or 'unrecoverable packed dimensions' (f17)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "dc-net-z",
+   "ld-init-expr"
+  ],
+  "priority": "medium",
+  "suggestion": "part of the `wire` gap: split into `logic x; assign x = e;` in the extractor"
+ },
+ {
+  "construct": "always @(...) (explicit sensitivity/edge)",
+  "implementations": 3,
+  "topics": [
+   "sbox"
+  ],
+  "lsSvStatus": "REFUSED: Unsupported TimedStatement:EventListControl (p23)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads it",
+  "registerRows": [
+   "pr-event-list"
+  ],
+  "priority": "medium",
+  "suggestion": "as `always @*` when the list is the full read set"
+ },
+ {
+  "construct": "parameter",
+  "implementations": 183,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads; typed `parameter logic [15:0] POLY` etc. fine, but the top's parameters must equal the task's (sg-params)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "sg-params"
+  ],
+  "priority": "low",
+  "suggestion": "turn extra top-level parameters into localparams (documented)"
+ },
+ {
+  "construct": "continuous assign",
+  "implementations": 147,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted",
+  "tacticStatus": "accepted",
+  "scorerStatus": "reads",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "non-blocking assignment",
+  "implementations": 97,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "in always_comb refused (gu-nba-in-comb); in always_ff loads",
+  "tacticStatus": "outside fragment",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "gu-nba-in-comb",
+   "sg-unclocked",
+   "SEQ"
+  ],
+  "priority": "low",
+  "suggestion": "sequential tier (SEQ)"
+ },
+ {
+  "construct": "reduction operators",
+  "implementations": 87,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted",
+  "tacticStatus": "accepted at assign/leaf level (f39,x32); not inside concatenation parts",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "if-else chain",
+  "implementations": 82,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted",
+  "tacticStatus": "accepted as if/else trees (x22,k14)",
+  "scorerStatus": "reads",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "always_ff",
+  "implementations": 82,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "loads, but the task statement requires no clocked process (g19)",
+  "tacticStatus": "refused",
+  "scorerStatus": "reads (flops unpriced: sg-unpriced)",
+  "registerRows": [
+   "sg-unclocked",
+   "SEQ"
+  ],
+  "priority": "low",
+  "suggestion": "sequential tier"
+ },
+ {
+  "construct": "bit-reverse/slice idioms",
+  "implementations": 65,
+  "topics": [
+   "clmul",
+   "sbox",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "generate bit-reverse accepted (f34,x11)",
+  "tacticStatus": "accepted via generate; streaming form n/a",
+  "scorerStatus": "streaming `{<<{x}}` unreadable by Yosys 0.53 (p13,y6)",
+  "registerRows": [
+   "cv-streaming"
+  ],
+  "priority": "low",
+  "suggestion": "none: generate form works"
+ },
+ {
+  "construct": "blocking assignment in always_comb",
+  "implementations": 57,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted",
+  "tacticStatus": "as always_comb; reads of an earlier write need S3b/gate d",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "low",
+  "suggestion": "as always_comb"
+ },
+ {
+  "construct": "`include",
+  "implementations": 56,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "SOURCE GATE rejects `include (sg-include; srcgate docstring, not run)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "sg-include"
+  ],
+  "priority": "low",
+  "suggestion": "single-file only"
+ },
+ {
+  "construct": "logical && ||",
+  "implementations": 42,
+  "topics": [
+   "arx",
+   "fpdiv",
+   "sbox",
+   "hashround",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "accepted",
+  "tacticStatus": "accepted",
+  "scorerStatus": "reads",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "assertions/SVA",
+  "implementations": 42,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "immediate assert Unsupported (k09); concurrent later; OpenTitan-style macros hit the source gate",
+  "tacticStatus": "n/a",
+  "scorerStatus": "immediate asserts read; macros not",
+  "registerRows": [
+   "st-immediate-assert",
+   "pr-concurrent-assert"
+  ],
+  "priority": "low",
+  "suggestion": "strip assertions; not part of designs"
+ },
+ {
+  "construct": "default nettype",
+  "implementations": 29,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "accepted (`default_nettype none|wire`: m4)",
+  "tacticStatus": "accepted",
+  "scorerStatus": "reads",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "initial block",
+  "implementations": 25,
+  "topics": [
+   "arx",
+   "fpdiv",
+   "sbox",
+   "hashround",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "initial blocks Unsupported (ld-initial-syscall)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "ld-initial-syscall",
+   "pr-init-var"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "package",
+  "implementations": 24,
+  "topics": [
+   "all 8"
+  ],
+  "lsSvStatus": "constants/functions in packages: refused when used (k04,k05)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "packages read; imports not",
+  "registerRows": [
+   "le-param-package"
+  ],
+  "priority": "low",
+  "suggestion": "with import package"
+ },
+ {
+  "construct": "packed struct",
+  "implementations": 17,
+  "topics": [
+   "clmul",
+   "fpdiv",
+   "sbox",
+   "hashround",
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "packed struct variable refused (`assign target 's' undeclared`, f12)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "local packed struct read; struct PORT crashes Yosys 0.53 (y5)",
+  "registerRows": [
+   "dc-unpacked"
+  ],
+  "priority": "low",
+  "suggestion": "low: contestants use flat vectors"
+ },
+ {
+  "construct": "x/z literals",
+  "implementations": 14,
+  "topics": [
+   "clmul",
+   "fpdiv",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "SOURCE GATE rejects x/z/? digits except casez/casex item wildcards (g21)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys resolves x as don't-care",
+  "registerRows": [
+   "sg-xz-literal",
+   "XTAINT"
+  ],
+  "priority": "low",
+  "suggestion": "x-taint lane"
+ },
+ {
+  "construct": "multiplication *",
+  "implementations": 12,
+  "topics": [
+   "fpdiv",
+   "hashround",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "loads (f30)",
+  "tacticStatus": "REFUSED: `*` outside the fragment",
+  "scorerStatus": "reads; banned by add/mul/fdiv tasks",
+  "registerRows": [
+   "tl-sv-structure-fragment"
+  ],
+  "priority": "low",
+  "suggestion": "only if a task allows `*`"
+ },
+ {
+  "construct": "inside operator",
+  "implementations": 11,
+  "topics": [
+   "clmul",
+   "arx",
+   "fpdiv",
+   "hashround",
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "REFUSED: Unsupported InsideExpression (p29)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "UNREADABLE by Yosys 0.53 (p29,y8): out of scope",
+  "registerRows": [
+   "ex-inside"
+  ],
+  "priority": "low",
+  "suggestion": "none: not scoreable"
+ },
+ {
+  "construct": "streaming operators",
+  "implementations": 9,
+  "topics": [
+   "clmul",
+   "hashround",
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "fixed-width expanded to part-selects (p13), parametric width refused",
+  "tacticStatus": "n/a",
+  "scorerStatus": "UNREADABLE by Yosys 0.53 => out of scope (P-SAME-PROGRAM)",
+  "registerRows": [
+   "cv-streaming"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": ".* port connection",
+  "implementations": 7,
+  "topics": [
+   "clmul",
+   "fpdiv",
+   "bitops",
+   "arith",
+   "alu"
+  ],
+  "lsSvStatus": "loads (k02)",
+  "tacticStatus": "as module instantiation",
+  "scorerStatus": "reads",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "with module instantiation"
+ },
+ {
+  "construct": "instance array",
+  "implementations": 7,
+  "topics": [
+   "arx",
+   "hashround",
+   "bitops",
+   "arith"
+  ],
+  "lsSvStatus": "REFUSED (InstanceArray)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "hi-instance-array"
+  ],
+  "priority": "low",
+  "suggestion": "generate-for instances instead"
+ },
+ {
+  "construct": "task",
+  "implementations": 6,
+  "topics": [
+   "arx",
+   "fpdiv"
+  ],
+  "lsSvStatus": "REFUSED: user task call as a statement is Unsupported (register row)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads tasks; no probe run for the pipeline",
+  "registerRows": [
+   "sy-user-task-call"
+  ],
+  "priority": "low",
+  "suggestion": "after functions; same inlining"
+ },
+ {
+  "construct": "`ifdef",
+  "implementations": 5,
+  "topics": [
+   "clmul",
+   "alu"
+  ],
+  "lsSvStatus": "SOURCE GATE rejects (m2): `ifdef SYNTHESIS would split proof and score",
+  "tacticStatus": "n/a",
+  "scorerStatus": "P-NO-TOOL-DIRECTIVES",
+  "registerRows": [
+   "sg-ifdef"
+  ],
+  "priority": "low",
+  "suggestion": "never"
+ },
+ {
+  "construct": "string",
+  "implementations": 5,
+  "topics": [
+   "sbox",
+   "hashround",
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "never for svGolf (P-SYNTHESIZABLE)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "unreadable/not hardware",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "interface/modport",
+  "implementations": 4,
+  "topics": [
+   "arx",
+   "fpdiv",
+   "bitops",
+   "arith"
+  ],
+  "lsSvStatus": "later (interface ports)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "interface port crashes Yosys 0.53 (k12)",
+  "registerRows": [
+   "hi-interface"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "$bits",
+  "implementations": 4,
+  "topics": [
+   "arx",
+   "hashround",
+   "alu"
+  ],
+  "lsSvStatus": "`$bits(a)` in a port width refused (k11)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "le-const-unbound"
+  ],
+  "priority": "low",
+  "suggestion": "declared-signal tier only"
+ },
+ {
+  "construct": "while/repeat/do loop",
+  "implementations": 2,
+  "topics": [
+   "clmul",
+   "bitops"
+  ],
+  "lsSvStatus": "REFUSED (WhileLoop/Repeat Unsupported)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys 0.53: while only in constant functions (f02)",
+  "registerRows": [
+   "st-while",
+   "st-repeat"
+  ],
+  "priority": "low",
+  "suggestion": "no action; for-loops first"
+ },
+ {
+  "construct": "casex",
+  "implementations": 2,
+  "topics": [
+   "fpdiv",
+   "alu"
+  ],
+  "lsSvStatus": "REFUSED (CaseStatement:WildcardXOrZ)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads it",
+  "registerRows": [
+   "st-casex"
+  ],
+  "priority": "low",
+  "suggestion": "with casez"
+ },
+ {
+  "construct": "priority case",
+  "implementations": 2,
+  "topics": [
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "rejected by the source gate like `unique`",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads it",
+  "registerRows": [
+   "sg-qualifiers"
+  ],
+  "priority": "low",
+  "suggestion": "with unique case"
+ },
+ {
+  "construct": "unpacked struct",
+  "implementations": 2,
+  "topics": [
+   "bitops",
+   "alu"
+  ],
+  "lsSvStatus": "refused",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys: 'Only PACKED supported' (k13)",
+  "registerRows": [
+   "dc-unpacked"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "tri-state/inout",
+  "implementations": 2,
+  "topics": [
+   "fpdiv",
+   "bitops"
+  ],
+  "lsSvStatus": "`'z` refused by source gate (g21); net kinds later",
+  "tacticStatus": "n/a",
+  "scorerStatus": "reads",
+  "registerRows": [
+   "dc-net-z",
+   "dc-net-kinds"
+  ],
+  "priority": "low",
+  "suggestion": "never for comb tasks"
+ },
+ {
+  "construct": "real/shortreal",
+  "implementations": 2,
+  "topics": [
+   "arith"
+  ],
+  "lsSvStatus": "later in ls-sv, never for svGolf",
+  "tacticStatus": "n/a",
+  "scorerStatus": "constant real ok in parameters",
+  "registerRows": [
+   "ex-real"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "class",
+  "implementations": 2,
+  "topics": [
+   "arx",
+   "bitops"
+  ],
+  "lsSvStatus": "later in ls-sv, never for svGolf",
+  "tacticStatus": "n/a",
+  "scorerStatus": "unreadable by read_verilog -sv",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "const",
+  "implementations": 2,
+  "topics": [
+   "sbox"
+  ],
+  "lsSvStatus": "loads (k01)",
+  "tacticStatus": "REFUSED: initializer (k01)",
+  "scorerStatus": "reads",
+  "registerRows": [],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "DPI",
+  "implementations": 1,
+  "topics": [
+   "arx"
+  ],
+  "lsSvStatus": "never (P-NO-HOST-ACCESS)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "n/a",
+  "registerRows": [
+   "sg-host-dpi"
+  ],
+  "priority": "low",
+  "suggestion": "none"
+ },
+ {
+  "construct": "$countones",
+  "implementations": 1,
+  "topics": [
+   "bitops"
+  ],
+  "lsSvStatus": "REFUSED: Unsupported CallExpression `$countones` (f25)",
+  "tacticStatus": "n/a",
+  "scorerStatus": "Yosys reads it; the banlist treats it as `+`",
+  "registerRows": [
+   "ex-builtins"
+  ],
+  "priority": "low",
+  "suggestion": "lower to reduction adder tree if a task allows it"
+ }
+]

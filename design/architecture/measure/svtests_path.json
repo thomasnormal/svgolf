@@ -1,0 +1,7212 @@
+{
+ "schema": "ws4-svtests-path/1",
+ "files": 831,
+ "funnel": {
+  "extract-loud": 405,
+  "extract-clean, loader REFUSED": 145,
+  "include": 96,
+  "should-fail": 75,
+  "no-top": 66,
+  "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 27,
+  "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED": 9,
+  "multi-top": 3,
+  "slang-errors": 3,
+  "loads clean, not a flat comb design (edge process, hierarchy or initial-only: no tactic)": 1,
+  "flat comb design: sv_structure? RECOGNIZED, sv_equations? REFUSED": 1
+ },
+ "by_chapter": {
+  "chapter-10": {
+   "should-fail": 1,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 3,
+   "extract-loud": 4,
+   "extract-clean, loader REFUSED": 2
+  },
+  "chapter-11": {
+   "extract-clean, loader REFUSED": 45,
+   "extract-loud": 32,
+   "should-fail": 3,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 6,
+   "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED": 2
+  },
+  "chapter-12": {
+   "extract-loud": 24,
+   "extract-clean, loader REFUSED": 3
+  },
+  "chapter-13": {
+   "extract-loud": 8,
+   "extract-clean, loader REFUSED": 5,
+   "should-fail": 2
+  },
+  "chapter-14": {
+   "should-fail": 1,
+   "extract-loud": 4
+  },
+  "chapter-15": {
+   "extract-loud": 5
+  },
+  "chapter-16": {
+   "should-fail": 4,
+   "include": 26,
+   "extract-loud": 23
+  },
+  "chapter-18": {
+   "include": 63,
+   "no-top": 42,
+   "extract-loud": 14,
+   "should-fail": 15
+  },
+  "chapter-20": {
+   "extract-clean, loader REFUSED": 14,
+   "extract-loud": 32,
+   "multi-top": 1
+  },
+  "chapter-21": {
+   "extract-loud": 27,
+   "extract-clean, loader REFUSED": 2
+  },
+  "chapter-22": {
+   "no-top": 24,
+   "should-fail": 19,
+   "extract-clean, loader REFUSED": 20,
+   "include": 6,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 1,
+   "extract-loud": 4,
+   "slang-errors": 1
+  },
+  "chapter-23": {
+   "extract-clean, loader REFUSED": 3
+  },
+  "chapter-24": {
+   "extract-loud": 1
+  },
+  "chapter-25": {
+   "extract-loud": 1
+  },
+  "chapter-26": {
+   "extract-clean, loader REFUSED": 2
+  },
+  "chapter-5": {
+   "should-fail": 5,
+   "extract-loud": 12,
+   "extract-clean, loader REFUSED": 23,
+   "multi-top": 2,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 5,
+   "include": 1,
+   "slang-errors": 2
+  },
+  "chapter-6": {
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 8,
+   "loads clean, not a flat comb design (edge process, hierarchy or initial-only: no tactic)": 1,
+   "extract-loud": 54,
+   "should-fail": 13,
+   "extract-clean, loader REFUSED": 4,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? REFUSED": 1,
+   "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED": 3
+  },
+  "chapter-7": {
+   "extract-loud": 81,
+   "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED": 4,
+   "extract-clean, loader REFUSED": 15,
+   "should-fail": 2,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 1
+  },
+  "chapter-8": {
+   "extract-loud": 44,
+   "should-fail": 9
+  },
+  "chapter-9": {
+   "extract-clean, loader REFUSED": 7,
+   "extract-loud": 35,
+   "should-fail": 1,
+   "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED": 3
+  }
+ },
+ "extractor_blockers_files": {
+  "VariableSymbol:type": 171,
+  "CallExpression": 132,
+  "AssignmentExpression:target": 91,
+  "ExpressionStatement:CallExpression": 80,
+  "NamedValueExpression:2state": 46,
+  "ClassType:ClassType": 40,
+  "SysCall:format": 20,
+  "ProceduralBlockSymbol:NoEventControl": 19,
+  "SubroutineSymbol:Subroutine": 18,
+  "TimedStatement:DelayControl": 16,
+  "VariableSymbol:signed": 14,
+  "TypeAliasType:TypeAlias": 12,
+  "ProceduralBlockSymbol:Final": 12,
+  "VariableDeclStatement:2state": 11,
+  "TimedStatement:ImplicitEventControl": 11,
+  "AssignmentExpression": 8,
+  "MemberAccessExpression": 7,
+  "ConversionExpression:width": 7,
+  "BlockStatement:JoinAll": 7,
+  "IntraAssignment:publication-or-context": 7,
+  "SequenceSymbol:Sequence": 6,
+  "GenericClassDefSymbol:GenericClassDef": 5,
+  "PortSymbol:net-z": 4,
+  "ImmediateAssertion:symbolic": 4,
+  "ForeverLoopStatement": 4,
+  "ClockingBlockSymbol:ClockingBlock": 4,
+  "NetSymbol:net-z": 3,
+  "InsideExpression": 3,
+  "PatternCaseStatement": 3,
+  "RealLiteral": 3
+ },
+ "rows": [
+  {
+   "id": "chapter-10__10.3--proc-assignment--bad",
+   "chapter": "chapter-10",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-10__10.3.1--net-decl-assignment",
+   "chapter": "chapter-10",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-10__10.3.1--one-net",
+   "chapter": "chapter-10",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-10__10.3.2--cont-assignment",
+   "chapter": "chapter-10",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-10__10.3.3--cont-assignment-delay",
+   "chapter": "chapter-10",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:net-z",
+    "ContinuousAssignSymbol:delay"
+   ]
+  },
+  {
+   "id": "chapter-10__10.3.3--cont-assignment-net-delay",
+   "chapter": "chapter-10",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:delay"
+   ]
+  },
+  {
+   "id": "chapter-10__10.4.1--blocking-assignment",
+   "chapter": "chapter-10",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-10__10.4.2--non-blocking-assignment",
+   "chapter": "chapter-10",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-10__10.6.1--assign-deassign",
+   "chapter": "chapter-10",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralAssignStatement",
+    "ProceduralDeassignStatement"
+   ]
+  },
+  {
+   "id": "chapter-10__10.6.2--force-release",
+   "chapter": "chapter-10",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralAssignStatement",
+    "PortSymbol:net-z",
+    "ProceduralDeassignStatement"
+   ]
+  },
+  {
+   "id": "chapter-11__11.10--string_bit_array-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.10--string_bit_array",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.10.1--string_compare",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.10.1--string_concat",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.10.1--string_copy",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.10.3--empty_string-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.10.3--empty_string",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ImmediateAssertion:symbolic"
+   ]
+  },
+  {
+   "id": "chapter-11__11.11--min_max_avg_delay",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl"
+   ]
+  },
+  {
+   "id": "chapter-11__11.12--let_construct",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "LetDeclSymbol:LetDecl"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.5--expr_short_circuit",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_exp-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_exp",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_expr-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_expr",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_expr_inv",
+   "chapter": "chapter-11",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_expression-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "UnaryExpression:Preincrement"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assign_in_expression",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "UnaryExpression:Preincrement"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assignment_in_expression-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--assignment_in_expression",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--two_assign_in_expr-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.3.6--two_assign_in_expr",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.1--assignment-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.10--arith-shift-assignment-signed",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.10--arith-shift-assignment-unsigned",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.10--arith-shift-signed",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.10--arith-shift-unsigned",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.11--cond_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.11--cond_op",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12--concat_op-bit_select",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12--concat_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12--concat_op",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12.1--nested_repl_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12.1--nested_repl_op",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12.1--repl_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12.1--repl_op",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.12.2--string_concat_op",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.12.2--string_repl_op",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.13--set_member-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "InsideExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.13--set_member",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "InsideExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.14.1--stream_concat-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.1--stream_concat",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.2--reorder_stream-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.2--reorder_stream",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.2--reorder_stream_byte-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.2--reorder_stream_byte",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.3--unpack_stream-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.3--unpack_stream",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.3--unpack_stream_inv",
+   "chapter": "chapter-11",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.3--unpack_stream_pad-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.3--unpack_stream_pad",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.14.4--dynamic_array_stream-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "VariableDeclStatement:2state"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.14.4--dynamic_array_stream",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "VariableDeclStatement:2state"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.14.4--dynamic_array_stream_with",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "VariableDeclStatement:2state"
+   ]
+  },
+  {
+   "id": "chapter-11__11.4.2--unary_op_dec-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.2--unary_op_dec",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.2--unary_op_inc-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.2--unary_op_inc",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.4.5--equality-op",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--idx_neg_part_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--idx_neg_part_select",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--idx_pos_part_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--idx_pos_part_select",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--idx_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--idx_select",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--non_idx_part_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.1--non_idx_part_select",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.2--array_addressing-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.2--array_addressing",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.5.2--multi_dim_array_addressing-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-11__11.5.2--multi_dim_array_addressing",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-11__11.7--signed_func-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-11__11.7--signed_func",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-11__11.7--unsigned_func-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.7--unsigned_func",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__11.9--tagged_union",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-11__11.9--tagged_union_member_access-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "MemberAccessExpression",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-11__11.9--tagged_union_member_access",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "MemberAccessExpression",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-11__11.9--tagged_union_member_access_inv",
+   "chapter": "chapter-11",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.4.11--simple_cond_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.4.12--simple_concat_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.4.12.1--simple_repl_op-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.4.13--simple_set_member-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "InsideExpression"
+   ]
+  },
+  {
+   "id": "chapter-11__simple__11.4.14.3--simple_unpack_stream-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.5.1--simple_idx_neg_part_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.5.1--simple_idx_pos_part_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.5.1--simple_idx_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.5.1--simple_non_idx_part_select-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-11__simple__11.5.2--simple_array_addressing-sim",
+   "chapter": "chapter-11",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:type"
+   ]
+  },
+  {
+   "id": "chapter-12__12.4--if",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.4--if_else",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.4.1--if_else_if",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.4.2--priority_if",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.4.2--unique0_if",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.4.2--unique_if",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.5--case",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.5.1--casex",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.5.1--casez",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.5.2--case_const",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.5.4--case_set",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:ImplicitEventControl"
+   ]
+  },
+  {
+   "id": "chapter-12__12.6.1--case_pattern",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "PatternCaseStatement",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-12__12.6.1--casex_pattern",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "PatternCaseStatement",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-12__12.6.1--casez_pattern",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "PatternCaseStatement",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-12__12.6.2--if_pattern",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ConditionalStatement:pattern",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-12__12.6.3--conditional_pattern",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ConditionalExpression:pattern",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-12__12.7.1--for",
+   "chapter": "chapter-12",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-12__12.7.2--repeat",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "RepeatLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.7.3--foreach-synth",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ForeachLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.7.3--foreach",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ForeachLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.7.4--while",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "WhileLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.7.5--dowhile",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "DoWhileLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.7.6--forever",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ForeverLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.8--break",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ForLoopStatement"
+   ]
+  },
+  {
+   "id": "chapter-12__12.8--continue",
+   "chapter": "chapter-12",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-12__12.8--return",
+   "chapter": "chapter-12",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-12__12.8--return_val",
+   "chapter": "chapter-12",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.3--task-label",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.3--task",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.3.1--task-automatic",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.3.1--task-static",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.4--function-label",
+   "chapter": "chapter-13",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4--function",
+   "chapter": "chapter-13",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4.1--function-return-assignment",
+   "chapter": "chapter-13",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4.1--function-return",
+   "chapter": "chapter-13",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4.1--function-void-return",
+   "chapter": "chapter-13",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4.2--function-automatic",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.4.2--function-recursive",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.4.2--function-static",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-13__13.4.3--const-function",
+   "chapter": "chapter-13",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4.4--fork-invalid",
+   "chapter": "chapter-13",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-13__13.4.4--fork-valid",
+   "chapter": "chapter-13",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-14__14.3--clocking-block-signals-error",
+   "chapter": "chapter-14",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-14__14.3--clocking-block-signals",
+   "chapter": "chapter-14",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClockingBlockSymbol:ClockingBlock"
+   ]
+  },
+  {
+   "id": "chapter-14__14.3--clocking-block",
+   "chapter": "chapter-14",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClockingBlockSymbol:ClockingBlock"
+   ]
+  },
+  {
+   "id": "chapter-14__14.3--default-clocking-block",
+   "chapter": "chapter-14",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClockingBlockSymbol:ClockingBlock"
+   ]
+  },
+  {
+   "id": "chapter-14__14.3--global-clocking-block",
+   "chapter": "chapter-14",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClockingBlockSymbol:ClockingBlock"
+   ]
+  },
+  {
+   "id": "chapter-15__15.4--mailbox-blocking",
+   "chapter": "chapter-15",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableDeclStatement:2state",
+    "ExpressionStatement:CallExpression",
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-15__15.4--mailbox-non-blocking",
+   "chapter": "chapter-15",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableDeclStatement:2state",
+    "CallExpression",
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-15__15.5.1--named-event-trigger-blocking",
+   "chapter": "chapter-15",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-15__15.5.1--named-event-trigger-non-blocking",
+   "chapter": "chapter-15",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-15__15.5.2--named-event-wait",
+   "chapter": "chapter-15",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "TimedStatement:SignalEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.10--property-local-var-fail",
+   "chapter": "chapter-16",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.10--property-local-var-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.10--property-local-var",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "ForeverLoopStatement",
+    "TimedStatement:DelayControl",
+    "PropertySymbol:Property"
+   ]
+  },
+  {
+   "id": "chapter-16__16.10--sequence-local-var-fail",
+   "chapter": "chapter-16",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.10--sequence-local-var-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.10--sequence-local-var",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "ForeverLoopStatement",
+    "TimedStatement:DelayControl",
+    "SequenceSymbol:Sequence"
+   ]
+  },
+  {
+   "id": "chapter-16__16.11--sequence-subroutine-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.12--property-disable-iff",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.12--property-disj",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.12--property-iff",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.12--property-interface-prec-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.12--property-interface-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.12--property-prec-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.12--property-prec",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.12--property-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.12--property",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.13--sequence-multiclock-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.14--assume-property-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.14--assume-property",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.15--property-disable-iff-fail",
+   "chapter": "chapter-16",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.15--property-disable-iff",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "ForeverLoopStatement",
+    "TimedStatement:DelayControl",
+    "PropertySymbol:Property"
+   ]
+  },
+  {
+   "id": "chapter-16__16.15--property-iff-uvm-fail",
+   "chapter": "chapter-16",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.15--property-iff-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.17--expect-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.17--expect",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ConcurrentAssertionStatement"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--assert-final-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.2--assert-final",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--assert-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.2--assert",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ImmediateAssertion:symbolic"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--assert0-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.2--assert0",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--assume-final",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--assume-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.2--assume",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ImmediateAssertion:symbolic"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--assume0",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--cover-final",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--cover",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ImmediateAssertion:symbolic"
+   ]
+  },
+  {
+   "id": "chapter-16__16.2--cover0",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl"
+   ]
+  },
+  {
+   "id": "chapter-16__16.7--sequence-and-range-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.7--sequence-and-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.7--sequence-intersect-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.7--sequence-or-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.7--sequence-throughout-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.7--sequence-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.7--sequence",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "SequenceSymbol:Sequence"
+   ]
+  },
+  {
+   "id": "chapter-16__16.9--sequence-changed-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.9--sequence-cons-repetition",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "SequenceSymbol:Sequence"
+   ]
+  },
+  {
+   "id": "chapter-16__16.9--sequence-fell-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.9--sequence-goto-repetition",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "SequenceSymbol:Sequence"
+   ]
+  },
+  {
+   "id": "chapter-16__16.9--sequence-noncons-repetition",
+   "chapter": "chapter-16",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:NoEventControl",
+    "SequenceSymbol:Sequence"
+   ]
+  },
+  {
+   "id": "chapter-16__16.9--sequence-past-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.9--sequence-rose-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-16__16.9--sequence-stable-uvm",
+   "chapter": "chapter-16",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.10--dynamic-constraint-modification_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.11--in-line-random-variable-control_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.11--in-line-random-variable-control_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.11.1--in-line-constraint-checker_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.11.1--in-line-constraint-checker_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.12--randomization-of-scope-variables_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.12--randomization-of-scope-variables_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.12.1--adding-constraints-to-scope-variables_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.12.1--adding-constraints-to-scope-variables_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.1--urandom_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.1--urandom_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.1--urandom_2",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.1--urandom_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.2--urandom_range_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.2--urandom_range_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.2--urandom_range_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.2--urandom_range_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.3--srandom_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.4--get_randstate_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.13.5--set_randstate_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14--random-stability_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14--random-stability_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14--random-stability_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14--random-stability_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14.2--thread-stability_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14.2--thread-stability_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14.3--object-stability_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.14.3--object-stability_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.15--manually-seeding-randomize_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.15--manually-seeding-randomize_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.16--random-weighted-case-randcase_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.16--random-weighted-case-randcase_2",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17--random-sequence-generation-randsequence_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17--random-sequence-generation-randsequence_2",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.1--random-production-weights_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.2--if-else-production-statements_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.2--if-else-production-statements_0_fail",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.17.2--if-else-production-statements_2",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.2--if-else-production-statements_2_fail",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.17.3--case-production-statements_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.3--case-production-statements_0_fail",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.17.4--repeat-production-statements_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.5--interleaving-productions-rand-join_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.5--interleaving-productions-rand-join_2",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.6--aborting-productions-break-and-return_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.6--aborting-productions-break-and-return_2",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.17.6--aborting-productions-break-and-return_2_fail",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.17.7--value-passing-between-productions_0",
+   "chapter": "chapter-18",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-18__18.4.1--rand-modifier",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.4.2--randc-modifier",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5--constraint-blocks_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5--constraint-blocks_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.1--explicit-external-constraint_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.1--explicit-external-constraint_1",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.1--explicit-external-constraint_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.1--implicit-external-constraint_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.1--implicit-external-constraint_1",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.1--implicit-external-constraint_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.10--variable-ordering_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.10--variable-ordering_1",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.11--static-constraint-blocks_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.11--static-constraint-blocks_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.12--functions-in-constraint_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.12--functions-in-constraint_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.13--constraint-guards_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.13--constraint-guards_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14--soft-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14--soft-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14--soft-constraints_2",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.1--soft-constraint-priorities_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.1--soft-constraint-priorities_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.1--soft-constraint-priorities_2",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.1--soft-constraint-priorities_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.1--soft-constraint-priorities_4",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.2--discarding-soft-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.2--discarding-soft-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.2--discarding-soft-constraints_2",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.2--discarding-soft-constraints_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.14.2--discarding-soft-constraints_5",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.2--constraint-inheritance_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.2--constraint-inheritance_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.2--pure-constraint_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.2--pure-constraint_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.2--pure-constraint_2",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.2--pure-constraint_3",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.3--set-membership_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.3--set-membership_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.4--distribution_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.4--distribution_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.4--distribution_2",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.5--uniqueness-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.5--uniqueness-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.6--implication_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.6--implication_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.7--if-else-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.7--if-else-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.7--if-else-constraints_2",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.7--if-else-constraints_3",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.7--if-else-constraints_4",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.8.1--foreach-iterative-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.8.1--foreach-iterative-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.8.2--array-reduction-iterative-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.8.2--array-reduction-iterative-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.9--global-constraints_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.5.9--global-constraints_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.1--randomize-method_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.2--post-randomize_method_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.2--post-randomize_method_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.2--pre-randomize-method_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.2--pre-randomize-method_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.3--behavior-of-randomization-methods_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.3--behavior-of-randomization-methods_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.3--behavior-of-randomization-methods_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.3--behavior-of-randomization-methods_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.3--behavior-of-randomization-methods_4",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.6.3--behavior-of-randomization-methods_5",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_1",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_3",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_4",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_5",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7--in-line-constraints--randomize_6",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7.1--local-scope-resolution_0",
+   "chapter": "chapter-18",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.7.1--local-scope-resolution_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.8--disabling-random-variables-with-rand_mode_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.8--disabling-random-variables-with-rand_mode_1",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.8--disabling-random-variables-with-rand_mode_2",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.8--disabling-random-variables-with-rand_mode_3",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.8--disabling-random-variables-with-rand_mode_4",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.8--disabling-random-variables-with-rand_mode_5",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.9--controlling-constraints-with-constraint_mode_0",
+   "chapter": "chapter-18",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.9--controlling-constraints-with-constraint_mode_1",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-18__18.9--controlling-constraints-with-constraint_mode_2",
+   "chapter": "chapter-18",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.10--error",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.10--fatal",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.10--info",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.10--warning",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.14--coverage",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_chi_square",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_erlang",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_exponential",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_normal",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_poisson",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_t",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--dist_uniform",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.15--random",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.2--exit",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.2--finish",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.2--stop",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.3--realtime",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format"
+   ]
+  },
+  {
+   "id": "chapter-20__20.3--stime",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format"
+   ]
+  },
+  {
+   "id": "chapter-20__20.3--time",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format"
+   ]
+  },
+  {
+   "id": "chapter-20__20.4--printtimescale-hier",
+   "chapter": "chapter-20",
+   "stage": "multi-top",
+   "final": "multi-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.4--printtimescale",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.4--timeformat",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.5--itor",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.5--real-bits-conv",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.5--rtoi",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.5--shortreal-bits-conv",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ConversionExpression:width",
+    "RealLiteral",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-20__20.6--bits",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.6--bits_type",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "DataTypeExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.6--isunbounded",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ConversionExpression:width"
+   ]
+  },
+  {
+   "id": "chapter-20__20.6--typename",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.6--typename_type",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.7--array-queries-multi-dim",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "NamedValueExpression:type"
+   ]
+  },
+  {
+   "id": "chapter-20__20.7--array-queries",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--atan2",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--ceil",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--clog2",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.8--exp",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--floor",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--hypot",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--ln",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--log10",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--pow",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.8--sqrt",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.9--countbits",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.9--isunknown",
+   "chapter": "chapter-20",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-20__20.9--onehot",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-20__20.9--onehot0",
+   "chapter": "chapter-20",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-21__21.2--display-boh",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.2--display",
+   "chapter": "chapter-21",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-21__21.2--monitor",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression:format"
+   ]
+  },
+  {
+   "id": "chapter-21__21.2--strobe",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression:format"
+   ]
+  },
+  {
+   "id": "chapter-21__21.2--write-boh",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.2--write",
+   "chapter": "chapter-21",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-21__21.3--fdisplay-boh",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fdisplay",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--feof",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "SysCall:format",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--ferror",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "VariableDeclStatement:2state",
+    "SysCall:format",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fflush",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fgetc",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fgets",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--file",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fmonitor",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fpos",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fread",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fscanf",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fstrobe",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fwrite-boh",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--fwrite",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--sscanf",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.3--ungetc",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-21__21.4--readmemb",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.4--readmemh",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.6--test",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.6--value",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.7--dumpfile",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl",
+    "VariableSymbol:signed",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-21__21.7--dumpports",
+   "chapter": "chapter-21",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl",
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:signed",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-22__22.10--celldefine-basic-1",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.10--celldefine-basic-2",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.11--pragma-basic",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.11--pragma-complex",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.11--pragma-invalid",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.11--pragma-nested",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.11--pragma-number-multi",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.11--pragma-number",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-basic",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-complex",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-illegal-1",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-illegal-2",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-illegal-3",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-illegal-4",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.12--line-illegal-5",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.3--resetall_basic",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.3--resetall_illegal",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.3--resetall_multiple",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.4--check_included_definitions",
+   "chapter": "chapter-22",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.4--include_basic",
+   "chapter": "chapter-22",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.4--include_basic_rpath",
+   "chapter": "chapter-22",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.4--include_from_other_directory",
+   "chapter": "chapter-22",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.4--include_via_define",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.4--include_with_comment",
+   "chapter": "chapter-22",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_1",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_10",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_11",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_12",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_13",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_14",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_15",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_16",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_17",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_18",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_19",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_2",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_20",
+   "chapter": "chapter-22",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:net-z",
+    "PrimitiveInstanceSymbol:PrimitiveInstance"
+   ]
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_21",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_22",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_23",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_24",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_25",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_26",
+   "chapter": "chapter-22",
+   "stage": "slang-errors",
+   "final": "slang-errors",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_3",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_4",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_5",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_6",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_7",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_8",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define-expansion_9",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--define_and_resetall",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.1--include-define-expansion",
+   "chapter": "chapter-22",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.2--undef-basic",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.2--undef-nonexisting",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.3--undefineall-and-redefine",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.5.3--undefineall-basic",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.6--ifdef-behavioral",
+   "chapter": "chapter-22",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "PortSymbol:net-z",
+    "PrimitiveInstanceSymbol:PrimitiveInstance"
+   ]
+  },
+  {
+   "id": "chapter-22__22.6--ifdef-chained-nested",
+   "chapter": "chapter-22",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.6--ifdef-nested",
+   "chapter": "chapter-22",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "PortSymbol:net-z"
+   ]
+  },
+  {
+   "id": "chapter-22__22.7--timescale-basic-1",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.7--timescale-basic-2",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.7--timescale-basic-3",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.7--timescale-basic-4",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.7--timescale-module",
+   "chapter": "chapter-22",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl",
+    "RealLiteral"
+   ]
+  },
+  {
+   "id": "chapter-22__22.7--timescale-reset",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.8--default_nettype-redefinition",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.8--default_nettype",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.9--unconnected_drive-basic-2",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.9--unconnected_drive-basic",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.9--unconnected_drive-invalid-1",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.9--unconnected_drive-invalid-2",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__22.9--unconnected_drive-invalid-3",
+   "chapter": "chapter-22",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__dummy_include",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-22__include_directory__defs",
+   "chapter": "chapter-22",
+   "stage": "no-top",
+   "final": "no-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-23__23.2--macromodule-definition",
+   "chapter": "chapter-23",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-23__23.2--module-definition",
+   "chapter": "chapter-23",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-23__23.2--module-label",
+   "chapter": "chapter-23",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-24__24.3--program",
+   "chapter": "chapter-24",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "InstanceSymbol:interface"
+   ]
+  },
+  {
+   "id": "chapter-25__25.3-interface",
+   "chapter": "chapter-25",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "InstanceSymbol:interface",
+    "PortConnection:InterfacePortSymbol",
+    "InterfacePortSymbol:InterfacePort"
+   ]
+  },
+  {
+   "id": "chapter-26__26.2--package-decl",
+   "chapter": "chapter-26",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-26__26.3--package-ref",
+   "chapter": "chapter-26",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.10-structure-arrays-illegal",
+   "chapter": "chapter-5",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.10-structure-arrays",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-5__5.10-structure-replication",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "VariableDeclStatement:2state",
+    "AssignmentExpression:target",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-5__5.10-structures",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-5__5.11-arrays-key-index",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-5__5.11-arrays-replication",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-5__5.11-arrays",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-5__5.12-attributes-case",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.12-attributes-conditional",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.12-attributes-module",
+   "chapter": "chapter-5",
+   "stage": "multi-top",
+   "final": "multi-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.12-attributes-operator",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.12-attributes-variable",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.13-builtin-methods-strings",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-5__5.4--coments",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6--identifiers",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6--wrong-identifiers",
+   "chapter": "chapter-5",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.1--escaped-identifiers",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.1--nonescaped-access",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.3--system-functions",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-begin-keywords",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-celldefine",
+   "chapter": "chapter-5",
+   "stage": "multi-top",
+   "final": "multi-top",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-debug-line",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-debug",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-default-nettype",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-define",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-include",
+   "chapter": "chapter-5",
+   "stage": "include",
+   "final": "include",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-pragma",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:net-z"
+   ]
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-preprocessor-macro_0",
+   "chapter": "chapter-5",
+   "stage": "slang-errors",
+   "final": "slang-errors",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-preprocessor-macro_1",
+   "chapter": "chapter-5",
+   "stage": "slang-errors",
+   "final": "slang-errors",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-resetall",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-timescale",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.6.4--compiler-directives-unconnected-drive",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-left-padding-bit",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-left-padding",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-signed-illegal",
+   "chapter": "chapter-5",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-signed",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-sized",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-token",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-underscores",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-unsized-illegal",
+   "chapter": "chapter-5",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.1--integers-unsized",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.2-real-constants-illegal",
+   "chapter": "chapter-5",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.2-real-constants",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.7.2-real-token",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-5__5.8-time-literals",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "EmptyMemberSymbol:EmptyMember"
+   ]
+  },
+  {
+   "id": "chapter-5__5.9-string-assignment",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.9-string-basics",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.9-string-broken-line",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-5__5.9-string-word-assignment",
+   "chapter": "chapter-5",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "Initializer:default-point-literal",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-5__5.9.1-string-special-chars",
+   "chapter": "chapter-5",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.10--implicit_continuous_assignment",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.10--implicit_port",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.10--implicit_port_connection",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "loads clean, not a flat comb design (edge process, hierarchy or initial-only: no tactic)",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.12--real",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.12--real_bit_select",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.12--real_bit_select_idx",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.12--real_edge",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.12--realtime",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.12--shortreal",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.13--void",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-6__6.14--chandle",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16--string",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.1--string_len",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.10--string_atoreal",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.11--string_itoa",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.12--string_hextoa",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.13--string_octtoa",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.14--string_bintoa",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.15--string_realtoa",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.2--string_putc",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.3--string_getc",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.4--string_toupper",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.5--string_tolower",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.6--string_compare",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.7--string_icompare",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.8--string_substr",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.9--string_atobin",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.9--string_atohex",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.9--string_atoi",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.16.9--string_atooct",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.17--event",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.18--typedef",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19--enum_anon",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19--enum_value_inv",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19--enum_xx",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19--enum_xx_inv",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19--enum_xx_inv_order",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19.1--enum_typedef",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.2--enum_sequence",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.2--enum_sequence_range",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.3--enum_type_checking",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19.3--enum_type_checking_inv",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19.4--enum_numerical_expr",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19.4--enum_numerical_expr_cast",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ConversionExpression:Explicit"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.4--enum_numerical_expr_no_cast",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.19.5.1--enum_first",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.5.2--enum_last",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.5.3--enum_next",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.5.4--enum_prev",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.5.5--enum_num",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.19.5.6--enum_name",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableDeclStatement:2state"
+   ]
+  },
+  {
+   "id": "chapter-6__6.20.2--parameter",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.2--parameter_aggregate",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SimpleAssignmentPatternExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.20.2--parameter_dep",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.2--parameter_port_list",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.2--parameter_range",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.2--parameter_real",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "RealLiteral"
+   ]
+  },
+  {
+   "id": "chapter-6__6.20.3--parameter_type",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TypeParameterSymbol:TypeParameter"
+   ]
+  },
+  {
+   "id": "chapter-6__6.20.4--localparam",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.4--localparam_int",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.4--localparam_logic",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.4--localparam_string",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.4--localparam_unsigned_int",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.5--specparam",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SpecparamSymbol:Specparam"
+   ]
+  },
+  {
+   "id": "chapter-6__6.20.5--specparam_inv",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.20.6--const",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-6__6.23--localparam_type_decl",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TypeParameterSymbol:TypeParameter"
+   ]
+  },
+  {
+   "id": "chapter-6__6.23--type_op",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-6__6.23--type_op_compare",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TypeReferenceExpression",
+    "TypeParameterSymbol:TypeParameter"
+   ]
+  },
+  {
+   "id": "chapter-6__6.24.1--cast_op",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ConversionExpression:Explicit"
+   ]
+  },
+  {
+   "id": "chapter-6__6.24.2--cast_fn",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.24.2--cast_task",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-6__6.24.3--bitstream_cast",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:signed"
+   ]
+  },
+  {
+   "id": "chapter-6__6.5--variable_assignment",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.5--variable_mixed_assignments",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.5--variable_multiple_assignments",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.5--variable_redeclare",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.6.7--nettype",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetType:NetType"
+   ]
+  },
+  {
+   "id": "chapter-6__6.6.7--nettype_resolution_fn",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetType:NetType"
+   ]
+  },
+  {
+   "id": "chapter-6__6.6.8--interconnect",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:Interconnect",
+    "NamedValueExpression:2state",
+    "PortConnection:target",
+    "PortSymbol:net-z"
+   ]
+  },
+  {
+   "id": "chapter-6__6.9.1--logic_vector",
+   "chapter": "chapter-6",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-6__6.9.2--vector_scalared",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:Tri1"
+   ]
+  },
+  {
+   "id": "chapter-6__6.9.2--vector_vectored",
+   "chapter": "chapter-6",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NetSymbol:Tri1"
+   ]
+  },
+  {
+   "id": "chapter-6__6.9.2--vector_vectored_inv",
+   "chapter": "chapter-6",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__associative__alloc",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__arguments",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__assignment",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "AssignmentExpression:target",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__class",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__integral",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__literals",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__find-first-index",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__find-first",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__find-index",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__find-last-index",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__find-last",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__find",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__max",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__min",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__unique-index",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__locator-methods__unique",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__delete",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "CallExpression",
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__exists",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__first",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__last",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__next",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__num",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "AssignmentExpression:target",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__prev",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__size",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "AssignmentExpression:target",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__methods__traversal",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__nonexistent",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__other",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "TypeAliasType:TypeAlias"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__string",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__associative__wildcard",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__dynamic__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__dynamic__op-delete",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__dynamic__op-new",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__dynamic__op-size",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__multidimensional__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__multidimensional__copy",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__multidimensional__multi",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__multidimensional__subarrays",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__equality",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__onebit",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__operations",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__dimensions",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__high",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__increment",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__left",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__low",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__right",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__size",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__querying-functions__unpacked-dimensions",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__packed__slice-equality",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__slice",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__treat-as-integer",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__variable-slice-zero",
+   "chapter": "chapter-7",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__packed__variable-slice",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__assignments",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? REFUSED, sv_equations? REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__equality",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__index",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__onebit",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__operations",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__ordering-methods__reverse",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__ordering-methods__rsort",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__ordering-methods__shuffle",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__ordering-methods__sort",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__reduction-methods__and",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ConversionExpression:width"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__reduction-methods__or",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ConversionExpression:width"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__reduction-methods__product",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ConversionExpression:width"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__reduction-methods__sum",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ConversionExpression:width"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__reduction-methods__xor",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "ConversionExpression:width"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__slice-equality",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "NamedValueExpression:2state",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__slice",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__subroutines",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableDeclStatement:2state",
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine",
+    "EmptyMemberSymbol:EmptyMember"
+   ]
+  },
+  {
+   "id": "chapter-7__arrays__unpacked__variable-slice",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-7__memories__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__memories__read-write",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__queues__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__bounded",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__delete",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__delete_assign",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "AssignmentExpression:target",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__insert",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__insert_assign",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__max-size",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__persistence",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "NamedValueExpression:2state",
+    "TimedStatement:DelayControl",
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__pop_back",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__pop_back_assing",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "NamedValueExpression:2state",
+    "UnboundedLiteral",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__pop_front",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__pop_front_assign",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "NamedValueExpression:2state",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__push_back",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__push_back_assign",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__push_front",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__push_front_assign",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "CallExpression",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__size",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-7__queues__slice",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "CallExpression",
+    "AssignmentExpression:target",
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__structures__packed__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__structures__packed__default-value",
+   "chapter": "chapter-7",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__structures__packed__signed",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__structures__packed__unsigned",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__structures__unpacked__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__structures__unpacked__default-value",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type"
+   ]
+  },
+  {
+   "id": "chapter-7__unions__packed__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-7__unions__tagged__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__unions__tagged__packed",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:tagged-struct",
+    "NamedValueExpression:2state"
+   ]
+  },
+  {
+   "id": "chapter-7__unions__unpacked__basic",
+   "chapter": "chapter-7",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "MemberAccessExpression",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.10--static_methods",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "SysCall:format",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.11--this",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.12--assignment",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "SysCall:format",
+    "ExpressionStatement:CallExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.12--shallow_copy",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "SysCall:format",
+    "ExpressionStatement:CallExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.13--inheritance",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format",
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.14--override_member",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.15--super-default-new",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "TimedStatement:DelayControl",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.15--super",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "SysCall:format",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.16--cast_func",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.17--constructor_const_arg",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format",
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.18--var_local",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.18--var_protected",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.19--global_constant",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.19--instance_constant",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.20--virtual_method",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.21--abstract_class",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.21--abstract_class_inst",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.22--dynamic_method_lookup",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.23--scope_resolution",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.24--out_of_block_methods",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "SysCall:format",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.25--parametrized_class_extend",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "GenericClassDefSymbol:GenericClassDef",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.25.1--parametrized_class_invalid_scope_resolution",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.25.1--parametrized_class_scope_resolution",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "GenericClassDefSymbol:GenericClassDef"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.2--implements",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.2--implements_extends",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.2--implements_multiple",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.3--type_access_extends",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.3--type_access_implements",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.3--type_access_implements_invalid",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.4--illegal_forward_def_implements",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.4--illegal_implements_parameter",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.5--cast_between_interface_classes",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "ClassType:ClassType",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.5--implemented_class_handle",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.5--invalid_interface_instantiation",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.6.1--name_conflict_resolved",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ExpressionStatement:CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.6.1--name_conflict_unresolved",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.6.2--parameter_type_conflict",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "GenericClassDefSymbol:GenericClassDef"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.6.2--parameter_type_conflict_unresolved",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.6.3--diamond_relationship",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.26.6.3--diamond_relationship_parametrized",
+   "chapter": "chapter-8",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-8__8.26.7--partial_implementation",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "ExpressionStatement:CallExpression",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.27--forward_declaration",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "ForwardingTypedefSymbol:ForwardingTypedef"
+   ]
+  },
+  {
+   "id": "chapter-8__8.4--instantiation",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "NamedValueExpression:2state",
+    "NullLiteral",
+    "AssignmentExpression:target",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.5--parameters",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "MemberAccessExpression",
+    "GenericClassDefSymbol:GenericClassDef"
+   ]
+  },
+  {
+   "id": "chapter-8__8.5--properties",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "MemberAccessExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.5--properties_enum",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.6--methods",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "SysCall:format",
+    "VariableSymbol:type",
+    "ExpressionStatement:CallExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.7--constructor",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableDeclStatement:2state",
+    "MemberAccessExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.7--constructor_param",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableDeclStatement:2state",
+    "MemberAccessExpression",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-8__8.7--constructor_super",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SysCall:format",
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target"
+   ]
+  },
+  {
+   "id": "chapter-8__8.8--typed_constructor",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ClassType:ClassType",
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "SysCall:format"
+   ]
+  },
+  {
+   "id": "chapter-8__8.8--typed_constructor_param",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "AssignmentExpression:target",
+    "SysCall:format",
+    "ClassType:ClassType",
+    "GenericClassDefSymbol:GenericClassDef"
+   ]
+  },
+  {
+   "id": "chapter-8__8.9--static_properties",
+   "chapter": "chapter-8",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "AssignmentExpression:target",
+    "VariableSymbol:type",
+    "SysCall:format",
+    "ClassType:ClassType"
+   ]
+  },
+  {
+   "id": "chapter-9__9.2.1--initial",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.2.2.1--always",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl"
+   ]
+  },
+  {
+   "id": "chapter-9__9.2.2.2--always_comb",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:initialized-variable"
+   ]
+  },
+  {
+   "id": "chapter-9__9.2.2.3--always_latch",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.2.2.4--always_ff",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:initialized-variable"
+   ]
+  },
+  {
+   "id": "chapter-9__9.2.3--final",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ProceduralBlockSymbol:Final"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.1--sequential_block",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.3.2--parallel_block_join",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAll"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.2--parallel_block_join_any",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAny"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.2--parallel_block_join_none",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinNone"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.3--block_start_finish",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAll"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.3--event",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "VariableSymbol:type",
+    "BlockStatement:JoinAll"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.3--fork_return",
+   "chapter": "chapter-9",
+   "stage": "should-fail",
+   "final": "should-fail",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.3.4--block_names_par",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAll"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.4--block_names_seq",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.3.5--statement_labels_par",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAll"
+   ]
+  },
+  {
+   "id": "chapter-9__9.3.5--statement_labels_seq",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.4.1--delay_control-sim",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "TimedStatement:DelayControl"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.1--delay_control-two-blocks-sim",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl",
+    "CallExpression"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.1--delay_control",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.2--event_control_edge",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SignalEventControl:BothEdges"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.2--event_control_negedge",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.4.2--event_control_posedge",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "extract-clean, loader REFUSED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.4.2--event_control_sim",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl",
+    "CallExpression",
+    "VariableSymbol:type",
+    "SignalEventControl:None_"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.2--event_control_sim_minimal",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "CallExpression",
+    "VariableSymbol:type",
+    "TimedStatement:DelayControl",
+    "SignalEventControl:None_"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.2.1--event_comma_op",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.4.2.1--event_or_op",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.4.2.2--event_implicit",
+   "chapter": "chapter-9",
+   "stage": "extract-clean",
+   "final": "flat comb design: sv_structure? RECOGNIZED, sv_equations? RECOGNIZED",
+   "unsupported": []
+  },
+  {
+   "id": "chapter-9__9.4.2.3--event_conditional",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "SignalEventControl:iff"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.2.4--event_sequence",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAll",
+    "SequenceSymbol:Sequence"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.3--event_sequence_controls",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "TimedStatement:DelayControl",
+    "WaitStatement"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_blocking_assignment_delay",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_nonblocking_assignment_delay",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_nonblocking_assignment_event",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_nonblocking_assignment_repeat",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_nonblocking_assignment_repeat_int",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_nonblocking_assignment_repeat_int_neg",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.4.5--event_nonblocking_assignment_repeat_neg",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "IntraAssignment:publication-or-context"
+   ]
+  },
+  {
+   "id": "chapter-9__9.6.1--wait_fork",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinNone",
+    "WaitForkStatement"
+   ]
+  },
+  {
+   "id": "chapter-9__9.6.2--disable",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "DisableStatement"
+   ]
+  },
+  {
+   "id": "chapter-9__9.6.2--disable_other",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAll"
+   ]
+  },
+  {
+   "id": "chapter-9__9.6.3--disable_fork",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "BlockStatement:JoinAny",
+    "DisableForkStatement"
+   ]
+  },
+  {
+   "id": "chapter-9__9.7--process_cls_await",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-9__9.7--process_cls_kill",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-9__9.7--process_cls_self",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  },
+  {
+   "id": "chapter-9__9.7--process_cls_suspend_resume",
+   "chapter": "chapter-9",
+   "stage": "extract-loud",
+   "final": "extract-loud",
+   "unsupported": [
+    "ExpressionStatement:CallExpression",
+    "SubroutineSymbol:Subroutine"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,877 @@
+# PPA columns (`score/ppa.py`): flow A0' (ranked, repaired) and flow A1' (research)
+
+The RANKED score of the scored netlist (decided 11/03; the boards rank it since 11/04: `leaderboard.py`'s `RANKED_AXES`,
+the A0' area and time), with `(area_ge_v1, depth_v1)` as extra columns; `score.py` is unchanged; `check.py` records the
+columns as the result key `ppa` (WP-X3, "Wiring" below). Study and measurements:
+`design/ppa/sky130.md` (WP-X1) and `design/ppa/spike/`.
+
+**Rulings since.** 11/03: "Yes, let's use sky as the default": A0' becomes the ranked sky130 score (area um^2, delay ps; clocked
+tasks: cycles x the register-to-register period), GE and unit depth stay as columns, A1' stays an unranked research column.
+11/04: "Please add the repair step everywhere (buffering). Also feel free to outright reject designs from golfers that produce
+illegal netlists. They can fix things themselves too": A0' is `sky130_a0_v2`, weighed on the netlist REPAIRED by buffering
+only, and one the repair cannot make legal is rejected ("The repair and the legality check" below). 11/04, on which cell
+drives the inputs: "Would it make sense to just choose one or the other for each task, depending on what's more
+realistic/interesting?": A0' is `sky130_a0_v3`, every primary input driven by the TASK's input drive (`task.json`
+`input_drive`, default `sky130_fd_sc_hd__buf_8`; "The input drive" below). 11/04, after the STA study against OpenSTA: the
+per-edge pin loads go into `sky130_a0_v3` before it is released, so that the ranked numbers change once ("The per-edge
+loads" below). The text further down describes the flows as
+built in WP-X2..X4; where it says the columns rank nothing or reject nothing, these rulings supersede it. To reproduce a
+recorded number bit for bit: "Reproduce a score" below.
+
+**Two flows, side by side** (decided 2026-11-01, superseded for A0' by the rulings above: neither is declared official,
+nothing is ranked; "it is like doing an algorithm competition but not using -O3"):
+
+| | **A0'** (`ppa`, WP-X2/X3) | **A1'** (`ppa.mapped`, WP-X4) |
+|---|---|---|
+| what it is | the pinned `abc -g` netlist of the default score, each Yosys gate re-expressed as one sky130 `_1` cell, REPAIRED (buffer trees and replicated tie cells, nothing resized, `sky130_a0_v2`), then a static timing analysis with every input driven by the task's input drive (default `buf_8`, `sky130_a0_v3`); a netlist the repair cannot make legal is rejected | the canonical RTLIL of the same run mapped by a real `abc -liberty` run onto every ordinary sky130 cell (compound cells, every drive strength), then the very same timing analysis |
+| closer to | the default score: a fixed function of the netlist the board already ranks, no new synthesis | a fabricated chip: what a technology mapper does with the circuit |
+| sensitivity | follows the expression tree you wrote (commuting operands moves area up to 11% and delay up to 32%) | follows the mapper too: `&nf` re-derives the structure (the proved array multiplier goes from 2nd to last in area); commuting operands moves area up to 15.5% and delay up to 20% |
+| fields | `area_um2_sky130`, `delay_ps_sky130`, `unit_depth`, `cells_sky130`, `cell_hist_sky130` | `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, `mapped_cells_sky130_v1`, `mapped_cell_hist_sky130_v1`, `mapped_levels_sky130_v1` |
+| version, pins, script | `ppa_version` `sky130_a0_v3`, `ppa_pins.json` (its `timing`, `repair` and `constants` sections), `ppa.py`, the task's `input_drive` | `ppa_mapped_version` `sky130_a1_v1`, `ppa_mapped_pins.json`, `ppa_mapped.ys`, `ppa.py`, the Yosys and ABC builds |
+| cost | the repair is Python in `ppa.py`: 0.01 to 0.6 s per netlist, 1.3 s for matmul (two weighings) | one more Yosys process, 0.3 to 1.4 s on the references (3.6 s on the largest idiom), about the cost of the pinned flow |
+
+The fields of the two flows have different names, versions and hashes and are never swapped silently (PLAN2: "A1' never replaces
+A0' under the same name"). Both are exact deterministic functions of the design text, bit-exact across processes, hash seeds,
+parallelism and temp directories (measurements below). A1' is never a reason to reject a submission; A0' is, when the repair
+cannot make its netlist electrically legal (11/04).
+
+## The repair and the legality check (`sky130_a0_v2`, 11/04)
+
+Why: the unbuffered A0' netlist can be electrically illegal. The 11/04 fanout study found the 33 combinational designs legal
+(worst load 0.57x max_capacitance) but matmul G1 not: 4 cells over max_capacitance, 361 over max_transition, 1,616 table
+reads past the characterized grid, where the extrapolated tables are non-monotone and can go negative; its period read
+48,079 ps against about 10,700 ps repaired, and duplicating one control flop was a 4.4x ranked-time shortcut.
+
+**`sky130_a0_v2` is BUFFERING ONLY** (decided 11/04, "add the repair step everywhere (buffering)"; `buffer_trees_v1`, pinned in
+`ppa_pins.json` `repair` and `constants`, implemented in `ppa.py` itself, no external tool):
+
+* The A0' cell netlist (flops cut out) is weighed and audited: every primary input driven by the task's input drive (fed
+  by the pinned 50 ps ramp; `buf_1` in `sky130_a0_v2`, the task's since `sky130_a0_v3`, "The input drive" below), every
+  output BIT a separate 10 fF load, every flop D pin a load. Every net that is the CAUSE of a violation (its load
+  over its driver's `max_capacitance` or past its tables' characterized loads, or its transition over a limit while its
+  driver's own inputs are legal) gets a BALANCED BUFFER TREE: internal nets, primary-input nets, flop Q nets and nets that
+  drive output bits alike.
+* The tree: the net's loads (cell pins, output bits, flop D pins) in a stable order (cell instance, then output port and bit,
+  then flop; names in natural order) are cut into contiguous groups balanced by capacitance, level by level from the loads up.
+  A level is the buffer cell (of `repair.buffers`: `buf_1, buf_2, buf_4, buf_6, buf_8, buf_12, buf_16`) and group count of
+  least total area such that every group's load is within that cell's BUDGET (on an equal area, fewer cells), each group then
+  driven by the smallest buffer whose budget holds it; levels are added until the driver's own load is within its budget. A
+  cell's budget is the largest load, within its `max_capacitance` and its tables, at which its output transition stays within
+  min(its `max_transition`, the library's `default_max_transition`, 1.5 ns) for every input transition up to 1.5 ns (the
+  input drive: at the 50 ps ramp; a flop's Q: at the ideal clock's ramp), so a tree is legal by construction. Budgets
+  (fF): `buf_1` 129.5, `buf_2` 313.7, `buf_4` 556.6, `buf_6` 783.6, `buf_8` 968.2, `buf_12` 1,372.4, `buf_16` 1,482.9; as
+  the input drive (at the 50 ps ramp): `buf_1` 129.6, `buf_8` 973.2 (every allowed drive: "The input drive").
+* The netlist is weighed again and the repair repeated until no violation is left (a net slow only because its input is waits
+  for that input's repair; a tree still illegal would be rebuilt at half its budgets), at most `max_rounds` (32) rounds.
+* Constants: the tie cell `conb_1` is REPLICATED, as few as hold every constant load within the `max_capacitance` of the
+  output driving it (LO 2,046.8 fF, HI 1,903.8 fF), the loads split as a tree's are: one for an ordinary design, two for 255
+  constant output bits, six for 1,023. The tie outputs' loads are audited (a tie cell has no timing arcs: its transition is not).
+* No cell is resized and nothing is restructured: a net within its limits is weighed exactly as A0' wrote it (33 of the 37
+  designs measured below need no buffer at all and weigh their `sky130_a0_v1` area to the 1e-4 um^2).
+* The repaired netlist is written as structural Verilog (the trees and tie cells visible, a comment per tree naming the net,
+  its driver, its loads and the tree; `--repaired-netlist OUT`), READ BACK, simulated against the A0' netlist on 2048 vectors
+  (every output bit and flop D net; a difference is `RepairDefect`, a defect of the repair, never a number), and that text is
+  what is weighed and hashed (`repair.netlist_sha256`). Yosys reads it against the liberty (`test_ppa.py`).
+
+**Why not ABC's sizing** (the first `sky130_a0_v2` on this branch: `topo; buffer -p; upsize; dnsize` with `buf_1` driving and
+10 fF loading every ABC input and output; dropped after the 11/04 review, MEASURED): (1) a HOLE: the one tie cell was never
+load-checked, so 255 constant-0 output bits (2.55 pF on `conb_1` LO, 1.25x its `max_capacitance`) scored as legal; (2)
+UNFIXABLE REJECTIONS: ABC sees one 10 fF output per distinct net and no input-to-output or flop-to-output wire at all, so an
+input wired to 14 or more output bits, a plain sign extension `{{16{x[15]}}, x}`, a replicated `{24{a & b}}`, a flop's Q to 17
+or 64 output bits and an input into 96 flop D pins were REJECTED, and a golfer could not fix them (the pinned flow removes the
+buffers they write and merges duplicates), contrary to "they can fix things themselves"; (3) AREA NOISE: `upsize` has no delay
+target, so areas moved +2.4% to +40% unevenly (the proved ripple adder left the add frontier, the array multiplier went from
+2nd to last in area, `sbox_bp` left its frontier). Buffering only repairs exactly the illegal nets: every review probe is now
+legal (`test_ppa.py ReviewProbesTest`), the tie cell is audited and replicated, and a legal netlist keeps its v1 area.
+
+The legality check (`ppa.Audit`): every driven net's load is within its driver's `max_capacitance` (cell outputs, the input
+drive, the flops' Q, every tie-cell output), every net's transition within the `max_transition` of its driver and of every
+pin it reaches, and every timing-table read (cells, the input driver, clock-to-Q, setup) inside its characterized grid, both
+bounds. Nothing is ever extrapolated in the ranked flow; flow A1' keeps its own `sky130_a1_v1` reading (extrapolation
+included) unchanged.
+
+**What is still rejected.** A netlist the repair cannot make legal: a read BELOW a table's grid (a transition or load smaller
+than the library characterizes), or a driver that cannot carry even one buffer within its limits. No netlist of the pinned
+flow on `sky130_fd_sc_hd` is known to be one (the budgets of the ten gate cells, of every allowed input drive and of the
+flop's Q are all at least 69.6 fF, `xnor2_1`'s); `test_ppa.py UnfixableTest` builds both on synthetic liberties. `check.py` then stops at stage `ppa` (after
+`postsynth`), prints `ppa: REJECTED, the repaired sky130 netlist is electrically illegal`, and records `ppa: {"available":
+false, "illegal": true, "reason": ..., "legality": {counts}}`. The message names the net in the design's words (an input by
+its port bit, a register by its Q net, a cell net by its driver; what it drives as output bits `y[0] .. y[23]`, cell pins,
+flop D pins):
+
+```
+the sky130 netlist is electrically illegal and the repair (buffer trees, replicated tie cells) cannot make it legal: the net
+_0_ (inv_1 _1_), driving 1 cell pin: its driver may carry at most 0.0 fF, less than the buffers it would need. The ranked
+sky130 score (sky130_a0_v3) is taken on a legal netlist only (no timing table is extrapolated), so the design is rejected
+```
+
+A repaired netlist that is not the scored circuit (`RepairDefect`) is not a rejection: `ppa.available` false under `auto`, an
+infrastructure error under `require`.
+
+**Inputs are not free.** `sky130_a0_v1` drove every input with an ideal 50 ps ramp at any load; `sky130_a0_v2` puts one
+`sky130_fd_sc_hd__buf_1` in front of every input that is read, at the input net's real load, fed by that ramp, and that
+`buf_1` is audited and, when over its limits, buffered like any other driver. Against v1 it costs a combinational design 10 to
+1,276 ps (median 200; the 34 combinational designs below): most where an input carries a heavy but legal load (`sbox_table`,
+whose inputs carry up to 0.88x the `buf_1` limit: +1,276 ps, +60.7%). The output load (10 fF per output bit) is unchanged.
+Since `sky130_a0_v3` the cell is the TASK's input drive, by default `buf_8` ("The input drive" below).
+
+**Determinism.** The repair is ours and has no run-dependent output. Two clean runs of `ppa.py --netlist-in X --path
+--repaired-netlist Y` on the 37 netlists below (separate processes, hash seeds 17 and 34, separate `TMPDIR`s) gave 74 of 74
+files byte-identical; `test_ppa.py` repeats it on the CLI (`test_two_clean_runs_are_byte_identical`, a clocked netlist and
+constants too). The A1' goldens (`expected_ppa_mapped.json`) re-record byte-identically; the A0' goldens (`expected_ppa.json`,
+`expected_idioms.json`) were re-recorded for the buffering repair, and again for `sky130_a0_v3`'s input drive (by
+`ppa_validate.py table --expected-out`; the A1' goldens byte-identical again), and again, with the A1' goldens, for the
+per-edge loads (A1' runs the same STA: its delays moved, nothing else).
+
+## The input drive (`sky130_a0_v3`, 11/04)
+
+Decided 11/04, on `buf_1` against a stronger input driver: each task chooses one or the other, whichever is more
+realistic or interesting for it. `sky130_a0_v3` makes the cell in front of every primary input a field of the task:
+
+* **`task.json` `input_drive`** (optional): the liberty cell name of one of the pins' `timing.input_drive.allowed`: the
+  buffers `sky130_fd_sc_hd__buf_1`, `buf_2`, `buf_4`, `buf_6`, `buf_8`, `buf_12`, `buf_16`, the inverters `inv_1` to
+  `inv_16` (the same strengths), and `sky130_fd_sc_hd__dfxtp_1` (a register: its Q). Absent, the pins'
+  `timing.input_drive.default`: **`sky130_fd_sc_hd__buf_8`**. Every task uses the default today: their inputs stand for an
+  on-chip bus or a register, which a strong driver models; a task whose inputs come from something weaker, or from a
+  register, names its cell. A name outside the list is a TASK-CONFIGURATION error, never a number: `tests/run.py`'s
+  `layout` step fails, `ppa.py` exits 1 (`TaskConfigError`), `check.py` stops with an infrastructure error (exit 2)
+  before any stage, Lean or synthesis, runs (it needs the pins file, not the liberty).
+* **What it means.** A buffer or an inverter is that cell, its input the pinned 50 ps ideal ramp at 0, its output the
+  input net at its real load, the cell's WHOLE delay counted: a real cell in front of every input, as in v2 with `buf_1`.
+  OpenSTA timing the netlist with one explicit instance of the cell per input gives the same arrivals to 1 fs; OpenSTA's
+  `set_driving_cell -lib_cell <cell>` is another model, which adds only the load-dependent part, delay(load) - delay(0),
+  and so is earlier by the cell's zero-load delay (`buf_1` at the 50 ps ramp: 58.7 ps on a rising input, 72.8 ps on a
+  falling one; MEASURED 11/04, `score/test_ppa_opensta.py`). `dfxtp_1` is the
+  flop's CLK->Q `rising_edge` arc read at the ideal clock's 50 ps ramp, both Q edges from the one clock edge at 0: exactly
+  how a clocked design's own Q nets start. The drive is outside the design (its area is not counted), but it is audited
+  like every driver (`max_capacitance`, `max_transition`, its tables' grid), and its budget is what the repair holds an
+  input net to: the load at which its output transition reaches 1.5 ns at the 50 ps ramp. In fF: `buf_1` 129.6, `buf_2`
+  314.4, `buf_4` 558.9, `buf_6` 785.3, `buf_8` 973.2, `buf_12` 1,374.4, `buf_16` 1,483.9; `inv_1` 181.3, `inv_2` 331.4,
+  `inv_4` 563.1, `inv_6` 782.8, `inv_8` 1,035.5, `inv_12` 1,417.2, `inv_16` 1,681.8; `dfxtp_1`'s Q 162.1. (`test_ppa.py`
+  `test_the_input_budget_is_the_task_s_drive`: an input read by 407 inverters is weighed as written under `buf_8` and 408
+  get a tree; under `buf_1`, 54 and 55; an inverter input counts at its larger edge, 2.39 fF.)
+* **Recorded.** The block's `setup.input_drive` names the cell (it replaces v2's `setup.pi_driving_cell: "buf_1"`), so the
+  drive is in every record and in its hash; `ppa_pins.json`, whose sha256 every block carries, holds the allowlist and
+  the default; each task's README states its drive under "Rules for this task". `ppa.py --input-drive CELL` weighs under
+  another allowed cell (research; it may not contradict a task that declares one).
+* **Why `buf_8` by default** (MEASURED 11/04 on svgolf-prep f68a04f4: the 36 rows of the v2 rankings below, each weighed
+  under `buf_1`, `buf_2`, `buf_4`, `buf_8`, `dfxtp_1`'s Q and an ideal input, on a copy of v2 with only the driver made a
+  flag). No drive changes an area order, a delay or time order or a Pareto frontier of any task, every row is legal under
+  every drive, and the repair inserts the same 8 buffers under all of them. What the drive changes is how much the inputs
+  add to the delay, and how unevenly across designs (the 27 combinational designs, against an ideal input):
+
+  | drive | added delay, ps | spread across designs |
+  |---|---|--:|
+  | `buf_1` | 70 to 1,276 | 1,206 ps |
+  | `buf_2` | 98 to 569 | 471 ps |
+  | `buf_4` | 92 to 335 | 243 ps |
+  | `buf_8` | 73 to 192 | 119 ps |
+  | `dfxtp_1` Q | 273 to 1,262 | 989 ps |
+
+  Most of `buf_1`'s spread is one design: `sbox_table` paid +61% (2,102 to 3,378 ps) for one 114.7 fF input, a LEGAL load
+  the golfer cannot buffer away (the repair buffers illegal nets only, and the pinned flow removes the buffers a source
+  writes); that erased 74% of its real speed lead over `sbox_bp_d16`, and under `buf_8` it keeps 94%. `buf_8`'s cost is
+  small and nearly the same for every design, so the delay column measures the design's own logic, while input loading
+  still costs something (192 ps at 115 fF; a tree past 973 fF: matmul's two `start` nets, 1,199.5 and 1,019.5 fF, get one
+  under every drive). A register's Q adds its clock-to-Q (+167 to +211 ps over `buf_1`) to every combinational score. At a
+  light load the big buffer is the slower one (its own intrinsic delay: `band` 255 ps under `buf_1`, 280 under `buf_8`).
+  Open sky130 flows assume a strong input driver too (OpenLane drives inputs with `inv_8`; ORFS buffers every input port).
+
+## The per-edge loads (`sky130_a0_v3`, 11/04, before its release)
+
+The 11/04 STA study timed the same netlists under the same setup with OpenSTA (openroad/orfs 26Q4) and found one defect:
+`ppa.py` loaded every net with the pins' `capacitance`, while OpenSTA reads a load pin's `rise_capacitance` for a rising
+transition and its `fall_capacitance` for a falling one (in `sky130_fd_sc_hd` `capacitance` is about their mean: rise about
+4.7% above it, fall 4.7% below, at most 9%). That put the STA 0.5% to 2.8% off OpenSTA on the references. Now every timing
+read takes the edge's own load: cell outputs, the input drive's output, a flop's Q (clock-to-Q) and its D pin; a net's load
+is checked against `max_capacitance` on its larger edge (OpenSTA checks each edge), the tie cells' too; and the repair counts
+a pin at its larger edge, so a group within a budget is within it on both edges. The energy model's C (`energy.py`,
+1/2 C V^2) stays the pins' `capacitance`. `sky130_a0_v3` was not released yet and takes the change: no `sky130_a0_v4`; a
+number weighed before it and one weighed after differ in `ppa_script_sha256` (and `ppa_pins_sha256`, whose comments now
+describe it).
+
+MEASURED with the change (`score/test_ppa_opensta.py`, OpenSTA's numbers recorded in it): every timing arc of 46 cells (the
+families a golfer may hand-instantiate, `_0` to `_16`) equals OpenSTA to the printed 1 fs; so do six hand-built netlists
+on ideal ramps and behind one explicit `buf_1` per input, every output bit on both edges, and a register-to-register period;
+the larger-edge `max_capacitance` violation OpenSTA reports is reported. 7 of its 8 tests fail on the code before the change.
+The study found the same on all 330 cells with a function, the references and `bin_to_thermo`: per arc to 1 fs, full paths
+to a few fs (OpenSTA computes in single precision).
+
+What moves (MEASURED 11/04: every reference and every baseline `tests/expected.json` scores at its task's scoring point, 36
+rows, 32 distinct netlists, each weighed before and after through `ppa.score_and_weigh` under its task's drive, the default
+`buf_8`, clocked tasks through the clocked flow; `ppa_validate.py table` agrees on its 18 designs): **every area is the
+same, delays move -0.30% to +1.32%, and no task changes a delay order, an area x time order or a Pareto frontier.** One
+tree changes, area unchanged: matmul G1's control net `_04378_` (`nor2b_1`, 443 cell pins, 980.5 fF at the larger edge)
+gets 2 x `buf_4` instead of 1 x `buf_8`, so its repair is 6 buffers on 5 nets, and its worst load is 0.875x
+`max_capacitance` (0.711 before). Every other tree is the same; the repaired netlists of `fdivp_newton` and of the idiom
+`sbox_logexp` change only in their tree's comment, which names the load at the larger edge (`repaired_sha256`). Delays in
+ps, before -> after:
+
+| task | A0' delay, ps |
+|---|---|
+| `_example` | `band` (and `band_lp`) 280 -> 280 |
+| `add` | ripple (`add_n`, `add_proc`, `add_proc_m`, `add_mux`, `add_n_byhand`) 2,590 -> 2,611, Sklansky 2,431 -> 2,451, Kogge-Stone 2,051 -> 2,064, `cmp_carry` 1,971 -> 1,965, the banned `plus` 3,127 -> 3,143 |
+| `mul` | `mul_n` (and `mul_n_byhand`) 10,765 -> 10,907, `mul_tree` 6,054 -> 6,129, `mul_wallace` 5,910 -> 5,982, `mul_tree_h` 5,918 -> 5,992, `dadda_rc_16` 5,404 -> 5,461, `dadda_ks_16` 5,151 -> 5,148, the banned `yosys_mul` 6,202 -> 6,261 |
+| `aes_sbox` | `sbox_bp` 4,264 -> 4,297, `sbox_bp_d16` 3,638 -> 3,670, `sbox_table` 2,294 -> 2,288 |
+| `clmul` | `clmul_n` 1,112 -> 1,114, `school_tree_16` 969 -> 969, `kara_b4_16` 1,801 -> 1,807, `kara_b8_16` 1,361 -> 1,372, `kara_b2_16` 2,050 -> 2,055, `kara_full_16` 2,075 -> 2,089 |
+| `fdivp` | `fdivp` 37,872 -> 37,984, `fdivp_newton` 39,692 -> 40,031, `fdivp_d1` 34,813 -> 34,994, `fdivp_d2` 38,196 -> 38,294, `flat_binary16` 35,675 -> 35,735 |
+| `matmul` (time = 4 x period) | G1 period 10,705 -> 10,696, time 42,820 -> 42,784 ps, 87,173.6064 um^2 |
+| `sorter` (time = 16 x period) | `sorter_ins` period 2,510 -> 2,523, time 40,160 -> 40,368 ps, 5,512.7872 um^2 |
+
+The idioms move -0.73% to +0.55% and keep their order. Flow A1' runs the same STA, so its delays move too (`mul_tree` 7,539
+-> 7,558, `sbox_logexp` 5,845 -> 5,944: OpenSTA's 7,558 and 5,944); its areas, cells, levels and mapped netlists do not, and
+it keeps `sky130_a1_v1`. The energy columns move -0.06% to +0.13% (the STA's transitions feed the internal-power tables),
+leakage not at all.
+
+## Rankings under `sky130_a0_v3` (11/04, the input drive)
+
+Measured before the per-edge loads joined v3 (the numbers since: "The per-edge loads" above, which moves no ranking
+either). The 36 rows of the v2 table below (every reference, every baseline `tests/expected.json` scores at the task's
+scoring point, the matmul duplication probe; 31 distinct designs), each weighed by v3's own `ppa.py SV --task tasks/<t>
+--no-mapped` (`--seq` for matmul, `--netlist-in` for the probe), every task on the default `buf_8`, against v2's numbers
+(MEASURED 11/04 on this branch): **0 flipped pairs in area, 0 in delay or time and every Pareto frontier v2's, on every task: no ranking
+moves.** Every area is v2's to the 1e-4 um^2 (the repair inserts the same buffers: `fdivp_newton` 1, matmul G1 5, the
+probe 2). Over the 30 distinct combinational netlists the delay moves -1,084 ps (`sbox_table`, -32.1%) to +25 ps (`band`,
++9.8%), median -66 ps (-1.7%); matmul's period is 10,705 ps in both (its critical path is internal). The v3 numbers equal,
+row for row, the `buf_8` column of the drive measurement above.
+
+| task | v3 against v2 | the A0' columns under v3 at the scoring point, um^2 / ps |
+|---|---|---|
+| `_example` | same orders and frontier | `band` 100.096 / 280 (v2 255) |
+| `add` | same | ripple 460.4416 / 2,590, Sklansky 541.7696 / 2,431, Kogge-Stone 641.8656 / 2,051, `cmp_carry` 857.072 / 1,971, the banned `plus` 497.9776 / 3,127 |
+| `mul` | same | `mul_n` 8,290.4512 / 10,765, `mul_tree` 8,603.2512 / 6,054, `mul_wallace` 8,966.0992 / 5,910, `mul_tree_h` 8,563.2128 / 5,918, `dadda_rc_16` 8,230.3936 / 5,404, `dadda_ks_16` 8,937.3216 / 5,151, the banned `yosys_mul` 8,825.9648 / 6,202 |
+| `aes_sbox` | same | `sbox_bp` 892.1056 / 4,264, `sbox_bp_d16` 952.1632 / 3,638, `sbox_table` 3,445.8048 / 2,294 (v2 3,378) |
+| `clmul` | same | `clmul_n` 3,429.5392 / 1,112, `school_tree_16` 3,419.5296 / 969, `kara_b4_16` 2,756.3936 / 1,801, `kara_b8_16` 2,853.9872 / 1,361, `kara_b2_16` 2,960.3392 / 2,050, `kara_full_16` 2,979.1072 / 2,075 |
+| `fdivp` | same | `fdivp` 9,675.5296 / 37,872 (as in v2), `fdivp_newton` 33,824.9408 / 39,692, `fdivp_d1` 8,575.7248 / 34,813, `fdivp_d2` 10,344.9216 / 38,196, `flat_binary16` 8,734.6272 / 35,675 |
+| `matmul` (time = 4 x period) | same | G1 87,173.6064 um^2, 4 x 10,705 = 42,820 ps; the probe 88,807.6736 um^2, 43,560 ps |
+
+The netlist-reader idioms (`idioms.json`: no task, so the default drive) are not ranked; one pair returns to its v1 order,
+`lut_case` and `packed2d_idx` (v1 616 and 496 ps, v2 713 and 731, v3 717 and 609).
+
+## Rankings under `sky130_a0_v2` (11/04, buffering only)
+
+The fanout study's 35 scored netlists (references, baselines, idioms, matmul, the counter fixture), the Newton reference
+`fdivp_newton` and the matmul duplication probe, weighed by v1 (`sky130_a0_v1`: unrepaired, ideal inputs, extrapolated
+tables), by the dropped ABC-sizing v2 and by the buffering v2 (the scored netlists are the same, only the weighing differs).
+MEASURED: all 37 legal (worst load 0.91x `max_capacitance`, the probe; worst transition 0.98x, matmul), none rejected; four
+needed a buffer (matmul G1: 5 nets, one buffer each; the probe: 1 net, 2 x `buf_4`; `sbox_logexp`: 1 x `buf_2`;
+`fdivp_newton`: 1 x `buf_1`), so areas equal v1's to +0.1%; delays move +0.0% to +60.7% against v1 (median +5.7%, the driven
+inputs), matmul's period 48,079 to 10,705 ps. Against the ABC-sizing v2: areas -27.4% to 0.0% (median -7.6%), delays +2.1%
+to +58.5% (median +6.7%; ABC's `upsize` bought speed with area).
+
+| task | delay order | area order | Pareto frontier (area, delay) |
+|---|---|---|---|
+| `_example` | — (one circuit) | — | `band`: 100.096 um^2 (v1's), 255 ps (v1 185, the driven inputs) |
+| `add` | unchanged from v1 | unchanged from v1 (the proved ripple adder 1st again) | v1's: ripple, Sklansky, Kogge-Stone, `cmp_carry` |
+| `mul` | unchanged from v1 | unchanged from v1 (the array multiplier 2nd again) | v1's: `dadda_rc_16`, `dadda_ks_16` |
+| `aes_sbox` | unchanged | unchanged from v1 (`sbox_bp` 1st again) | v1's: `sbox_bp`, `sbox_bp_d16`, `sbox_table` |
+| `clmul` | unchanged from v1 | unchanged from v1 | v1's: `kara_b4_16`, `kara_b8_16`, `school_tree_16` |
+| `fdivp` | unchanged (`fdivp_newton` last) | unchanged (`fdivp_newton` last) | `fdivp_d1` |
+| idioms | `lut_case` and `packed2d_idx` swap (616 and 496 ps in v1, 713 and 731 now: the driven inputs) | unchanged from v1 | v1's |
+| `matmul` (time = 4 x period) | the duplication probe was 4.4x faster in v1 (43,552 against 192,316 ps); it is now slower (43,560 against 42,820) | unchanged | the probe LEAVES it; the reference alone |
+
+Per task, every pair (MEASURED 11/04 at 3d7fadb8: every reference, `fdivp_newton` included, every baseline that
+`tests/expected.json` scores at the task's scoring point, and the matmul probe, 36 rows, 31 distinct designs; each weighed by
+its version's own `ppa.py SV --task tasks/<t> --no-mapped`, `--seq` for matmul, v1 being svgolf-prep 81ea86c3's `score/`):
+`_example`, add, mul, aes_sbox, clmul and fdivp have 0 flipped pairs in area, 0 in delay and v1's frontier; matmul has one
+flipped pair, the probe against the reference in time, and the probe leaves the frontier. The ABC-sizing v2's flips on the
+same designs (area: add 2, mul 5, aes_sbox 1, clmul 2; delay: mul 1, clmul 1; frontiers: add's proved references out and the
+banned `plus` in, `sbox_bp` out, `clmul_n` in) are all undone; its matmul flip is the one kept. The A0' columns at the scoring
+point, buffering only (um^2 / ps; v1's area everywhere but `fdivp_newton` and matmul): add ripple 460.4416 / 2,602,
+Sklansky 541.7696 / 2,443, Kogge-Stone 641.8656 / 2,060, `cmp_carry` 857.072 / 1,963; mul `mul_n` 8,290.4512 / 10,924,
+`dadda_rc_16` 8,230.3936 / 5,573, `dadda_ks_16` 8,937.3216 / 5,329; aes_sbox `sbox_bp` 892.1056 / 4,345, `sbox_bp_d16`
+952.1632 / 3,747, `sbox_table` 3,445.8048 / 3,378; clmul `clmul_n` 3,429.5392 / 1,283; fdivp 9,675.5296 / 37,872,
+`fdivp_newton` 33,824.9408 / 39,689; matmul G1 87,173.6064 um^2, 4 x 10,705 = 42,820 ps.
+
+JUDGED: buffering only restores v1's orders and frontiers on every task; what moves is delay, by the input driver (the same
+for every design of a task, so orders barely move) and, where a net is over its limits, by a tree loaded up to its budget
+(about 1.5 ns transitions: slower than ABC's sized trees, e.g. matmul's period 10,705 against 10,218 ps). A legal net near
+its limit is weighed as written and can be slower than a buffered one (an input to 13 output bits, legal, 1,088 ps; to 14,
+buffered, 615 ps); that is the price of a repair that is not timing-driven, and a golfer who wants the speed restructures.
+
+## Columns
+
+| column | unit | exact? | meaning |
+|---|---|---|---|
+| `area_um2_sky130` | um^2 | yes (`area_e4um2_sky130` is the integer in 1e-4 um^2) | sum of the `sky130_fd_sc_hd` areas of the REPAIRED netlist (each Yosys gate of the pinned `abc -g` netlist one `_1` cell, then the buffer trees of the repair), flops and the tie cells included |
+| `delay_ps_sky130` | ps, integer | rounded from the STA's float | latest primary-output arrival of a graph-based NLDM static timing analysis of the repaired netlist (clocked: the register-to-register period) |
+| `unit_depth` | gates | yes | gates on the longest input-to-output path of the scored netlist (before the repair); equal to `ltp -noff` (the run fails if it is not) |
+| `cells_sky130`, `cell_hist_sky130` | | yes | cell count and histogram of the repaired netlist (`nand2_1`, `xor2_4`, `buf_2`, ...) |
+| `repair` | | yes | `method` (`buffer_trees_v1`), `cells_before` (the scored netlist's gates and flops: equals `score.py`'s `num_gates`, checked), `buffers`, `nets_buffered`, `tie_cells`, `rounds` (weighings), the repaired netlist's `netlist_sha256` (the structural Verilog `--repaired-netlist` writes) |
+| `legality` | | ratios to 3 decimals | `worst_load_ratio` (load / max_capacitance), `worst_transition_ratio`, and the violation counts, all 0 in a weighed block |
+| `ppa_version` | | | `sky130_a0_v3`: bumped whenever a number could change (pins file, STA, cell table, the repair, the input drive's meaning) once the version is released; the per-edge loads joined `sky130_a0_v3` before its release |
+| `setup` | | | the timing setup the number was weighed under: `pi_slew_ps` 50, `input_drive` (the task's, default `sky130_fd_sc_hd__buf_8`), `po_load_ff` 10, no wires, no extrapolation |
+| `liberty_sha256`, `ppa_pins_sha256`, `ppa_script_sha256`, `netlist_sha256` | | | the inputs of the number: the liberty, `ppa_pins.json`, `ppa.py`, the weighed netlist file |
+
+Flow **A0'**: the pinned flow of `score.py` is run as it is; its scored netlist is read and each gate is re-expressed as one
+sky130 cell (`NOT inv_1, NAND nand2_1, NOR nor2_1, AND and2_1, OR or2_1, XOR xor2_1, XNOR xnor2_1, MUX mux2_1,
+ANDNOT nor2b_1, ORNOT nand2b_1`; the table is `ppa_pins.json`, each entry is checked against the liberty's own boolean
+function on every run), then REPAIRED (below). No new synthesis, no mapping, no wires.
+Timing setup (pinned, `sky130_a0_v3`): every primary input that is read is the output of the task's input drive (default
+`buf_8`; `buf_1` in v2) at the input net's real load, whose own input is an ideal 50 ps ramp arriving at 0, its whole delay
+counted (a real cell per input, not OpenSTA's `set_driving_cell`: "The input drive"; inputs are not free); every
+primary-output **bit** 10 fF; a load pin presents its `rise_capacitance` to a rising edge and its `fall_capacitance` to a
+falling one ("The per-edge loads"); no wire load; `T` = latest arrival over both edges; arcs: every arc of every related pin, bilinear interpolation
+INSIDE the table only (a read outside it rejects the netlist; `sky130_a0_v1` extrapolated linearly), unateness picks the input
+edge, worst arrival wins, largest transition carried. Constants (a literal on a cell pin or
+an output bit) cost exactly one `conb_1` per module and no delay (the proposal of sky130.md section 4.2; open decision, below).
+
+### Flow A1': the `mapped` sub-object (WP-X4)
+
+| field | unit | exact? | meaning |
+|---|---|---|---|
+| `area_um2_sky130_mapped_v1` | um^2 | yes (`area_e4um2_sky130_mapped_v1` is the integer in 1e-4 um^2) | sum of the `sky130_fd_sc_hd` areas of the cells of the mapped netlist (+ one `conb_1` if a constant is used, as in A0') |
+| `mapped_delay_sky130_v1` | ps, integer | rounded from the STA's float | latest primary-output arrival of the SAME graph-based NLDM static timing analysis, same setup (50 ps input ramps, 10 fF per output bit, no wires), on the mapped netlist |
+| `mapped_cells_sky130_v1`, `mapped_cell_hist_sky130_v1` | | yes | cell count and histogram (`maj3_1`, `xnor2_1`, `a21oi_1`, `buf_2`, ...) |
+| `mapped_levels_sky130_v1` | cells | yes | cells on the longest input-to-output path (cell levels, not the gate depth of `unit_depth`: 16 for the ripple adder's 33) |
+| `mapped_buffers_sky130_v1`, `mapped_inverters_sky130_v1` | | yes | `buf_*`/`bufbuf_*`/`bufinv_*` and `inv_*` cells of the histogram |
+| `constants`, `critical`, `setup`, `liberty_file` | | | as in A0' (`critical.cells` counts cells on the critical path) |
+| `equivalence` | | | `{vectors, seed}`: the mapped netlist agrees with the scored netlist on that many input vectors (below) |
+| `ppa_mapped_version`, `liberty_sha256`, `ppa_pins_sha256`, `ppa_mapped_pins_sha256`, `ppa_mapped_script_sha256`, `ppa_script_sha256`, `yosys_version`, `abc_version`, `rtlil_sha256`, `netlist_sha256` | | | the inputs of the number: the liberty, both pins files, the Yosys script, `ppa.py`, the tool builds, the canonical RTLIL that was mapped (equal to `stages.score.rtlil_sha256`), the mapped netlist file |
+| `available` | | | `true`; or the object is exactly `{"available": false, "reason": ...}` for a design the mapping cannot weigh |
+
+Flow **A1'** is `score/ppa_mapped.ys` run in a FRESH Yosys process on the canonical RTLIL that stage 1 of the pinned flow
+(`canon.ys`) wrote, so layout and renaming noise are zero here as in the default score:
+
+```
+read_rtlil canon.il
+synth -flatten -top TOP
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib -dont_use <24 globs> -script +strash;&get -n;&fraig -x;&put;scorr;dc2;dretime;strash;&get -n;&dch -f;&nf;&put
+opt_clean -purge
+write_verilog -noattr -noexpr mapped.v
+```
+
+* **The ABC script** is Yosys 0.53's own default for `abc -liberty` without `-constr`, written out (`sky130.md` section 5.1, variant
+  `u`) so that a later Yosys cannot change it silently; omitting `-script` gives a byte-identical netlist (checked on all 24
+  designs of `score/tests/ppa/designs.json` and `idioms.json`, and again by `test_ppa.py`). The delay-first mapper `&nf` chooses among
+  all allowed cells and drive strengths; there is no `-constr`, no delay target `-D` and no `buffer; upsize; dnsize` sizing pass (the
+  sized variant `s` of the study, which adds a constraint file and a delay target, costs about +5% area for -9% delay and was not
+  chosen: sizing and buffering are decisions of a physical-design flow, and the plain script is Yosys's own default; the other is a
+  change of `ppa_mapped.ys` and a new `ppa_mapped_version`).
+* **The cell policy** is the one of A0' (`ppa.POLICY`): `-dont_use` globs exclude every cell that is not of class `logic`
+  (sequential, scan, latch, clock-tree, low-power-flow, physical-only, tri-state, delay and multi-output cells and the tie cell), leaving
+  the 268 ordinary combinational cells of every drive strength (`_0` to `_16`, buffers and inverters, `mux4`, `xor3`, `maj3`, the
+  AOI/OAI families). `test_ppa.py` checks that the globs and `cell_class` agree on all 428 cells; `ppa.py` enforces the policy again on the
+  mapped netlist (an instance that is not a cell of the pinned liberty, or not of class `logic`, refuses the weighing).
+* **Constants** are the A0' policy: no `hilomap`, literals stay in the netlist, ONE `conb_1` is priced per module if any constant
+  is used (tested on a design with constant output bits: both flows price the same single tie cell).
+* **Unmapped count**: zero or a refusal.
+* **Tool builds**: the live Yosys and ABC versions are recorded in every block, compared by the tests with the ones the goldens were
+  recorded under (`ppa_mapped_pins.json`: Yosys 0.53 `53c22ab7c0`, ABC `UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`); a different build is a
+  loud failure of the golden tests, not a silent change of numbers. `leaderboard.py verify` compares the mapped columns only under
+  equal mapped version, script, pins, liberty and builds, and says so otherwise.
+* **Time limit**: one mapping run may take `yosys_timeout_s` (900) seconds of wall clock; a design that needs longer has `mapped:
+  {available: false, reason: "... timed out ..."}` and nothing else changes.
+
+**The equivalence sample.** Before a mapped netlist is weighed it is simulated, bit-parallel through the liberty's own cell functions,
+against the scored netlist (the one `postsynth` verified against ls-sv) on 2048 input vectors (vector 0 all zeros, vector 1 all ones,
+the rest `SHA-256("svgolf-ppa-mapped/1" / input bit / block)` bits) and must agree on every output bit: it catches a mapper or reader
+defect that changes the function broadly. It is a SAMPLE, not a proof (a difference on one input pattern of 33 bits is invisible to
+it); it costs 0.001 to 0.04 s. A disagreement is a `MappedDefect`: nothing is reported (`auto`) or the run is an infrastructure error
+(`require`), because the circuit under test is not at fault.
+
+## Run
+
+```
+python3.12 score/ppa.py --fetch-liberty                          # once: the pinned liberty into score/lib/ (git-ignored)
+python3.12 score/ppa.py SOLUTION.sv --top add_n --param N=16     # pinned flow, then the columns of its netlist (A0') and of its mapping (A1')
+python3.12 score/ppa.py SOLUTION.sv --task tasks/add             # top and scoring point from task.json
+python3.12 score/ppa.py SOLUTION.sv --task tasks/add --no-mapped # A0' only (no second Yosys run)
+python3.12 score/ppa.py SOLUTION.sv --task tasks/add --mapped-netlist OUT.v   # also write the mapped netlist
+python3.12 score/ppa.py --netlist-in SCORED.v --task tasks/add    # the netlist file postsynth simulates (A0' only: A1' maps the RTLIL); --task: its input drive
+python3.12 score/ppa.py SOLUTION.sv --task tasks/matmul --seq      # a clocked task: the clocked flow and its register-to-register period
+python3.12 score/ppa.py ... --input-drive sky130_fd_sc_hd__buf_1   # research: another allowed input drive (not against a task that names one)
+python3.12 score/test_ppa.py                                     # tests (SVGOLF_PPA_REQUIRE_LIB=1: a missing liberty fails)
+python3.12 score/ppa_validate.py table                           # the (GE, depth) vs (um^2, ps) table of the references
+python3.12 score/ppa_validate.py table --mapped                  # ... and A1' against A0' (um^2, ps, cells, levels, ranks, tau)
+python3.12 score/ppa_validate.py table --designs designs.json,idioms.json --mapped-expected-out score/tests/ppa/expected_ppa_mapped.json   # re-record the A1' goldens
+python3.12 score/ppa_validate.py table --designs idioms.json     # the 8 netlist-reader idiom designs (5 s); --expected-out re-records their goldens
+python3.12 score/ppa_validate.py stime                           # the STA against ABC's own stime (112 mapped netlists)
+```
+
+Output: `{"ppa": {..., "mapped": {...}}, "score": {score.py's result, unchanged}}` (`--netlist-in`: `ppa` only; `--no-mapped`: no `mapped`). Exit 0 weighed (a design the mapping cannot weigh is still exit 0, with `mapped.available` false and the reason), 1 refused (JSON
+`{"error": ...}`), 2 usage. A missing, unreadable or wrong liberty, a gate outside the table (flip-flop, latch, tri-state, a mapped cell),
+an undriven or doubly driven net, a loop, an x/z constant that a gate or an output reads, a liberty whose cell does not compute the
+gate it is mapped to, or whose table variables or units differ from the pinned ones, are errors, never a number. `--path` adds the
+critical path.
+
+**The netlist reader** takes what `write_verilog -noattr -noexpr` prints for the pinned flow: one flat module, `TYPE name (.PIN(net), ...);`
+instances, port vectors, `assign`. It also reads what Yosys leaves of the cells it techmapped (`$shiftx`, `$shr`, `$pmux`, `$div`, ...): wires with
+PUBLIC dotted names, which are printed as escaped identifiers (`wire [7:0] \_1_.A ;`, ended by a space, possibly with brackets inside the
+name), `assign \_1_.A  = a;`, a part select after the space (`assign \_10_.B [23:8] = { a, b };`), and constants with x bits in those
+assigns. They are real nets: a gate may drive one (`.Y(\_2_.Y )`, then `assign y = { 7'h00, \_2_.Y  }`), and then the signal goes
+through it; when no gate reads them they change nothing. An x/z bit is an error only if a gate pin or an output bit reads it. A run-time bit select, a variable
+shift or rotate, a `case` mux, a constant-table `case`, a one-hot decode, an index into a packed array and `/` or `%` by a variable
+all weigh, and so does an S-box through log/antilog tables (a 2048-bit constant indexed by a computed value) (`tests/ppa/idioms.json`, 8 designs
+with goldens; the first version of the reader refused every one of them with `assign width mismatch`, found by review of WP-X3). Two of the eight
+(`packed2d_idx`, `sbox_logexp`) leave an x literal in a dead buffer: `ppa.py` and the leaderboard's rescore read them, but `check.py` never gets
+that far (see "Known gap" below).
+
+## Measured at several points (11/05; measured, not ranked)
+
+Decided 11/04: "Maybe it would be interesting to score tasks at multiple points (not just N=16) and make the alternative
+parameters available in the 'Compare the designs' plot". Every proof holds at every point of its task's range, so this is
+measurement only: the ranked board stays at task.json's `scoring.params` and nothing here ranks anything.
+
+* **The points**: `score/points.json` (untrusted, not hashed by the checker; task.json is not touched). add N = 8, 16, 32, 64;
+  mul and clmul N = 4, 8, 16, 32; aes_sbox its one size; fdivp bfloat16 (W = 8, P = 8), binary16 (5, 11, the scored point) and
+  binary32 (8, 24); matmul (N, W, AccW) = (2, 8, 32) and (4, 8, 32); the sorter N = 4, 8, 16 at W = 8. The scored point must be
+  one of them (`score/test_points.py`).
+* **The designs**: every reference of task.json and baseline of tests/expected.json (a baseline with `banlist_points` is a
+  fixed size and is measured there only), which covers every design of `tests/ppa/designs.json`; `--records` adds the players'
+  leaderboard records (shown as measured, never ranked; a nightly is meant to run it).
+* **The flow**: `score/points.py measure` runs `score/ppa.py SV --task tasks/<t> --param ... --no-mapped` (`--seq` for a clocked
+  task) once per (design file, point), one process at a time, under `nice -n 19`: the pinned flow, liberty, input drive and repair
+  of the ranked score. A clocked design's time is cycles x period, the cycles from its proof's own `def lat` (checked against its
+  `-- svgolf-latency:` header at the scored point). A point other than the scored one whose flow fails or takes longer than the
+  task's `time_limit_s` (120 s) is dropped for that design, with the reason in the data; `points.json` `skip` pins such a drop
+  with its measurement (today: `fdivp_newton` at binary32, stopped at 120 s, more than 30 min in an earlier run; `dadda_ks_32`,
+  stopped at 120 s, more than 1800 s earlier). 93 runs took 454 s in all (11/05, load average 7 to 8); the binary32 runs that
+  finish take 9 to 30 s.
+* **The data**: `score/measured/<task>.json`, deterministic and sorted (no wall time in it). At the scored point it EQUALS the
+  goldens bit for bit, and `measure` refuses to write it otherwise: `tests/ppa/expected_ppa.json` for every design of
+  designs.json, tests/expected.json's GE columns at every point it scores (75 of the 99 rows) and its clocked columns (matmul, the sorter)
+  at the scored point. `score/points.py check` (and `score/test_points.py`) also holds it to the current design files, sky130
+  identity and pinned flow.
+* **The site**: the explorer of "Compare the designs" gets a point selector (the scored point labelled ranked, every other
+  "measured, not ranked") and a scaling view (any number against the task's parameter, one line per design, log axes, and the
+  score over par's at each point, where a crossing shows a design starting to pay off: on add, `cmp_carry` beats the ripple
+  adder at N = 64). The headline chart, the leaderboard and the tables of the scored point are unchanged.
+
+```
+python3.12 score/points.py plan [--records]                          # what would be measured, no tool runs
+nice -n 19 python3.12 score/points.py measure [--task T] [--records] [--timings OUT.json]
+python3.12 score/points.py check                                     # the data against the plan and the goldens
+python3.12 score/test_points.py
+```
+
+## Reproduce a score
+
+A ranked number is a pure function of: the design's text; the pinned flow (`score/srcgate.py`, `score/canon.ys`,
+`score/svgolf.ys`, `score/ge.json`; for a clocked task `score/svgolf_seq.ys` and `score/ge_seq.json`), run by the pinned
+Yosys and its ABC; `score/ppa.py` and `score/ppa_pins.json`; the pinned liberty; and the task's scoring point and input
+drive. A check result (and so a record) carries the hash of each: `score.yosys_version`, `score.canon_script_sha256`,
+`score.script_sha256`, `score.ge_table_sha256`, `score.rtlil_sha256`, and `ppa.liberty_sha256`, `ppa.ppa_pins_sha256`,
+`ppa.ppa_script_sha256`, `ppa.netlist_sha256`, `ppa.repair.netlist_sha256`, `ppa.setup`.
+
+**Tools and pinned files** (the versions the goldens and `tests/expected.json` were recorded with; `tests/run.py` fails when
+the Yosys version or a script hash differs from `tests/expected.json`'s `flow`):
+
+| what | version or sha256 | role |
+|---|---|---|
+| Python | 3.12 (3.12.8 here), with `pyslang` (11.0.0 here) | `score/*.py`; `pyslang` parses the source for the source gate |
+| Yosys | `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)` | the pinned flow: two processes, below |
+| ABC | the `yosys-abc` beside that Yosys: `UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`; the binary here (Homebrew's `yosys` 0.53, macOS arm64) has sha256 `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653` (another platform's build has another hash; the version line is what a record carries) | run only by Yosys's `synth` and `abc -g` passes; the ranked weighing and its repair are Python (`ppa.py`), no ABC |
+| liberty | `sky130_fd_sc_hd__tt_025C_1v80.lib`, 12,800,135 bytes, `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5` (OpenROAD-flow-scripts `6c6fc7e2`, URL in `ppa_pins.json`) | fetched, never vendored: `python3.12 score/ppa.py --fetch-liberty` (size and sha256 checked) or `SVGOLF_SKY130_LIB=/path/to/copy` |
+| `score/canon.ys` | `bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b` | Yosys process 1 |
+| `score/svgolf.ys` | `ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445` | Yosys process 2 (combinational) |
+| `score/svgolf_seq.ys` | `1bce52a7f206f05b40b075c07bb40c89755f4c1685ada680758984030af90f36` | Yosys process 2 (clocked) |
+| `score/ge.json` | `6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea` | the GE prices (the extra GE column) |
+| `score/ge_seq.json` | `0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6` | the GE prices of a clocked task (`ge.json`'s plus the flop's; its `_derivation` names the pins file it was derived under, so it changed with `sky130_a0_v3`'s pins) |
+| `score/ppa_pins.json` | `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8` (`sky130_a0_v3`), recorded in every block as `ppa_pins_sha256` | the gate-to-cell table, the timing setup and input drives, the repair, the tie cells |
+
+**The pinned flow, step by step** (what `score.py` does):
+
+1. The source gate, `srcgate.py`, refuses preprocessor directives, attributes, synthesis pragmas and `unique`/`priority`,
+   and writes the CANONICAL text (comments stripped). Yosys reads that text, never the submitted file.
+2. Yosys process 1, `yosys -q -l canon.log -s canon.ys`: `score/canon.ys` without its comment lines, its placeholders
+   filled (`@SOURCES@`: one `read_verilog -sv "<canonical file>"` per source; `@TOP@`: the task's top; `@CHPARAM@`:
+   ` -chparam NAME VALUE` per scoring parameter; `@RTLIL@`: the output). For the `add` reference at `N = 16`:
+
+   ```
+   read_verilog -sv "add_n.sv"
+   hierarchy -check -top add_n -chparam N 16
+   proc
+   flatten -noscopeinfo
+   hierarchy -top add_n
+   setattr -unset src
+   setattr -mod -unset src
+   setattr -unset hdlname
+   setattr -mod -unset hdlname
+   rename -hide
+   rename -enumerate
+   write_rtlil "canon.il"
+   ```
+
+3. Yosys process 2 (a fresh process: Yosys's results depend on names a process has interned), `score/svgolf.ys`:
+
+   ```
+   read_rtlil "canon.il"
+   synth -flatten -top add_n
+   abc -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX
+   opt_clean
+   tee -q -o "stat.json" stat -json
+   tee -q -o "ltp.txt" ltp -noff
+   write_verilog -noattr -noexpr "netlist.v"
+   ```
+
+   ABC runs twice, each time with Yosys 0.53's own default script (the log, `grep "ABC: + " synth.log`, prints both):
+   inside `synth`, `abc -fast`, `strash; dretime; map`; then the `abc -g` pass, onto a generated gate library of the listed
+   gates, `strash; &get -n; &fraig -x; &put; scorr; dc2; dretime; strash; &get -n; &dch -f; &nf; &put`. `netlist.v` is the
+   SCORED netlist (the one `postsynth` simulates and `check.py` weighs); GE is the `stat` count priced by `ge.json`, the
+   depth `ltp -noff`. A clocked task runs `score/svgolf_seq.ys` instead: the same with `dfflegalize -cell $_DFF_P_ x` after
+   `synth`, priced by `ge_seq.json`.
+4. The ranked weighing, `ppa.py` on `netlist.v` (Python only): each gate becomes ONE `_1` cell (`ppa_pins.json` `gates`:
+   NOT `inv_1`, NAND `nand2_1`, NOR `nor2_1`, AND `and2_1`, OR `or2_1`, XOR `xor2_1`, XNOR `xnor2_1`, MUX `mux2_1`, ANDNOT
+   `nor2b_1`, ORNOT `nand2b_1`; each checked against the liberty's own function), a flop `dfxtp_1`, cut out of the timing
+   graph; the netlist is REPAIRED by buffering only ("The repair and the legality check"); then the STA: every primary input
+   that is read is the output of the task's input drive (`ppa.setup.input_drive`, default `sky130_fd_sc_hd__buf_8`) whose
+   own input is an ideal 50 ps ramp at 0, every output bit a 10 fF load, no wires, every table read by bilinear
+   interpolation inside its characterized grid only (a read outside it rejects the netlist), both edges, the worst arrival
+   and the largest transition carried; `delay_ps_sky130` is the latest output arrival, rounded to the ps (clocked: the
+   latest output or flop D arrival plus the flop's setup, the clock ideal with a 50 ps transition); `area_um2_sky130` the sum
+   of the cell areas (exact: `area_e4um2_sky130`); the legality audit last.
+
+**Reproduce a recorded number.** From `svgolf/` of a checkout at the record's commit, with the tools above on `PATH`
+(tested 11/04 by running the two blocks below literally, in a scratch copy of `svgolf/`: both references and the hand run
+matched the goldens bit for bit; again after the per-edge loads):
+
+```
+python3.12 score/ppa.py --fetch-liberty
+python3.12 score/ppa.py tasks/add/reference/add_n.sv --task tasks/add --no-mapped --json add_n.json --netlist add_n.scored.v --repaired-netlist add_n.repaired.v
+python3.12 score/ppa.py tasks/aes_sbox/reference/sbox_bp.sv --task tasks/aes_sbox --no-mapped --json sbox_bp.json --netlist sbox_bp.scored.v --repaired-netlist sbox_bp.repaired.v
+```
+
+`add_n.json` then has `"area_e4um2_sky130": 4604416`, `"delay_ps_sky130": 2611`, `"netlist_sha256": "3b7da549a07e…"`,
+`"repair": {..., "netlist_sha256": "ac214a9f04d7…"}` and `"setup": {..., "input_drive": "sky130_fd_sc_hd__buf_8", ...}`, and
+its `score` block `"rtlil_sha256": "0699af350c19…"`: the golden `add_ripple` of `score/tests/ppa/expected_ppa.json`.
+`sbox_bp.json` has 8921056, 4297, `22493fba30d8…`, `b27773491834…`: the golden `sbox_bp`. A clocked task needs `--seq`
+(`python3.12 score/ppa.py tasks/matmul/reference/matmul_g1.sv --task tasks/matmul --seq`: 87173.6064 um^2, period 10696 ps,
+6 buffers on 5 nets, `tests/expected.json`). A record's own numbers come from `check.py ... --ppa require`, which weighs the very netlist its
+`postsynth` stage verified, by the same function; `leaderboard.py verify` weighs it again.
+
+The same `add_n` numbers by hand, each step one tool and none of `score.py`:
+
+```
+mkdir hand && cd hand
+python3.12 ../score/srcgate.py ../tasks/add/reference/add_n.sv --write add_n.sv
+grep -v '^[[:space:]]*#' ../score/canon.ys | sed -e 's|@SOURCES@|read_verilog -sv "add_n.sv"|' -e 's|@TOP@|add_n|g' -e 's|@CHPARAM@| -chparam N 16|' -e 's|@RTLIL@|"canon.il"|' > canon.ys
+grep -v '^[[:space:]]*#' ../score/svgolf.ys | sed -e 's|@RTLIL@|"canon.il"|' -e 's|@TOP@|add_n|g' -e 's|@STAT@|"stat.json"|' -e 's|@LTP@|"ltp.txt"|' -e 's|@NETLIST@|"netlist.v"|' > synth.ys
+yosys -q -l canon.log -s canon.ys
+yosys -q -l synth.log -s synth.ys
+python3.12 ../score/ppa.py --netlist-in netlist.v --task ../tasks/add --repaired-netlist repaired.v --json hand.json
+shasum -a 256 canon.il netlist.v repaired.v
+```
+
+The three hashes are the record's `score.rtlil_sha256`, `ppa.netlist_sha256` and `ppa.repair.netlist_sha256` (`0699af35…`,
+`3b7da549…`, `ac214a9f…`), and `hand.json`'s columns are `add_n.json`'s. For another design: its canonical file(s), its
+top and its scoring parameters in the two `sed` lines, and its task in `--task`.
+
+**With OpenSTA.** Time the REPAIRED netlist (`--repaired-netlist`) with one explicit instance of the task's input drive in
+front of every input (a buffer per input, whose own input gets `set_input_transition 0.05`), `set_load 0.010` on every
+output and `set_load 0` on every net (no wires), the clock ideal with a 0.05 ns transition: OpenSTA (openroad/orfs 26Q4)
+then gives `ppa.py`'s arrivals to 1 fs per arc; `set_driving_cell` instead would make every input path earlier by the
+drive's zero-load delay ("The input drive"). `score/test_ppa_opensta.py` holds the script (`OPENSTA_TCL`) and OpenSTA's
+recorded numbers.
+
+## The liberty
+
+`sky130_fd_sc_hd__tt_025C_1v80.lib`, 12 800 135 bytes, sha256 `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5`,
+OpenROAD-flow-scripts commit `6c6fc7e2`, `flow/platforms/sky130hd/lib/` (URL and git blob in `ppa_pins.json`). It is **not
+vendored**: the file has no header, the upstream SkyWater PDK repositories are Apache-2.0 (GitHub licence API, 10/31) but ORFS
+carries no licence file for the platform directory and the provenance of its generated copy is not recorded, and it is 12.8 MB.
+`--fetch-liberty` downloads it and moves it into place only after size and sha256 match; `$SVGOLF_SKY130_LIB` or `--liberty`
+point at any copy (the hash is checked on every load). Without it the real-library tests are skipped.
+
+## Validation (every number: the command beside it)
+
+`python3.12 score/ppa_validate.py table` (the 18 designs of `designs.json`, `fdivp_newton` included; 147 s with `--mapped`, 121 s
+of it scoring `fdivp_newton`; `sky130_a0_v3`, every design on its task's default `buf_8` input drive, re-measured 11/04 with
+the per-edge loads): (GE,
+depth) of `score.py` against (um^2, ps) of `ppa.py`.
+
+| task | designs | GE vs um^2, Kendall tau-b | depth vs ps, tau-b | um^2 / GE | ps / level |
+|---|--:|--:|--:|--:|--:|
+| add | 5 | +1.00 | +0.95 | 4.11 to 4.37 | 79 to 116 |
+| mul | 7 | +0.90 | +0.59 | 4.21 to 4.30 | 90 to 124 |
+| aes_sbox | 3 | +1.00 | +1.00 | 4.38 to 4.44 | 204 to 208 |
+| fdivp | 3 | +1.00 | -1.00 | 4.29 to 4.49 | 118 to 159 |
+
+| design | GE | depth | um^2 | ps | design | GE | depth | um^2 | ps |
+|---|--:|--:|--:|--:|---|--:|--:|--:|--:|
+| add_ripple (ref) | 112.0 | 33 | 460.4 | 2611 | mul_dadda_rc | 1953.6 | 61 | 8230.4 | 5461 |
+| add_sklansky | 127.7 | 28 | 541.8 | 2451 | mul_dadda_ks | 2076.5 | 48 | 8937.3 | 5148 |
+| add_kogge | 149.7 | 24 | 641.9 | 2064 | mul_yosys (`*`) | 2081.2 | 59 | 8826.0 | 6261 |
+| add_cmpcarry | 196.0 | 17 | 857.1 | 1965 | sbox_bp (ref) | 201.0 | 21 | 892.1 | 4297 |
+| add_yosys (`+`) | 118.0 | 33 | 498.0 | 3143 | sbox_bp_d16 | 216.3 | 18 | 952.2 | 3670 |
+| mul_array (ref) | 1962.6 | 88 | 8290.5 | 10907 | sbox_table | 786.9 | 11 | 3445.8 | 2288 |
+| mul_tree (ref) | 2034.9 | 63 | 8603.3 | 6129 | fdivp (ref) | 2166.1 | 289 | 9675.5 | 37984 |
+| mul_wallace (ref) | 2113.9 | 62 | 8966.1 | 5982 | fdivp_newton (ref) | 7892.5 | 252 | 33824.9 | 40031 |
+| mul_tree_h (ref) | 2025.9 | 62 | 8563.2 | 5992 | flat_binary16 | 1944.8 | 303 | 8734.6 | 35735 |
+
+Reading: buffering only gives area ranks that follow GE as under `sky130_a0_v1` (tau-b +1.00, +0.90, +1.00; the ABC-sizing
+variant had dropped them to +0.60, +0.43, +0.33, "The repair and the legality check" above): no design of the table needs a
+buffer except `fdivp_newton` (one `buf_1`), so um^2 per GE is the gate mix alone, 4.11 to 4.49. Delay ranks follow unit depth
+except where delay per level differs: 79 ps per level for the ripple adder against 90 to 124 for the multipliers, 204 to 208
+for the S-boxes (under v2's `buf_1`, `sbox_table`'s heavily loaded inputs made it 307 ps per level; under `buf_8`, 208), and
+`add_yosys` is as deep as `add_ripple` (33) but 20% slower (3143 against 2611 ps), which is why its depth rank (tied 4th) and
+delay rank (5th) differ; the dividers are ordered opposite to their depth (`fdivp_newton` 252 levels, 40,031 ps; `fdivp` 289,
+37,984; `flat_binary16` 303, 35,735).
+
+The SRT reference `fdivp_srt` joined `designs.json` on 2026-11-05, after these tables were measured
+(`python3.12 score/ppa_validate.py table --only fdivp_srt --mapped`): 2787.7 GE, depth 189, 12,356.9 um^2, 27,592 ps
+(146 ps per level, no buffer; A1' 9,850.7 um^2, 33,290 ps, 1545 cells, 97 levels). Against the order of the other three
+dividers, its delay follows its depth: the shallowest divider is also the fastest. The rank statistics above are of
+the 18 designs without it.
+
+`python3.12 score/ppa_validate.py stime`: `abc -liberty` maps each canonical RTLIL (sized script, driver `buf_1`, load 10 fF,
+7 delay targets), ABC's `stime -p` times it, `ppa.py`'s STA times the same netlist under the fixed setup. Re-measured 11/04
+with the per-edge loads: 126 netlists (the 18 designs; 39 distinct: most delay targets are inert), |STA / stime - 1| **mean
+1.90%, max 9.8%, mean signed -0.20%**; the worst designs are `mul_array` (6.2% mean) and `sbox_bp_d16` (5.6% mean, 9.8% at
+D = 6000, the STA below ABC's). Before the per-edge loads it was 112 netlists, mean 2.22%, max 10.7%, mean signed -0.62%, and
+on the 14 designs of the WP-X1 spike alone (98 rows) 1.96% mean, 6.7% max, row for row the spike's numbers (same ABC delays,
+same STA to 0.01 ps, same cell counts). The "1.3% mean" quoted for the STA is the **Nangate45** figure of WP-X0 (72
+netlists). ABC's `stime` is not OpenSTA: against OpenSTA itself the STA agrees to 1 fs per arc ("The per-edge loads").
+
+Determinism: `ppa_validate.py table` run twice (hash seeds 0 and 7, other `TMPDIR`): all 16 rows identical, including the
+sha256 of the canonical RTLIL and of the scored netlist; `test_ppa.py` runs the CLI in separate processes under three hash
+seeds and compares stdout byte for byte; the STA is IEEE doubles in a fixed order (it reproduced the spike's floats bit for
+bit on all 14 netlists, `==` on the float).
+
+### Flow A1' against A0' (WP-X4; `python3.12 score/ppa_validate.py table --mapped`; both re-measured 11/04 under `sky130_a0_v3`'s per-edge loads, A0' on the default `buf_8` input drive)
+
+The same 18 designs through the real `abc -liberty` mapping. The A1' numbers equal the WP-X1 study's variant `u` on all 14 designs it
+had (area, delay, cells, levels), and the mapped netlists are byte-identical to the study's on the 12 add and mul designs (the two
+S-boxes were studied from design-study copies with other module names, so only their netlist text differs). The A0' columns are the
+repaired ones (`sky130_a0_v3`); the A1' goldens (`expected_ppa_mapped.json`) re-recorded byte-identically after the repair and
+the input drive, and the per-edge loads moved only their delays (A1' runs the same STA):
+
+| design | GE | depth | A0' um^2 | A0' ps | A1' um^2 | A1' ps | A1' cells | A1' levels | A1'/A0' area | A1'/A0' ps |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| add_ripple (ref) | 112.0 | 33 | 460.4 | 2611 | 440.4 | 6279 | 48 | 16 | 0.957 | 2.405 |
+| add_sklansky | 127.7 | 28 | 541.8 | 2451 | 499.2 | 3359 | 69 | 12 | 0.921 | 1.370 |
+| add_kogge | 149.7 | 24 | 641.9 | 2064 | 568.0 | 2661 | 92 | 10 | 0.885 | 1.289 |
+| add_cmpcarry | 196.0 | 17 | 857.1 | 1965 | 660.6 | 1846 | 105 | 9 | 0.771 | 0.939 |
+| add_yosys (`+`) | 118.0 | 33 | 498.0 | 3143 | 489.2 | 3567 | 74 | 11 | 0.982 | 1.135 |
+| mul_array (ref) | 1962.6 | 88 | 8290.5 | 10907 | 8644.5 | 16391 | 834 | 45 | 1.043 | 1.503 |
+| mul_tree (ref) | 2034.9 | 63 | 8603.3 | 6129 | 7975.1 | 7558 | 1074 | 31 | 0.927 | 1.233 |
+| mul_wallace (ref) | 2113.9 | 62 | 8966.1 | 5982 | 8398.1 | 7374 | 1217 | 32 | 0.937 | 1.233 |
+| mul_tree_h (ref) | 2025.9 | 62 | 8563.2 | 5992 | 8134.1 | 6217 | 1050 | 30 | 0.950 | 1.038 |
+| mul_dadda_rc | 1953.6 | 61 | 8230.4 | 5461 | 7551.0 | 6758 | 1125 | 31 | 0.917 | 1.238 |
+| mul_dadda_ks | 2076.5 | 48 | 8937.3 | 5148 | 8265.4 | 5506 | 1063 | 20 | 0.925 | 1.070 |
+| mul_yosys (`*`) | 2081.2 | 59 | 8826.0 | 6261 | 8454.4 | 6205 | 1145 | 26 | 0.958 | 0.991 |
+| sbox_bp (ref) | 201.0 | 21 | 892.1 | 4297 | 1094.8 | 4160 | 129 | 13 | 1.227 | 0.968 |
+| sbox_bp_d16 | 216.3 | 18 | 952.2 | 3670 | 1122.3 | 3822 | 120 | 12 | 1.179 | 1.041 |
+| sbox_table | 786.9 | 11 | 3445.8 | 2288 | 2343.5 | 1648 | 378 | 6 | 0.680 | 0.720 |
+| fdivp (ref) | 2166.1 | 289 | 9675.5 | 37984 | 8266.7 | 35611 | 1368 | 103 | 0.854 | 0.938 |
+| fdivp_newton (ref) | 7892.5 | 252 | 33824.9 | 40031 | 31849.3 | 39161 | 4359 | 126 | 0.942 | 0.978 |
+| flat_binary16 | 1944.8 | 303 | 8734.6 | 35735 | 7873.8 | 37868 | 1276 | 105 | 0.901 | 1.060 |
+
+Over the 18 designs A1'/A0' is **0.93 in area (median; 0.68 to 1.23)**, **1.06 in delay (median; 0.72 to 2.40)** and 0.77 in cells
+(the mapper's compound cells replace several abstract gates). A1' is area-leaning: the delay-first mapper `&nf` trades depth for area
+on the carry chains (the ripple adder's 33 gates become 16 `maj3_1` cells in 6.3 ns, against 2.6 ns for A0''s two-gate-per-bit
+chain). Rankings, best first, against the default score and A0':
+
+| task | metric | order |
+|---|---|---|
+| add | area, GE = A0' = A1' | ripple < yosys < sklansky < kogge < cmpcarry |
+| add | delay, A0' | cmpcarry < kogge < sklansky < ripple < yosys |
+| add | delay, A1' | cmpcarry < kogge < sklansky < **yosys < ripple** (the maj3 chain: the proved ripple adder goes from 4th to last) |
+| mul, the four proved | area, GE and A0' | array < tree_h < tree < wallace |
+| mul, the four proved | area, A1' | tree < tree_h < wallace < **array** (8645 um^2 in A1', 8290 in A0'; the tree 7975 in A1', 8603 in A0') |
+| mul, the four proved | delay, A0' and A1' | tree_h < wallace < tree < array in A1'; A0': wallace < tree_h (10 ps apart) < tree < array |
+| mul, all seven | area, A0' | dadda_rc < array < tree_h < tree < yosys < dadda_ks < wallace |
+| mul, all seven | area, A1' | dadda_rc < tree < tree_h < dadda_ks < wallace < yosys < array |
+| aes_sbox | area | bp < bp_d16 < table in GE, A0' and A1' |
+| aes_sbox | delay | table < bp_d16 < bp in A0' and A1'; the table design is 32% smaller under the mapper, the BP circuit 23% larger |
+
+Kendall tau-b of the area rankings (`table --mapped`): GE against A0' / against A1' / A0' against A1': add +1.00 / +1.00 / +1.00;
+**mul +0.90 / +0.33 / +0.24**; aes_sbox +1.00 / +1.00 / +1.00; fdivp +1.00 / +1.00 / +1.00. Delay: depth against A0' / against A1' /
+A0' against A1': add +0.95 / +0.95 / +0.80; mul +0.59 / +0.88 / +0.43; aes_sbox +1.00 / +1.00 / +1.00; fdivp -1.00 / -0.33 / +0.33
+(the area tau-b are `sky130_a0_v1`'s again; the ABC-sizing variant had add +0.60 / +1.00 / +0.60, mul +0.43 / +0.33 / +0.71, aes_sbox
++0.33 / +1.00 / +0.33). **Reading: A1''s disagreements with the default score are the mapper's, and the data are from one mapping
+script.** `sky130.md` section 5.6 measured the same designs under the study's ABC scripts (A0', u, s, l, h, r): the same design's area
+moves a median 12% (max 53%) and its delay a median 49% (max 154%) between them, which is larger than the rewrite noise below.
+
+**Determinism (measured).** The 16 designs, the 8 idioms and 5 more references (`add_proc`, `add_mux`, `add_n_byhand`,
+`mul_n_byhand`, the aes_sbox `sbox_table` reference), 29 designs, four times: serially under a random hash seed; serially under
+`PYTHONHASHSEED=1` with another `TMPDIR`; six at a time under `PYTHONHASHSEED=7` with a third `TMPDIR`; serially under
+`PYTHONHASHSEED=0` with a fourth: **every column, every cell histogram and the sha256 of every scored AND mapped netlist identical in
+all four runs** (serial 42 to 48 s, 6-way 13 s). `test_ppa.py` repeats it through the CLI (three hash seeds, two `TMPDIR`s, three
+processes at once, byte-identical JSON), and the mapped numbers are exact integers (`area_e4um2_sky130_mapped_v1`, ps). WP-X1 found ABC's mapper
+single-threaded in this build (no thread option, child CPU time never above wall time). Not tested: another machine, another Yosys/ABC build, Linux
+(the pinned flow already depends on the Yosys build; the golden tests fail loudly under another build).
+
+**Structure noise (measured through the shipped code, `tests/canon/variants.py`).** Seven designs (`add_ripple`, `add_sklansky`,
+`add_kogge`, `mul_array`, `mul_tree_h`, `mul_tree`, `sbox_bp`), nine rewrites each (layout, rename, hoisted declarations, reversed and four
+shuffled item orders, all commutative operands swapped) and the original, 70 runs: the 21 layout and rename variants have a
+byte-identical canonical RTLIL and **identical columns in both flows** (no noise by construction); over the others the
+largest movement is **A0': area 11.3%, delay 31.8%** (`mul_array`, commuted) and **A1': area 15.5%** (`sbox_bp`, commuted),
+**delay 20.1%** (`mul_tree_h`, commuted); the real mapper erases most of the tree's area signature on the regular designs (at most
+1.9% on all multipliers) but not the S-box's, and its delay is more sensitive than A0''s on some designs. These are the figures of the
+WP-X1 study (sky130.md section 6.2), reproduced here by the shipped `ppa.py`. Proposed tie bands (sky130.md section 6.4, a board
+decision, nothing applied here): 10% in area, 20% in delay.
+
+## What is NOT claimed
+
+* **(Superseded 11/03 and 11/04.)** A0' is the ranked sky130 score, and an electrically illegal repaired A0' netlist is a
+  reason to reject a submission (check.py's `ppa` stage); `(area_ge_v1, depth_v1)` are unchanged extra columns.
+* **Ranking, not picoseconds.** One library, one corner, no wires, a 130 nm process, uniform fixed loads; A0' is buffered
+  where it is electrically illegal and nowhere else, nothing resized (a repair, not timing closure) and A1' has the mapper's
+  cell choice but no sizing or buffering pass. The STA equals **OpenSTA** to 1 fs per arc on the same netlist and setup
+  (`score/test_ppa_opensta.py`, "The per-edge loads"; an explicit input buffer, not `set_driving_cell`) and is compared with
+  ABC's `stime` (above). Equal to OpenSTA is not equal to silicon: the corner, the missing wires and the fixed loads stay.
+* **The noise band.** Differences under about **10% in area and 20% in delay** between similar designs are mapper and
+  rewrite noise (sky130.md section 6: commuting operands moves A0' area up to 11% and T up to 32%; the mapper moves a design's area
+  a median 12% and delay 49%). `ppa.py` reports exact numbers and applies no band; ties and rank intervals are a board decision.
+* **A0' versus A1' (decided 2026-11-01: neither official; superseded 11/03: A0' ranks, A1' is research).** A0' prices the
+  netlist the default score already ranks, repaired; A1' is a real `abc -liberty` mapping, closer to a fabricated chip and more
+  sensitive to the mapper. A contestant who golfs for A1' is optimizing one ABC script on one liberty; the board never compares
+  a number of one flow with the other's.
+* **A1' is one mapping script, not "the" mapped result.** Other scripts (the `s`, `l`, `h`, `f`, `r` variants of the study) move
+  the same design a median 12% in area and 49% in delay. The equivalence check is a sample of 2048 vectors, not a proof.
+* No hold check, no clock tree, no clock skew: a clocked design (`--seq`, PLAN4 Gate 2) is weighed as its register-to-register
+  period (latest D arrival plus setup, from an ideal clock with the input ramp's transition), flops included in area. Energy is
+  `score/energy.py`'s unranked columns, on the same repaired netlist.
+
+## Wiring (WP-X3, 10/31; flow A1' WP-X4, 11/01)
+
+Decision (10/31): wire the columns in as EXTRA columns. The default board `(area_ge_v1, depth_v1)` stays the ranking, nothing
+a contestant could submit before is rejected, and `check.py`'s output for every existing field is byte-identical (below).
+Golfers can run ABC themselves and submit the best-scoring design; the columns record, they do not rank. (Superseded: 11/03 A0'
+is the ranked sky130 score; 11/04 the `ppa` stage REJECTS a design whose repaired netlist is electrically illegal, the one kind of
+design the stage rejects; "The repair and the legality check" above; 11/04 the boards rank A0''s area and time, with GE and
+depth as extra columns.)
+
+**`check.py`.** After the `postsynth` stage (the netlist is verified before it is weighed; a design that is rejected is not
+weighed) the `ppa` stage weighs THE netlist file the score stage kept and postsynth simulated: no second synthesis, and
+`netlist_sha256` equals `stages.postsynth.netlist_sha256`; the stage CHECKS that (the bytes it reads must hash to what postsynth
+recorded), so a file replaced between the two stages is an infrastructure error, never a number. The result gets the key `ppa` (an
+object, never mixed into the score fields) and `stages.ppa = {"mode", "seconds"}`. Measured: under `auto` the stage takes
+0.11 to 0.13 s (the liberty's hash and cell scan, about 0.10 s, then the STA); under `--ppa require` the liberty is opened before the first stage, so
+`stages.ppa.seconds` is 0.00 to 0.02 s and the same ~0.10 s is spent up front. The weighed netlist's unit depth and cell count must equal the score
+stage's `ltp -noff` depth and gate count (+1 for the priced tie cell): a disagreement means the two readings of the netlist differ,
+and nothing is reported (`auto`) or the run is an infrastructure error (`require`).
+
+| `--ppa` | liberty present | liberty absent, unreadable or not the pinned file |
+|---|---|---|
+| `auto` (default) | `ppa: {"available": true, ...the columns...}` | `ppa: {"available": false, "reason": "liberty not found: ..."}`, one line on stderr, nothing else changes |
+| `require` | the same | an infrastructure error before any other work (exit status 2, `stage: "infrastructure"`): competitions, `leaderboard.py add`/`verify --full`, and `tests/run.py` where the liberty exists |
+| `off` | no `ppa` key, no stage, no stderr line | the same (the liberty is never looked at) |
+
+What can still be `ppa: {"available": false, "reason": ...}`, and what is an infrastructure error (exit status 2, no verdict) instead:
+
+| situation | `auto` | `require` |
+|---|---|---|
+| liberty absent, unreadable (permissions) or not the pinned file | `available: false` + reason | infrastructure error, before any work |
+| the pinned flow cannot weigh THIS netlist (a cell outside the A0' table, an undriven net, an x/z bit that is read, ...) | `available: false` + the loud reason | the same (never fails the check; `leaderboard.py add` records the reason) |
+| the REPAIRED netlist is electrically illegal (a load over `max_capacitance`, a transition over `max_transition`, a timing-table read outside its grid; `sky130_a0_v2`) | REJECTED at stage `ppa`: `available: false, illegal: true`, the reason and the `legality` counts | the same |
+| the repaired netlist is not the scored circuit on the 2048-vector sample (`RepairDefect`: the repair's or the reader's fault) | `available: false` + `the repaired netlist is not the scored circuit: ...` | infrastructure error |
+| `ppa.py` raises something other than its own refusal (a defect of `ppa.py`) | `available: false` + `ppa.py failed on this netlist: ...` | infrastructure error |
+| the weighed netlist's depth or gate count differs from the score stage's | `available: false` + the numbers | infrastructure error |
+| the netlist file is not the one postsynth verified (sha256) | infrastructure error | infrastructure error |
+
+So "never fails the check" is exact for what a DESIGN can do, with ONE exception since `sky130_a0_v2` (11/04): a design whose
+repaired netlist is electrically illegal is rejected at `ppa`. (A design can still be rejected BEFORE the `ppa` stage, by a stage
+the wiring did not touch: "Known gap" below.) A comb-family task's flow refuses a flip-flop (so does its score stage); a
+clocked task's `score_clocked` weighs its `--seq` netlist through this same stage under `require`, and the ranked clocked score
+IS that block. The integrity tripwire fingerprints `score/ppa.py` and `score/ppa_pins.json`
+by content with the other trusted scripts (the liberty is not in it: its sha256 is verified on every load).
+
+**Flow A1' in the same stage (WP-X4).** The `ppa` block of a weighed design also carries `mapped` (the sub-object of "Columns"; `ppa`
+minus `mapped` is exactly what it was, so a reader from before WP-X4 still validates every record). The score stage now keeps the
+canonical RTLIL of its run (`score.score(rtlil_out=...)`, asked for only when `--ppa` is not `off`; its sha256 is the `rtlil_sha256` the
+score stage already records, and the stage CHECKS that the file it maps hashes to it, like the netlist), and after the A0' weighing the
+stage maps that RTLIL in one more Yosys process (through the same sandbox as the pinned flow, reading only the RTLIL and the liberty),
+checks the mapped netlist against the scored one and weighs it. `stages.ppa` gains `mapped_seconds` (`seconds` is the total; measured
+0.3 to 1.4 s on the references, 3.6 s for the 760-cell `sbox_logexp`); `--ppa off` maps nothing; the stderr line is
+`ppa: mapped (A1', real abc -liberty): ... um^2, ... ps, ... cells, ... levels (sky130_a1_v1; extra columns, not the board)`.
+What can still be `mapped: {"available": false, "reason": ...}`, and what is an infrastructure error instead (the A0' columns and the verdict
+are never touched):
+
+| situation | `auto` | `require` |
+|---|---|---|
+| the mapping run fails or times out (Yosys error, `yosys_timeout_s`), a cell outside the policy, a netlist the reader or STA cannot handle | `mapped.available: false` + the loud reason, the check goes on | the same (never fails the check; `leaderboard.py add` records the reason) |
+| the mapped netlist computes another function than the scored one on the equivalence sample (`MappedDefect`) | `mapped.available: false` + `the mapped netlist is not the scored circuit: ...` | infrastructure error |
+| `ppa.py` raises something other than its own refusal while mapping | `mapped.available: false` + `ppa.py failed on this design's mapping: ...` | infrastructure error |
+| the canonical RTLIL (or the netlist) is not the file the score (postsynth) stage recorded (sha256) | infrastructure error | infrastructure error |
+| the mapped-flow pins or script unreadable | `mapped.available: false` + reason | infrastructure error, before any other work |
+
+The integrity tripwire also fingerprints `score/ppa_mapped.ys` and `score/ppa_mapped_pins.json` by content (and the leaderboard's
+`checker.files` records their hashes).
+
+**Known gap, not of this stage.** The `postsynth` stage lints the scored netlist with Verilator `-Wall`, every warning fatal but two, and UNDRIVEN is
+fatal; and it refuses a netlist with an unknown literal (`1'hx`). The dead public-named wires of some techmapped cells are only partly driven or carry x
+bits, so some ordinary designs are refused at `postsynth` ("the scored netlist does not compile: verilator rejected it ... Bits of signal are not
+driven") before the `ppa` stage runs, in every `--ppa` mode, with or without a liberty. Found while testing the reader (`check/postsynth.py` is
+unchanged since before the wiring); this one, on the `aes_sbox` task, stops at stage `postsynth`:
+
+```
+module aes_sbox (input logic [7:0] x, output logic [7:0] y);
+  logic [7:0] s;
+  assign s = {x[3:0], x[7:4]};
+  always_comb case (x[1:0])
+    2'd0:    y = x;
+    2'd1:    y = s;
+    2'd2:    y = x & s;
+    default: y = x | s;
+  endcase
+endmodule
+```
+
+The designs of `tests/checker/ppa_wiring/dead_wire_designs/` (a run-time shift, a one-hot decode, a run-time bit select) do pass `postsynth`
+and reach the `ppa` stage with dead wires in their netlists. What to do about the refusal is a decision about the pinned flow and the postsynth
+policy (for example writing the scored netlist without its dead public wires changes `script_sha256`), not made here.
+
+**Fields of `ppa`** (`available: true`): the A0' columns of the table above (`ppa.py`'s `columns`), `available`, `mapped` (flow A1', above), and four more:
+
+| field | meaning |
+|---|---|
+| `constants` | boolean: a literal sits on a cell pin or an output bit, so ONE `conb_1` is priced (it is in `cells_sky130` and `cell_hist_sky130`; `cells_sky130 - 1` is the score stage's gate count then) |
+| `critical` | `{"output": the output bit (the netlist's own name) the latest arrival ends at, or null with no path, "edge": "r" or "f", "cells": the number of cells on that path}` |
+| `setup` | the timing setup: `{"pi_slew_ps": 50, "input_drive": "sky130_fd_sc_hd__buf_8", "po_load_ff": 10, "wires": "none", "tables": "no extrapolation"}`, `input_drive` the task's (`sky130_a0_v3`; v2 recorded `"pi_driving_cell": "buf_1"`) (A1''s `mapped.setup` stays `{"pi_slew_ps": 50, "po_load_ff": 10, "wires": "none"}`) |
+| `liberty_file` | the file name of the pinned liberty |
+
+**The liberty.** Fetched, not vendored (licence above): `python3.12 score/ppa.py --fetch-liberty`, once per checkout, into `score/lib/`
+(git-ignored); or `SVGOLF_SKY130_LIB=/path/to/copy` (the hash is checked on every load); both flows use this one file. Flow A0' is
+`ppa_version` `sky130_a0_v3`, flow A1' is `ppa_mapped_version` `sky130_a1_v1` (a change of `ppa_pins.json`, the STA, the cell table or the
+repair changes the first; a change of `ppa_mapped.ys`, `ppa_mapped_pins.json` or the Yosys/ABC build changes the second).
+
+**Leaderboard.** `leaderboard.py add` runs `check.py --ppa require --postsynth full` and stores the block as the optional record key
+`ppa` (the schema string is unchanged; records without it stay valid and verify as before; a `leaderboard.py` from before the
+key treats a record that has one as corrupt, so readers are updated first). `add --from-check RESULT.json` records a stored result as it is: a
+`require` result with its block, an `auto` result that found no liberty is refused, a result without the key (`--ppa off`, an older checker)
+gives a record without the columns and a NOTE. `verify` compares the columns exactly when the weighing is the same (`ppa_version`,
+liberty and pins hashes equal, and the same Yosys flow: under another flow a record is `stale` and neither score nor columns are
+compared), and says so with a note when it cannot (the default level re-weighs through `ppa.py` and needs no liberty to pass;
+`verify --full` rechecks a record that has columns with `--ppa require`, and a record made before the columns with `--ppa off`, so
+legacy records verify as before on a machine without the liberty). `pareto --axes area_um2_sky130,delay_ps_sky130` is the opt-in
+n-dimensional frontier. See `leaderboard/README.md`.
+Flow A1' rides in the same record key as the sub-object `ppa.mapped` (an old `leaderboard.py` accepts it: extra keys of `ppa` are
+allowed): `validate_mapped` checks its shape and arithmetic, `ppa_score_problems` that it read the record's own canonical RTLIL,
+`verify` compares the mapped columns exactly under equal `ppa_mapped_version`, liberty, mapped pins, script, Yosys and ABC builds and
+says so with a note otherwise (`verify --full`, which runs `--ppa require`, FAILS a record whose mapped columns it can no longer
+reproduce or map; a record made before WP-X4 or whose design the mapping could not weigh is not compared on them), and
+`pareto --axes` takes `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, `mapped_cells_sky130_v1`, `mapped_levels_sky130_v1`
+beside the A0' axes (axes of both flows may be mixed; each is read from its own flow, and records under another mapped identity or
+without the sub-object are listed "not shown" with the reason).
+
+**Tests.** `tests/checker/test_ppa_wiring.py` (modes, absent and unreadable liberty, byte-identity, the swapped-netlist check, `aes_sbox`
+designs with dead wires in their netlists through check.py's stages, tripwire),
+`tests/leaderboard/test_leaderboard.py` (the record key, the axes view, and `ppa.mapped` of both), `score/test_ppa.py` (the reader on escaped identifiers and dead
+wires, on a synthetic liberty; flow A1' on the synthetic liberty: weighing, equivalence sample, pins, reasons, timeouts; the idiom designs with goldens on the real one, and the
+A1' goldens, the dont_use globs against the policy on all 428 cells, the script against Yosys's default, bit-exactness through three hash
+seeds and two temp dirs), and in `tests/run.py` the `ppa` step plus a golden check of
+the `ppa` block of each reference's real check result (`SVGOLF_PPA_REQUIRE_LIB=1` is set for the suite when the liberty file exists; without
+it these checks are SKIPPED with a message and nothing unrelated fails). What the goldens pin, per design: `area_ge`, `depth`, `gates` and
+`area_e4um2`, `delay_ps`, `unit_depth`, `cells`, `netlist_sha256`. The other columns are checked for every weighed block by derivation
+(`tests/run.py` `ppa_block_problems`): `area_um2_sky130 = area_e4um2_sky130 / 10^4`; `cell_hist_sky130` sums to `cells_sky130` and, priced
+cell by cell in the live liberty, to `area_e4um2_sky130`; `setup` and `liberty_file` equal the pins file's; `critical` has its shape; the
+three provenance hashes (pins, liberty, `ppa.py`) and `ppa_version` equal the live files'. Not pinned by any golden: the values of `critical.output` and `critical.cells`.
+Flow A1' (`score/tests/ppa/expected_ppa_mapped.json`, the 16 designs and the 8 idioms): per design the canonical RTLIL hash it read (equal to the A0'
+golden's), `area_e4um2`, `delay_ps`, `cells`, `levels`, `buffers`, `inverters`, `constants` and the mapped netlist's `netlist_sha256`; the file is for
+one `ppa_mapped_version`, liberty, script hash, Yosys and ABC build (`ppa_validate.py table --designs designs.json,idioms.json
+--mapped-expected-out ...` re-records it), and every mapped block is checked by derivation (`tests/run.py` `ppa_mapped_block_problems`:
+area arithmetic, the histogram priced in the live liberty, only `logic`-class cells, buffer and inverter counts, the pins, script, builds and
+equivalence parameters, the RTLIL equal to the score run's). The suite's `ppa` step stays a Python-and-Yosys step: A1' adds about 25 s
+for the 24 designs (and `test_ppa.py` 28 s: 24 s to 52 s).
+
+**Byte-identity of the default result.** `tests/checker/ppa_wiring/*.baseline.json` are the results of the checker from before the wiring
+(svgolf-prep `49677a12`) on the `add` and `aes_sbox` references, with the machine- and run-dependent leaves masked
+(`tests/checker/byte_identity.py`). Two masks. `RUN_VOLATILE` (times, directories, the integrity file count) is masked everywhere.
+`BUILD_VOLATILE` is deterministic in one checkout but a function of more than (design, pinned flow): the tool identities (`yosys_version`,
+`verilator`, `lean_surfaces`, `extractor_sha256`, `sveval_sha256`), the `envelope_sha256` (a function of the extractor, which other work
+changes) and `submission_constants_used` (a function of the proof file). It is masked against the goldens, which another commit recorded, and NOT
+masked between two results of the same checkout: `--ppa off` and `--ppa auto` in one process are compared with only `RUN_VOLATILE` masked. Every
+other key and value stays. `PROVENANCE.txt` there has the commands. `--ppa off` equals the goldens; `--ppa auto` equals them plus exactly the key `ppa` and
+the stage `stages.ppa`.

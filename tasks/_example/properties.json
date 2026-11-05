@@ -1,0 +1,115 @@
+{
+  "task": "_example",
+  "file": "svgolf/tasks/_example/Properties.lean",
+  "theorem": "SvGolf.Tasks.Example.Properties.statement_iff_properties",
+  "statement": {
+    "decl": "SvGolf.Tasks.Example.Statement",
+    "file": "svgolf/tasks/_example/Spec.lean"
+  },
+  "summary": "A design meets the trusted statement exactly when, for every width N ≥ 1, it has all of the properties below. Lean checks that, together, they say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
+  "properties": [
+    {
+      "name": "PARAMS_IN_RANGE",
+      "decl": "SvGolf.Tasks.Example.Properties.ParamsInRange",
+      "file": "svgolf/tasks/_example/Properties.lean",
+      "kind": "range",
+      "text": "The statement covers every width N ≥ 1 at once: one proof works for all of them, not just for the width the design is scored at (N = 16). Every property below must hold at each width."
+    },
+    {
+      "name": "INTERFACE",
+      "decl": "SvGolf.Tasks.Example.Properties.Interface",
+      "file": "svgolf/tasks/_example/Properties.lean",
+      "kind": "property",
+      "text": "The module has exactly the input ports a and b (N bits each) and exactly the output port y (N bits), with these widths, in this order. Nothing is missing and nothing is extra: an extra input could serve as a hidden mode pin, and the checker and the scoring tools drive and read the design by these names and widths."
+    },
+    {
+      "name": "UNCLOCKED",
+      "decl": "SvGolf.Tasks.Example.Properties.Unclocked",
+      "file": "svgolf/tasks/_example/Properties.lean",
+      "kind": "property",
+      "text": "No process of the design runs at a clock edge: no always_ff, no always @(posedge …), no asynchronous-reset block; only continuous assignments and always_comb blocks. The task is combinational, so it never needs one. The rule closes a gap between Lean's model of SystemVerilog, which the proof is about, and real tools: the model runs every clocked block once per cycle whatever its clock does, so a design that registers correct outputs on a clock nothing drives would look right there, while a simulator sees a clock that never ticks and synthesis removes the registers."
+    },
+    {
+      "name": "TERMINATES",
+      "decl": "SvGolf.Tasks.Example.Properties.Terminates",
+      "file": "svgolf/tasks/_example/Properties.lean",
+      "kind": "property",
+      "text": "Whatever order the simulator picks for processes that are ready at the same moment (the schedule), and whatever values the inputs take, simulating the design completes: every cycle settles. A combinational loop that oscillates fails this, and so does a design the tools could not read. It is also what gives the next property its teeth: that one is about completed runs, and a design with no completed run would satisfy it without computing anything."
+    },
+    {
+      "name": "COMPUTES_AND",
+      "decl": "SvGolf.Tasks.Example.Properties.ComputesAnd",
+      "file": "svgolf/tasks/_example/Properties.lean",
+      "kind": "property",
+      "text": "In every cycle in which the inputs a and b are driven with known 0/1 values, the output y settles to a & b, their bitwise AND. The outputs must be fully known 0/1 values in every cycle of every run, whatever the earlier cycles were, so they cannot depend on history."
+    }
+  ],
+  "definitions": [
+    {
+      "name": "Statement",
+      "decl": "SvGolf.Tasks.Example.Statement",
+      "file": "svgolf/tasks/_example/Spec.lean",
+      "text": "The trusted challenge statement that these properties restate, part by part."
+    },
+    {
+      "name": "task",
+      "decl": "SvGolf.Tasks.Example.task",
+      "file": "svgolf/tasks/_example/Spec.lean",
+      "text": "The task as data: the parameter range, the ports at each parameter value, and the function the outputs must compute."
+    },
+    {
+      "name": "CombTask.SatisfiedAt",
+      "decl": "SvGolf.CombTask.SatisfiedAt",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The trusted form of a combinational statement at one parameter value: the interface, then no clock and termination, then the function."
+    },
+    {
+      "name": "inputPorts",
+      "decl": "SvGolf.inputPorts",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The design's input ports, each with its declared width, in declaration order."
+    },
+    {
+      "name": "outputPorts",
+      "decl": "SvGolf.outputPorts",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "The design's output ports, each with its declared width, in declaration order."
+    },
+    {
+      "name": "HoldAll",
+      "decl": "SvGolf.HoldAll",
+      "file": "svgolf/SvGolf/Task.lean",
+      "text": "HoldAll st ports values: in the state st, every listed port holds its value as a known bit vector (no x, no z) of exactly the port's width."
+    },
+    {
+      "name": "⊨₂",
+      "decl": "LeanModels.Sv.Models2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "d ⊨₂ P: in every completed run of the design d, under every schedule and every stimulus, the stimulus and the trace satisfy P."
+    },
+    {
+      "name": "spec2",
+      "decl": "LeanModels.Sv.spec2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "Turns a property of a stimulus (one input entry per cycle) and a trace (one snapshot of every signal per cycle) into the form ⊨₂ takes."
+    },
+    {
+      "name": "Runs2",
+      "decl": "LeanModels.Sv.Runs2",
+      "file": "LeanModels/Sv/Spec2.lean",
+      "text": "Runs2 d σ stim tr: simulating d under the schedule σ on the stimulus stim completes, with the trace tr."
+    },
+    {
+      "name": "ScheduleOracle",
+      "decl": "LeanModels.Sv.ScheduleOracle",
+      "file": "LeanModels/Sv/Semantics.lean",
+      "text": "A legal schedule: the order in which the simulator runs the processes that are ready at the same moment. The statement quantifies over all of them."
+    },
+    {
+      "name": "Process2.isEdgePhase",
+      "decl": "LeanModels.Sv.Process2.isEdgePhase",
+      "file": "LeanModels/Sv/Sem2.lean",
+      "text": "True for the processes that run at the clock edge: always_ff, always @(posedge …) and asynchronous-reset blocks."
+    }
+  ]
+}
