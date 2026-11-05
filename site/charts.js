@@ -11,6 +11,10 @@
 //     scales, ticks, marks and CSS classes.
 //   * the scaling view: a metric menu, the "÷ par" and log switches, and a redraw of the lines
 //     (svgplot.line_chart's frame, scales, marks, margin names and classes).
+//   * a detail page (a record's, a reference's): the area-time plot's "fit to cluster" / "all designs"
+//     switch (it shows one of the server's two drawings) and the schematic's zoom buttons (they scale
+//     the inline SVG inside its scroll box about the view's centre), critical-path switch, cell finder
+//     and the critical-path links into the drawing.
 // No libraries, nothing fetched.
 (function () {
   "use strict";
@@ -367,6 +371,129 @@
     });
   }
 
+  // -- a detail page: the area-time plot's view switch, the schematic's zoom ------------------
+
+  function wireViewToggle(toggle) {      // "Fit to cluster" / "All designs": shows one of the server's drawings
+    var slot = toggle.closest("[data-hook]") || document;
+    var box = slot.querySelector("[data-area-time]");
+    if (!box) { return; }
+    toggle.hidden = false;
+    var buttons = toggle.querySelectorAll("button");
+    Array.prototype.forEach.call(buttons, function (btn, i) {
+      btn.addEventListener("click", function () {
+        Array.prototype.forEach.call(buttons, function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
+        Array.prototype.forEach.call(box.querySelectorAll("[data-view]"), function (v) {
+          v.hidden = v.getAttribute("data-view") !== (i === 0 ? "fit" : "all");
+        });
+        var t = box.querySelector(":scope > .chart-tip");
+        if (t) { t.hidden = true; }
+      });
+    });
+  }
+
+  // The drawing in a scroll box (without the script: shrunk to the box's width, and each cell a link target). The
+  // script adds zoom about the view's centre (the critical path keeps its width when the drawing is shown smaller
+  // than its size), a cell finder (instance or cell type; Enter steps through the hits), and the critical-path links
+  // (`a.sch-link`, to `#sch-<instance>`), which scroll the cell to the middle of the view and mark it.
+  function wireSchematic(box) {
+    var svg = box.querySelector("svg.sch");
+    var tools = box.parentNode.querySelector("[data-schematic-tools]");
+    if (!svg || !tools) { return; }
+    var w0 = parseFloat(svg.getAttribute("width")), h0 = parseFloat(svg.getAttribute("height"));
+    if (!(w0 > 0 && h0 > 0)) { return; }
+    var zoom = 1;
+    box.classList.add("zoomable");
+    function origin() {                  // where the drawing's (0, 0) is in the box's scrolled content
+      var b = box.getBoundingClientRect(), s = svg.getBoundingClientRect();
+      return { x: s.left - b.left - box.clientLeft + box.scrollLeft, y: s.top - b.top - box.clientTop + box.scrollTop };
+    }
+    function set(z) {                    // the point of the drawing at the view's centre stays there
+      var o = origin(), vx = box.clientWidth / 2, vy = box.clientHeight / 2;
+      var px = (box.scrollLeft + vx - o.x) / zoom, py = (box.scrollTop + vy - o.y) / zoom;
+      zoom = Math.max(0.05, Math.min(8, z));
+      svg.setAttribute("width", String(Math.round(w0 * zoom)));
+      svg.setAttribute("height", String(Math.round(h0 * zoom)));
+      box.classList.toggle("zoomed-out", zoom < 0.75);
+      o = origin();
+      box.scrollLeft = o.x + px * zoom - vx;
+      box.scrollTop = o.y + py * zoom - vy;
+    }
+    function fit() {
+      set(Math.min(1, (box.clientWidth - 16) / w0));
+      box.scrollLeft = 0;
+      box.scrollTop = 0;
+    }
+    function centre(el) {                // the cell `el` at the middle of the view, at its size at least
+      if (zoom < 1) { set(1); }
+      var b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+      box.scrollLeft += r.left + r.width / 2 - (b.left + box.clientLeft + box.clientWidth / 2);
+      box.scrollTop += r.top + r.height / 2 - (b.top + box.clientTop + box.clientHeight / 2);
+    }
+    function pick(el) {                  // mark one cell and bring it (and the box) into view
+      Array.prototype.forEach.call(svg.querySelectorAll(".c.picked"), function (c) { c.classList.remove("picked"); });
+      el.classList.add("picked");
+      centre(el);
+      var b = box.getBoundingClientRect();
+      if (b.top < 0 || b.bottom > (window.innerHeight || document.documentElement.clientHeight)) {
+        box.scrollIntoView({ block: "center" });
+      }
+    }
+    tools.hidden = false;
+    Array.prototype.forEach.call(tools.querySelectorAll("button[data-zoom]"), function (btn) {
+      btn.addEventListener("click", function () {
+        var how = btn.getAttribute("data-zoom");
+        if (how === "fit") { fit(); } else if (how === "one") { set(1); } else { set(zoom * (how === "in" ? 1.25 : 0.8)); }
+      });
+    });
+    var crit = tools.querySelector("input[data-crit]");
+    if (crit) {
+      crit.addEventListener("change", function () { box.classList.toggle("no-crit", !crit.checked); });
+    }
+    var find = tools.querySelector("input[data-find]"), count = tools.querySelector("[data-find-count]");
+    var cells = Array.prototype.slice.call(svg.querySelectorAll(".c[data-inst]"));
+    var hits = [], at = -1;
+    if (find && count) {
+      find.addEventListener("input", function () {
+        var q = find.value.trim().toLowerCase();
+        cells.forEach(function (c) { c.classList.remove("hit"); });
+        hits = [];
+        at = -1;
+        if (q) {
+          hits = cells.filter(function (c) {
+            var t = c.querySelector("title");
+            return ((c.getAttribute("data-inst") || "") + " " + (t ? t.textContent : "")).toLowerCase().indexOf(q) >= 0;
+          });
+          hits.forEach(function (c) { c.classList.add("hit"); });
+        }
+        count.textContent = !q ? "" : !hits.length ? "no cell" :
+          hits.length + (hits.length === 1 ? " cell" : " cells") + " · Enter: the next";
+      });
+      find.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter" || !hits.length) { return; }
+        e.preventDefault();
+        at = (at + (e.shiftKey ? hits.length - 1 : 1)) % hits.length;
+        pick(hits[at]);
+        count.textContent = (at + 1) + " of " + hits.length + (hits.length === 1 ? " cell" : " cells");
+      });
+    }
+    function target(href) {
+      var el = href && href.charAt(0) === "#" ? document.getElementById(href.slice(1)) : null;
+      return el && box.contains(el) ? el : null;
+    }
+    document.addEventListener("click", function (e) {
+      var a = e.target && e.target.closest ? e.target.closest("a.sch-link") : null;
+      var el = a ? target(a.getAttribute("href")) : null;
+      if (!el) { return; }
+      e.preventDefault();
+      if (crit && !crit.checked) { crit.checked = true; box.classList.remove("no-crit"); }
+      pick(el);
+      if (window.history && history.replaceState) { history.replaceState(null, "", a.getAttribute("href")); }
+    });
+    if (w0 > box.clientWidth) { fit(); }
+    var start = target(location.hash);
+    if (start) { pick(start); }
+  }
+
   // -- the explorer ---------------------------------------------------------------------------
 
   function wireExplorer(data) {
@@ -635,6 +762,8 @@
       wireTips(box);
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-scale-toggle]"), wireScale);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-view-toggle]"), wireViewToggle);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-schematic]"), wireSchematic);
     var el = document.getElementById("task-data");
     if (el) {
       var data = null;

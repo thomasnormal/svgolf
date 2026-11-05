@@ -87,24 +87,24 @@ design and proof files as the records of 10-29, which had no sky130 columns, and
 
 ```
 $ python3 leaderboard/leaderboard.py seed-references --task add --ref add_n_byhand
-seeded add: reference/add_n_byhand.sv -> leaderboard/data/add/ed33ad9ea020052fcc9713bcac132fb22feb77c55d04369bf46643de2efeebda.json
+seeded add: reference/add_n_byhand.sv -> leaderboard/data/add/ec8d54a21973397139413b0d328cb5bc1891c59ec09e793857a67f4e20a3385a.json
 $ python3 leaderboard/leaderboard.py pareto --task mul
 mul: Pareto frontier of (sky130 area, time) at N=16 (1 of 1 ranked records)
   area um^2 time ps  area GE depth  player               record        assisted by
-  8290.4512   10907 1962.576    88  svgolf-reference     43819528425c  Claude (Anthropic)
+  8290.4512   10907 1962.576    88  svgolf-reference     1b6a6bf23908  Claude (Anthropic)
 $ python3 leaderboard/leaderboard.py verify
-[ok] _example/3721236651a0: svgolf-reference 100.0960 um^2, 280 ps (21.328 GE, depth 1): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
-[ok] _example/61fff6bd0ce3: svgolf-reference 100.0960 um^2, 280 ps (21.328 GE, depth 1): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
-[ok] add/ed33ad9ea020: svgolf-reference 460.4416 um^2, 2611 ps (112.000 GE, depth 33): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
-[ok] clmul/8104cbf62530: svgolf-reference 3429.5392 um^2, 1114 ps (772.267 GE, depth 6): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
-[ok] mul/43819528425c: svgolf-reference 8290.4512 um^2, 10907 ps (1962.576 GE, depth 88): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
+[ok] _example/35d6541e6ab1: svgolf-reference 100.0960 um^2, 280 ps (21.328 GE, depth 1): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
+[ok] _example/732b207a5f97: svgolf-reference 100.0960 um^2, 280 ps (21.328 GE, depth 1): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
+[ok] add/ec8d54a21973: svgolf-reference 460.4416 um^2, 2611 ps (112.000 GE, depth 33): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
+[ok] clmul/e60572825e9d: svgolf-reference 3429.5392 um^2, 1114 ps (772.267 GE, depth 6): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
+[ok] mul/1b6a6bf23908: svgolf-reference 8290.4512 um^2, 10907 ps (1962.576 GE, depth 88): rescored: same score; ppa columns reproduced; ppa.mapped columns reproduced
 verify (hashes + rescore): 5 records, 0 failed, 0 stale
 $ python3 leaderboard/leaderboard.py board --task add
 ```
 
 | # | layer | player | assisted by | area (um^2) | time (ps) | area (GE) | depth | proof lines | date | record |
 |--:|--:|---|---|--:|--:|--:|--:|--:|---|---|
-| 1 | 1 | svgolf-reference | Claude (Anthropic) | 460.4416 | 2611 | 112.000 | 33 | 509 | 2026-11-04 | `ed33ad9ea020` |
+| 1 | 1 | svgolf-reference | Claude (Anthropic) | 460.4416 | 2611 | 112.000 | 33 | 509 | 2026-11-05 | `ec8d54a21973` |
 
 ## The record (schema `svgolf-leaderboard-record/1`)
 

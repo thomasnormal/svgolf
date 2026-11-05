@@ -474,12 +474,13 @@ class SiteTest(unittest.TestCase):
     def test_charts_read_without_javascript(self):
         """The server draws every chart: the explorer's controls and the score chart's switch are
         hidden until charts.js shows them, the linear drawing is shown, and charts.js is a file of
-        the site loaded by the task pages only."""
+        the site loaded by the task pages and the detail pages (a record's, a reference's) only."""
         self.assertIn("charts.js", self.files)
+        detail = re.compile(r"tasks/[^/]+/(index|records/[0-9a-f]{64}|reference/[A-Za-z0-9_]+)\.html")
         for path, p in self.pages.items():
             srcs = [a.get("src", "") for tag, a in p.tags if tag == "script" and a.get("src")]
             uses = any(s.endswith("charts.js") for s in srcs)
-            self.assertEqual(uses, path.startswith("tasks/") and path.endswith("/index.html"), path)
+            self.assertEqual(uses, bool(detail.fullmatch(path)), path)
         for t in self.listed:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")

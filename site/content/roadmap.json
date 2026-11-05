@@ -30,7 +30,7 @@
     {
       "status": "in-progress",
       "title": "This website",
-      "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Next: a page for every record, with its schematic, critical path, source and proof statistics."
+      "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Every record and every proved reference of a ranked task has a page: the area, time and score cards, the design among the task's designs, the schematic of a small display instance, the critical path, the cells, the sources and the proof. Next: the placed and routed layout on those pages."
     },
     {
       "status": "planned",
@@ -46,11 +46,6 @@
       "status": "planned",
       "title": "Lifting refusals",
       "text": "Many refusals are marked `later`: each names what has to exist first (for example a 4-state rule, or more of the language in ls-sv). See the [refusals](site:refusals.html)."
-    },
-    {
-      "status": "open",
-      "title": "Records for every task",
-      "text": "`aes_sbox` and `fdivp` have proved references but no records yet; their references stand as an unranked par layer until they are submitted as records."
     },
     {
       "status": "open",

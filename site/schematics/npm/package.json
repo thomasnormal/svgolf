@@ -1,0 +1,9 @@
+{
+  "name": "svgolf-schematics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The pinned netlistsvg for svgolf/site/gen_schematics.py (installed outside the repository; see its docstring).",
+  "dependencies": {
+    "netlistsvg": "1.0.2"
+  }
+}

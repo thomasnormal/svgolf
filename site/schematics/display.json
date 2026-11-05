@@ -1,0 +1,14 @@
+{
+ "_comment": "The display instance of each listed task, for the schematics of the record pages (site/gen_schematics.py; PLAN4 3c, ruled 11/04: draw a SMALL instance, not the scored one, so that a reader can see what is going on). `params` are the task's parameters at which the design is drawn (the same design through the same pinned flow, score/ppa.py with --param); the page says so and keeps the scored numbers. `draw`: `auto` draws the whole repaired netlist up to `max_full_cells` cells and above that the critical path with the nets that touch it; `critical` always draws the path (aes_sbox: a fixed size, so no smaller instance exists). A design that does not elaborate at its task's display instance gets no picture, with the reason: it is never refused for that. Untrusted: nothing here is scored or ranked.",
+ "max_full_cells": 1000,
+ "max_total_bytes": 5000000,
+ "tasks": {
+  "_example": {"params": {"N": 4}, "draw": "auto"},
+  "add": {"params": {"N": 4}, "draw": "auto"},
+  "mul": {"params": {"N": 4}, "draw": "auto"},
+  "clmul": {"params": {"N": 4}, "draw": "auto"},
+  "fdivp": {"params": {"W": 3, "P": 3}, "draw": "auto",
+            "_why": "a 6-bit float, 3 exponent bits and 3 significand bits (the hidden one included): the binary16 divider's every stage at 191 (fdivp), 230 (fdivp_srt) and 290 (fdivp_newton) cells, against 1,515 to 5,692 at the scoring point"},
+  "aes_sbox": {"params": {}, "draw": "critical"}
+ }
+}

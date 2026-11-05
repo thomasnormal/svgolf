@@ -567,8 +567,13 @@ and Pareto frontiers, the proving guide. It had no site.
      - fdivp_srt measured after it landed (11/05): bfloat16, binary16 (equal to its golden) and binary32. Its binary32
        run took 104 s against the 120 s limit, so a re-measure under load can drop it; pin it in points.json if that
        happens.
-  3. `[~]` (workflow `site-detail-pages`, branch `svgolf-detail`, from 11/05: version 1 without layouts, which need
-     place-and-route on a Linux host and a cache outside the tree; fdivp's and aes_sbox's reference records seeded.)
+  3. `[x]` version 1, on prep 11/05 (workflow `site-detail-pages`, branch `svgolf-detail`): 18 pages, every record and
+     every reference without one (`tasks/<t>/reference/<stem>.html`): the three cards, the area-time plot, the
+     schematic of a labelled display instance (`site/gen_schematics.py`, netlistsvg 1.0.2 pinned, committed SVGs,
+     740 kB), the critical path node by node (`ppa.py --path` gained arrival and transition; no scored number moved),
+     cells, sources and proof, reproduce; fdivp's and aes_sbox's reference records seeded. `[ ]` OPEN: layouts
+     (place-and-route on a Linux host, a cache outside the tree). The five older records were re-seeded after
+     `ppa.py --path` changed the checker's fingerprint (f9ece217: same scores and files).
      **Detail pages for every record:** the schematic at a small display instance (the block view for arrays), the
      layout, the critical path, the source, the proof stats. Matmul gets the sized-counter revision.
      - Decided 11/04, of Logicode's result view: "This little dashboard with Area, Performance, and PA-plot is quite
@@ -580,11 +585,37 @@ and Pareto frontiers, the proving guide. It had no site.
        - an area-vs-time plot with this record highlighted among the records, references and Pareto front, zoomed to
          the cluster, with counters for points beyond the view.
      - Spec and prototype: workflow `logicode-scoring`.
-  4. **Featured tasks made excellent:** add, mul, aes_sbox, fdivp, matmul and the sorter. Each needs:
+     - Version 1 built 11/05 (branch `svgolf-detail`): a page per record (`tasks/<t>/records/<hash>.html`) and per
+       proved reference without one (`tasks/<t>/reference/<stem>.html`), 18 pages: the three cards
+       (site/standing.py: the field is the other players' ranked records, empty today, so every page reads
+       "Beats – · matches –"), the area-time plot (fitted to the cluster, counters beyond the view, par's score curve),
+       the schematic at the display instance, the critical path with per-node arrival and transition (`ppa.py
+       --path`'s new `critical_path_timing`; no scored number changed, test_ppa.py unchanged), the cells, sources,
+       proof, reproduce. The schematics are generated once and committed (site/gen_schematics.py, netlistsvg 1.0.2
+       pinned with a lockfile, site/schematics/display.json: add/mul/clmul/_example at N = 4, fdivp at W = 3, P = 3,
+       aes_sbox its critical path; 0.74 MB of SVG for 16 designs, byte-identical reruns by test); the site build
+       only reads them. A reference without a golden now takes its measured numbers at the scored point
+       (score/measured), which closes 2b's OPEN item for the references (add_proc, add_proc_m and add_mux; clmul's
+       baselines still show none).
+     - The layout (PAGE_DESIGN section 5) is deferred: it needs place-and-route on a Linux host and a cache
+       outside the tree.
+     - Checked in a browser (11/05: add, mul, fdivp_srt, fdivp_newton and aes_sbox at 1280 and 390 px, light and
+       dark, script on and off; numbers checked against the records and the goldens; task pages unchanged but for
+       the documented additions). Fixed: the critical path now links into the drawing (the display instance's path
+       listed under the table, or the table's own instances where the drawing is the scored netlist); the zoom
+       keeps the view's centre and has 1:1; a cell finder; the critical path stays visible when the drawing is
+       shrunk; without the script a drawing is shrunk to its box instead of showing a blank corner; each drawing is
+       offered as a file of its own; aes_sbox's path drawings mark the path's own nets; "1 buffers".
+  4. `[~]` (11/05: fdivp has three proved references and aes_sbox two, with records seeded; add's five references are
+     one ripple architecture, so a proved Sklansky parallel-prefix adder is in progress, workflow `sklansky-proof`,
+     branch `svgolf-sklansky`.)
+     **Featured tasks made excellent:** add, mul, aes_sbox, fdivp, matmul and the sorter. Each needs:
      - a curated plain-language page;
      - at least two references;
      - its attacks explained;
-     - its records seeded under the current `ppa_version`.
+     - its records seeded under the current `ppa_version`. `[x]` for fdivp (fdivp, fdivp_srt, fdivp_newton) and
+       aes_sbox (sbox_bp, sbox_table), 11/05, `sky130_a0_v3`, full post-synthesis check; `leaderboard.py verify`:
+       10 records, 0 failed, 0 stale.
      clmul and `_example` stay, but are not featured.
   4b. **PUBLICATION BLOCKER: the clocked statements do not yet cover the outputs on the wire and unknown values at
      reset (11/04, MEASURED by a soundness probe).** The fix is a revision of the trusted text (`txtask-v2`), which
@@ -614,7 +645,7 @@ and Pareto frontiers, the proving guide. It had no site.
 - `[ ]` FPGA columns (LUT, FF, DSP, BRAM, fmax; Yosys-only).
 - `[ ]` Combined normalised presets (area × delay, energy × delay).
 - `[ ]` Physical-design columns (OpenROAD, Linux, a nightly on a Linux host).
-- `[ ]` Per-solution detail pages (decided 11/04): clicking a solution, reference or golfer's, opens a page with its
+- `[~]` Per-solution detail pages (decided 11/04): clicking a solution, reference or golfer's, opens a page with its
   schematic, its placed and routed layout, and the rest (source, proof stats, energy). The study is
   `physical-track-study`.
   - **RULED 11/04: draw a SMALL instance, not the scored one.** "For multiplication, maybe do N=2 or N=4. So

@@ -1,0 +1,178 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "nand2_1": 37536,
+  "xnor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 1714144,
+  "cell_hist_sky130": {
+   "and2_1": 13,
+   "nand2_1": 3,
+   "xnor2_1": 9
+  },
+  "cells_sky130": 25,
+  "critical": {
+   "cells": 3,
+   "edge": "r",
+   "output": "p[3]"
+  },
+  "delay_ps_sky130": 645,
+  "drawn": "full",
+  "drawn_cells": 25,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 113.5,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "a[2]",
+    "slew_ps": 21.9
+   },
+   {
+    "arrival_ps": 262.0,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_54_",
+    "net": "_33_",
+    "slew_ps": 43.2
+   },
+   {
+    "arrival_ps": 387.4,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_55_",
+    "net": "_34_",
+    "slew_ps": 57.0
+   },
+   {
+    "arrival_ps": 645.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_59_",
+    "net": "_20_",
+    "slew_ps": 264.5
+   }
+  ],
+  "repaired_sha256": "10c4c368703b17b6091929f8287a96eae62765daa3b5ba4c3da72e2a651d9916",
+  "svg_bytes": 17718,
+  "svg_sha256": "90d3a6811c8ce6f58414dd5fd10a9c5a7b050cc3111205714a7b5453665fd644"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 34295392,
+  "cell_hist_sky130": {
+   "and2_1": 199,
+   "nand2_1": 57,
+   "xnor2_1": 225
+  },
+  "cells_sky130": 481,
+  "critical": {
+   "cells": 6,
+   "edge": "r",
+   "output": "p[15]"
+  },
+  "delay_ps_sky130": 1114,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.144,
+   "worst_transition_ratio": 0.178
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "53ab6ddd5ef519de7f4338e18b7fd5f7df17d163840a02d6cddc1ff8e60a29c0",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 132.2,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[10]",
+    "slew_ps": 37.0
+   },
+   {
+    "arrival_ps": 286.6,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_1158_",
+    "net": "_0663_",
+    "slew_ps": 42.7
+   },
+   {
+    "arrival_ps": 458.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1160_",
+    "net": "_0665_",
+    "slew_ps": 156.5
+   },
+   {
+    "arrival_ps": 605.4,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1164_",
+    "net": "_0669_",
+    "slew_ps": 156.0
+   },
+   {
+    "arrival_ps": 753.4,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1165_",
+    "net": "_0670_",
+    "slew_ps": 156.5
+   },
+   {
+    "arrival_ps": 854.5,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_1179_",
+    "net": "_0684_",
+    "slew_ps": 62.3
+   },
+   {
+    "arrival_ps": 1114.5,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1187_",
+    "net": "_452_",
+    "slew_ps": 264.5
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 481,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "dc11ba038ed78876109233ff0982e8286f3f5d17a6afbcd2f80747fc9b677caa",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 6
+ },
+ "sv_sha256": "4637e72ba5368a35cf427b948aeab0ba3ce8aa6c2f249d2ab90f1ef44372f1ad",
+ "task": "clmul",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

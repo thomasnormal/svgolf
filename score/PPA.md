@@ -393,7 +393,9 @@ Output: `{"ppa": {..., "mapped": {...}}, "score": {score.py's result, unchanged}
 `{"error": ...}`), 2 usage. A missing, unreadable or wrong liberty, a gate outside the table (flip-flop, latch, tri-state, a mapped cell),
 an undriven or doubly driven net, a loop, an x/z constant that a gate or an output reads, a liberty whose cell does not compute the
 gate it is mapped to, or whose table variables or units differ from the pinned ones, are errors, never a number. `--path` adds the
-critical path.
+critical path: `critical_path` (net, edge) and, node by node, `critical_path_timing` (the net, its edge, the instance and cell
+driving it, the arrival and the transition in ps to 0.1 ps, as the STA computed them; display only, never ranked: the site's
+critical-path table).
 
 **The netlist reader** takes what `write_verilog -noattr -noexpr` prints for the pinned flow: one flat module, `TYPE name (.PIN(net), ...);`
 instances, port vectors, `assign`. It also reads what Yosys leaves of the cells it techmapped (`$shiftx`, `$shr`, `$pmux`, `$div`, ...): wires with

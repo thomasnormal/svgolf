@@ -77,7 +77,7 @@ Options:
   --liberty PATH   the liberty file (default $SVGOLF_SKY130_LIB, else score/lib/<pinned name>); with
                    --fetch-liberty, where to put the download
   --pins PATH      a pins file (research and tests only: the result records its sha256)
-  --path           also report the critical path (net names)
+  --path           also report the critical path (net names; and per node the driving cell, arrival and transition)
   --yosys PATH, --repeat K, --no-gate   as in score.py
 
 Result JSON: {"ppa": {...columns..., "mapped": {...}}, "score": {...score.py's result, unchanged...}} for a design;
@@ -2014,6 +2014,23 @@ def columns(a, pins, lib, netlist_sha256, script_sha256=None, with_path=False):
         out.update({"sequential": True, "flops": a.flops})      # delay_ps_sky130 is then the register-to-register period
     if with_path:
         out["critical_path"] = [[net, edge] for net, edge, _ in a.path]
+        out["critical_path_timing"] = path_timing(a, pins)
+    return out
+
+
+def path_timing(a, pins):
+    """The critical path of `--path` node by node, as the STA computed it (display only, never ranked): the net, its
+    edge, the instance driving it and its cell (None for a primary input or a flop's Q, where the path starts), the
+    arrival and the transition at the net in ps (rounded to 0.1 ps). The last node's arrival is the delay (a clocked
+    netlist's period adds the capturing flop's setup to it)."""
+    d = a.design
+    out = []
+    for net, edge, t in a.path:
+        drv = d.driver.get(net)
+        cell = d.cells[drv[0]].name if drv else None
+        out.append({"net": net, "edge": edge, "inst": d.names[drv[0]] if drv else None,
+                    "cell": cell[len(pins.prefix):] if cell and cell.startswith(pins.prefix) else cell,
+                    "arrival_ps": round(t * 1000, 1), "slew_ps": round(d.arr[(net, edge)][1] * 1000, 1)})
     return out
 
 

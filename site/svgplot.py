@@ -426,6 +426,132 @@ def scatter_chart(points, *, x_label, y_label, x_log=None, y_log=None, x_integer
 
 
 # ---------------------------------------------------------------------------
+# a record page's area-time plot
+# ---------------------------------------------------------------------------
+
+AREA_TIME_FRAME = dict(w=960, h=430, left=82, right=24, top=18, bottom=56)
+AREA_TIME_COMPACT = dict(w=420, h=400, left=60, right=16, top=32, bottom=52)
+
+
+def _clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+
+def area_time_chart(points, *, subject, view, x_label, y_label, title, front=(), par=None, compact=False):
+    """One design among its task's designs: area (x) against the ranked time (y), lower left better. `points`:
+    dicts with id, kind, x, y, banned, tip, href, label, attrs. `subject`: the id of the page's design, drawn with a
+    halo and labelled; `par`: {"id", "score" (x * y), "label"} or None: par is labelled and its score curve (x * y =
+    par's) drawn, under which a design beats par on the ranked score; `front`: the ids on the Pareto front of the
+    entries (the step line). `view`: (x0, x1, y0, y1) in data units, what the plot shows: a design outside it is not
+    drawn but counted at the edge it lies past (one past a corner on both edges), except the subject and par, which
+    are drawn clamped to the edge, faded. A view spanning more than 10x on an axis is drawn on a log axis there.
+    Returns "" without points."""
+    if not points:
+        return ""
+    fr = Frame(**(AREA_TIME_COMPACT if compact else AREA_TIME_FRAME))
+    target = 4 if compact else 6
+    x0, x1, y0, y1 = view
+    xs = Scale(x0, x1, fr.left, fr.right, log=x0 > 0 and x1 / x0 > 10)
+    ys = Scale(y0, y1, fr.bottom, fr.top, log=y0 > 0 and y1 / y0 > 10)
+    xs.lo, xs.hi, ys.lo, ys.hi = x0, x1, y0, y1                # the view itself (fitted and padded by the caller)
+    parts = _axes(fr, xs, ys, x_label + (", log scale" if xs.log else ""), y_label + (", log scale" if ys.log else ""),
+                  target=target, compact=compact)
+    inside = lambda p: x0 <= p["x"] <= x1 and y0 <= p["y"] <= y1        # noqa: E731
+    if par and par.get("score"):
+        # par's score curve, x * y = c, sampled evenly across the plot's width and kept inside it
+        pts, n = [], 48
+        for k in range(n + 1):
+            px = fr.left + (fr.right - fr.left) * k / n
+            xv = (10 ** (math.log10(x0) + (math.log10(x1) - math.log10(x0)) * k / n)) if xs.log else x0 + (x1 - x0) * k / n
+            if xv <= 0:
+                continue
+            yv = par["score"] / xv
+            if y0 <= yv <= y1:
+                pts.append(f"{_f(px)},{_f(ys(yv))}")
+        if len(pts) >= 2:
+            parts.append(f'<polyline class="iso" points="{" ".join(pts)}"><title>{_esc(par["label"])}</title></polyline>')
+    on = set(front)
+    fpts = [(p["x"], p["y"]) for p in points if p["id"] in on]
+    if fpts:
+        stair = step_points(fpts)
+        cx = lambda v: _clamp(xs(v), fr.left, fr.right)     # noqa: E731
+        cy = lambda v: _clamp(ys(v), fr.top, fr.bottom)     # noqa: E731
+        coords = (f"{_f(cx(stair[0][0]))},{_f(fr.top)} " + " ".join(f"{_f(cx(x))},{_f(cy(y))}" for x, y in stair)
+                  + f" {_f(fr.right)},{_f(cy(stair[-1][1]))}")
+        parts.append(f'<polyline class="frontier" points="{coords}"><title>the Pareto front of the entries'
+                     "</title></polyline>")
+    keep = {subject} | ({par["id"]} if par else set())
+    edges = {"left": 0, "right": 0, "above": 0, "below": 0}
+    drawn = []
+    for p in points:
+        if inside(p):
+            drawn.append((p, False))
+            continue
+        if p["x"] < x0:
+            edges["left"] += 1
+        elif p["x"] > x1:
+            edges["right"] += 1
+        if p["y"] < y0:
+            edges["below"] += 1
+        elif p["y"] > y1:
+            edges["above"] += 1
+        if p["id"] in keep:
+            drawn.append((p, True))
+    pts = shared_tips([p for p, _ in drawn], on)
+    clamped = {p["id"] for p, c in drawn if c}
+    order = sorted(pts, key=lambda p: (p["id"] == subject, p["id"] in on, KIND_ORDER[p["kind"]], p["y"], p["x"], p["id"]))
+    for p in order:
+        x, y = _clamp(xs(p["x"]), fr.left, fr.right), _clamp(ys(p["y"]), fr.top, fr.bottom)
+        cls = ("subject " if p["id"] == subject else "") + ("on-front" if p["id"] in on else "off-front") \
+            + (" clamped" if p["id"] in clamped else "")
+        if p["id"] == subject:
+            parts.append(f'<circle class="halo" cx="{_f(x)}" cy="{_f(y)}" r="13"/>')
+        parts.append(_mark(dict(p, cls=cls), x, y))
+    # the labels: this design, and par (when it is another design)
+    me = next((p for p in order if p["id"] == subject), None)
+    for p in order:
+        if p["id"] != subject and not (par and p["id"] == par["id"]):
+            continue
+        at_me = me is not None and p is not me and (p["x"], p["y"]) == (me["x"], me["y"])
+        if at_me:
+            continue                                   # par at this design's point: one label says both
+        x, y = _clamp(xs(p["x"]), fr.left, fr.right), _clamp(ys(p["y"]), fr.top, fr.bottom)
+        if p["id"] == subject:
+            twin = par and par["id"] != subject and any(q["id"] == par["id"] and (q["x"], q["y"]) == (p["x"], p["y"])
+                                                        for q in order)
+            text = "this design" + (" · par" if par and par["id"] == subject else " · par's numbers" if twin else "")
+        else:
+            text = "par"
+        if p["id"] in clamped:
+            text += " (beyond view)"
+        # this design's label above its mark, par's below (the two are often close); flipped at the plot's edge
+        right = x < (fr.left + fr.right) / 2
+        up = p["id"] == subject
+        ly = y - 17 if up else y + 25
+        if ly < fr.top + 10 or ly > fr.bottom - 4:
+            ly = y + 25 if up else y - 17
+        parts.append(f'<text class="dlabel" x="{_f(x + 6 if right else x - 6)}" y="{_f(ly)}" '
+                     f'text-anchor="{"start" if right else "end"}">{_esc(text)}</text>')
+    # the counters: designs past each edge
+    ctr = {"left": ("◂ {n}", fr.left + 6, (fr.top + fr.bottom) / 2, "start"),
+           "right": ("{n} ▸", fr.right - 6, (fr.top + fr.bottom) / 2, "end"),
+           "above": ("▴ {n}", (fr.left + fr.right) / 2, fr.top + 14, "middle"),
+           "below": ("▾ {n}", (fr.left + fr.right) / 2, fr.bottom - 8, "middle")}
+    for edge in ("left", "right", "above", "below"):
+        n = edges[edge]
+        if n:
+            fmt, x, y, anchor = ctr[edge]
+            parts.append(f'<text class="ctr" x="{_f(x)}" y="{_f(y)}" text-anchor="{anchor}" data-edge="{edge}">'
+                         f'<title>{n} design{"" if n == 1 else "s"} beyond the view ({edge})</title>{_esc(fmt.format(n=n))}'
+                         "</text>")
+    beyond = sum(1 for p in points if not inside(p))
+    desc = (f"{len(points)} designs by {x_label} (x) and {y_label} (y), this one ringed; lower left is better"
+            + (f"; {beyond} beyond the view, counted at its edges" if beyond else "")
+            + ". The table under the chart lists the same numbers.")
+    return _svg(fr, parts, title, desc, cls="chart pa compact" if compact else "chart pa")
+
+
+# ---------------------------------------------------------------------------
 # the scaling view: one metric against the task's parameter, a line per design
 # ---------------------------------------------------------------------------
 

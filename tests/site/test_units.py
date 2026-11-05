@@ -404,6 +404,43 @@ class ChartTest(unittest.TestCase):
         self.assertEqual(len(warned), 2)                 # no data is not a warning
 
 
+class AreaTimeChartTest(unittest.TestCase):
+    """A detail page's area-time plot (svgplot.area_time_chart): the view, the counters, this design's halo."""
+
+    def pts(self):
+        mk = lambda i, k, x, y: {"id": i, "kind": k, "x": x, "y": y, "banned": False, "tip": [i], "href": None,  # noqa: E731
+                                 "label": i}
+        return [mk("me", "reference", 10.0, 10.0), mk("par", "reference", 12.0, 9.0), mk("b1", "baseline", 11.0, 11.0),
+                mk("far", "baseline", 100.0, 5.0), mk("up", "baseline", 11.0, 100.0)]
+
+    def test_designs_beyond_the_view_are_counted_at_their_edges(self):
+        svg = svgplot.area_time_chart(self.pts(), subject="me", view=(5.0, 20.0, 1.0, 20.0), x_label="a", y_label="t",
+                                      title="t", front=["me", "par"], par={"id": "par", "score": 108.0, "label": "par"})
+        self.assertIn('data-edge="right"', svg)
+        self.assertIn('data-edge="above"', svg)
+        self.assertNotIn('data-edge="left"', svg)
+        self.assertEqual(svg.count('data-kind="baseline"'), 1)          # b1 drawn; far and up only counted
+        self.assertEqual(svg.count('class="halo"'), 1)
+        self.assertIn(">this design<", svg)
+        self.assertIn(">par<", svg)
+        self.assertIn('class="iso"', svg)
+        self.assertIn("2 beyond the view", svg)
+
+    def test_this_design_beyond_the_view_is_drawn_at_the_edge(self):
+        svg = svgplot.area_time_chart(self.pts(), subject="far", view=(5.0, 20.0, 1.0, 20.0), x_label="a",
+                                      y_label="t", title="t")
+        self.assertIn("this design (beyond view)", svg)
+        self.assertIn("clamped", svg)
+
+    def test_par_at_this_designs_point_is_one_label(self):
+        p = self.pts()
+        p[1] = dict(p[1], x=10.0, y=10.0)
+        svg = svgplot.area_time_chart(p, subject="me", view=(5.0, 20.0, 1.0, 20.0), x_label="a", y_label="t",
+                                      title="t", par={"id": "par", "score": 100.0, "label": "par"})
+        self.assertIn("this design · par&#x27;s numbers", svg)
+        self.assertEqual(svg.count('class="dlabel"'), 1)
+
+
 class PageTest(unittest.TestCase):
     """page.py's components."""
 

@@ -1,0 +1,870 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sch" viewBox="0 0 1366 1103" width="1366" height="1103" role="img" aria-label="mul: schematic of the whole repaired netlist at N = 4 (a display instance; scored at N = 16)">
+<style>svg.sch{fill:none;stroke:var(--text-2,#57524a);stroke-width:1;font-family:var(--mono,monospace)}svg.sch text{fill:var(--text,#1b1916);stroke:none;font-size:8px}svg.sch .cellref{fill:var(--text-3,#6b6459);font-size:7px;text-anchor:middle}svg.sch .nodelabel{text-anchor:middle}svg.sch .inputPortLabel{text-anchor:end}svg.sch .splitjoinBody,svg.sch .j{fill:var(--text-2,#57524a)}svg.sch .flop{fill:var(--surface-2,#faf6ef)}svg.sch .bufc{fill:var(--sunken,#f0ebe1)}svg.sch .port path{fill:var(--surface-2,#faf6ef)}svg.sch .crit path,svg.sch .crit circle,svg.sch .crit rect,svg.sch line.crit{stroke:var(--accent,#eb6834);stroke-width:2}svg.sch circle.j.crit{fill:var(--accent,#eb6834)}svg.sch .crit .cellref{fill:var(--accent-ink,#b4461b)}</style>
+<g transform="translate(1112,32)" class="c" data-inst="_540_">
+<title>_540_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(244,186.5)" class="c" data-inst="_541_">
+<title>_541_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(174,241.5)" class="c" data-inst="_542_">
+<title>_542_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(510,72)" class="c" data-inst="_543_">
+<title>_543_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(612,134.5)" class="c" data-inst="_544_">
+<title>_544_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(1184,87)" class="c" data-inst="_545_">
+<title>_545_ · sky130_fd_sc_hd__xnor2_1</title>
+<text x="16" y="-3" class="cellref">xnor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+<circle cx="35" cy="12.5" r="3" />
+</g>
+<g transform="translate(244,304)" class="c" data-inst="_546_">
+<title>_546_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(174,367.5)" class="c" data-inst="_547_">
+<title>_547_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(244,589)" class="c" data-inst="_548_">
+<title>_548_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(240,748.5)" class="c" data-inst="_549_">
+<title>_549_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(342,296.5)" class="c" data-inst="_550_">
+<title>_550_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(243,360)" class="c" data-inst="_551_">
+<title>_551_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(342,352.5)" class="c" data-inst="_552_">
+<title>_552_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(611,190.5)" class="c" data-inst="_553_">
+<title>_553_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(684,183)" class="c" data-inst="_554_">
+<title>_554_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(1187,143)" class="c" data-inst="_555_">
+<title>_555_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(510,256.5)" class="c" data-inst="_556_">
+<title>_556_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(434,345)" class="c" data-inst="_557_">
+<title>_557_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(346,470.5)" class="c" data-inst="_558_">
+<title>_558_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(244,533)" class="c crit" data-inst="_559_">
+<title>_559_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(346,619)" class="c" data-inst="_560_">
+<title>_560_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(434,611.5)" class="c" data-inst="_561_">
+<title>_561_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(342,525.5)" class="c crit" data-inst="_562_">
+<title>_562_ · sky130_fd_sc_hd__xnor2_1</title>
+<text x="16" y="-3" class="cellref">xnor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+<circle cx="35" cy="12.5" r="3" />
+</g>
+<g transform="translate(434,667.5)" class="c" data-inst="_563_">
+<title>_563_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(437,401)" class="c crit" data-inst="_564_">
+<title>_564_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(608,393.5)" class="c" data-inst="_565_">
+<title>_565_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(509,352.5)" class="c crit" data-inst="_566_">
+<title>_566_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(608,566.5)" class="c" data-inst="_567_">
+<title>_567_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(683,345)" class="c crit" data-inst="_568_">
+<title>_568_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(756,337.5)" class="c crit" data-inst="_569_">
+<title>_569_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(1187,297.5)" class="c" data-inst="_570_">
+<title>_570_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(680,559)" class="c" data-inst="_571_">
+<title>_571_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(612,692.5)" class="c" data-inst="_572_">
+<title>_572_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(506,660)" class="c" data-inst="_573_">
+<title>_573_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(434,778.5)" class="c" data-inst="_574_">
+<title>_574_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(684,1010)" class="c" data-inst="_575_">
+<title>_575_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(896,939)" class="c" data-inst="_576_">
+<title>_576_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(506,771)" class="c" data-inst="_577_">
+<title>_577_ · sky130_fd_sc_hd__xnor2_1</title>
+<text x="16" y="-3" class="cellref">xnor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+<circle cx="35" cy="12.5" r="3" />
+</g>
+<g transform="translate(752,763.5)" class="c" data-inst="_578_">
+<title>_578_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(611,748.5)" class="c" data-inst="_579_">
+<title>_579_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(752,819.5)" class="c" data-inst="_580_">
+<title>_580_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(683,637.5)" class="c" data-inst="_581_">
+<title>_581_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(824,566.5)" class="c" data-inst="_582_">
+<title>_582_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(755,630)" class="c" data-inst="_583_">
+<title>_583_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(824,622.5)" class="c crit" data-inst="_584_">
+<title>_584_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(1187,526.5)" class="c" data-inst="_585_">
+<title>_585_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(896,615)" class="c crit" data-inst="_586_">
+<title>_586_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(824,812)" class="c" data-inst="_587_">
+<title>_587_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(756,883)" class="c" data-inst="_588_">
+<title>_588_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(756,1002.5)" class="c" data-inst="_589_">
+<title>_589_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(896,995)" class="c" data-inst="_590_">
+<title>_590_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(827,890.5)" class="c" data-inst="_591_">
+<title>_591_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(968,819.5)" class="c" data-inst="_592_">
+<title>_592_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(899,883)" class="c" data-inst="_593_">
+<title>_593_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(968,875.5)" class="c crit" data-inst="_594_">
+<title>_594_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(1187,779.5)" class="c" data-inst="_595_">
+<title>_595_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(1040,868)" class="c crit" data-inst="_596_">
+<title>_596_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(968,987.5)" class="c" data-inst="_597_">
+<title>_597_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(972,1066)" class="c" data-inst="_598_">
+<title>_598_ · sky130_fd_sc_hd__and2_1</title>
+<text x="15" y="-3" class="cellref">and2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+</g>
+<g transform="translate(1112,995)" class="c" data-inst="_599_">
+<title>_599_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(1043,1058.5)" class="c" data-inst="_600_">
+<title>_600_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(1112,1051)" class="c" data-inst="_601_">
+<title>_601_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(1187,955)" class="c crit" data-inst="_602_">
+<title>_602_ · sky130_fd_sc_hd__xor2_1</title>
+<text x="16" y="-3" class="cellref">xor2_1</text>
+<path d="M3,0 A30 25 0 0 1 3,25 A30 25 0 0 0 33,12.5 A30 25 0 0 0 3,0" />
+<path d="M0,0 A30 25 0 0 1 0,25" />
+</g>
+<g transform="translate(1184,1043.5)" class="c" data-inst="_603_">
+<title>_603_ · sky130_fd_sc_hd__nand2_1</title>
+<text x="15" y="-3" class="cellref">nand2_1</text>
+<path d="M0,0 L0,25 L15,25 A15 12.5 0 0 0 15,0 Z" />
+<circle cx="33" cy="12.5" r="3" />
+</g>
+<g transform="translate(12,416)" class="port">
+<text x="15" y="-4" class="nodelabel">a</text>
+<path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" />
+</g>
+<g transform="translate(12,518)" class="port">
+<text x="15" y="-4" class="nodelabel">b</text>
+<path d="M0,0 L0,20 L15,20 L30,10 L15,0 Z" />
+</g>
+<g transform="translate(1324,847.5)" class="port">
+<text x="15" y="-4" class="nodelabel">p</text>
+<path d="M30,0 L30,20 L15,20 L0,10 L15,0 Z" />
+</g>
+<g transform="translate(1286,837)" class="sj">
+<rect width="5" height="160" class="splitjoinBody" />
+<g transform="translate(0,10)">
+<text x="-3" y="-4" class="inputPortLabel">0</text>
+</g>
+<g transform="translate(0,30)">
+<text x="-3" y="-4" class="inputPortLabel">1</text>
+</g>
+<g transform="translate(0,50)">
+<text x="-3" y="-4" class="inputPortLabel">2</text>
+</g>
+<g transform="translate(0,70)">
+<text x="-3" y="-4" class="inputPortLabel">3</text>
+</g>
+<g transform="translate(0,90)">
+<text x="-3" y="-4" class="inputPortLabel">4</text>
+</g>
+<g transform="translate(0,110)">
+<text x="-3" y="-4" class="inputPortLabel">5</text>
+</g>
+<g transform="translate(0,130)">
+<text x="-3" y="-4" class="inputPortLabel">6</text>
+</g>
+<g transform="translate(0,150)">
+<text x="-3" y="-4" class="inputPortLabel">7</text>
+</g>
+</g>
+<g transform="translate(72,507.5)" class="sj">
+<rect width="5" height="80" class="splitjoinBody" />
+<g transform="translate(4,10)">
+<text x="5" y="-4">1</text>
+</g>
+<g transform="translate(4,30)">
+<text x="5" y="-4">0</text>
+</g>
+<g transform="translate(4,50)">
+<text x="5" y="-4">2</text>
+</g>
+<g transform="translate(4,70)">
+<text x="5" y="-4">3</text>
+</g>
+</g>
+<g transform="translate(72,405.5)" class="sj">
+<rect width="5" height="80" class="splitjoinBody" />
+<g transform="translate(4,10)">
+<text x="5" y="-4">0</text>
+</g>
+<g transform="translate(4,30)">
+<text x="5" y="-4">1</text>
+</g>
+<g transform="translate(4,50)">
+<text x="5" y="-4">2</text>
+</g>
+<g transform="translate(4,70)">
+<text x="5" y="-4">3</text>
+</g>
+</g>
+<line x1="77" x2="124" y1="518" y2="518" />
+<line x1="124" x2="124" y1="518" y2="37" />
+<circle cx="124" cy="518" r="2" class="j" />
+<line x1="124" x2="1112" y1="37" y2="37" />
+<line x1="77" x2="124" y1="518" y2="518" />
+<line x1="124" x2="124" y1="518" y2="261.5" />
+<circle cx="124" cy="261.5" r="2" class="j" />
+<line x1="124" x2="174" y1="261.5" y2="261.5" />
+<line x1="77" x2="124" y1="518" y2="518" />
+<line x1="124" x2="124" y1="518" y2="594" />
+<circle cx="124" cy="594" r="2" class="j" />
+<line x1="124" x2="244" y1="594" y2="594" />
+<line x1="77" x2="124" y1="518" y2="518" />
+<line x1="124" x2="124" y1="518" y2="753.5" />
+<line x1="124" x2="240" y1="753.5" y2="753.5" />
+<line x1="77" x2="124" y1="518" y2="518" />
+<line x1="124" x2="124" y1="518" y2="624" />
+<circle cx="124" cy="624" r="2" class="j" />
+<line x1="124" x2="346" y1="624" y2="624" />
+<line x1="77" x2="94" y1="416" y2="416" />
+<line x1="94" x2="94" y1="416" y2="52" />
+<line x1="94" x2="1112" y1="52" y2="52" />
+<line x1="77" x2="94" y1="416" y2="416" />
+<line x1="94" x2="94" y1="416" y2="92" />
+<circle cx="94" cy="92" r="2" class="j" />
+<line x1="94" x2="510" y1="92" y2="92" />
+<line x1="77" x2="94" y1="416" y2="416" />
+<line x1="94" x2="94" y1="416" y2="309" />
+<circle cx="94" cy="309" r="2" class="j" />
+<line x1="94" x2="244" y1="309" y2="309" />
+<line x1="77" x2="94" y1="416" y2="416" />
+<line x1="94" x2="94" y1="416" y2="221.5" />
+<line x1="94" x2="486" y1="221.5" y2="221.5" />
+<line x1="486" x2="486" y1="221.5" y2="261.5" />
+<circle cx="94" cy="221.5" r="2" class="j" />
+<line x1="486" x2="510" y1="261.5" y2="261.5" />
+<line x1="77" x2="154" y1="436" y2="436" />
+<line x1="154" x2="154" y1="436" y2="191.5" />
+<circle cx="154" cy="436" r="2" class="j" />
+<line x1="154" x2="244" y1="191.5" y2="191.5" />
+<line x1="77" x2="154" y1="436" y2="436" />
+<line x1="154" x2="154" y1="436" y2="246.5" />
+<circle cx="154" cy="246.5" r="2" class="j" />
+<line x1="154" x2="174" y1="246.5" y2="246.5" />
+<line x1="77" x2="332" y1="436" y2="436" />
+<line x1="332" x2="332" y1="436" y2="475.5" />
+<circle cx="332" cy="436" r="2" class="j" />
+<line x1="332" x2="346" y1="475.5" y2="475.5" />
+<line x1="77" x2="154" y1="436" y2="436" />
+<line x1="154" x2="154" y1="436" y2="347.5" />
+<line x1="154" x2="220" y1="347.5" y2="347.5" />
+<line x1="220" x2="220" y1="347.5" y2="436" />
+<line x1="220" x2="568" y1="436" y2="436" />
+<line x1="568" x2="568" y1="436" y2="697.5" />
+<circle cx="154" cy="347.5" r="2" class="j" />
+<circle cx="220" cy="436" r="2" class="j" />
+<line x1="568" x2="612" y1="697.5" y2="697.5" />
+<line x1="77" x2="134" y1="538" y2="538" />
+<line x1="134" x2="134" y1="538" y2="206.5" />
+<circle cx="134" cy="538" r="2" class="j" />
+<circle cx="134" cy="206.5" r="2" class="j" />
+<line x1="134" x2="244" y1="206.5" y2="206.5" />
+<line x1="77" x2="134" y1="538" y2="538" />
+<line x1="134" x2="134" y1="538" y2="77" />
+<line x1="134" x2="510" y1="77" y2="77" />
+<line x1="77" x2="134" y1="538" y2="538" />
+<line x1="134" x2="134" y1="538" y2="372.5" />
+<circle cx="134" cy="372.5" r="2" class="j" />
+<line x1="134" x2="174" y1="372.5" y2="372.5" />
+<line x1="77" x2="244" y1="538" y2="538" />
+<line x1="204" x2="230" y1="254" y2="254" />
+<line x1="230" x2="230" y1="254" y2="139.5" />
+<circle cx="230" cy="254" r="2" class="j" />
+<line x1="230" x2="612" y1="139.5" y2="139.5" />
+<line x1="204" x2="230" y1="254" y2="254" />
+<line x1="230" x2="230" y1="254" y2="365" />
+<line x1="230" x2="246" y1="365" y2="365" />
+<line x1="540" x2="558" y1="84.5" y2="84.5" />
+<line x1="558" x2="558" y1="84.5" y2="154.5" />
+<circle cx="558" cy="84.5" r="2" class="j" />
+<line x1="558" x2="612" y1="154.5" y2="154.5" />
+<line x1="540" x2="558" y1="84.5" y2="84.5" />
+<line x1="558" x2="558" y1="84.5" y2="12" />
+<line x1="558" x2="1286.5" y1="12" y2="12" />
+<line x1="1286.5" x2="1286.5" y1="12" y2="847" />
+<line x1="1148" x2="1164" y1="44.5" y2="44.5" />
+<line x1="1164" x2="1164" y1="44.5" y2="92" />
+<line x1="1164" x2="1187" y1="92" y2="92" />
+<line x1="274" x2="292" y1="199" y2="199" />
+<line x1="292" x2="292" y1="199" y2="107" />
+<circle cx="292" cy="199" r="2" class="j" />
+<line x1="292" x2="1187" y1="107" y2="107" />
+<line x1="274" x2="292" y1="199" y2="199" />
+<line x1="292" x2="292" y1="199" y2="301.5" />
+<line x1="292" x2="342" y1="301.5" y2="301.5" />
+<line x1="77" x2="144" y1="558" y2="558" />
+<line x1="144" x2="144" y1="558" y2="324" />
+<circle cx="144" cy="558" r="2" class="j" />
+<line x1="144" x2="244" y1="324" y2="324" />
+<line x1="77" x2="144" y1="558" y2="558" />
+<line x1="144" x2="144" y1="558" y2="490.5" />
+<circle cx="144" cy="490.5" r="2" class="j" />
+<line x1="144" x2="346" y1="490.5" y2="490.5" />
+<line x1="77" x2="144" y1="558" y2="558" />
+<line x1="144" x2="144" y1="558" y2="798.5" />
+<circle cx="144" cy="798.5" r="2" class="j" />
+<line x1="144" x2="434" y1="798.5" y2="798.5" />
+<line x1="77" x2="144" y1="558" y2="558" />
+<line x1="144" x2="144" y1="558" y2="1015" />
+<line x1="144" x2="684" y1="1015" y2="1015" />
+<line x1="77" x2="164" y1="456" y2="456" />
+<line x1="164" x2="164" y1="456" y2="387.5" />
+<circle cx="164" cy="456" r="2" class="j" />
+<line x1="164" x2="174" y1="387.5" y2="387.5" />
+<line x1="77" x2="164" y1="456" y2="456" />
+<line x1="164" x2="164" y1="456" y2="609" />
+<circle cx="164" cy="609" r="2" class="j" />
+<line x1="164" x2="244" y1="609" y2="609" />
+<line x1="77" x2="164" y1="456" y2="456" />
+<line x1="164" x2="164" y1="456" y2="783.5" />
+<line x1="164" x2="220" y1="783.5" y2="783.5" />
+<line x1="220" x2="220" y1="783.5" y2="768.5" />
+<circle cx="164" cy="783.5" r="2" class="j" />
+<circle cx="220" cy="783.5" r="2" class="j" />
+<line x1="220" x2="240" y1="768.5" y2="768.5" />
+<line x1="77" x2="164" y1="456" y2="456" />
+<line x1="164" x2="164" y1="456" y2="783.5" />
+<line x1="164" x2="434" y1="783.5" y2="783.5" />
+<line x1="77" x2="164" y1="456" y2="456" />
+<line x1="164" x2="164" y1="456" y2="888" />
+<line x1="164" x2="756" y1="888" y2="888" />
+<line x1="274" x2="322" y1="601.5" y2="601.5" />
+<line x1="322" x2="322" y1="601.5" y2="316.5" />
+<circle cx="322" cy="601.5" r="2" class="j" />
+<line x1="322" x2="342" y1="316.5" y2="316.5" />
+<line x1="274" x2="322" y1="601.5" y2="601.5" />
+<line x1="322" x2="322" y1="601.5" y2="944" />
+<line x1="322" x2="896" y1="944" y2="944" />
+<line x1="204" x2="246" y1="380" y2="380" />
+<line x1="204" x2="230" y1="380" y2="380" />
+<line x1="230" x2="230" y1="380" y2="505.5" />
+<line x1="230" x2="414" y1="505.5" y2="505.5" />
+<line x1="414" x2="414" y1="505.5" y2="616.5" />
+<circle cx="230" cy="380" r="2" class="j" />
+<line x1="414" x2="434" y1="616.5" y2="616.5" />
+<line x1="274" x2="302" y1="316.5" y2="316.5" />
+<line x1="302" x2="302" y1="316.5" y2="357.5" />
+<circle cx="302" cy="316.5" r="2" class="j" />
+<line x1="302" x2="342" y1="357.5" y2="357.5" />
+<line x1="274" x2="302" y1="316.5" y2="316.5" />
+<line x1="302" x2="302" y1="316.5" y2="195.5" />
+<line x1="302" x2="614" y1="195.5" y2="195.5" />
+<line x1="276" x2="342" y1="372.5" y2="372.5" />
+<line x1="276" x2="312" y1="372.5" y2="372.5" />
+<line x1="312" x2="312" y1="372.5" y2="210.5" />
+<circle cx="312" cy="372.5" r="2" class="j" />
+<line x1="312" x2="614" y1="210.5" y2="210.5" />
+<line x1="642" x2="670" y1="147" y2="147" />
+<line x1="670" x2="670" y1="147" y2="188" />
+<circle cx="670" cy="147" r="2" class="j" />
+<line x1="670" x2="684" y1="188" y2="188" />
+<line x1="642" x2="1164" y1="147" y2="147" />
+<line x1="1164" x2="1164" y1="147" y2="148" />
+<line x1="1164" x2="1190" y1="148" y2="148" />
+<line x1="644" x2="684" y1="203" y2="203" />
+<line x1="644" x2="660" y1="203" y2="203" />
+<line x1="660" x2="660" y1="203" y2="163" />
+<circle cx="660" cy="203" r="2" class="j" />
+<line x1="660" x2="1190" y1="163" y2="163" />
+<line x1="77" x2="104" y1="578" y2="578" />
+<line x1="104" x2="104" y1="578" y2="276.5" />
+<circle cx="104" cy="578" r="2" class="j" />
+<line x1="104" x2="510" y1="276.5" y2="276.5" />
+<line x1="77" x2="104" y1="578" y2="578" />
+<line x1="104" x2="104" y1="578" y2="712.5" />
+<circle cx="104" cy="712.5" r="2" class="j" />
+<line x1="104" x2="612" y1="712.5" y2="712.5" />
+<line x1="77" x2="104" y1="578" y2="578" />
+<line x1="104" x2="104" y1="578" y2="903" />
+<circle cx="104" cy="903" r="2" class="j" />
+<line x1="104" x2="756" y1="903" y2="903" />
+<line x1="77" x2="104" y1="578" y2="578" />
+<line x1="104" x2="104" y1="578" y2="1086" />
+<line x1="104" x2="972" y1="1086" y2="1086" />
+<line x1="378" x2="394" y1="309" y2="309" />
+<line x1="394" x2="394" y1="309" y2="350" />
+<line x1="394" x2="434" y1="350" y2="350" />
+<line x1="378" x2="434" y1="365" y2="365" />
+<line x1="77" x2="114" y1="476" y2="476" class="crit" />
+<line x1="114" x2="114" y1="476" y2="553" class="crit" />
+<circle cx="114" cy="553" r="2" class="j crit" />
+<line x1="114" x2="244" y1="553" y2="553" class="crit" />
+<line x1="77" x2="114" y1="476" y2="476" class="crit" />
+<line x1="114" x2="114" y1="476" y2="639" class="crit" />
+<circle cx="114" cy="639" r="2" class="j crit" />
+<line x1="114" x2="346" y1="639" y2="639" class="crit" />
+<line x1="77" x2="114" y1="476" y2="476" class="crit" />
+<line x1="114" x2="114" y1="476" y2="1071" class="crit" />
+<line x1="114" x2="660" y1="1071" y2="1071" class="crit" />
+<line x1="660" x2="660" y1="1071" y2="1030" class="crit" />
+<circle cx="660" cy="1071" r="2" class="j crit" />
+<line x1="660" x2="684" y1="1030" y2="1030" class="crit" />
+<line x1="77" x2="114" y1="476" y2="476" class="crit" />
+<line x1="114" x2="114" y1="476" y2="1071" class="crit" />
+<line x1="114" x2="972" y1="1071" y2="1071" class="crit" />
+<line x1="376" x2="434" y1="631.5" y2="631.5" />
+<line x1="376" x2="394" y1="631.5" y2="631.5" />
+<line x1="394" x2="394" y1="631.5" y2="758.5" />
+<line x1="394" x2="486" y1="758.5" y2="758.5" />
+<line x1="486" x2="486" y1="758.5" y2="776" />
+<circle cx="394" cy="631.5" r="2" class="j" />
+<line x1="486" x2="509" y1="776" y2="776" />
+<line x1="276" x2="332" y1="761" y2="761" />
+<line x1="332" x2="332" y1="761" y2="530.5" />
+<circle cx="332" cy="761" r="2" class="j" />
+<line x1="332" x2="345" y1="530.5" y2="530.5" />
+<line x1="276" x2="332" y1="761" y2="761" />
+<line x1="332" x2="332" y1="761" y2="990" />
+<line x1="332" x2="742" y1="990" y2="990" />
+<line x1="742" x2="742" y1="990" y2="1007.5" />
+<line x1="742" x2="756" y1="1007.5" y2="1007.5" />
+<line x1="274" x2="345" y1="545.5" y2="545.5" class="crit" />
+<line x1="376" x2="424" y1="483" y2="483" />
+<line x1="424" x2="424" y1="483" y2="672.5" />
+<circle cx="424" cy="483" r="2" class="j" />
+<line x1="424" x2="434" y1="672.5" y2="672.5" />
+<line x1="376" x2="424" y1="483" y2="483" />
+<line x1="424" x2="424" y1="483" y2="406" />
+<line x1="424" x2="440" y1="406" y2="406" />
+<line x1="380" x2="404" y1="538" y2="538" class="crit" />
+<line x1="404" x2="404" y1="538" y2="687.5" class="crit" />
+<circle cx="404" cy="538" r="2" class="j crit" />
+<line x1="404" x2="434" y1="687.5" y2="687.5" class="crit" />
+<line x1="380" x2="404" y1="538" y2="538" class="crit" />
+<line x1="404" x2="404" y1="538" y2="421" class="crit" />
+<line x1="404" x2="440" y1="421" y2="421" class="crit" />
+<line x1="470" x2="486" y1="357.5" y2="357.5" />
+<line x1="486" x2="486" y1="357.5" y2="332.5" />
+<line x1="486" x2="588" y1="332.5" y2="332.5" />
+<line x1="588" x2="588" y1="332.5" y2="398.5" />
+<circle cx="486" cy="357.5" r="2" class="j" />
+<line x1="588" x2="608" y1="398.5" y2="398.5" />
+<line x1="470" x2="512" y1="357.5" y2="357.5" />
+<line x1="470" x2="608" y1="413.5" y2="413.5" class="crit" />
+<line x1="470" x2="486" y1="413.5" y2="413.5" class="crit" />
+<line x1="486" x2="486" y1="413.5" y2="372.5" class="crit" />
+<circle cx="486" cy="413.5" r="2" class="j crit" />
+<line x1="486" x2="512" y1="372.5" y2="372.5" class="crit" />
+<line x1="540" x2="598" y1="269" y2="269" />
+<line x1="598" x2="598" y1="269" y2="571.5" />
+<circle cx="598" cy="269" r="2" class="j" />
+<line x1="598" x2="608" y1="571.5" y2="571.5" />
+<line x1="540" x2="660" y1="269" y2="269" />
+<line x1="660" x2="660" y1="269" y2="350" />
+<line x1="660" x2="686" y1="350" y2="350" />
+<line x1="542" x2="578" y1="365" y2="365" class="crit" />
+<line x1="578" x2="578" y1="365" y2="586.5" class="crit" />
+<circle cx="578" cy="365" r="2" class="j crit" />
+<line x1="578" x2="608" y1="586.5" y2="586.5" class="crit" />
+<line x1="542" x2="686" y1="365" y2="365" class="crit" />
+<line x1="714" x2="742" y1="195.5" y2="195.5" />
+<line x1="742" x2="742" y1="195.5" y2="342.5" />
+<circle cx="742" cy="195.5" r="2" class="j" />
+<line x1="742" x2="756" y1="342.5" y2="342.5" />
+<line x1="714" x2="1164" y1="195.5" y2="195.5" />
+<line x1="1164" x2="1164" y1="195.5" y2="302.5" />
+<line x1="1164" x2="1190" y1="302.5" y2="302.5" />
+<line x1="716" x2="756" y1="357.5" y2="357.5" class="crit" />
+<line x1="716" x2="732" y1="357.5" y2="357.5" class="crit" />
+<line x1="732" x2="732" y1="357.5" y2="317.5" class="crit" />
+<circle cx="732" cy="357.5" r="2" class="j crit" />
+<line x1="732" x2="1190" y1="317.5" y2="317.5" class="crit" />
+<line x1="644" x2="660" y1="406" y2="406" />
+<line x1="660" x2="660" y1="406" y2="564" />
+<line x1="660" x2="680" y1="564" y2="564" />
+<line x1="644" x2="680" y1="579" y2="579" />
+<line x1="470" x2="486" y1="624" y2="624" />
+<line x1="486" x2="486" y1="624" y2="665" />
+<line x1="486" x2="506" y1="665" y2="665" />
+<line x1="470" x2="506" y1="680" y2="680" />
+<line x1="714" x2="732" y1="1022.5" y2="1022.5" />
+<line x1="732" x2="732" y1="1022.5" y2="959" />
+<circle cx="732" cy="1022.5" r="2" class="j" />
+<line x1="732" x2="896" y1="959" y2="959" />
+<line x1="714" x2="756" y1="1022.5" y2="1022.5" />
+<line x1="470" x2="509" y1="791" y2="791" />
+<line x1="542" x2="732" y1="672.5" y2="672.5" />
+<line x1="732" x2="732" y1="672.5" y2="768.5" />
+<line x1="732" x2="752" y1="768.5" y2="768.5" />
+<line x1="542" x2="558" y1="672.5" y2="672.5" />
+<line x1="558" x2="558" y1="672.5" y2="753.5" />
+<circle cx="558" cy="672.5" r="2" class="j" />
+<line x1="558" x2="614" y1="753.5" y2="753.5" />
+<line x1="544" x2="752" y1="783.5" y2="783.5" />
+<line x1="544" x2="558" y1="783.5" y2="783.5" />
+<line x1="558" x2="558" y1="783.5" y2="768.5" />
+<circle cx="558" cy="783.5" r="2" class="j" />
+<line x1="558" x2="614" y1="768.5" y2="768.5" />
+<line x1="642" x2="670" y1="705" y2="705" />
+<line x1="670" x2="670" y1="705" y2="824.5" />
+<circle cx="670" cy="705" r="2" class="j" />
+<line x1="670" x2="752" y1="824.5" y2="824.5" />
+<line x1="642" x2="670" y1="705" y2="705" />
+<line x1="670" x2="670" y1="705" y2="642.5" />
+<line x1="670" x2="686" y1="642.5" y2="642.5" />
+<line x1="644" x2="660" y1="761" y2="761" />
+<line x1="660" x2="660" y1="761" y2="839.5" />
+<circle cx="660" cy="761" r="2" class="j" />
+<line x1="660" x2="752" y1="839.5" y2="839.5" />
+<line x1="644" x2="660" y1="761" y2="761" />
+<line x1="660" x2="660" y1="761" y2="657.5" />
+<line x1="660" x2="686" y1="657.5" y2="657.5" />
+<line x1="716" x2="824" y1="571.5" y2="571.5" />
+<line x1="716" x2="742" y1="571.5" y2="571.5" />
+<line x1="742" x2="742" y1="571.5" y2="635" />
+<circle cx="742" cy="571.5" r="2" class="j" />
+<line x1="742" x2="758" y1="635" y2="635" />
+<line x1="716" x2="732" y1="650" y2="650" />
+<line x1="732" x2="732" y1="650" y2="586.5" />
+<circle cx="732" cy="650" r="2" class="j" />
+<line x1="732" x2="824" y1="586.5" y2="586.5" />
+<line x1="716" x2="758" y1="650" y2="650" />
+<line x1="786" x2="814" y1="350" y2="350" class="crit" />
+<line x1="814" x2="814" y1="350" y2="627.5" class="crit" />
+<circle cx="814" cy="350" r="2" class="j crit" />
+<line x1="814" x2="824" y1="627.5" y2="627.5" class="crit" />
+<line x1="786" x2="1164" y1="350" y2="350" class="crit" />
+<line x1="1164" x2="1164" y1="350" y2="531.5" class="crit" />
+<line x1="1164" x2="1190" y1="531.5" y2="531.5" class="crit" />
+<line x1="788" x2="824" y1="642.5" y2="642.5" />
+<line x1="788" x2="804" y1="642.5" y2="642.5" />
+<line x1="804" x2="804" y1="642.5" y2="546.5" />
+<circle cx="804" cy="642.5" r="2" class="j" />
+<line x1="804" x2="1190" y1="546.5" y2="546.5" />
+<line x1="860" x2="876" y1="579" y2="579" />
+<line x1="876" x2="876" y1="579" y2="620" />
+<line x1="876" x2="896" y1="620" y2="620" />
+<line x1="860" x2="896" y1="635" y2="635" class="crit" />
+<line x1="788" x2="804" y1="776" y2="776" />
+<line x1="804" x2="804" y1="776" y2="817" />
+<line x1="804" x2="824" y1="817" y2="817" />
+<line x1="788" x2="824" y1="832" y2="832" />
+<line x1="786" x2="814" y1="895.5" y2="895.5" />
+<line x1="814" x2="814" y1="895.5" y2="1000" />
+<circle cx="814" cy="895.5" r="2" class="j" />
+<line x1="814" x2="896" y1="1000" y2="1000" />
+<line x1="786" x2="830" y1="895.5" y2="895.5" />
+<line x1="786" x2="896" y1="1015" y2="1015" />
+<line x1="786" x2="804" y1="1015" y2="1015" />
+<line x1="804" x2="804" y1="1015" y2="910.5" />
+<circle cx="804" cy="1015" r="2" class="j" />
+<line x1="804" x2="830" y1="910.5" y2="910.5" />
+<line x1="860" x2="968" y1="824.5" y2="824.5" />
+<line x1="860" x2="886" y1="824.5" y2="824.5" />
+<line x1="886" x2="886" y1="824.5" y2="888" />
+<circle cx="886" cy="824.5" r="2" class="j" />
+<line x1="886" x2="902" y1="888" y2="888" />
+<line x1="860" x2="876" y1="903" y2="903" />
+<line x1="876" x2="876" y1="903" y2="839.5" />
+<circle cx="876" cy="903" r="2" class="j" />
+<line x1="876" x2="968" y1="839.5" y2="839.5" />
+<line x1="860" x2="902" y1="903" y2="903" />
+<line x1="932" x2="958" y1="627.5" y2="627.5" class="crit" />
+<line x1="958" x2="958" y1="627.5" y2="880.5" class="crit" />
+<circle cx="958" cy="627.5" r="2" class="j crit" />
+<line x1="958" x2="968" y1="880.5" y2="880.5" class="crit" />
+<line x1="932" x2="1164" y1="627.5" y2="627.5" class="crit" />
+<line x1="1164" x2="1164" y1="627.5" y2="784.5" class="crit" />
+<line x1="1164" x2="1190" y1="784.5" y2="784.5" class="crit" />
+<line x1="932" x2="968" y1="895.5" y2="895.5" />
+<line x1="932" x2="948" y1="895.5" y2="895.5" />
+<line x1="948" x2="948" y1="895.5" y2="799.5" />
+<circle cx="948" cy="895.5" r="2" class="j" />
+<line x1="948" x2="1190" y1="799.5" y2="799.5" />
+<line x1="1004" x2="1020" y1="832" y2="832" />
+<line x1="1020" x2="1020" y1="832" y2="873" />
+<line x1="1020" x2="1040" y1="873" y2="873" />
+<line x1="1004" x2="1040" y1="888" y2="888" class="crit" />
+<line x1="932" x2="948" y1="951.5" y2="951.5" />
+<line x1="948" x2="948" y1="951.5" y2="992.5" />
+<line x1="948" x2="968" y1="992.5" y2="992.5" />
+<line x1="932" x2="968" y1="1007.5" y2="1007.5" />
+<line x1="1004" x2="1112" y1="1000" y2="1000" />
+<line x1="1004" x2="1030" y1="1000" y2="1000" />
+<line x1="1030" x2="1030" y1="1000" y2="1063.5" />
+<circle cx="1030" cy="1000" r="2" class="j" />
+<line x1="1030" x2="1046" y1="1063.5" y2="1063.5" />
+<line x1="1002" x2="1020" y1="1078.5" y2="1078.5" />
+<line x1="1020" x2="1020" y1="1078.5" y2="1015" />
+<circle cx="1020" cy="1078.5" r="2" class="j" />
+<line x1="1020" x2="1112" y1="1015" y2="1015" />
+<line x1="1002" x2="1046" y1="1078.5" y2="1078.5" />
+<line x1="1076" x2="1102" y1="880.5" y2="880.5" class="crit" />
+<line x1="1102" x2="1102" y1="880.5" y2="1056" class="crit" />
+<circle cx="1102" cy="880.5" r="2" class="j crit" />
+<line x1="1102" x2="1112" y1="1056" y2="1056" class="crit" />
+<line x1="1076" x2="1164" y1="880.5" y2="880.5" class="crit" />
+<line x1="1164" x2="1164" y1="880.5" y2="960" class="crit" />
+<line x1="1164" x2="1190" y1="960" y2="960" class="crit" />
+<line x1="1076" x2="1112" y1="1071" y2="1071" />
+<line x1="1076" x2="1092" y1="1071" y2="1071" />
+<line x1="1092" x2="1092" y1="1071" y2="975" />
+<circle cx="1092" cy="1071" r="2" class="j" />
+<line x1="1092" x2="1190" y1="975" y2="975" />
+<line x1="1148" x2="1164" y1="1007.5" y2="1007.5" />
+<line x1="1164" x2="1164" y1="1007.5" y2="1048.5" />
+<line x1="1164" x2="1184" y1="1048.5" y2="1048.5" />
+<line x1="1148" x2="1184" y1="1063.5" y2="1063.5" />
+<line x1="1292" x2="1324" y1="857.5" y2="857.5" />
+<line x1="1222" x2="1276" y1="99.5" y2="99.5" />
+<line x1="1276" x2="1276" y1="99.5" y2="867.5" />
+<line x1="1276" x2="1286" y1="867.5" y2="867.5" />
+<line x1="1220" x2="1266" y1="155.5" y2="155.5" />
+<line x1="1266" x2="1266" y1="155.5" y2="887.5" />
+<line x1="1266" x2="1286" y1="887.5" y2="887.5" />
+<line x1="1220" x2="1256" y1="310" y2="310" />
+<line x1="1256" x2="1256" y1="310" y2="907.5" />
+<line x1="1256" x2="1286" y1="907.5" y2="907.5" />
+<line x1="1220" x2="1246" y1="539" y2="539" />
+<line x1="1246" x2="1246" y1="539" y2="927.5" />
+<line x1="1246" x2="1286" y1="927.5" y2="927.5" />
+<line x1="1220" x2="1236" y1="792" y2="792" />
+<line x1="1236" x2="1236" y1="792" y2="947.5" />
+<line x1="1236" x2="1286" y1="947.5" y2="947.5" />
+<line x1="1220" x2="1286" y1="967.5" y2="967.5" class="crit" />
+<line x1="1220" x2="1286.5" y1="1056" y2="1056" />
+<line x1="1286.5" x2="1286.5" y1="1056" y2="988" />
+<line x1="40" x2="72" y1="528" y2="528" />
+<line x1="40" x2="72" y1="426" y2="426" />
+</svg>

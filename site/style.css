@@ -752,6 +752,93 @@ svg.chart.lines .series:focus-within .series-name .lv-name { font-weight: 700; }
 svg.chart.lines .leader { stroke-dasharray: 1 3; stroke-linecap: round; }
 ul.legend li[hidden] { display: none; }
 
+/* a detail page (build.py record_page, reference_detail_page): the dashboard's three cards, the area-time plot,
+   the schematic (gen_schematics.py's SVG, inline: its own scoped style reads these tokens), the critical path */
+.dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); margin: 0 0 var(--sp-2); }
+@media (max-width: 66rem) { .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash .score-card { grid-column: 1 / -1; } }
+@media (max-width: 42rem) { .dash { grid-template-columns: minmax(0, 1fr); } }
+.dash-note { margin: 0 0 var(--sp-5); }
+.mcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow);
+  padding: var(--sp-4) 1.15rem 1.1rem; min-width: 0; }
+.mhead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: 0.35rem; }
+.mhead .label { margin: 0; }
+.mcard .big { margin: 0.1rem 0 0; font: 700 2.15rem/1.1 var(--mono); letter-spacing: -0.02em; color: var(--text); overflow-wrap: anywhere; }
+.mcard .big .unit { font-size: 0.45em; font-weight: 500; color: var(--text-3); margin-left: 0.3em; letter-spacing: 0; }
+.mcard .sub { margin: 0.25rem 0 0.8rem; font-size: 0.8rem; color: var(--text-2); line-height: 1.45; }
+.meter { display: flex; gap: 2px; height: 10px; border-radius: 5px; background: var(--sunken); overflow: hidden; margin: 0.4rem 0 0.35rem; }
+.meter > span:not(.meter-note) { display: block; flex-basis: 0; min-width: 4px; }
+.meter .m-beat { background: var(--accent); }
+.meter .m-tie { background: color-mix(in srgb, var(--accent) 42%, var(--surface)); }
+.meter .m-trade { background: var(--axis); }
+.meter .m-behind { background: transparent; }
+.meter-empty { height: auto; min-height: 1.6rem; align-items: center; justify-content: center; background: var(--surface-2);
+  border: 1px dashed var(--border-strong); border-radius: var(--r-sm); }
+.meter-note { flex: 1 1 auto; font: 500 0.72rem/1.3 var(--mono); color: var(--text-3); padding: 0.3rem 0.5rem; text-align: center; }
+.beats { margin: 0.35rem 0 0.1rem; font-size: var(--fs-base); }
+.fine { margin: 0.3rem 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-2); }
+.vs { margin: 0.65rem 0 0.2rem; font-size: 0.86rem; }
+.vs-k { font: 600 0.66rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin-right: 0.45rem; }
+dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 0.9rem; margin: 0.75rem 0 0.5rem;
+  padding-top: 0.6rem; border-top: 1px solid var(--border); font-size: 0.84rem; }
+dl.kv dt { font: 600 0.68rem/1.9 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+dl.kv dd { margin: 0; font-family: var(--mono); font-size: 0.82rem; line-height: 1.75; }
+.tag { font: 500 0.64rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-left: 0.3rem; }
+.sublabel { margin: var(--sp-4) 0 0.2rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+svg.chart.pa .iso { fill: none; stroke: var(--kind-reference); stroke-width: 1; opacity: 0.55; }
+svg.chart.pa .halo, .legend-icon .halo { fill: none; stroke: var(--text); stroke-width: 1.6; }
+.legend-icon .iso { fill: none; stroke: var(--kind-reference); stroke-width: 1.2; opacity: 0.7; }
+svg.chart.pa .dlabel { fill: var(--text); font-family: var(--font); font-size: 12px; font-weight: 600; }
+svg.chart.pa .ctr { fill: var(--text-2); font-size: 11px; font-weight: 600; }
+svg.chart.pa .mark.subject { opacity: 1; }
+svg.chart.pa .mark.clamped { opacity: 0.55; }
+tr.is-subject td { background: var(--surface-2); }
+tr.is-subject td:first-child { box-shadow: inset 3px 0 0 var(--text); }
+.sch-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin: 0 0 var(--sp-2); }
+.sch-tools[hidden] { display: none; }
+.sch-tools button { font: 600 var(--fs-xs)/1 var(--mono); padding: 0.45rem 0.65rem; border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+.sch-tools button:focus-visible, .sch-box:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+.sch-find { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.sch-find input { font: var(--fs-xs)/1.2 var(--mono); padding: 0.4rem 0.55rem; width: 14rem; max-width: 100%;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--text); }
+.sch-find input:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+.sch-find .fine { margin: 0; }
+.sch-box { overflow: auto; max-height: 70vh; border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); padding: var(--sp-2); }
+/* without the script the drawing is shrunk to the box (a blank corner of a large drawing tells nothing); the
+   script's zoom sets its size */
+.sch-box svg.sch { display: block; max-width: 100%; height: auto; }
+.sch-box.zoomable svg.sch { max-width: none; }
+/* shown smaller than its size, the critical path keeps its width on screen */
+.sch-box:not(.zoomable) svg.sch line.crit, .sch-box.zoomed-out svg.sch line.crit,
+.sch-box:not(.zoomable) svg.sch .c.crit path, .sch-box.zoomed-out svg.sch .c.crit path,
+.sch-box:not(.zoomable) svg.sch .c.crit circle, .sch-box.zoomed-out svg.sch .c.crit circle {
+  vector-effect: non-scaling-stroke; stroke-width: 1.5px; }
+.sch-box.no-crit svg.sch .crit path, .sch-box.no-crit svg.sch .crit circle, .sch-box.no-crit svg.sch .crit rect,
+.sch-box.no-crit svg.sch line.crit { stroke: var(--text-2); stroke-width: 1; vector-effect: none; }
+.sch-box.no-crit svg.sch circle.j.crit { fill: var(--text-2); }
+.sch-box.no-crit svg.sch .crit .cellref { fill: var(--text-3); }
+.sch-box svg.sch .c:hover path, .sch-box svg.sch .c:hover circle { stroke: var(--link); stroke-width: 2; }
+.sch-box svg.sch .c { scroll-margin: 25vh 0; }              /* a followed link leaves its cell clear of the edge */
+/* the finder's hits; the cell a critical-path link (or the finder's Enter) points at, with the script or as the
+   URL's target, is filled as well */
+.sch-box svg.sch .c.hit path, .sch-box svg.sch .c.hit circle {
+  stroke: var(--link); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.sch-box svg.sch .c.hit .cellref { fill: var(--link); }
+.sch-box svg.sch .c.picked path, .sch-box svg.sch .c.picked circle,
+.sch-box svg.sch .c:target path, .sch-box svg.sch .c:target circle {
+  stroke: var(--link); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.sch-box svg.sch .c.picked path, .sch-box svg.sch .c:target path { fill: color-mix(in srgb, var(--link) 25%, transparent); }
+.sch-box svg.sch .c.picked .cellref, .sch-box svg.sch .c:target .cellref { fill: var(--link); font-weight: 700; }
+table.path td:nth-child(2), table.path td:nth-child(4) { white-space: nowrap; }
+ol.chain { list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0; margin: 0 0 var(--sp-4);
+  padding: 0; font-size: var(--fs-sm); line-height: 1.6; }
+ol.chain li { white-space: nowrap; }
+ol.chain li + li::before { content: "→"; color: var(--text-3); margin: 0 0.45rem; }
+ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
+.licence { padding: var(--sp-3) var(--sp-4); background: var(--surface-2); border-left: 3px solid var(--kind-reference);
+  border-radius: var(--r-sm); font-size: var(--fs-sm); }
+
 .unlinked { border-bottom: 1px dotted var(--border-strong); }
 
 /* ------------------------------------------------------------ responsive */
