@@ -292,6 +292,18 @@ what the pinned flow measures; measure with
   bit functions for the arithmetic. (Even without the `$clog2` localparam, a prefix
   adder's index arithmetic, `((i >> l) << l) - 1` or `i - (1 << l)`, is not
   affine in the genvars, which the tactics' recognizer requires.)
+  The Sklansky MATHEMATICS is proved for every `N`, waiting for the glue:
+  `tests/add/baselines/add_n_sklansky_core.lean` (section `SklCore`, on the
+  library's `LeanModels/Sv/Lib/Prefix.lean`) defines the recurrence as the
+  source denotes it, proves the block invariant (after level `l`, position `i`
+  holds the group generate and propagate of the aligned block from
+  `(i >> l) << l` to `i`) and, from the netlist's equations stated per level
+  and position with the generate-if's guard as a hypothesis, the `CombLib.AddView`
+  that `CombLib.add_spec` turns into the task's `s` and `cout`. The source is
+  not rewritten around the tactics: the `int`-typed `localparam L = $clog2(N + 1)`,
+  the guarded generate family and the nonlinear partner index are for ls-sv to
+  accept (decided 2026-11-05: the tactics are made more robust, designs are not
+  rewritten around them).
 
 ## Validation
 

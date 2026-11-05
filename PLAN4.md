@@ -510,7 +510,11 @@ and Pareto frontiers, the proving guide. It had no site.
 
   No external scripts. Tests in `svgolf/tests/site/`.
 - `[ ]` **W2, a private preview** for the maintainers, as a Claude artifact.
-- `[~]` **W3, hosting and going public.** The maintainers chose: a public repo `thomasnormal/svgolf` with GitHub Pages, "site
+- `[x]` **W3, hosting and going public. PUBLISHED 11/05 09:17 CET** (decided 11/05: "Please make it public as soon as
+  you can"): https://github.com/thomasnormal/svgolf, main = export v4 (7ec90a09, pin c1c06b1e, round 4's review
+  clean), Pages from GitHub Actions at https://thomasnormal.github.io/svgolf/; the pages and unit workflows passed on
+  the first push. Later rounds ship as ordinary commits on top (round 5: the detail pages, the re-seeded records).
+  The maintainers chose: a public repo `thomasnormal/svgolf` with GitHub Pages, "site
   + scrubbed source now". 11/04: the prerequisites are in place: every `LeanModels/Sv` module svGolf needs is on
   lean-surfaces master (the seven slices), and energy and the repair are merged. Workflow `svgolf-publish-prep` (branch
   `svgolf-publish`):
@@ -607,8 +611,11 @@ and Pareto frontiers, the proving guide. It had no site.
        shrunk; without the script a drawing is shrunk to its box instead of showing a blank corner; each drawing is
        offered as a file of its own; aes_sbox's path drawings mark the path's own nets; "1 buffers".
   4. `[~]` (11/05: fdivp has three proved references and aes_sbox two, with records seeded; add's five references are
-     one ripple architecture, so a proved Sklansky parallel-prefix adder is in progress, workflow `sklansky-proof`,
-     branch `svgolf-sklansky`.)
+     one ripple architecture, so a proved Sklansky parallel-prefix adder is in progress, branch `svgolf-sklansky`.
+     The natural source hits two comb-tactic walls (a conditional generate inside a loop; the partner index
+     `((i >> l) << l) - 1`). Decided 11/05: make the tactics more robust, never rewrite a design around them; asked of
+     ls-sv (guarded generate families; nonlinear genvar indices as named obligations). Meanwhile workflow
+     `sklansky-math` proves the general prefix-scan lemma (Lib) and the Sklansky recurrence core; the glue follows.)
      **Featured tasks made excellent:** add, mul, aes_sbox, fdivp, matmul and the sorter. Each needs:
      - a curated plain-language page;
      - at least two references;
@@ -617,11 +624,15 @@ and Pareto frontiers, the proving guide. It had no site.
        aes_sbox (sbox_bp, sbox_table), 11/05, `sky130_a0_v3`, full post-synthesis check; `leaderboard.py verify`:
        10 records, 0 failed, 0 stale.
      clmul and `_example` stay, but are not featured.
+  4c. `[x]` (on prep 11/05, all 52 pages, light and dark, 1280/768/390 px, 202 colour pairs AA, 140 site and
+     points tests) **The pixel theme** (decided 11/05, from a sheet of six playful concepts: "Let's go with 8772. It's
+     most distinctive", concept #1 'Pixel Golf Course'): a pixel-art golf world with a retro game feel across every
+     page, light and dark, phone width, AA contrast (workflow `site-pixel-theme`, branch `svgolf-theme-pixel`).
   4b. **PUBLICATION BLOCKER: the clocked statements do not yet cover the outputs on the wire and unknown values at
      reset (11/04, MEASURED by a soundness probe).** The fix is a revision of the trusted text (`txtask-v2`), which
      the maintainers rule on. Until then matmul and the sorter are listed as previews, not ranked: no par, no record
      tiles, no ranked board.
-  5. **Publish (W3)**, then iterate on what visitors hit.
+  5. `[x]` **Publish (W3)** (11/05), then iterate on what visitors hit.
 
 ## 3c. PPA: power (parallel track; requested 11/03: power and other standard metrics)
 
@@ -933,6 +944,19 @@ ones. Let's focus on getting the site working well on a few high quality tasks f
 - Deferred: int2float (EPFL's netlist is not IEEE), SECDED, arbiters (a new task kind: see the reactive study),
   IWLS truth tables (licences unchecked).
 
+**ReactTask is in (decided 11/05: "That's great. Please add it. I love new task types.")**: the reactive kind and its
+first task, the fair N-client arbiter, from branch `svgolf-reactive` (design/reactive/README.md), with the draft's
+defaults for its open choices (Moore observation, safety + bounded response with K = N - 1, no environment
+assumptions, scored at N = 8). Workflow `react-arbiter`, branch `svgolf-react`: integrate, wire through the pipeline,
+prove a reference for every N, review. Unranked preview until its reference is proved and the maintainers say so.
+
+**Asynchronous FIFO (decided 11/05: "please start a workstream on making the async fifo task")**: the first
+two-clock task, where timing nondeterminism matters: every interleaving of two unrelated clocks and every metastable
+resolution must be covered by the proof (the maintainers' rule: proofs hold for every order and every resolution).
+Round 1, workflow `async-fifo-study`, branch `svgolf-async-fifo`: a draft statement and kind, a two-clock bench with
+metastability injection and attacks, real-world RTL through today's pipeline, a scoring proposal, and the ask for
+ls-sv (two-clock semantics over every edge interleaving, the sampling rule, memories).
+
 **Rules, for the maintainers** (ranking is their decision):
 1. **Rank at several points** (add at 16/32/64, mul at 8/16/32), dropping each golfer's worst rank (the ISPD 2018
    metric). Proofs already cover every N. It ends the single-point lottery: commuting operands alone moves A0′ area by
@@ -1106,6 +1130,16 @@ The environment rely:
   - `out_valid` is known in every cycle after reset; `out_data` is cared about only when `out_valid` = 1.
 
 **C9, form [M].** v1 form now, over run2. The maps to the D11 contract and to Task v2 come as untrusted theorems later.
+
+**Ruled 11/05.**
+- **What ranks:** "keep it simple for the site's headline, and then give more tools for exploration under the
+  individual tasks": the ONE ranked number is area × time (the headline, par, record, the leaderboard's order); the
+  Pareto front, the x-y explorer and the scaling view are exploration. C7's "the leaderboard is the Pareto frontier"
+  becomes exploration; leaderboard.py and the README follow.
+- **Re-seeding:** the record fingerprint stays strict (a score is tied to an exact scorer); after a checker-file change
+  the reference records are re-seeded as a routine step.
+- **Layouts:** place-and-route for the detail pages runs nightly in the public repo's GitHub Actions; a run that
+  times out is noted on the page, and we decide then what to do instead.
 
 **Already ruled.** Matmul overflow wraps (decided 11/03); a clamp task may come later. No banlist for matmul (decided
 11/03). The clock is clocking, not observed (decided 11/03).

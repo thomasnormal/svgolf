@@ -39,11 +39,13 @@ Python 3.9 or later, standard library only. It writes the whole site to
   reproduce.html                  score/PPA.md's "Reproduce a score": the pinned tools, files and commands
   llms.txt data/site.json data/tasks/<t>.json style.css site.js charts.js
 
-The look is style.css's design system and page.py's components; every page reads without
-JavaScript (site.js adds the copy buttons of code blocks and the property panel's tabs). A task
-page's charts are drawn here as SVG (svgplot.py; the numbers come from metrics.py) and its data
-is embedded as inert JSON; charts.js adds the score chart's linear/log switch, tooltips, the
-explorer's point selector and axis menus, and the scaling view's metric menu and switches.
+The look is style.css's design system (a pixel golf course), page.py's components and pixelart.py's
+drawings (inline SVG, decorative: the home page's hero art and icons, the logo, the flag at the
+end of a page head's rule); every page reads without JavaScript (site.js adds the copy buttons
+of code blocks and the property panel's tabs). A task page's charts are drawn here as SVG
+(svgplot.py; the numbers come from metrics.py) and its data is embedded as inert JSON; charts.js
+adds the score chart's linear/log switch, tooltips, the explorer's point selector and axis menus,
+and the scaling view's metric menu and switches.
 
 Inputs, all from the repository: tasks/<t>/ (task.json, README.md, Spec.lean,
 reference/, and properties.json + Properties.lean: the statement as named
@@ -127,6 +129,7 @@ import leansrc                                    # noqa: E402  (the site's own 
 import md                                         # noqa: E402
 import metrics                                    # noqa: E402
 import page                                       # noqa: E402
+import pixelart                                   # noqa: E402
 import props                                      # noqa: E402
 import standing                                   # noqa: E402
 import svgplot                                    # noqa: E402
@@ -757,12 +760,28 @@ def measured_at_scored(t, ref):
             "depth": r["depth"]}
 
 
+REFERENCE_DATES = f"{CONTENT}/reference_dates.json"   # when each reference joined its task (gen_reference_dates.py)
+
+
+def reference_date(t, ref, rec):
+    """When a proved reference joined its task (UTC, to the second): `REFERENCE_DATES`, which keeps
+    the dates a fresh-history copy of the repository no longer has; else the date of the last commit
+    that changed its design, else its own record's submission date."""
+    if not hasattr(reference_date, "table"):
+        try:
+            reference_date.table = json.loads(read_text(REFERENCE_DATES))
+        except FileNotFoundError:
+            reference_date.table = {}
+    return (reference_date.table.get(t.name, {}).get(ref["stem"]) or metrics.commit_date(repo_file(ref["sv"]))
+            or (rec or {}).get("submitted_at"))
+
+
 def task_designs(site, t):
     """Every design the task page compares, one dict each: the proved references, the players'
     ranked records and the baselines that have a score at the scoring point. Keys: id (unique on
     the page), kind (reference | record | baseline), stem (a reference's or baseline's name), name,
-    sha (of the design file), date (a record's submission date; a reference's is the date of the
-    last commit that changed its design, `metrics.commit_date`; a baseline has none), href (where
+    sha (of the design file), date (a record's submission date; a reference's is when it joined its
+    task, `reference_date`; a baseline has none), href (where
     its mark links: a record's page, a reference's or baseline's row on the page), banned, layer (a
     record's Pareto layer on the (sky130 area, time) board), m (its metrics, `metrics.design_metrics`: the sky130
     columns of its golden, else of its own comparable record, else for a reference its measured numbers at the scoring
@@ -787,7 +806,7 @@ def task_designs(site, t):
                                           energy=sky.energy_of(t.name, ref["stem"], t.point_key),
                                           proof_lines=ref["proof_lines"])
         out.append({"id": f"reference/{ref['stem']}", "kind": "reference", "stem": ref["stem"], "name": ref["stem"],
-                    "sha": ref["sha256"], "date": metrics.commit_date(repo_file(ref["sv"])) or (rec or {}).get("submitted_at"),
+                    "sha": ref["sha256"], "date": reference_date(t, ref, rec),
                     "href": rel_link(t.page, reference_page(t, ref)), "banned": False, "m": m, "exact": exact,
                     "par": False, "player": None})
     for r in t.ranked():
@@ -1304,7 +1323,7 @@ def score_html(site, t, here):
     undated = [d for d in es if not d["date"]]
     rows = []
     for d in sorted(es, key=lambda d: (d["date"] or "~", d["exact"], d["id"])):
-        rows.append([esc(d["date"] or "–"), page.link(d["href"], esc(d["name"])), esc(kind_text(d)),
+        rows.append([esc((d["date"] or "–")[:10]), page.link(d["href"], esc(d["name"])), esc(kind_text(d)),
                      esc(combined.fmt(d["m"]["adp"])), esc(breakdown(d))])
     for d in lv:
         rows.append(['<span class="muted">–</span>', page.link(d["href"], esc(d["name"])), esc(kind_text(d)),
@@ -1325,7 +1344,7 @@ def score_html(site, t, here):
             f'<figure class="chart-figure"><div class="chart-box" data-score-chart>{variants}</div>{named}'
             + legend_html({d["kind"] for d in es}, front="the best score so far", par=bool(par), levels=bool(lv))
             + f"<figcaption>{score_definition(t)} Dots are the entries by date; the proved references are the "
-              "first entries, dated by the commit that last changed their design."
+              "first entries, dated by when they joined the task."
             + (" The dotted levels are baselines: scored, never proved." if lv else "")
             + (f" {len(undated)} undated {'entry is' if len(undated) == 1 else 'entries are'} in the table only."
                if undated else "")
@@ -3053,13 +3072,17 @@ def home_page(site, tasks):
                 page.button(rel_link(here, "proving.html"), "The proving guide", "quiet")]
     head_title = md_inline(title).replace("then golf", '<span class="accent">then golf') + "</span>" \
         if "then golf" in title else md_inline(title)
-    hero = (f'<header class="hero"><div><p class="label label-accent">SystemVerilog · Lean 4 · logic synthesis</p>'
+    # the hero (style.css's pixel golf course): the text in the sky beside the drawn green (pixelart.py,
+    # decorative), the three numbers on the grass under them
+    hero = (f'<header class="hero"><div class="hero-sky"><div class="hero-text">'
+            f'<p class="label label-accent">SystemVerilog · Lean 4 · logic synthesis</p>'
             f'<h1>{head_title}</h1><div class="hero-lead">{lead}</div>'
             f'<div class="btn-row">{"".join(buttons)}</div></div>'
-            + page.stats([page.Stat("Tasks", str(len(listed) + len(previews))),
-                          page.Stat("Proved references", str(n_refs)),
-                          page.Stat("Submissions", str(n_subs))])
-            + "</header>")
+            f'<div class="hero-art">{pixelart.scene()}</div></div><div class="hero-ground">'
+            + page.stats([page.Stat("Tasks", str(len(listed) + len(previews)), icon_html=pixelart.icon("flag")),
+                          page.Stat("Proved references", str(n_refs), icon_html=pixelart.icon("trophy")),
+                          page.Stat("Submissions", str(n_subs), icon_html=pixelart.icon("ball"))], cls="hero-stats")
+            + "</div></header>")
     when = ("see a task's “How to submit”" if site.config.get("repo_url")
             else "public submissions start when the svGolf repository is published")
     intro = ("<strong>Par</strong> is the best proved reference that ships with the task: a design the "
@@ -3073,9 +3096,9 @@ def home_page(site, tasks):
                   "are shown and measured, and its submissions are not ranked until then.")
     cards = "".join(task_card(t, here) for t in tut + listed + previews)
     parts = [hero,
-             f'<div class="section-head" id="tasks"><div><p class="label">The course</p><h2>Tasks</h2></div>'
-             f"<p>{intro}</p></div>",
-             f'<ul class="task-cards">{cards}</ul>']
+             f'<section class="course"><div class="section-head" id="tasks"><div><p class="label label-accent">'
+             f'The course</p><h2>Tasks</h2></div><p>{intro}</p></div>'
+             f'<ul class="task-cards">{cards}</ul></section>']
     # the rest of home.md: a section that is a numbered list ("The loop") as cards, any other as a card
     slugger = md.Slugger(["tasks"])
     for level, sec_title, s0, s1 in secs:

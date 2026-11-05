@@ -144,6 +144,10 @@ class Frame:
         self.left, self.right, self.top, self.bottom = left, w - right, top, h - bottom
 
 
+# Appended to every y-axis title (charts.js appends the same text when it redraws a chart).
+Y_BETTER = " · lower is better"
+
+
 def _axes(fr, xs, ys, x_label, y_label, x_fmt=tick, y_fmt=tick, x_ticks=None, target=6, compact=False,
           x_grid=True, x_rows=None):
     """Gridlines, tick labels and axis titles. `compact` (a phone's drawing, its text set larger):
@@ -167,6 +171,7 @@ def _axes(fr, xs, ys, x_label, y_label, x_fmt=tick, y_fmt=tick, x_ticks=None, ta
     parts.append(f'<line class="axis" x1="{_f(fr.left)}" x2="{_f(fr.left)}" y1="{_f(fr.top)}" y2="{_f(fr.bottom)}"/>')
     parts.append(f'<text class="axis-title" x="{_f((fr.left + fr.right) / 2)}" y="{_f(fr.h - 8)}" '
                  f'text-anchor="middle">{_esc(x_label)}</text>')
+    y_label += Y_BETTER     # every plotted number is minimized; the axis says so where the reader looks
     if compact:
         parts.append(f'<text class="axis-title" x="{_f(4)}" y="{_f(fr.top - 12)}" text-anchor="start">'
                      f"{_esc(y_label)}</text>")
@@ -250,7 +255,12 @@ SCATTER_COMPACT = dict(w=420, h=400, left=60, right=16, top=32, bottom=52)
 
 
 def _ordinal(date):
-    return datetime.date.fromisoformat(date[:10]).toordinal()
+    """A date's day number; a time of day (`YYYY-MM-DDTHH:MM[:SS]Z`) adds its fraction of the day, so
+    entries of one day stand apart in time order."""
+    day = datetime.date.fromisoformat(date[:10]).toordinal()
+    if len(date) >= 16 and date[10] == "T":
+        day += (int(date[11:13]) * 60 + int(date[14:16])) / 1440
+    return day
 
 
 def date_label(ordinal, same_year=True):

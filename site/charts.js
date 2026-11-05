@@ -87,6 +87,7 @@
     return s;
   }
 
+  var Y_BETTER = " · lower is better";   // svgplot.Y_BETTER: every plotted number is minimized
   function axisLabel(m) { return m.unit ? m.label + " (" + m.unit + ")" : m.label; }
 
   function gnum(v) { return String(Number(v.toPrecision(6))); }    // Python's :g for a radius
@@ -217,7 +218,7 @@
   }
 
   function tipLines(d, ms) {
-    var out = [d.name, kindText(d) + (d.date ? " · " + d.date : "")];
+    var out = [d.name, kindText(d) + (d.date ? " · " + d.date.slice(0, 10) : "")];
     ms.forEach(function (m) {
       if (m && d.m[m.key] !== undefined) {
         out.push(m.label + ": " + fmtMetric(m, d.m[m.key]) + (m.unit ? " " + m.unit : ""));
@@ -244,7 +245,7 @@
     var xv = pts.map(function (p) { return p.x; }), yv = pts.map(function (p) { return p.y; });
     var xs = new Scale(Math.min.apply(null, xv), Math.max.apply(null, xv), left, right, { log: xlog, integer: !!INTEGER[xk] });
     var ys = new Scale(Math.min.apply(null, yv), Math.max.apply(null, yv), bottom, top, { log: ylog, integer: !!INTEGER[yk] });
-    var xt = axisLabel(mx) + (xs.log ? ", log scale" : ""), yt = axisLabel(my) + (ys.log ? ", log scale" : "");
+    var xt = axisLabel(mx) + (xs.log ? ", log scale" : ""), yt = axisLabel(my) + (ys.log ? ", log scale" : "") + Y_BETTER;
     var title = data.task + (data.where ? " at " + data.where + " (" + MEASURED + ")" : "") + ": " +
                 my.label.toLowerCase() + " against " + mx.label.toLowerCase();
     var s = ['<svg class="chart' + (compact ? " compact" : "") + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(title) +
@@ -650,7 +651,7 @@
     var ys = new Scale(Math.min.apply(null, yv), Math.max.apply(null, yv), bottom, top,
                        { log: ylog, integer: !!INTEGER[key] && !relative });
     var yLabel = relative ? m.label + " ÷ par's" : axisLabel(m);
-    var xt = sc.x_label + (xs.log ? ", log scale" : ""), yt = yLabel + (ys.log ? ", log scale" : "");
+    var xt = sc.x_label + (xs.log ? ", log scale" : ""), yt = yLabel + (ys.log ? ", log scale" : "") + Y_BETTER;
     var title = data.task + ": " + m.label.toLowerCase() + (relative ? " over par" : "") + " against " + sc.x_label +
                 ", one line per design";
     var s = ['<svg class="chart lines' + (compact ? " compact" : "") + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' +

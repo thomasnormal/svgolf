@@ -835,6 +835,35 @@ class SiteTest(unittest.TestCase):
                 self.assertIn(f"check.py tasks/{t} ", part)
         self.assertNotIn("pull request", files["llms.txt"].decode("utf-8"))
 
+    def test_home_hero_art_is_decoration_and_its_numbers_are_text(self):
+        """The hero's drawing (pixelart.py) and the stats icons are aria-hidden SVG with no text;
+        the numbers beside them stay text, computed by the build."""
+        html_ = self.files["index.html"].decode("utf-8")
+        hero = html_[html_.index('<header class="hero">'):html_.index("</header>", html_.index('<header class="hero">'))]
+        svgs = re.findall(r"<svg\b[^>]*>.*?</svg>", hero, re.S)
+        self.assertEqual(len(svgs), 4)                     # the scene and three icons
+        for svg in svgs:
+            self.assertIn('aria-hidden="true"', svg)
+            self.assertEqual(text_of(svg), "")
+        n_listed = sum(1 for how in self.config["tasks"].values() if how in ("listed", "preview"))   # previews too
+        self.assertIn(f"Tasks{n_listed}", text_of(hero))
+        self.assertIn("Prove a circuit correct, then golf its gates.", text_of(hero))
+
+    def test_every_page_draws_its_logo_and_head_flag_as_decoration(self):
+        """The art outside the home hero: the logo in the header and the footer (pixelart.logo) and
+        the flag at the end of each page head's rule (pixelart.hole_flag), aria-hidden with no text,
+        so a page's text is its content alone."""
+        for path in self.pages:
+            html_ = self.files[path].decode("utf-8")
+            with self.subTest(page=path):
+                self.assertEqual(html_.count('<svg class="px logo"'), 2)
+                self.assertEqual(html_.count('<svg class="px hole-flag"'), html_.count('<header class="page-head">'))
+                for svg in re.findall(r'<svg class="px [^"]*".*?</svg>', html_, re.S):
+                    self.assertIn('aria-hidden="true"', svg)
+                    self.assertEqual(text_of(svg), "")
+                brand = html_[html_.index('<a class="brand"'):html_.index("</a>", html_.index('<a class="brand"'))]
+                self.assertEqual(text_of(brand), "svGolf")
+
     def test_home_defines_ls_sv_with_a_link_where_it_first_appears(self):
         html_ = self.files["index.html"].decode("utf-8")
         first = html_.index("ls-sv")

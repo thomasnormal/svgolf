@@ -455,6 +455,61 @@ class PageTest(unittest.TestCase):
         self.assertIn('<table class="wide">', plain)
         self.assertNotIn("data-label", plain)
 
+    def test_a_stat_icon_sits_in_its_value_and_adds_no_text(self):
+        import page
+        import pixelart
+        s = page.Stat("Tasks", "5", icon_html=pixelart.icon("flag")).html()
+        self.assertTrue(s.startswith('<div class="stat"><dt>Tasks</dt><dd><svg class="px ico"'), s)
+        self.assertEqual(re.sub(r"<[^>]+>", "", s), "Tasks5")
+
+
+class PixelArtTest(unittest.TestCase):
+    """pixelart.py: the hand-drawn maps become decorative, themed, crisp inline SVG."""
+
+    def drawings(self):
+        import pixelart
+        return ([pixelart.scene(), pixelart.logo(), pixelart.hole_flag()]
+                + [pixelart.icon(n) for n in ("flag", "trophy", "ball")])
+
+    def test_maps_are_rectangular_and_use_known_colours(self):
+        import pixelart
+        sprites = {k: v for k, v in vars(pixelart).items() if k.isupper() and isinstance(v, list)}
+        self.assertIn("CHIP", sprites)
+        for name, rows in sprites.items():
+            with self.subTest(sprite=name):
+                self.assertEqual(len({len(r) for r in rows}), 1, "ragged rows")
+                self.assertLessEqual(set("".join(rows)) - {"."}, set(pixelart.INKS))
+
+    def test_decorative_crisp_and_deterministic(self):
+        first, again = self.drawings(), self.drawings()
+        self.assertEqual(first, again)
+        for svg in first:
+            self.assertIn('aria-hidden="true"', svg)
+            self.assertIn('shape-rendering="crispEdges"', svg)
+            self.assertEqual(re.sub(r"<[^>]+>", "", svg), "")          # no text: decorative only
+            self.assertIsNone(re.search(r"fill=|style=|#[0-9a-fA-F]{3}", svg))   # colours come from style.css
+
+    def test_every_colour_class_is_themed_in_style_css(self):
+        with open(os.path.join(SITE, "style.css"), encoding="utf-8") as fh:
+            css = fh.read()
+        used = set()
+        for svg in self.drawings():
+            used.update(re.findall(r'class="(px-[\w]+)"', svg))
+        self.assertTrue(used)
+        for cls in sorted(used):
+            self.assertRegex(css, rf"\.{cls} \{{ fill: var\(--px-[\w-]+\); \}}", cls)
+
+    def test_the_merged_rectangles_cover_exactly_the_pixels(self):
+        import pixelart
+        for sprite in (pixelart.CHIP, pixelart.PENNANT, pixelart.TREE, pixelart.ICON_TROPHY, pixelart.LOGO):
+            cells = {(x, y) for y, r in enumerate(sprite) for x, ch in enumerate(r) if ch != "."}
+            covered = set()
+            for x, y, w, h in pixelart._merge(cells):
+                block = {(x + i, y + j) for i in range(w) for j in range(h)}
+                self.assertFalse(block & covered, "overlapping rectangles")
+                covered |= block
+            self.assertEqual(covered, cells)
+
 
 class CombinedTest(unittest.TestCase):
     """leaderboard/combined.py: the score is area x time, exact in integers."""
@@ -636,3 +691,25 @@ class PropsLoadTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReferenceDateTest(unittest.TestCase):
+    """Each proved reference keeps the date it joined its task (site/content/reference_dates.json),
+    because a fresh-history copy of the repository would date them all by its one commit."""
+
+    def test_every_reference_has_a_date(self):
+        spec = importlib.util.spec_from_file_location("svgolf_gen_reference_dates",
+                                                      os.path.join(SITE, "gen_reference_dates.py"))
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+        with open(gen.OUT, encoding="utf-8") as fh:
+            dates = json.load(fh)
+        for task, stems in gen.references().items():
+            for stem in stems:
+                with self.subTest(task=task, reference=stem):
+                    self.assertRegex(dates.get(task, {}).get(stem, ""), r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+    def test_a_time_of_day_spreads_one_day(self):
+        self.assertEqual(svgplot._ordinal("2026-10-29"), svgplot._ordinal("2026-10-29T00:00:00Z"))
+        self.assertAlmostEqual(svgplot._ordinal("2026-10-29T12:00:00Z") - svgplot._ordinal("2026-10-29"), 0.5)
+        self.assertLess(svgplot._ordinal("2026-10-29T10:46:16Z"), svgplot._ordinal("2026-10-29T22:30:52Z"))

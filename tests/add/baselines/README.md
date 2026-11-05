@@ -25,4 +25,7 @@ prefix adders in bulk, also in Verilator), and `tests/run.py` runs the checker's
 check on each (`check/postsynth.py`: ls-sv and the scored netlist agree at
 `N = 16`; `--full`: at 32 and 64 too). The prefix adders pass every `check.py` stage up to
 `comparator` with a placeholder proof; what they lack is the for-all-`N`
-proof (`tasks/add/README.md`, "Next goalposts").
+proof (`tasks/add/README.md`, "Next goalposts"). For the Sklansky adder the
+mathematics of that proof is `add_n_sklansky_core.lean` (section `SklCore`, the
+future reference's arithmetic; it moves into `tasks/add/reference/` with the
+design once ls-sv's tactics take the natural source).

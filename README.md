@@ -5,7 +5,7 @@ hardware. For each task you:
 
 1. write a circuit in SystemVerilog;
 2. prove in Lean that it meets the task's **trusted statement**, under the
-   ls-sv semantics of [lean-surfaces](https://github.com/thomasnormal/lean-surfaces/tree/fffe1db6ac89b6834118cac22773d515dc827bb4) (the sv-0.2 tier: `load_design_sv2`,
+   ls-sv semantics of [lean-surfaces](https://github.com/thomasnormal/lean-surfaces/tree/01945ccf28bb1f95347ebabe9704adbd32e4e045) (the sv-0.2 tier: `load_design_sv2`,
    `run2`, the `⊨₂` judgment and `Terminates2`);
 3. get scored by a pinned synthesis flow, weighed on the sky130 standard
    cells (flow A0'): **area** in um^2 and **time** in ps (the critical-path
