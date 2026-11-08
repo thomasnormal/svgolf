@@ -1,4 +1,5 @@
 import LeanModels.Sv.Ingest2
+import SvGolf.TaskSeq
 
 /-!
 # `svgolf-eval`: ls-sv's own evaluation of a design on many input vectors
@@ -37,13 +38,22 @@ complete (`TIMEOUT`, `UNSUPPORTED ...`, `BADTRACE ...`), and a last line
 `TIME ...`. The Python side treats every `E` line, every `x`/`z` digit and
 every `σ_src`/`σ_rev` difference as a failure: it fails closed.
 
-**Trace mode** (`svgolf-eval --trace ENVELOPE POINT VECTORS OUT [FUEL]`, the
-clocked post-synthesis check, PLAN4 Gate 2 step 4): the vectors are the
-consecutive stimulus entries of ONE run, `run2` over the whole list from ls-sv's
-own start state (declaration initializers, all else x), one entry per clock
-period (the clock port's value is not read). Line `V <c>` is then the snapshot
-after cycle `c`, under `σ_src` and under `σ_rev`; a run that does not complete
-is the single line `E 0 <reason>`.
+**Trace mode** (`svgolf-eval --trace [--start START] ENVELOPE POINT VECTORS OUT
+[FUEL]`, the clocked post-synthesis check, PLAN4 Gate 2 step 4): the vectors are
+the consecutive stimulus entries of ONE run over the whole list, one entry per
+clock period (the clock port's value is not read). Line `V <c>` is then the
+snapshot after cycle `c`, under `σ_src` and under `σ_rev`; a run that does not
+complete is the single line `E 0 <reason>`. The run starts from:
+
+* `--start zeros`: the power-up state with every declared signal 0 (txtask-v2's
+  `run2At` from a `PowerUp` state; Verilator's `randReset(0)` start);
+* `--start seed:<n>`: the power-up state whose bits are drawn, declaration by
+  declaration and bit by bit from bit 0, from a 64-bit linear congruential
+  generator seeded with `n` (`seedStart`);
+* no `--start` (the default, txtask-v1): ls-sv's own start state `initState2`
+  (declaration initializers, all else x), i.e. `run2`.
+
+A `START <start>` line records which.
 
 Exit status 0 = ran (the verdicts are in `OUT`); 1 = a usage, envelope,
 instantiation or vector error.
@@ -123,11 +133,41 @@ def runOne (d : Design2) (σ : ScheduleOracle) (fuel : Nat) (v : SvState) :
   | .timeout => .error "TIMEOUT run2 fuel exhausted"
   | .unsupported m => .error s!"UNSUPPORTED {m}"
 
-/-- `--trace`: ONE run of all the vectors as consecutive cycles: the outputs
-after each cycle, or why there are none. -/
-def runTrace (d : Design2) (σ : ScheduleOracle) (fuel : Nat) (vs : List SvState) :
-    Except String (List String) :=
-  match run2 d σ fuel vs with
+/-- The power-up state with every declared signal 0. -/
+def zeroStart (d : Design2) : SvState :=
+  d.decls.toList.map fun dc => (dc.name, LVec.ofNat dc.width 0)
+
+/-- One step of the 64-bit linear congruential generator (Knuth's MMIX constants). -/
+def lcg (s : Nat) : Nat := (s * 6364136223846793005 + 1442695040888963407) % 2 ^ 64
+
+/-- The power-up state drawn from the seed `n`: each declaration in order, each bit from bit 0,
+takes bit 33 of the next generator state. -/
+def seedStart (d : Design2) (n : Nat) : SvState := Id.run do
+  let mut s := lcg (n + 1)
+  let mut st : SvState := []
+  for dc in d.decls do
+    let mut v := 0
+    for i in List.range dc.width do
+      s := lcg s
+      if (s / 2 ^ 33) % 2 == 1 then v := v + 2 ^ i
+    st := st ++ [(dc.name, LVec.ofNat dc.width v)]
+  return st
+
+/-- `--start`: `zeros`, `seed:<n>`; `none` is ls-sv's own start state. -/
+def startState (d : Design2) : Option String → Except String SvState
+  | none => .ok (initState2 d)
+  | some "zeros" => .ok (zeroStart d)
+  | some s => match s.splitOn ":" with
+    | ["seed", n] => match n.toNat? with
+      | some k => .ok (seedStart d k)
+      | none => .error s!"bad seed in --start {s}"
+    | _ => .error s!"bad --start {s} (zeros or seed:<n>)"
+
+/-- `--trace`: ONE run of all the vectors as consecutive cycles from `st0` (`run2At`; `run2` is
+`run2At` from `initState2`): the outputs after each cycle, or why there are none. -/
+def runTrace (d : Design2) (σ : ScheduleOracle) (fuel : Nat) (st0 : SvState)
+    (vs : List SvState) : Except String (List String) :=
+  match SvGolf.run2At d σ fuel st0 vs with
   | .ok tr => if tr.length == vs.length then .ok (tr.map (showOuts d))
               else .error s!"BADTRACE {tr.length} snapshots for {vs.length} cycles"
   | .timeout => .error "TIMEOUT run2 fuel exhausted"
@@ -141,12 +181,15 @@ def main (argv : List String) : IO UInt32 := do
   let (trace, argv) := match argv with
     | "--trace" :: rest => (true, rest)
     | _ => (false, argv)
+  let (start, argv) := match argv with
+    | "--start" :: s :: rest => (some s, rest)
+    | _ => (none, argv)
   let (envP, ptS, vecP, outP, fuel) ← match argv with
     | [e, p, v, o] => pure (e, p, v, o, 100000)
     | [e, p, v, o, f] => match f.toNat? with
       | some f => pure (e, p, v, o, f)
       | none => return (← fail s!"bad fuel {f}")
-    | _ => return (← fail "usage: svgolf-eval [--trace] ENVELOPE POINT VECTORS OUT [FUEL]")
+    | _ => return (← fail "usage: svgolf-eval [--trace [--start zeros|seed:N]] ENVELOPE POINT VECTORS OUT [FUEL]")
   let t0 ← IO.monoMsNow
   let envl ← match parseEnvelope2String (← IO.FS.readFile envP) with
     | .ok e => pure e
@@ -171,7 +214,11 @@ def main (argv : List String) : IO UInt32 := do
   out := out.push s!"DESIGN {d.name} processes={d.processes.size} unsupported={d.hasUnsupported}"
   let mut i := 0
   if trace then
-    match runTrace d σ_src fuel stims.toList, runTrace d σ_rev fuel stims.toList with
+    let st0 ← match startState d start with
+      | .ok s => pure s
+      | .error e => return (← fail e)
+    out := out.push s!"START {start.getD "init"}"
+    match runTrace d σ_src fuel st0 stims.toList, runTrace d σ_rev fuel st0 stims.toList with
     | .ok as, .ok bs =>
       for (a, b) in as.zip bs do
         out := out.push s!"V {i} {a} | {b}"

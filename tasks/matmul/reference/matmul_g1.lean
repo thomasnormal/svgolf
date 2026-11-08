@@ -8,7 +8,7 @@ import LeanModels.Sv.Known2
 import LeanModels.Sv.Lib.BitVecArith
 import LeanModels.Sv.CombViewArith
 import LeanModels.Sv.Mono2
-import SvGolf.Seq
+import SvGolf.SeqV2
 
 /-!
 # Reference solution for task `matmul`, G1: `N²` multiply-accumulate units and one step counter
@@ -22,7 +22,10 @@ snapshot `N` cycles after the start's (`lat = N`). Proved at every in-range `(N,
 3. **The invariant on `k`** (`pe_step`, `next_step`): busy cycle `t` turns every accumulator's
    `Σ_{k' < t} A[i][k']·B[k'][j]` into the sum to `t + 1`, mod `2^AccW` (`accC`).
 4. **The spec's arithmetic** (`product_eq`, `accC_N`): `product` is `accC` at `t = N`.
-5. **The protocol** (`model`): the phases of `TxTask.satisfiedAt_of_phases`, then `solution`.
+5. **The protocol** (`model`): the phases of `TxTask.satisfiedAt_of_phases`.
+6. **txtask-v2** (section 8): rule 2 (`mm_powerUp`: every power-up state has the model's shape, so
+   the claim and termination hold from every power-up), rule 1 (`mm_moore`: every process an
+   `always_ff`, so no combinational dependency) and rule 3 (`mm_xsafe`), then `solution`.
 
 The design-independent lemmas are in the library: the packed view and its commit (`packBV`,
 `LVec.insertEntries_ofBitVec`) in `LeanModels.Sv.SeqFamily`, the clock step (`ffDisjB_of_pairwise`,
@@ -726,7 +729,10 @@ def model (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) (hNW 
 
 theorem mm_interface (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) :
     Tasks.Matmul.task.Interface (N, W, AccW) (design.sem N W AccW) := by
-  rw [mm_sem_eq N W AccW hN hW hA]; exact ⟨rfl, rfl⟩
+  rw [mm_sem_eq N W AccW hN hW hA]
+  exact ⟨rfl, rfl, by
+    show (["clk", "rst", "start", "A", "B", "done", "C", "k", "busy", "a_sh", "b_sh"] : List String).Nodup
+    decide⟩
 
 theorem mm_disciplined (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) :
     Tasks.Matmul.task.Disciplined (design.sem N W AccW) := by
@@ -740,12 +746,106 @@ theorem mm_disciplined (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 �
     simp [Tasks.Matmul.task, mmPE, sext, edgeClock, asyncReset, processDataNames, stmtNames, stmtOptNames,
       lhsNames, exprNames, exprListNames]
 
-/-- **The reference satisfies the matmul statement at latency `N`** (`4` at the scoring point). -/
+/-! ## 8. txtask-v2: every power-up (rule 2), Moore outputs (rule 1), no x-creating construct (rule 3)
+
+Rule 2: the phase model's shape `I` (the register widths, any values) holds at every power-up state
+(`mm_powerUp`), and every obligation of the model holds from any state of the shape, so the claim holds
+from every power-up (`TxTask.satisfiedAtV2_of_phases`, `SvGolf.SeqV2`); the same cycle gives
+termination from every power-up (`mm_terminatesPU`). Rule 1: every process is an `always_ff`
+(`mm_profile`), so the design has no combinational dependency at all (`combDeps_of_ffOnly`). Rule 3
+(`mm_xsafe`): every expression is a known literal, a declared signal, an in-range constant slice
+(`C`'s windows, the operand entries), a concatenation, a replication, a width conversion or `+`, `-`,
+`*`, `>>`, `==` on operands of matching widths. -/
+
+/-- **Rule 1.** -/
+theorem mm_moore (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) :
+    MooreOutDep (design.sem N W AccW) [Tasks.Matmul.task.rst] := by
+  rw [mm_sem_eq N W AccW hN hW hA]
+  exact MooreOutDep.of_noComb (combDeps_of_ffOnly (FFOnly.ofProfile (mm_profile N W AccW)))
+    (by simp [mmD, mmDecls, Design2.outputNames, Design2.inputNames])
+
+/-- Every power-up state of the design has its shape. -/
+theorem mm_powerUp (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) (st : SvState)
+    (h : PowerUp (design.sem N W AccW) st) : I N W AccW st := by
+  rw [mm_sem_eq N W AccW hN hW hA] at h
+  obtain ⟨ck, r1, rfl, -, -, h1⟩ := powerUp_cons.mp h
+  obtain ⟨r, r2, rfl, -, -, h2⟩ := powerUp_cons.mp h1
+  obtain ⟨s, r3, rfl, -, -, h3⟩ := powerUp_cons.mp h2
+  obtain ⟨a, r4, rfl, -, -, h4⟩ := powerUp_cons.mp h3
+  obtain ⟨b, r5, rfl, -, -, h5⟩ := powerUp_cons.mp h4
+  obtain ⟨dn, r6, rfl, w6, -, h6⟩ := powerUp_cons.mp h5
+  obtain ⟨c, r7, rfl, w7, -, h7⟩ := powerUp_cons.mp h6
+  obtain ⟨k, r8, rfl, w8, -, h8⟩ := powerUp_cons.mp h7
+  obtain ⟨bz, r9, rfl, w9, -, h9⟩ := powerUp_cons.mp h8
+  obtain ⟨ash, r10, rfl, w10, -, h10⟩ := powerUp_cons.mp h9
+  obtain ⟨bsh, r11, rfl, w11, -, h11⟩ := powerUp_cons.mp h10
+  obtain rfl := powerUp_nil.mp h11
+  exact ⟨ck, r, s, a, b, dn, c, k, bz, ash, bsh, rfl, w6, w7, w8, w9, w10, w11⟩
+
+/-- **Termination from every power-up** (the cycle of `mm_terminates`). -/
+theorem mm_terminatesPU (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) :
+    TerminatesPU (design.sem N W AccW) := by
+  refine TerminatesPU.of_invariant (I N W AccW) (mm_powerUp N W AccW hN hW hA) (fun σ => ⟨30, ?_⟩)
+    (by rw [mm_sem_eq N W AccW hN hW hA]; exact mm_noq N W AccW)
+  rintro e _ kk ⟨ck, r, s, a, b, dn, c, k, bz, ash, bsh, rfl, hw⟩
+  exact ⟨_, _, mm_cycle N W AccW hN hW hA σ e ck r s a b dn c k bz ash bsh kk 30 (Nat.le_refl _),
+    mmNext_I N W AccW _ _ _ _ _ dn c k bz ash bsh hw⟩
+
+theorem lvec_l0_known : (⟨#[.l0]⟩ : LVec).allKnown = true := by
+  show (LVec.ofLogic .l0).allKnown = true
+  rw [LVec.ofLogic_l0]; exact LVec.allKnown_ofBitVec _
+
+theorem lvec_l1_known : (⟨#[.l1]⟩ : LVec).allKnown = true := by
+  show (LVec.ofLogic .l1).allKnown = true
+  rw [LVec.ofLogic_l1]; exact LVec.allKnown_ofBitVec _
+
+/-- The control passes rule 3. -/
+theorem ctrl_xsafe (N W AccW : Nat) : xsProc (mmD N W AccW) (mmCtrl N W) = true := by
+  simp [xsProc, xsStmt, xsStmts, xsOpt, xsLhs, xsWidth, binW, sigWidth, mmCtrl, nb, c32, mmD, mmDecls,
+    lvec_l0_known, lvec_l1_known, LVec.replicate_l0, LVec.ofInt]
+
+/-- A PE passes rule 3: its windows of `C` and of the operand registers are in range. -/
+theorem pe_xsafe {N W AccW i j : Nat} (hW : 1 ≤ W) (hi : i < N) (hj : j < N) :
+    xsProc (mmD N W AccW) (mmPE N W AccW i j) = true := by
+  have hN : 0 < N := by omega
+  have hC := Lib.rowMajor_window_le (M := N) (N := N) (w := AccW) hi hj
+  have hA : i * N * W + W ≤ N * N * W := by
+    have := Lib.rowMajor_window_le (M := N) (N := N) (w := W) hi hN
+    simpa [Nat.add_zero] using this
+  have hB : j * W + W ≤ N * N * W := by
+    have := Lib.rowMajor_window_le (M := N) (N := N) (w := W) hN hj
+    simpa using this
+  have hA1 : i * N * W + W - 1 + 1 ≤ N * N * W := by omega
+  have hB1 : j * W + W - 1 + 1 ≤ N * N * W := by omega
+  simp [xsProc, xsStmt, xsOpt, xsLhs, xsWidth, xsWidthList, binW, sigWidth, mmPE, sext, mmD, mmDecls,
+    LVec.replicate_l0, hC, hA, hB, hA1, hB1]
+
+theorem mm_pe_mem' {N W AccW : Nat} {p : Process2} (hp : p ∈ mmPEs N W AccW) :
+    ∃ i j, i < N ∧ j < N ∧ p = mmPE N W AccW i j := by
+  simp only [mmPEs, List.mem_flatMap, List.mem_map, List.mem_range] at hp
+  obtain ⟨i, hi, j, hj, rfl⟩ := hp
+  exact ⟨i, j, hi, hj, rfl⟩
+
+/-- **Rule 3.** -/
+theorem mm_xsafe (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) :
+    XSafe (design.sem N W AccW) := by
+  rw [mm_sem_eq N W AccW hN hW hA]
+  refine List.all_eq_true.mpr fun p hp => ?_
+  have hm : p ∈ mmCtrl N W :: mmPEs N W AccW := by simpa [mmD] using hp
+  rcases List.mem_cons.mp hm with rfl | hm
+  · exact ctrl_xsafe N W AccW
+  · obtain ⟨i, j, hi, hj, rfl⟩ := mm_pe_mem' hm
+    exact pe_xsafe hW hi hj
+
+/-- **The reference satisfies the matmul statement (txtask-v2) at latency `N`** (`4` at the scoring
+point). -/
 theorem solution : Goal lat := by
   refine ⟨fun p hp => ?_, rfl⟩
   obtain ⟨N, W, AccW⟩ := p
   obtain ⟨hN, hW, hA, hNW, -⟩ := hp
-  exact Tasks.Matmul.task.satisfiedAt_of_phases (mm_interface N W AccW hN hW hA)
-    (mm_disciplined N W AccW hN hW hA) (mm_terminates N W AccW hN hW hA) hN (model N W AccW hN hW hA hNW)
+  exact Tasks.Matmul.task.satisfiedAtV2_of_phases (mm_interface N W AccW hN hW hA)
+    (mm_disciplined N W AccW hN hW hA) (mm_terminatesPU N W AccW hN hW hA) hN
+    (model N W AccW hN hW hA hNW) (mm_powerUp N W AccW hN hW hA) (mm_moore N W AccW hN hW hA)
+    (mm_xsafe N W AccW hN hW hA)
 
 end Submission

@@ -330,7 +330,7 @@ condition it hands to `omega`) and walks the disjunction of writers (`CombCover.
 set_option maxHeartbeats 500000 in
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨hc, ha, hso⟩ := tape_struct N hN'
   refine CombTask.satisfiedAt_of_comb (tape_interface N hN' hc) hc ha ?_
   intro st heqs hs v hv

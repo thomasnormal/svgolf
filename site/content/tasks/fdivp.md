@@ -4,7 +4,8 @@ parameters, a value is `W + P` bits, and the divider must be right for every `W 
 subnormals are kept, and every NaN result is the format's canonical quiet NaN, exactly as the trusted
 function `SvGolf.IEEE754.divide` says.
 
-Run-time `/ % **` are banned. The score is taken at `(W, P) = (5, 11)`, where the proved reference, a
-word-level netlist with the normalizer and the restoring steps as generate loops, has 9675.5 µm² and a
-37.9 ns critical path on sky130 (2166.076 GE, depth 289). Its proof covers every format and every pair of
-operands.
+Run-time `/ % **` are banned. The score is taken at `(W, P) = (5, 11)`. The first proved reference, a
+word-level netlist with the normalizer and the restoring steps as generate loops, has {{fdivp.area}} and a
+{{fdivp.time}} critical path on sky130 ({{fdivp.ge}}, depth {{fdivp.depth}}); par is the proved radix-4 SRT
+divider, {{fdivp_srt.area}} at {{fdivp_srt.time}}, {{fdivp_srt.score}}. Each proof covers every format and
+every pair of operands.

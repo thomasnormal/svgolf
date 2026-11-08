@@ -3,7 +3,7 @@
  "title": "Streaming sorter, clocked",
  "subtitle": "N unsigned W-bit values in, one per cycle; the same values out in ascending order, one per cycle.",
  "preview_note": "The statement is being revised to cover the outputs on the wire and unknown values at reset; submissions are not ranked until then.",
- "banlist_note": "No operator is banned: comparisons are the task, and nothing else builds a sorter for free. The score prices the schedule (cells, comparators, cycles).",
+ "banlist_note": "No task-specific ban: comparisons are the task, and nothing else builds a sorter for free. The score prices the schedule (cells, comparators, cycles). Run-time `/ % **` are banned here as in every task: a zero divisor or a negative exponent makes an unknown value from known operands.",
  "references": {
   "sorter_ins": "An insertion-cell array (cell sort, adapted from andrewpeck/cell-sort, MIT): N cells, each comparing the broadcast input with its own value and its upper neighbour's, and a valid token per cell; latency 2N."
  },

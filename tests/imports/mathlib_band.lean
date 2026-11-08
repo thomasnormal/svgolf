@@ -17,7 +17,7 @@ generates the module `Submission.Design`, which loads the player's envelope as
 
     theorem Submission.solution : Submission.Goal
 
-for EVERY `N ≥ 1`: nothing is unrolled at a fixed width and nothing is
+for EVERY `N` of the task's range (`1 ≤ N < 2^31`): nothing is unrolled at a fixed width and nothing is
 bit-blasted. The design (`reference/band.sv`) is one continuous assign,
 `assign y = a & b;`.
 
@@ -256,10 +256,10 @@ theorem band_interface (N : Nat) (hN : 1 ≤ N) :
   simp [CombTask.Interface, inputPorts, outputPorts, band_sem_decls N hN, bandDecls,
     SvGolf.Tasks.Example.task]
 
-/-- **The reference solution**: the `_example` statement, for every `N ≥ 1`. -/
+/-- **The reference solution**: the `_example` statement, for every `N` in range (`1 ≤ N < 2^31`). -/
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   have _hp := pow_facts N
   refine CombTask.satisfiedAt_of_comb (band_interface N hN') (band_comb hN') (band_acyclic hN') ?_
   intro st heqs hs v hv

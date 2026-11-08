@@ -14,8 +14,10 @@ are the references of the `add` and `mul` tasks:
 | `fdivp` (two parameters `W`, `P`; word-level sites and generate families) | `tasks/fdivp/reference/fdivp.lean` (restoring division, one `Glue.chain` from the 34 printed equations); `tasks/fdivp/reference/fdivp_newton.lean` (Newton-Raphson: the run-time `*` and a `$clog2` localparam, sections 4 and 17); `tasks/fdivp/reference/fdivp_srt.lean` (radix-4 SRT: a family of 19 sites per stage, the selection tables as `?:` trees over constants checked by `decide`, the shared obligations of `sv_structure` handed to `sv_equations`) | |
 | `matmul` (clocked, `TxTask`; section 19) | `tasks/matmul/reference/matmul_g1.lean` (`N²` multiply-accumulate units, `lat = N`; `TxTask.satisfiedAt_of_phases`) | |
 | `sorter` (clocked stream, `StreamTask`; section 19) | `tasks/sorter/reference/sorter_ins.lean` (the insertion-cell array, `lat = 2N`; `StreamTask.satisfiedAt_of_phases`) | |
+| `arbiter` (clocked, reactive, `ReactTask`; section 20) | `tasks/arbiter/reference/rr_mask.lean` (the registered mask round-robin, every `N` with `1 ≤ N`, `N·N < 2^31`; `ReactTask.satisfiedAt_of_rank` with an invariant and a rank) | |
 
-Both proofs are for every `N ≥ 1`, accepted by `check.py`, and depend only on `propext`,
+Both proofs are for every `N` in their task's range (`1 ≤ N < 2^31` for `add`, `1 ≤ N < 2^30` for `mul`),
+accepted by `check.py`, and depend only on `propext`,
 `Classical.choice` and `Quot.sound`. [README.md](README.md) has the rules and the checker's
 stages; [REFUSALS.md](REFUSALS.md) lists everything the checker refuses.
 
@@ -33,13 +35,18 @@ the scoring and simulation stages (3 and 7 seconds for the two tactic references
 ask them: `sv_structure?` and `sv_equations?` change nothing and print the design's sites and
 the obligations. Use them first.
 
+**Score first, prove later.** `python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped [--path]`
+gives the ranked area and delay (their product is the ranked number) in about 2 seconds with no Lean: the
+source gate and the pinned flow only, no banlist, no 4-state rules, no ls-sv and no simulation. Choose the
+design you will prove with it, then run `--unproved` on that one.
+
 **The loop that works before you have a proof.** `--unproved` runs every stage that needs no
 proof (15 seconds) and, with `--stage-dir`, leaves the staged design in a directory of your
 choice, so you can compile probe files against it without ever running the full checker:
 
 ```bash
-python3.12 check.py tasks/add solution.sv --unproved --stage-dir /tmp/stage   # source ... postsynth, then stops
-LEAN_PATH=/tmp/stage/build lake env lean Probe.lean   # Probe.lean: import Submission.Design, then sv_structure? / sv_equations?
+python3.12 check.py tasks/add solution.sv --unproved --stage-dir stage   # source ... postsynth, then stops
+LEAN_PATH=stage/build lake env lean Probe.lean                           # the probe file below
 ```
 
 (`--unproved` with `--keep` or `--stage-dir` prints a `dev_hint` too: exactly this command, with a
@@ -50,6 +57,137 @@ behind on every run.) Once `Solution.lean` exists, the same
 `LEAN_PATH=... lake env lean Solution.lean` is the fast inner loop; the full run
 (`check.py tasks/add solution.sv Solution.lean`) takes about a minute and is the only one that
 accepts.
+
+**The time limit counts CPU seconds** (decided 2026-11-05, 300 s since 2026-11-06; README.md, "Proof effort"): 300 s of
+user plus system time of the Lean process that compiles `Solution.lean`, every thread counted, so
+a loaded machine does not push a proof over it; a wall-clock backstop of 5 times it (1500 s) stops a
+proof that waits instead of computing. The `solution` stage's stderr line gives both readings
+(`Lean used 37.2 CPU s of the task's 300 s CPU limit (12%), in 29.5 s of wall clock`) and warns past
+half of the limit. In the inner loop, `/usr/bin/time -p` in front of `lake env lean` reads the same
+two numbers (its `user` plus `sys` are the CPU seconds, `real` the wall clock; `lake` adds a fraction
+of a second).
+
+**A probe file.** `sv_structure?` and `sv_equations?` take no arguments (`sv_structure? (rank := …)` is a
+syntax error): they print what the tactics see and change nothing. This `Probe.lean` prints both listings
+for the `add` reference staged as above (compiled against it, 2026-11-05); for your own design, change
+the rank in part 2 once part 1 has shown you the sites:
+
+```lean
+import Submission.Design
+import SvGolf.Comb
+import LeanModels.Sv.CombEqTactic
+import LeanModels.Sv.CombLib
+
+namespace Submission
+open LeanModels.Sv LeanModels.Sv.CombView LeanModels.Sv.CombLib LeanModels.Sv.CombEq SvGolf
+
+-- 1. The sites and the relation a rank must satisfy. `sv_structure?` takes no arguments;
+--    `sv_structure` (no rank) then proves `CombDesign` alone, so this part compiles.
+example (N : Nat) (hN : 1 ≤ N) : CombDesign (design.sem N) := by
+  sv_structure?
+  sv_structure
+  all_goals (intros; omega)
+
+-- 2. With a rank chosen from that listing: the triple the solution takes apart.
+theorem probe_struct (N : Nat) (hN : 1 ≤ N) :
+    CombDesign (design.sem N) ∧ Acyclic (design.sem N) ∧ SharedObl design.pdesign [N] := by
+  sv_structure (rank := rippleRank (fun p => if p = 0 then 0 else N + 1) (fun _ _ i => i.toNat + 1))
+  all_goals (intros; omega)
+
+-- 3. The solution's first lines, then `sv_equations?`: the equations and the obligations, printed.
+--    The goal stays open, so Lean ends with `unsolved goals`: the goal `sv_equations` starts from.
+example : Goal := by
+  intro N hN
+  have hN' : 1 ≤ N := hN.1
+  obtain ⟨hc, ha, hso⟩ := probe_struct N hN'
+  refine CombTask.satisfiedAt_of_comb (by sv_interface) hc ha ?_
+  intro st heqs hs v hv
+  sv_equations?
+
+end Submission
+```
+
+What it prints (the two listings whole, then the first obligations and the end of the error, which
+is part 3's open goal; parts 1 and 2 compile, and that one `unsolved goals` is the only error):
+
+```
+sv_structure: parameters [N]
+declarations:
+  input  a [N - 1 : 0]
+  input  b [N - 1 : 0]
+  input  cin
+  output s [N - 1 : 0]
+  output cout
+         c [N : 0]
+plain sites (module-level assigns):
+  plain#0 : drives c[0]   reads [cin]
+  plain#1 : drives cout   reads [c[N]]
+family `g_bit`: for i in [0, N):
+  g_bit#0[i] : drives s[i]   reads [a[i], b[i], c[i]]
+  g_bit#1[i] : drives c[i + 1]   reads [a[i], b[i], c[i], a[i], b[i]]
+rank relation a certificate must satisfy (writer < reader whenever the read window
+overlaps the written window; ranks are functions of the site identity):
+  rank(plain#0) < rank(plain#1)   [plain#1 reads c[N]; plain#0 drives c[0]]
+  rank(g_bit#1[i']) < rank(plain#1)   [plain#1 reads c[N]; g_bit#1[i'] drives c[i' + 1]]
+  rank(plain#0) < rank(g_bit#0[i])   [g_bit#0[i] reads c[i]; plain#0 drives c[0]]
+  rank(g_bit#1[i']) < rank(g_bit#0[i])   [g_bit#0[i] reads c[i]; g_bit#1[i'] drives c[i' + 1]]
+  rank(plain#0) < rank(g_bit#1[i])   [g_bit#1[i] reads c[i]; plain#0 drives c[0]]
+  rank(g_bit#1[i']) < rank(g_bit#1[i])   [g_bit#1[i] reads c[i]; g_bit#1[i'] drives c[i' + 1]]
+sv_equations: the netlist view and the obligations
+  (Boolean equations: every supported read is known in a settled state, `CombKnown.reads_known`)
+  eq_c_plain_0 : st.boolAt "c" 0 = st.boolAt "cin" 0
+  eq_cout_plain_1 : st.boolAt "cout" 0 = st.boolAt "c" N
+  eq_s_g_bit_0 : ∀ (i : Nat), i < N → st.boolAt "s" i = (st.boolAt "a" i ^^ st.boolAt "b" i ^^ st.boolAt "c" i)
+  eq_c_g_bit_1 : ∀ (i : Nat),
+  i < N →
+    st.boolAt "c" (i + 1) =
+      (st.boolAt "a" i && st.boolAt "b" i || st.boolAt "c" i && (st.boolAt "a" i ^^ st.boolAt "b" i))
+  known_c_plain_0 : (∃ v, st.lookup "c" = some v ∧ v.width = N + 1) ∧ KnownBit st "c" 0
+  known_cout_plain_1 : (∃ v, st.lookup "cout" = some v ∧ v.width = 1) ∧ KnownBit st "cout" 0
+  known_s_g_bit_0 : ∀ (i : Nat), i < N → (∃ v, st.lookup "s" = some v ∧ v.width = (↑N + -1).natAbs + 1) ∧ KnownBit st "s" i
+  known_c_g_bit_1 : ∀ (i : Nat), i < N → (∃ v, st.lookup "c" = some v ∧ v.width = N + 1) ∧ KnownBit st "c" (i + 1)
+  stable aliases (copies of the above; same statements):
+    eq_c_1 := eq_c_plain_0    known_c_1 := known_c_plain_0
+    eq_cout_1 := eq_cout_plain_1    known_cout_1 := known_cout_plain_1
+    eq_s_1 := eq_s_g_bit_0    known_s_1 := known_s_g_bit_0
+    eq_c_2 := eq_c_g_bit_1    known_c_2 := known_c_g_bit_1
+  auto, inRange: from `hso` (the shared obligations of the structure stage, `SharedObl`)
+  [bitRead_1] ⊢ ∀ (i : Int), 0 ≤ i → i < ↑N → i ≤ ↑(↑N + -1).natAbs ∧ i ≤ ↑N
+  [bitRead_2] ⊢ ∀ (i : Int), 0 ≤ i → i < ↑N → i ≤ ↑(↑N + -1).natAbs ∧ i ≤ ↑N ∧ i ≤ ↑(↑N + -1).natAbs
+  ... (cover_1-3, inputsKnown_1-3)
+Probe.lean:24:18: error: unsolved goals
+N : Nat
+hN : Tasks.Add.task.inRange N
+hN' : 1 ≤ N
+...
+⊢ HoldAll st (Tasks.Add.task.outputs N) (Tasks.Add.task.fn N v)
+```
+
+How the listings name things. `plain#k` is the k-th module-level `assign` in source order, from 0 (here
+`assign c[0] = cin;` is `plain#0` and `assign cout = c[N];` is `plain#1`); `g_bit#k[i]` is the k-th
+assign, from 0, inside the generate block labelled `g_bit`, at genvar value `i`. A rank's `pr p` gets the
+`k` of `plain#k`, its `fr label pos i` the label, the `k` and `i` of a family site (section 2.1). Each
+site's equation is named after it (`eq_c_plain_0`, `eq_s_g_bit_0`) and has a stable alias
+`eq_<signal>_<n>` that counts, from 1, the assigns writing that signal (`eq_c_1`, `eq_c_2`): use the
+aliases in a proof, and a reordering inside a block will not rename them.
+
+**A loop that does not start at 0, and a constant index.** Taking bit 0 of the adder out of its loop
+(module-level `assign c[1] = (a[0] & b[0]) | (a[0] & cin) | (b[0] & cin);`, the loop from `i = 1`) prints
+two shapes worth knowing:
+
+```
+eq_c_plain_1 : st.boolAt "c" (Int.toNat 1) =
+  (st.boolAt "a" 0 && st.boolAt "b" 0 || st.boolAt "a" 0 && st.boolAt "cin" 0 || st.boolAt "b" 0 && st.boolAt "cin" 0)
+eq_c_g_bit_0 : ∀ (i : Nat), 1 ≤ ↑i → i < N → st.boolAt "c" (i + 1) =
+  (st.boolAt "a" i && st.boolAt "b" i || st.boolAt "c" i && (st.boolAt "a" i ^^ st.boolAt "b" i))
+```
+
+(as `sv_equations?` printed them for a newcomer's design, 2026-11-05). The constant index stays
+`Int.toNat 1`, so `rw [h]` against a goal that says `st.boolAt "c" 1` finds no match: normalize the
+hypothesis first, `rw [show Int.toNat 1 = 1 from rfl] at h`. The loop's lower bound is a comparison over
+`Int` (`1 ≤ ↑i`) while the upper one is over `Nat`: pass `(by omega)` for it, not a `Nat` fact
+(`eq_c_g_bit_0 i (by omega) hi`). A proof of such a design splits on `i = 0` or `1 ≤ i` wherever the
+reference used one equation for every bit.
 
 Two advisory checks of `--unproved` save a proof attempt that cannot work; neither changes the
 verdict (the stage stays `unproved`). **Is the design wrong?** If the task ships an oracle (README,
@@ -83,7 +221,8 @@ and ends with `theorem solution : Goal`.
 `Submission.Goal` is the task's statement for your design: for every `N` in range,
 
 1. **Interface**: the input and output ports are exactly the task's (names, order, widths);
-2. **No clocked process, and every run terminates**;
+2. **No clocked process, no combinational loop, and every run terminates** (no loop: the design lowers
+   to continuous assigns with an `Acyclic` rank, the certificate the helpers below ask for anyway);
 3. **Computes**: whenever the inputs are driven with known values, the outputs hold exactly the
    task's function of them.
 
@@ -175,7 +314,23 @@ sv_structure (rank := rippleRank (fun p => if p = 0 then 0 else if p = 1 then 2 
 ```
 
 (The adder's reference ignores the label and the position because its two assigns in the
-generate block can share a rank.) In the `sv_structure?` listing, the relation
+generate block can share a rank.) `rippleRank` covers the module-level assigns and the ONE-index
+families only: it gives every site of a two-level family (`.fam l p [j, t]`) rank 0. For nested
+loops, write the rank as your own definition by cases on the site, which `sv_structure` unfolds
+because it is a named definition; the shape (from an accepted carry-select adder, 2026-11-05;
+`tasks/add/README.md`, "Start a new design", has it whole):
+
+```lean
+def myRank (N : Nat) : SiteId → Nat
+  | .plain p => …              -- module-level assign number p
+  | .fam l p [i] => …          -- assign p of the one-level loop labelled l, at index i
+  | .fam l p [j, t] => …       -- assign p of a two-level loop, at indices j, t
+  | .fam _ _ _ => 0
+-- sv_structure (rank := myRank N)
+```
+
+A lexicographic key per site (`sv_structure (lexRank := key N)`, a `SiteId → Key`) is the other
+way: `tasks/mul/reference/mul_n.lean`'s `mulKey`. In the `sv_structure?` listing, the relation
 `rank(A) < rank(B)  [B reads x[..]; A drives x[..]]` is a *conditional* one: it only has to hold
 for the instances whose windows overlap. A line such as `rank(plain#1) < rank(plain#1)` is the
 case of one assign that reads a vector it also drives (different bits): it constrains nothing
@@ -241,7 +396,7 @@ The task's statement is reduced to the settled-state lemma and its context is se
 ```lean
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨hc, ha, hso⟩ := add_struct N hN'   -- the triple of section 2.1
   refine CombTask.satisfiedAt_of_comb (add_interface N hN' hc) hc ha ?_
   intro st heqs hs v hv           -- st: a state that solves the design's equations
@@ -507,8 +662,8 @@ hand: 1385). It has the same four parts as the adder; the differences are:
 `tasks/clmul/reference/clmul_n.{sv,lean}` is `mul_n`'s array with XOR where `mul_n` has a full adder, and no carries:
 one 2-D signal `r` (`N` rows of `N` bits, `r[i][j] = r[i-1][j+1] ^ (a[i] & b[j])`), four generate loops, `p[i] = r[i][0]`
 and `p[N+m] = r[N-1][m+1]` (`2N-1` output bits). The proof is 206 code lines (284 with comments), of which 143 are the
-plain-Lean arithmetic, and the `solution` stage takes 7.4 to 7.7 s (three cold `check.py` runs; the time limit is the floor,
-120 s). It was written in one pass from the `mul` recipe; what differed:
+plain-Lean arithmetic, and the `solution` stage takes 7.4 to 7.7 s of wall clock (three cold `check.py` runs; the time limit
+is 300 CPU s). It was written in one pass from the `mul` recipe; what differed:
 
 * **Zero-iteration loops.** The upper output bits are a loop over `N - 1` positions (`for (m = 0; m < N-1; m++)`), because a
   part select `p[2*N-2:N]` is the reversed range `[0:1]` at `N = 1`. A loop with no iteration at `N = 1` is fine for the
@@ -542,7 +697,10 @@ plain-Lean arithmetic, and the `solution` stage takes 7.4 to 7.7 s (three cold `
   2.3 and 12);
 * `generate for (g = c0; g < bound; g++)` loops, any number of them, with such assigns in the
   body and, one level down, further `generate for` loops of such assigns (two levels deep,
-  mixed bodies); write the step as `g++` (ls-sv does not read `g = g + 1`);
+  mixed bodies); the step is `g++`, and `g = g + 1` works as well: the extractor writes it as `g++`
+  (measured 2026-11-05: `add_n.sv` with `i = i + 1` passes `--unproved` with `tactics.in_fragment: true`,
+  and the envelope's step is `++`). The `design` stage accepts the other step forms README's "Rules" list;
+  they are not measured with the tactics;
 * the number of iterations of a generate loop is at most `4 · Σ|parameters| + 60` (the generate
   fuel of ls-sv is `(Σ|parameters| + 2)² + 64`; this linear bound was `Σ|parameters| + 60` until
   10/30, and a loop over `2*N` columns needs the larger one): `sv_structure` returns the
@@ -561,9 +719,10 @@ plain-Lean arithmetic, and the `solution` stage takes 7.4 to 7.7 s (three cold `
   number `n` of its argument, a non-negative unknown to `omega`. The facts about it a proof needs are yours to
   supply: `CombView.clog2_le` (`clog2 n ≤ n`, the generate-fuel bound `auto_k` of a loop it bounds) and
   `CombView.le_two_pow_clog2` (`n ≤ 2 ^ clog2 n`); `Examples/system-verilog/comb_word/sq_chain.sv` is a loop bounded
-  by one (section 17). Use `integer`, the 4-state type, for a localparam with a `/`, `%` or `$clog2`: the extractor
+  by one (section 17). Use `integer`, the 4-state type, for a localparam with a `/` or `%`: the extractor
   squashes them under a 2-state `int` target, and the elaborated design then wraps the value at 2^31, so its
-  closed form would be false for the huge `N` a for-all-`N` theorem ranges over (refused, see below).
+  closed form would be false for the huge `N` a for-all-`N` theorem ranges over (refused, see below). A
+  `$clog2` may be either (`localparam int L = $clog2(N + 1);` is read since 2026-11-05, the same opaque atom).
   The tactics do not trust their own reading of the definition: each design's `hag` goal (closed by
   `rfl`) checks that the localparam really sits in the instantiation environment at the value the
   tactics computed, so a mismatch stops the tactic instead of proving something false. Proofs of
@@ -586,7 +745,6 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 
 | you wrote | message |
 |---|---|
-| `localparam int L = $clog2(N+1);` (the Sklansky and Kogge-Stone baselines; a 2-state `int`, write `integer`) | ``localparam `L`: `$clog2` is outside the v1 fragment in a 2-state `int` localparam (the elaborated design squashes it to 2 states, and `paramEnv2` does not evaluate that at a symbolic parameter); declare it `localparam integer L = …;``` |
 | `localparam int H = (N+1)/2;` (a 2-state `int` with `/` or `%`; write `integer`) | ``localparam `H`: a 2-state `int` localparam initialised by `/` or `%` is squashed to 2 states and wraps at 2^31 in the elaborated design (its closed arithmetic form would be false for huge parameters); declare it `localparam integer H = …;``` |
 | `localparam integer Q = N * N;` | ``localparam `Q`: a product of two non-constant factors is outside the v1 fragment (`*` needs an integer-literal factor, ...)`` |
 | `localparam integer H = N / N;` | ``localparam `H`: `/` by a non-literal is outside the v1 fragment (a localparam may divide by an integer literal)`` |
@@ -621,6 +779,21 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 | `bit` or `signed` declarations | `declaration a is signed or 2-state (outside the v1 fragment ...)` |
 | a submodule instance (a hand-built full adder) | ``sv_structure: this design instantiates modules, and the `sv_comb` tactics cannot summarize module instances yet. …`` (the same text from `sv_interface` and `sv_equations`; WP-I step I0, pinned in `Examples/system-verilog/ripple_fa/comb_errors.lean`). The loader, the scorer and the post-synthesis check accept the design; flatten it in the source, or prove the structure by hand as `ripple_fa/gen.lean` does. Before I0 the message was `cannot read a load_design_sv2 family (X.sem N) off the design in the goal`, which did not mention instances |
 | a right-hand side the recognizer reads but `sv_equations` cannot (an `x` literal, a width mismatch) | `sv_equations: ...` from the decidable check: a long `decide` failure that does not name the site |
+
+**Patterns that stay in the fragment** (the layouts of the from-scratch designs accepted on
+2026-11-05; each task README's "Start a new design" has them for its task):
+
+* blocks as the rows of 2-D arrays, `c[j][t]`, not a flat `c[K*j + t]`: `sv_cover` finds the assign
+  that writes a read by solving ONE unknown per index equation (its fallback tries the context's
+  variables, `± 1`, `0` and `1`), so a flat read whose writer needs `j = i / K` and `t = i % K` is not
+  covered, while every read of the 2-D layout is;
+* block counts as `localparam integer Q = N / K;` and `localparam integer R = N % K;`, with a tail
+  loop over the `R` leftover bits;
+* every declared bit driven at the scoring point: an unused row gets a literal (`assign c0[Q] =
+  7'b0;`), whose `width` goal closes by `rfl`;
+* a zero-padded copy of an input where a row starts at a moving column (`mul`'s tree references:
+  `ae[c + 2*N - 1 - j] & b[j]`);
+* with nested loops, your own rank by cases on the site (section 2.1).
 
 Some refusals are not source-located (the last row). Note that several of these are checker-legal
 designs: the checker only needs *a* proof. `docs/sv-refusals.md` of lean-surfaces (the language
@@ -745,8 +918,10 @@ normal form, `positivity`, `norm_num`, `linarith` with hypotheses) it is the rig
 * **Import what you use.** Measured (README.md, same section): `import Mathlib.Tactic.Ring` or
   `.Linarith` costs 1.4 to 1.5 s of the proof's time limit once the files are in the OS cache
   (4 s the first time), `import Mathlib.Tactic` 2.2 s (11 s the first time) and 2.9 GB of memory.
-  The limit is WALL CLOCK: on a loaded or swapping machine the same import has taken ten times
-  that, so leave room. The checker's comparator also replays the part of Mathlib your proof
+  The limit counts the CPU seconds of the Lean process (decided 2026-11-05; README.md, "Proof
+  effort"), so the machine's load does not count against you, but the wall-clock backstop of 5
+  times the limit does see it: on a loaded or swapping machine the same import has taken ten
+  times that wall clock, so leave room. The checker's comparator also replays the part of Mathlib your proof
   uses through the kernel (3,000 constants, a few seconds); `leanchecker` replays your own
   declarations. The whole-library `import Mathlib` is not available on every machine (it needs
   the whole `Batteries` build; it is then an infrastructure error, not a rejection), and a module
@@ -800,13 +975,14 @@ Habits that help:
   `theorem solution` means some tactic inside it is slow, with no hint which: state the heavy
   parts as separate lemmas (`add_final`-style, or the structure theorems) and compile them one at a
   time with `LEAN_PATH=... lake env lean`, so the slow one shows itself.
-* **A wrong design fails late, and loudly but opaquely.** The checker's early stages never run the
-  task's function on your design, so a functional bug (or a re-written but different expression)
-  shows up as an `Application type mismatch` between two long Boolean terms that differ in one
-  letter, at the line where you pass an `eq_*` hypothesis to your arithmetic lemma, followed by a
-  `#guard_msgs` axioms error that is only a consequence. When the proof of a design that looks
-  right will not go through, first simulate the design against the task's function (any
-  simulator, Verilator for instance, with a few dozen vectors).
+* **A wrong design fails late in the proof, and loudly but opaquely.** In the proof, a functional bug
+  (or a re-written but different expression) shows up as an `Application type mismatch` between two
+  long Boolean terms that differ in one letter, at the line where you pass an `eq_*` hypothesis to
+  your arithmetic lemma, followed by a `#guard_msgs` axioms error that is only a consequence. So
+  simulate first: `check.py --unproved` already runs the design against the task's function (every
+  task ships an `oracle.py`) on its post-synthesis vectors and prints a `functional:` warning naming
+  the first failing input (section 0); no testbench of your own is needed. When the proof of a design
+  that passes that check will not go through, suspect the proof.
 * Keep `hN : 1 ≤ N` in the theorem statement: `omega` needs it for the range goals.
 * **Do not put `decide +kernel` (or any tactic that adds an auxiliary lemma) early in a heavy theorem.**
   It adds the lemma by a synchronous `addDecl`, which in the file's asynchronous elaboration waits for
@@ -822,15 +998,15 @@ Habits that help:
   heartbeat limit) on nested 2-D goals.
 * A functionally wrong design with the same structure (a wrong gate in the carry, say) is
   accepted by the structural tactics and rejected only by the arithmetic: if `add_final` will not
-  go through, check the design (simulate it) before blaming the proof.
+  go through, check the design (`--unproved` simulates it against the task's function) before blaming
+  the proof.
 
 ## 7. Known limits, honestly
 
 * **Fragment.** See section 4. In particular no operators beyond `& | ^` (no `~`, `?:`,
-  comparisons), no `localparam` beyond the integer constant expressions of section 4 (a `$clog2` only in an `integer` one),
+  comparisons), no `localparam` beyond the integer constant expressions of section 4,
   no conditional generate, no instances, no edge-triggered processes, and `always_comb` only in the first fragment of section 13. The prefix
-  adders of `tests/add/baselines/` are refused today (a `$clog2` in a 2-state `int` localparam, conditional generate,
-  non-affine indices). The Dadda trees of
+  adders of `tests/add/baselines/` are refused today (conditional generate, non-affine indices). The Dadda trees of
   `tests/mul/baselines/` are generated per width (flat netlists of single-bit signals, "correct at
   this N, NOT a parametric or proved entry"): a for-all-`N` multiplier proof needs a parametric
   design. The planned extensions (richer `always_comb` bodies, then instances) are in `PLAN.md`.
@@ -2058,9 +2234,85 @@ statement cannot tell the two apart, and the proof's `insertAsc` only fixes wher
 **Cost** (MEASURED 2026-11-04, `sorter_ins.lean`, 899 lines). Lines: agreement 214, one cycle 333 (the clock
 step 114, the commit 26, the registers 167, shape and termination 26), the sort 107, the invariant 56, the
 phases and the statement 189 (with the header). Time: the `solution` stage 7.2 to 7.6 s in three cold
-`check.py` runs (limit 120 s). Heartbeats, in `maxHeartbeats` units: 123.3k for the whole file, at most 21.1k
+`check.py` runs (limit 300 CPU s). Heartbeats, in `maxHeartbeats` units: 123.3k for the whole file, at most 21.1k
 for one declaration (`cell_run`; then `model` 14.2k, `apply_so` 9.5k), so no declaration needs the default
 limit of 200k raised. The agreement and the clock step are two thirds of it (81.0k); the sort and the
 invariant 7.5k. `Solution.olean` 12.9 MB; 1042 constants in the module, of which 104 written (70 theorems,
 34 definitions), 739 generated equation lemmas and 199 auxiliary declarations. Axioms `propext`,
 `Classical.choice`, `Quot.sound`.
+
+## 20. A reactive task: the arbiter (`ReactTask`)
+
+A reactive task (`kind` `react-family`; the `arbiter`) is clocked, like section 19's, but has no transaction and no
+latency: the statement (`ReactTask` in `SvGolf/TaskReact.lean`) is a safety property on every cycle and a bounded
+response over the whole input trace, from every power-up state, under every schedule, on every known stimulus,
+at every reset release. The design must be Moore (`MooreOut`: no combinational path from an input port to an
+output port), terminate from every power-up (`TerminatesPU`) and contain no construct that can create an `x`
+from known operands (`XSafe`). There is no `-- svgolf-latency:` line (the checker refuses one) and no `sv_*`
+tactic; the score is the area times the register-to-register period, one decision per cycle.
+
+The untrusted library reduces the statement at one parameter value to facts about ONE clock cycle:
+`ReactTask.satisfiedAt_of_rank` (`SvGolf/React.lean`) takes the interface, `Disciplined` (`ClockedBy clk none`
+and `MooreOut`), `TerminatesPU`, a **rank model**, the proof that every power-up state has the model's shape,
+and `XSafe`. The release, the segment of entries with `rst` = 0, the safety monitor's ghost state and the
+response window are discharged once, inside the reduction (`ReactTask.claim_of_rank`, with the window argument
+`ReactTask.responds_of_rank`). The reference `tasks/arbiter/reference/rr_mask.lean` (the registered mask
+round-robin: the lowest requester of `req & mask` wins, else the lowest requester; the mask is the thermometer
+above the last grant) takes six steps; the names are that file's, the section numbers its own.
+
+1. **Agreement** (§1, `rr_sem_eq`): the loaded family `design.sem N` equals a hand-built design `rrD N` for
+   every `N ≥ 1`, by `sv2_inst_simp` (wrapped as `rr_inst_simp`). The comb block's self-read guard is
+   `comb_admits`. One proof-side lemma, `inst_ne_fill`, lowers `x != '0` at `x`'s width: `sv2_inst_simp`
+   alone stops at a comparison with a fill at a symbolic width.
+2. **One cycle in closed form** (§2, `rr_cycle`, for any values, `x` included): the inputs applied, the comb
+   settle, the edge (`ff_run`), the commit (`commit_ff`), the settle again. ls-sv's clock-step library has a
+   closed form for flip-flop-only designs only (`cycleStep2_ffOnly`), so a design with an `always_comb` block
+   proves its own settle: `settle_rr` shows that one pass computes the block from `req` and `mask`, which it
+   does not write (it reads `mreq` only after writing it), and that a second pass changes nothing, which ends
+   the settle loop under every schedule.
+   Termination follows from the same lemma (`rr_terminates`, by `TerminatesPU.of_invariant` with the shape as
+   the invariant).
+3. **The shape** (§3, `Shp`, `rr_init`, `rrNext_shp`): the seven signals in declaration order, the registers
+   and nets `N` bits wide; the shape is the rank model's `CycleModel.Shape` and every cycle keeps it.
+4. **The cycle on known values** (§4, `rrNext_reset`, `rrNext_run`): after a reset entry `gnt = 0` and `mask`
+   all ones, from ANY state of the shape; after an entry with `rst` = 0 and a known `req = x`, from a known
+   mask `mk`, `gnt = RoundRobin.pick x mk` and `mask = RoundRobin.next x mk`. The bridge from `LVec` to `BitVec` is
+   one lemma per operator of the block (`mr_val`, `pickV_val`, `NZ_val`, `MaskV_val`).
+5. **The rank model** (§5, `model`): a `ReactTask.RankModel` extends the `CycleModel` with an invariant `Inv`
+   of the snapshots from a reset on (here `ArbInv`: every signal but `clk` known, the mask a thermometer
+   `RoundRobin.Thermo mk e` with its edge at `e`), the outputs a snapshot shows (`out`: the grant), and a
+   `rank` per obligation, here requester `i`'s cyclic distance from the mask's edge, `RoundRobin.dist N e i`,
+   at most `N - 1` (`rank_le`, by `dist_le`). Its two obligations are the RESET obligation (from any state of
+   the shape, a reset cycle gives the invariant and `gnt = 0`) and the STEP obligation (from the invariant, a
+   cycle with `rst` = 0 gives the invariant again, `Grants x gnt`, and for every requester that asks: it is
+   granted, or its rank drops). Safety is `pick_grants` (from `pick_atMostOne`, `pick_sub`, `pick_eq_zero`);
+   progress is `RoundRobin.step`: a requester that loses gets strictly closer to the edge, because the winner
+   lies between the edge and it.
+6. **Structure** (§6): `rr_interface` (`rfl`, the distinct names by `decide`), `rr_disciplined` (`ClockedBy` by
+   `simp` over the two processes, `MooreOut` by `mooreOut_of_combTargets`: no comb process writes an output),
+   `rr_powerUp` (every power-up state has the shape, by `powerUp_cons` once per declaration and `powerUp_nil`),
+   `rr_xsafe` (`xsafeB` by `simp`: one width per operand pair of `&`, `!=` and the arms of `?:`, no division, no
+   dynamic index), and `solution`, one application of `satisfiedAt_of_rank`.
+
+**Another policy.** The reduction, the window argument and the lowest-set-bit lemmas (`IsLow`,
+`getLsbD_isolate`, `isolate_eq_twoPow`, `isolate_eq_zero`: `x & (~x + 1)` is the one-hot of the lowest set bit)
+serve every arbiter. `pick`, `next`, `Thermo` and `step` describe the mask policy, not this file's encoding, so
+a golfer's mask round-robin with another netlist reuses them; a pointer, a rotating priority, a tree or a matrix
+brings its own invariant and rank (for instance, for a rotating priority the distance from the pointer, for a
+matrix the number of clients ahead in the order). Writing the comb logic as one block computed from signals it
+does not write keeps step 2 to the same two-pass argument.
+
+**What the attacks show.** The 17 designs of `tests/arbiter/attacks/` each break one conjunct: a Mealy output
+(`MooreOut`), an unreset grant (G0), fixed priority or a forgotten mask update (G4), a time bomb after 4095
+cycles (G4, seen only by the long reset-free run), a register that only holds itself (refused at `score`, the
+never-loaded check). Each is rejected by `check.py --unproved`, before any proof; the kernel-checked
+refutations of hand-built twins, and `bound_tight` (no design meets the statement with the bound `N - 2`), are
+in `tests/arbiter/negative/Refute.lean`.
+
+**Cost** (MEASURED 2026-11-07, line counts of `rr_mask.lean`: 667 lines, 487 of code). Code lines: agreement
+107, one cycle in closed form 121, the shape 24, the cycle on known values 85, the rank model 83, the structure
+and the statement 56, the imports 11. Time and heartbeats (READ, `tasks/arbiter/README.md`, section 5, measured
+against the current statement): the `solution` stage 11.2 to 12.7 CPU s in three cold `check.py` runs (2026-11-07,
+`score/time_limits.json`; the limit is 300 CPU s), 53.3 million heartbeats for the whole proof, at most 12.8
+million for one declaration (`comb_admits`, the self-read guard at a symbolic width), each far under the default
+limit of 200 million. Axioms `propext`, `Classical.choice`, `Quot.sound`.

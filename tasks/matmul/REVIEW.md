@@ -128,7 +128,8 @@ Mutating the oracle (unsigned entries, a dropped `k`, `B·A`, no gaps, no free v
 fails the self-test each time.
 
 Questions for the review:
-- The post-synthesis budget in `task.json` (3 seeds × 24 transactions, one reset cycle, at
+- The post-synthesis budget in `task.json` (8 seeds × 24 transactions since 2026-11-07, F5; 3 seeds
+  before; one reset cycle, at
   `(2, 4, 8)` and `(4, 8, 32)`) is a proposal. ls-sv's per-cycle cost on the reference is not
   measured yet.
 - The `postsynth` keys `points`, `seeds`, `reset_cycles`, `txns`, and the top-level `clock`, `reset`

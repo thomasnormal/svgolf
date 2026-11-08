@@ -85,7 +85,7 @@ set_option maxHeartbeats 400000 in
 /-- **The reference solution**: the `mul` statement, for every `N ≥ 1`. -/
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨hc, ha, hso⟩ := mul_struct N hN'
   refine CombTask.satisfiedAt_of_comb (mul_interface N hN' hc) hc ha ?_
   intro st heqs hs v hv

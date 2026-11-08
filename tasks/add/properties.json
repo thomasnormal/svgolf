@@ -6,14 +6,14 @@
     "decl": "SvGolf.Tasks.Add.Statement",
     "file": "svgolf/tasks/add/Spec.lean"
   },
-  "summary": "A design meets the trusted statement exactly when, for every width N ≥ 1, it has all of the properties below. Lean checks that, together, they say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
+  "summary": "A design meets the trusted statement exactly when, for every width N with 1 ≤ N < 2^31, it has all of the properties below. Lean checks that, together, they say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
   "properties": [
     {
       "name": "PARAMS_IN_RANGE",
       "decl": "SvGolf.Tasks.Add.Properties.ParamsInRange",
       "file": "svgolf/tasks/add/Properties.lean",
       "kind": "range",
-      "text": "The statement covers every width N ≥ 1 at once: one proof works for all of them, not just for the width the design is scored at (N = 16). Every property below must hold at each width."
+      "text": "The statement covers every width N with 1 ≤ N < 2^31 at once (the module's parameter is an int, which holds no larger value): one proof works for all of them, not just for the width the design is scored at (N = 16). Every property below must hold at each width."
     },
     {
       "name": "INTERFACE",
@@ -28,6 +28,13 @@
       "file": "svgolf/tasks/add/Properties.lean",
       "kind": "property",
       "text": "No process of the design runs at a clock edge: no always_ff, no always @(posedge …), no asynchronous-reset block; only continuous assignments and always_comb blocks. The task is combinational, so it never needs one. The rule closes a gap between Lean's model of SystemVerilog, which the proof is about, and real tools: the model runs every clocked block once per cycle whatever its clock does, so a design that registers correct outputs on a clock nothing drives would look right there, while a simulator sees a clock that never ticks and synthesis removes the registers."
+    },
+    {
+      "name": "LOOP_FREE",
+      "decl": "SvGolf.Tasks.Add.Properties.LoopFree",
+      "file": "svgolf/tasks/add/Properties.lean",
+      "kind": "property",
+      "text": "The design has no combinational loop: written as continuous assignments (each always_comb block becomes one), its processes can be ranked so that each reads only what lower-ranked ones write. A latch (an always_comb block that keeps a value on some path) is refused with it. Lean's model starts every signal at x and settles, so it would read a loop at one state, while a circuit powers up in any 0/1 state the loop can hold and keeps it; the rule removes that question instead of answering it. The ranking is of processes, not bits, so a process that reads a part of a signal it writes itself is refused too, even when no bit depends on itself: write such bits as separate assignments."
     },
     {
       "name": "TERMINATES",

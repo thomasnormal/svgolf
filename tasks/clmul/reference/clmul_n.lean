@@ -292,7 +292,7 @@ set_option maxHeartbeats 400000 in
 /-- **The reference solution**: the `clmul` statement, for every `N ≥ 1`. -/
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨hc, ha, hso⟩ := clmul_struct N hN'
   refine CombTask.satisfiedAt_of_comb (clmul_interface N hN' hc) hc ha ?_
   intro st heqs hs v hv

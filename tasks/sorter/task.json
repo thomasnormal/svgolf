@@ -14,14 +14,14 @@
   "parameters": [
     {
       "name": "N",
-      "range": "1 <= N"
+      "range": "1 <= N, N*W < 2^31"
     },
     {
       "name": "W",
-      "range": "1 <= W"
+      "range": "1 <= W, N*W < 2^31"
     }
   ],
-  "_range_comment": "Spec.lean's `task.inRange` also requires N*W < 2^31 (C10): a design that buffers the whole stream declares N*W bits, and every such width stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
+  "_range_comment": "Each range string states the bounds of Spec.lean's `task.inRange` that involve its parameter (1 <= N, 1 <= W, N*W < 2^31; the product since C10): a design that buffers the whole stream declares N*W bits, and every such width stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
   "ports": {
     "inputs": [
       {
@@ -78,8 +78,12 @@
     "_comment": "Of type (Nat -> Nat -> Design2) -> (Nat -> Nat -> Nat) -> Prop: the design family sem N W and the latency function lat N W."
   },
   "banlist": {
-    "operators": [],
-    "_comment": "No banlist: comparisons are the task, and nothing else would build a sorter for free. The score prices the schedule (cells, comparators, cycles)."
+    "operators": [
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "No task-specific banlist: comparisons are the task, and nothing else would build a sorter for free. The score prices the schedule (cells, comparators, cycles). Run-time / % ** are banned in every task (since 2026-11-06, under the 2026-11-05 ruling that svGolf disallows a construct where Yosys departs from the standard): a zero divisor or a negative exponent makes an x from known operands, which ls-sv carries into decisions and Yosys builds as a defined value (score/banlist.py ALWAYS_BANNED)."
   },
   "probe_points": [
     "N=1,W=1",
@@ -105,7 +109,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "postsynth": {
     "points": [
       {
@@ -117,11 +121,11 @@
         "W": 8
       }
     ],
-    "seeds": 3,
+    "seeds": 8,
     "reset_cycles": 1,
     "txns": 24,
     "time_limit_s": 900,
-    "_comment": "As matmul's proposal for the clocked post-synthesis check, with oracle.py's stream transactions: per seed a randomized start state, reset for 1 cycle, then txns(params, seed) with Idle observed (the gap counts from the entry after the snapshot showing the previous transaction's N-th output), and the free values on in_data whenever in_valid = 0. Binding: (i) the netlist against ls-sv, out_valid every cycle and out_data where out_valid = 1; (ii) the emitted values of each transaction against oracle.py's good. Field names follow matmul's package; the checker defines the final ones."
+    "_comment": "As matmul's proposal for the clocked post-synthesis check, with oracle.py's stream transactions: per seed a randomized start state, reset for 1 cycle, then txns(params, seed, rng) with Idle observed (the gap counts from the entry after the snapshot showing the previous transaction's N-th output), and the free values on in_data whenever in_valid = 0. Binding: (i) the netlist against ls-sv, out_valid every cycle and out_data where out_valid = 1; (ii) the emitted values of each transaction against oracle.py's good. Field names follow matmul's package; the checker defines the final ones. F5 (decided 2026-11-07): 8 seeds per point; everything random in a seed's run (the stimulus source, Verilator's randSeed, ls-sv's power-up seed:k) is derived from sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed) and recorded in the seed's record (check/postsynth.py `seed_draw`)."
   },
   "oracle": "oracle.py",
   "references": [

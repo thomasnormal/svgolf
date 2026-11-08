@@ -10,7 +10,7 @@ a single input is rejected, which no sampling check could promise.
 | design | trick | stage | post-synthesis alone |
 |---|---|---|---|
 | `case_missing_x.sv` | a table that omits `S(0x53)` and sends it to `default: y = 8'bx`: Yosys may choose any value there | `source` (x literal digit) | rejects: differs on exactly 1 of 256 inputs |
-| `case_missing_nodefault.sv` | the same without a default: an inferred latch | `fourstate` | (the scorer cannot price a latch: an infrastructure error, not a verdict) |
+| `case_missing_nodefault.sv` | the same without a default: an inferred latch | `banlist` (Yosys's `proc` refuses the always_comb latch in the backstop, which runs for this task since every task bans run-time `/ % **`, 2026-11-06; `fourstate`, which refuses the same latch, before) | (the scorer cannot price a latch: an infrastructure error, not a verdict) |
 | `unique_case_partial.sv` | `unique case` over a table with a missing entry, no default | `source` (qualifier) | rejects: 1 of 256 |
 | `unique_zero_ge.sv` | a correct S-box, then `unique case (1'b1)` with an arm that never matches: ls-sv keeps the S-box, Yosys drives a constant (0 GE) | `source` (qualifier) | rejects: 256 of 256 |
 

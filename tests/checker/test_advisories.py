@@ -22,6 +22,14 @@ conveniences and of the checker's ADVISORY checks:
     per-class quotas), and each task's `light_vectors` budget;
   * the generated `Submission.Design` of the `design` stage (WP-C3): the
     unsupported-construct `#eval` at every probe point of every task;
+  * the solution's progress (item 9 of the from-scratch study): the `trace.Kernel`
+    lines read with their arrival times (`run_stamped`, `progress_summary`), dated
+    from the command's start, stripped from the messages, a leak into the proof
+    seen; a fake `lean` stopped at its limit through the real supervisor delivers
+    them with `progress` and loses them without; the stderr lines of a timeout;
+  * the replay limits (`verify_time_limit_s`, CPU seconds since 2026-11-06): a fake
+    comparator and a fake `leanchecker` through the real supervisor, a burner stopped
+    by the CPU limit and a sleeper by the wall-clock backstop;
 
     python3.12 tests/checker/test_advisories.py
 """
@@ -721,6 +729,511 @@ class DesignModuleText(unittest.TestCase):
         self.assertEqual(m.group(1), "N=16: Call:f: both(a, b)")
         self.assertEqual(checkpy.UNSUPPORTED_FREE.search("SVGOLF_UNSUPPORTED_FREE 6").group(1), "6")
         self.assertIsNone(checkpy.UNSUPPORTED_FREE.search("nothing"))
+
+
+# ---------------------------------------------------------------------------
+# what a newcomer reads (the 11/05 newcomer study): the first Lean errors, the exit status of a clean
+# `--unproved` run, the ranked headline, the stage lines, the wrapper's wait and SVGOLF_LEAN_WRAP_ONCE
+# ---------------------------------------------------------------------------
+
+def lean_output(n_errors, dump=900):
+    """A Lean output like a failed proof's: each error's first line, then a long goal dump."""
+    out = []
+    for i in range(n_errors):
+        out.append(f"/tmp/stage/Submission/Solution.lean:{10 + i}:4: error: Tactic `rewrite` failed number {i}")
+        out.append("  st.boolAt \"c\" 1 = " + "x && " * (dump // 5))
+    return "\n".join(out) + "\n"
+
+
+class ErrorsFirst(unittest.TestCase):
+    """B2: `errors` keeps the FIRST Lean errors (a tail kept only the last error's goal dump)."""
+
+    def test_short_output_is_unchanged(self):
+        text = lean_output(2, dump=50)
+        self.assertEqual(checkpy.errors_first(text), text)
+
+    def test_every_error_line_comes_first_then_the_tail(self):
+        text = lean_output(8)
+        self.assertGreater(len(text), 4000)
+        got = checkpy.errors_first(text)
+        self.assertLessEqual(len(got), 4000 + 400)
+        self.assertNotIn("number 0", checkpy.tail(text))        # what the plain tail lost
+        for i in range(8):
+            self.assertIn(f"Solution.lean:{10 + i}:4: error: Tactic `rewrite` failed number {i}", got)
+        self.assertLess(got.index("number 0"), got.index("number 7"))
+        self.assertTrue(got.startswith("the errors (8, the first line of each):\n"), got[:80])
+        self.assertTrue(got.endswith(text[-150:]))                 # and the end of the output
+
+    def test_the_list_is_capped(self):
+        text = lean_output(60, dump=100)
+        got = checkpy.errors_first(text)
+        self.assertLessEqual(len(got), 4000 + 400)
+        self.assertIn("number 0", got)
+        self.assertRegex(got.splitlines()[0], r"^the errors \(60, the first line of each; \d+ more not listed\):$")
+
+    def test_no_error_line_is_the_plain_tail(self):
+        text = "warning: x\n" * 1000
+        self.assertEqual(checkpy.errors_first(text), checkpy.tail(text))
+
+
+class WrapPlan(unittest.TestCase):
+    """Item 9: SVGOLF_LEAN_WRAP_ONCE=1 takes the wrapper once for the whole run; per call stays the default."""
+
+    def test_modes(self):
+        w = ["/w/slot.sh"]
+        self.assertEqual(checkpy.lean_wrap_plan(w, {})["mode"], "per-call")
+        self.assertEqual(checkpy.lean_wrap_plan(w, {})["call"], w)
+        self.assertEqual(checkpy.lean_wrap_plan([], {})["mode"], "none")
+        self.assertEqual(checkpy.lean_wrap_plan([], {"SVGOLF_LEAN_WRAP_ONCE": "1"})["mode"], "none")
+        self.assertEqual(checkpy.lean_wrap_plan(w, {"SVGOLF_LEAN_WRAP_ONCE": "0"})["mode"], "per-call")
+        once = checkpy.lean_wrap_plan(w, {"SVGOLF_LEAN_WRAP_ONCE": "1"})
+        self.assertEqual((once["mode"], once["call"]), ("once", w))
+
+    def test_the_run_behind_the_wrapper_calls_lean_directly_and_its_hint_keeps_the_wrapper(self):
+        p = checkpy.lean_wrap_plan(["/w/slot.sh"], {"SVGOLF_LEAN_WRAP_ONCE": "1", "SVGOLF_LEAN_WRAP_HELD": "/w/slot.sh -q",
+                                                    "SVGOLF_LEAN_WRAP_SINCE": "100.5"})
+        self.assertEqual(p, {"mode": "inside", "call": [], "hint": ["/w/slot.sh", "-q"], "since": 100.5})
+        h = checkpy.dev_hint("/tmp/stage", p["hint"], False, {"stages": {}})["dev_hint"]
+        self.assertIn("LEAN_PATH=/tmp/stage/build /w/slot.sh -q lake env lean ", h)
+
+    def test_once_end_to_end_takes_the_wrapper_once(self):
+        """check.py itself (no Lean: the source gate refuses the design): the wrapper is started ONCE, around check.py,
+        the run inside it says so, and its exit status is the run's."""
+        tmp = tempfile.mkdtemp(prefix="svgolf-once-")
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        log, wrapper = os.path.join(tmp, "calls.log"), os.path.join(tmp, "wrap.sh")
+        with open(wrapper, "w") as fh:
+            fh.write(f'#!/bin/sh\necho "$@" >> {log}\nexec "$@"\n')
+        os.chmod(wrapper, 0o755)
+        bad = os.path.join(tmp, "bad.sv")
+        with open(bad, "w") as fh:
+            fh.write("`define X 1\nmodule band #(parameter N = 16) (input [N-1:0] a, b, output [N-1:0] y);\n"
+                     "  assign y = a & b;\nendmodule\n")
+        env = dict(os.environ, SVGOLF_LEAN_WRAP=wrapper, SVGOLF_LEAN_WRAP_ONCE="1")
+        for k in ("SVGOLF_LEAN_WRAP_HELD", "SVGOLF_LEAN_WRAP_SINCE"):
+            env.pop(k, None)
+        import subprocess
+        proc = subprocess.run([sys.executable, os.path.join(SVGOLF, "check.py"), os.path.join(TASKS, "_example"), bad,
+                               "--unproved", "--no-trusted-build", "--sandbox", "off", "--ppa", "off"],
+                              capture_output=True, text=True, env=env)
+        res = json.loads(proc.stdout)
+        self.assertEqual((proc.returncode, res["stage"]), (1, "source"), proc.stderr)
+        with open(log) as fh:
+            calls = fh.read().splitlines()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn(os.path.join(SVGOLF, "check.py"), calls[0])
+        self.assertEqual(set(res["lean_wrap"]), {"once", "waited"})
+        self.assertTrue(res["lean_wrap"]["once"])
+        self.assertIn("check: lean wrapper ... (taken once for the whole run", proc.stderr)
+
+
+class FakeWrapperLean(unittest.TestCase):
+    """B7: a stage's `seconds` exclude the wait in the wrapper (the untimed `lake build` included); the wait is
+    reported apart. A wrapper that sleeps, and a `lake` that answers at once (no Lean)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="svgolf-wait-")
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.tmp, ignore_errors=True))
+        bindir = os.path.join(self.tmp, "bin")
+        os.makedirs(bindir)
+        with open(os.path.join(bindir, "lake"), "w") as fh:
+            fh.write('#!/bin/sh\nif [ "$1" = env ]; then shift; exec "$@"; fi\necho "lake $*"\n')
+        self.wrapper = os.path.join(self.tmp, "wrap.sh")
+        with open(self.wrapper, "w") as fh:
+            fh.write('#!/bin/sh\nsleep 1.2\nexec "$@"\n')
+        for f in (os.path.join(bindir, "lake"), self.wrapper):
+            os.chmod(f, 0o755)
+        self.env = mock.patch.dict(os.environ, {"PATH": bindir + os.pathsep + os.environ.get("PATH", ""),
+                                                "LEAN_SYSROOT": self.tmp})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.pol = mock.patch.object(checkpy.sandbox, "policy",
+                                     return_value=mock.Mock(active=False, unsandboxed=lambda *a: None))
+        self.pol.start()
+        self.addCleanup(self.pol.stop)
+
+    def test_the_untimed_build_excludes_the_wait(self):
+        lean = checkpy.Lean(self.tmp, [self.wrapper])
+        rc, out, el = lean.run(["build", "SvGolf"], lake_env=False)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("lake build SvGolf", out)
+        self.assertNotIn("SVGOLF_ELAPSED", out)
+        self.assertLess(el, 1.0)                     # the build alone, not the 1.2 s in the wrapper
+        rec = {"exit": rc, "seconds": el}
+        checkpy.note_wait(rec, lean)
+        self.assertGreaterEqual(rec["waited"], 1.1)
+        self.assertEqual(lean.take_wait(), 0.0)      # taken
+
+    def test_no_wrapper_no_waited(self):
+        lean = checkpy.Lean(self.tmp, [])
+        rc, out, el = lean.run(["build", "SvGolf"], lake_env=False)
+        self.assertEqual(rc, 0, out)
+        rec = {"exit": rc, "seconds": el}
+        checkpy.note_wait(rec, lean)
+        self.assertNotIn("waited", rec)
+
+    def test_a_runner_without_wait_tracking_adds_nothing(self):
+        rec = {"exit": 0}
+        checkpy.note_wait(rec, object())
+        self.assertEqual(rec, {"exit": 0})
+
+    def fake_lean(self, body):
+        """A `lean` on PATH (the fake `lake env` execs it): Python, so it buffers its stdout as C stdio does (whole
+        blocks into a pipe, line by line into a terminal), the way Lean's own messages are buffered."""
+        path = os.path.join(self.tmp, "bin", "lean")
+        with open(path, "w") as fh:
+            fh.write(f"#!{sys.executable}\nimport sys, time\n" + body)
+        os.chmod(path, 0o755)
+
+    def test_a_compile_stopped_at_its_limit_says_which_declaration_finished_last(self):
+        """Item 9 of the from-scratch study: the solution's compile (`progress=True`) passes the trace option, gets a
+        pseudo-terminal from the supervisor, so lines printed before the kill arrive (through a pipe they would not),
+        and `progress` dates them from the command's start, the 1.2 s in the wrapper excluded."""
+        self.fake_lean("print(' '.join(sys.argv[1:]))\n"
+                       "print('[Kernel] \u2705\ufe0f typechecking declarations [Submission.a]')\n"
+                       "time.sleep(0.6)\n"
+                       "print('[Kernel] \u2705\ufe0f typechecking declarations [Submission.b]')\n"
+                       "time.sleep(60)\n")
+        lean = checkpy.Lean(self.tmp, [self.wrapper])
+        sol = os.path.join(self.tmp, "Submission", "Solution.lean")
+        rc, out, el = lean.compile(sol, timeout=3, progress=True)
+        self.assertEqual(rc, 124)
+        self.assertIn(checkpy.PROGRESS_OPTION, out)                 # the option reached Lean
+        self.assertIn("typechecking declarations [Submission.b]", out)
+        self.assertEqual(el, 3.0)                                    # the run took the limit, the wait apart
+        self.assertGreaterEqual(lean.take_wait(), 1.1)
+        pr = lean.progress
+        self.assertEqual((pr["finished"], pr["run_s"], pr["last"]["decls"]), (2, 3.0, "Submission.b"))
+        self.assertLess(pr["last"]["at_s"], 1.3)                     # 0.6 s and start-up, not 1.8 s with the wait
+        self.assertGreater(pr["last"]["at_s"], 0.5)
+        self.assertEqual(checkpy.strip_progress(out).count("[Kernel]"), 0)
+
+    def test_a_compile_that_computes_is_stopped_at_its_cpu_limit(self):
+        """The solution's limit counts CPU seconds (decided 2026-11-05): a compile that computes is stopped at its CPU
+        limit, long before the wall-clock backstop; `usage` has both readings and names the limit; the progress lines
+        are dated in wall seconds from the command's start."""
+        self.fake_lean("print('[Kernel] \u2705\ufe0f typechecking declarations [Submission.a]')\n"
+                       "while True: pass\n")
+        lean = checkpy.Lean(self.tmp, [])
+        sol = os.path.join(self.tmp, "Submission", "Solution.lean")
+        rc, out, el = lean.compile(sol, timeout=60, cpu_limit=1.5, progress=True)
+        self.assertEqual(rc, 124)
+        self.assertEqual(lean.usage["stopped_by"], "cpu")
+        self.assertGreaterEqual(lean.usage["cpu_s"], 1.5)
+        self.assertLess(el, 30)
+        self.assertEqual(lean.progress["last"]["decls"], "Submission.a")
+        self.assertEqual(lean.progress["run_s"], el)
+
+    def test_a_compile_that_sleeps_meets_the_wall_clock_backstop(self):
+        self.fake_lean("time.sleep(60)\n")
+        lean = checkpy.Lean(self.tmp, [])
+        rc, out, el = lean.compile(os.path.join(self.tmp, "Submission", "Solution.lean"), timeout=2, cpu_limit=1.5)
+        self.assertEqual((rc, el, lean.usage["stopped_by"]), (124, 2.0, "wall"))
+        self.assertLess(lean.usage["cpu_s"], 1.0)
+
+    def fake_tool(self, name, body):
+        """A `name` on PATH (the fake `lake env` execs it): Python."""
+        path = os.path.join(self.tmp, "bin", name)
+        with open(path, "w") as fh:
+            fh.write(f"#!{sys.executable}\nimport sys, time\n" + body)
+        os.chmod(path, 0o755)
+
+    # the replay's runs as check.py starts them: the comparator (`lean --run`) and `leanchecker`
+    REPLAYS = (("lean", ["lean", "--run", "Comparator.lean", "--goal", "Submission.Goal"], "the comparator"),
+               ("leanchecker", ["leanchecker", "Submission.Design", "Submission.Solution"], "leanchecker"))
+
+    def test_a_replay_that_computes_is_stopped_at_its_cpu_limit(self):
+        """The comparator and `leanchecker` count CPU seconds (since 2026-11-06; `verify_time_limit_s`): a run that
+        computes is stopped at its CPU limit, long before the wall-clock backstop, and the record and the rejection say
+        so. The burner: a loop."""
+        cpu, wall = checkpy.verify_limits(1.5)
+        self.assertEqual(wall, 7.5)                              # VERIFY_WALL_FACTOR x the limit
+        for tool, args, who in self.REPLAYS:
+            with self.subTest(tool=tool):
+                self.fake_tool(tool, "while True: pass\n")
+                lean = checkpy.Lean(self.tmp, [])
+                rc, out, el = lean.run(args, timeout=wall, cpu_limit=cpu)
+                rec = checkpy.verify_record(rc, el, cpu, wall, lean.usage)
+                self.assertEqual((rc, rec["stopped_by"], rec["time_limit_counts"]), (124, "cpu", "cpu"))
+                self.assertGreaterEqual(rec["cpu_seconds"], 1.5)
+                self.assertLess(el, 5.0)
+                self.assertTrue(checkpy.solution_timeout_text(cpu, wall, el, rec["cpu_seconds"], rec["stopped_by"],
+                                                              who=who).startswith(f"the 1.5 s CPU limit: {who} used "))
+
+    def test_a_replay_that_sleeps_meets_the_wall_clock_backstop(self):
+        """A run that waits uses no CPU: the backstop (5 x 0.5 s here) stops it, with its few CPU seconds reported. The
+        sleeper: `time.sleep`."""
+        cpu, wall = checkpy.verify_limits(0.5)
+        for tool, args, who in self.REPLAYS:
+            with self.subTest(tool=tool):
+                self.fake_tool(tool, "time.sleep(60)\n")
+                lean = checkpy.Lean(self.tmp, [])
+                rc, out, el = lean.run(args, timeout=wall, cpu_limit=cpu)
+                rec = checkpy.verify_record(rc, el, cpu, wall, lean.usage)
+                self.assertEqual((rc, el, rec["stopped_by"]), (124, 2.5, "wall"))
+                self.assertLess(rec["cpu_seconds"], 0.5)
+                self.assertIn(f"the 2.5 s wall-clock backstop: {who} used ",
+                              checkpy.solution_timeout_text(cpu, wall, el, rec["cpu_seconds"], rec["stopped_by"], who=who))
+
+    def test_without_progress_the_stopped_compile_loses_its_buffered_lines(self):
+        """The control: the same compile without `progress` (a pipe, no option) delivers nothing it printed."""
+        self.fake_lean("print('[Kernel] \u2705\ufe0f typechecking declarations [Submission.a]')\n"
+                       "time.sleep(60)\n")
+        lean = checkpy.Lean(self.tmp, [])
+        rc, out, el = lean.compile(os.path.join(self.tmp, "Submission", "Solution.lean"), timeout=2)
+        self.assertEqual(rc, 124)
+        self.assertNotIn("Submission.a", out)
+        self.assertIsNone(lean.progress)
+
+
+class SolutionTime(unittest.TestCase):
+    """Item 17: the solution stage's time against the task's limit, and a warning over half of it. The limit counts the
+    CPU seconds of the Lean process tree (decided 2026-11-05); the wall clock is reported apart, and a compile that waits
+    instead of computing meets the wall-clock backstop."""
+
+    def lines(self, *a):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            checkpy.log_solution_time(*a)
+        return err.getvalue().splitlines()
+
+    def test_under_half(self):
+        (ln,) = self.lines(29.5, 300, None, 0, None, 37.2)
+        self.assertEqual(ln, "solution: Lean used 37.2 CPU s of the task's 300 s CPU limit (12%), in 29.5 s of wall "
+                             "clock")
+
+    def test_over_half_warns_and_the_wait_is_apart(self):
+        ln, warn = self.lines(82.4, 300, 300.25, 1, None, 189.7)
+        self.assertIn("189.7 CPU s of the task's 300 s CPU limit (63%), in 82.4 s of wall clock; it waited 300.2 s for "
+                      "the Lean wrapper first, not counted", ln)
+        self.assertTrue(warn.startswith("solution: WARNING: the proof used over half of the 300 s CPU limit"), warn)
+
+    def test_the_warning_reads_cpu_not_wall(self):
+        """A loaded machine stretches the wall clock, not the CPU time: 100 s of wall clock for 20 CPU s is no warning."""
+        (ln,) = self.lines(100.0, 300, None, 0, None, 20.0)
+        self.assertIn("20.0 CPU s of the task's 300 s CPU limit (7%), in 100.0 s of wall clock", ln)
+
+    def test_unmeasured_cpu_says_so(self):
+        (ln,) = self.lines(27.0, 300, None, 0)
+        self.assertEqual(ln, "solution: Lean ran 27.0 s of wall clock; its CPU time was not measured (the task's "
+                             "limit: 300 CPU s)")
+
+    def test_timeout_at_the_cpu_limit(self):
+        self.assertEqual(self.lines(131.0, 300, None, 124, None, 300.3, 1500, "cpu"),
+                         ["solution: did not finish within the 300 s CPU limit: Lean used 300.3 CPU s in 131.0 s of wall "
+                          "clock and was stopped"])
+
+    def test_timeout_at_the_wall_clock_backstop(self):
+        self.assertEqual(self.lines(1500.0, 300, None, 124, None, 2.4, 1500, "wall"),
+                         ["solution: did not finish within the 1500 s wall-clock backstop: Lean used 2.4 CPU s of its "
+                          "300 s CPU limit in 1500.0 s and was stopped, so it waited (a `sleep`, blocked I/O, a machine "
+                          "too loaded to run it)"])
+
+    PROGRESS = {"finished": 41, "auxiliary": 7, "run_s": 20.0,
+                "last": {"decls": "Submission.band_interface", "at_s": 1.9},
+                "slowest": [{"decls": "Submission.band_comb", "s": 0.6}, {"decls": "Submission.a", "s": 0.5, "first": True},
+                            {"decls": "Submission.x", "s": 0.01}]}
+
+    def test_timeout_says_where_the_time_went(self):
+        stop, where, slow = self.lines(20.0, 20, 31.0, 124, self.PROGRESS, 20.4, 100, "cpu")
+        self.assertEqual(stop, "solution: did not finish within the 20 s CPU limit: Lean used 20.4 CPU s in 20.0 s of "
+                               "wall clock and was stopped; it waited 31.0 s for the Lean wrapper first, not counted")
+        self.assertEqual(where, "solution: where the time went: 41 declarations finished (and 7 auxiliary ones), "
+                                "the last `Submission.band_interface` 1.9 s into the run; the 18.1 s after it went to "
+                                "what follows it in the file, which had not finished")
+        self.assertEqual(slow, "solution: the longest waits for a declaration that finished: "
+                               "`Submission.band_comb` 0.6 s, `Submission.a` 0.5 s (the imports included)")
+
+    def test_timeout_before_any_declaration(self):
+        stop, where = self.lines(20.0, 20, None, 124, {"finished": 0, "auxiliary": 0, "run_s": 20.0, "last": None,
+                                                        "slowest": []})
+        self.assertEqual(where, "solution: where the time went: no declaration finished in the 20.0 s: they went to "
+                                "the imports and to the first declaration of the file")
+        stop, where = self.lines(20.0, 20, None, 124, {"finished": 0, "auxiliary": 2, "run_s": 20.0,
+                                                        "last": {"decls": "_tmp._hyg.3", "at_s": 4.0}, "slowest": []})
+        self.assertIn("no declaration finished in the 20.0 s (2 auxiliary ones did): they went to", where)
+
+    def test_the_warning_names_the_slowest(self):
+        ln, warn = self.lines(75.9, 120, None, 0, self.PROGRESS, 75.9)
+        self.assertTrue(warn.endswith("make it faster (the longest waits for a declaration: `Submission.band_comb` "
+                                      "0.6 s, `Submission.a` 0.5 s (the imports included))"), warn)
+
+
+class Progress(unittest.TestCase):
+    """Item 9 of the from-scratch study: the progress lines of the solution's compile (`trace.Kernel`), read with the
+    time each arrived."""
+    LINE = "[Kernel] \u2705\ufe0f typechecking declarations [{}]\n"
+
+    def stamps(self, rows, end):
+        """`run_stamped`'s stamps: progress lines at the given times, then the supervisor's control line."""
+        return [(t, "out", self.LINE.format(d)) for t, d in rows] + [end]
+
+    def test_times_count_from_the_command_start(self):
+        # the call began 5 s before the command (a wrapper's queue): the timeout line arrives at 5 + 20
+        st = self.stamps([(5.4, "Submission.a"), (6.0, "Submission.b"), (18.0, "Submission.c")],
+                         (25.02, "err", "SVGOLF_TIMEOUT after 20s\n"))
+        pr = checkpy.progress_summary(st, 124, 20)
+        self.assertEqual((pr["finished"], pr["auxiliary"], pr["run_s"]), (3, 0, 20.0))
+        self.assertEqual(pr["last"], {"decls": "Submission.c", "at_s": 12.98})
+        self.assertEqual(pr["slowest"], [{"decls": "Submission.c", "s": 12.0}, {"decls": "Submission.b", "s": 0.6},
+                                         {"decls": "Submission.a", "s": 0.38, "first": True}])
+        self.assertIn("3 declarations finished, the last `Submission.c` 13.0 s into the run; the 7.0 s after it",
+                      checkpy.progress_sentence(pr))
+
+    def test_an_auxiliary_line_belongs_to_the_declaration_after_it(self):
+        """A tactic's temporary definitions and abstracted proofs are checked while the declaration they serve is
+        elaborated, and printed before it: their waits are that declaration's (measured: the tutorial's tactic proof
+        prints 340 lines, and its two longest waits, 6.5 s and 0.4 s, ended on `_tmp._@...` lines)."""
+        tmp = "_private.Submission.Solution.0._tmp._@.Submission.Solution.4083490425._hygCtx._hyg.35"
+        st = self.stamps([(0.5, "Submission.a"), (6.0, tmp), (6.1, "Submission.b._proof_1"), (6.3, "Submission.b"),
+                          (9.0, tmp)], (12.0, "err", "SVGOLF_TIMEOUT after 12s\n"))
+        pr = checkpy.progress_summary(st, 124, 12)
+        self.assertEqual((pr["finished"], pr["auxiliary"]), (2, 3))
+        self.assertEqual(pr["slowest"][0], {"decls": "Submission.b", "s": 5.8})
+        self.assertEqual(pr["last"], {"decls": "Submission.b", "at_s": 6.3})
+        only_aux = checkpy.progress_summary(self.stamps([(2.0, tmp)], (5.0, "err", "SVGOLF_TIMEOUT after 5s\n")), 124, 5)
+        self.assertEqual((only_aux["finished"], only_aux["last"]["decls"]), (0, tmp))
+        self.assertEqual(checkpy.decl_name(tmp), "an auxiliary declaration")
+
+    def test_a_run_stopped_at_its_cpu_limit_is_anchored_on_its_own_wall_seconds(self):
+        """A CPU stop comes before the wall-clock backstop: the run took the wall seconds its timeout line reports
+        (9.5 s here), not the backstop (100 s)."""
+        st = self.stamps([(5.4, "Submission.a"), (8.0, "Submission.b")],
+                         (14.5, "err", "SVGOLF_TIMEOUT after 9.50s cpu_s=20.10 by=cpu\n"))
+        pr = checkpy.progress_summary(st, 124, 100)
+        self.assertEqual((pr["run_s"], pr["last"]), (9.5, {"decls": "Submission.b", "at_s": 3.0}))
+
+    def test_a_finished_run_is_anchored_on_its_elapsed_line(self):
+        st = self.stamps([(1.5, "Submission.a")], (3.0, "err", "SVGOLF_ELAPSED 2.00 peak_rss_mb=1 out_bytes=9 "
+                                                               "verdict=none\n"))
+        pr = checkpy.progress_summary(st, 0, 120)
+        self.assertEqual((pr["run_s"], pr["last"]["at_s"], pr["slowest"]),
+                         (2.0, 0.5, [{"decls": "Submission.a", "s": 0.5, "first": True}]))
+
+    def test_no_control_line_no_summary(self):
+        self.assertIsNone(checkpy.progress_summary(self.stamps([(1.0, "a")], (1.0, "out", "x\n")), 1, 10))
+
+    def test_the_lines_are_stripped_and_a_leak_is_seen(self):
+        out = "x.lean:1:0: warning: w\n" + self.LINE.format("Submission.a") + self.LINE.format("b, c") + "end\n"
+        self.assertEqual(checkpy.strip_progress(out), "x.lean:1:0: warning: w\nend\n")
+        self.assertFalse(checkpy.progress_leaked(out))
+        leak = "x.lean:3:0: error: \u274c\ufe0f Docstring on `#guard_msgs` does not match generated message:\n\n" \
+               "trace: " + self.LINE.format("Submission.a")
+        self.assertTrue(checkpy.progress_leaked(leak))
+
+    def test_decl_names(self):
+        self.assertEqual(checkpy.decl_name("Submission.solution"), "`Submission.solution`")
+        self.assertEqual(checkpy.decl_name("_private.Submission.Solution.0.Submission.h"), "`Submission.h`")
+        self.assertEqual(checkpy.decl_name("Submission.a, Submission.b"), "`Submission.a` (with `Submission.b`)")
+        self.assertEqual(checkpy.decl_name("Submission.f.match_1"), "`Submission.f.match_1`")
+        self.assertEqual(checkpy.decl_name("Submission.f._proof_2"), "`Submission.f._proof_2` (an auxiliary of `Submission.f`)")
+
+    def test_run_stamped_is_subprocess_run_with_times(self):
+        code = "import sys, time; print('a', flush=True); time.sleep(0.5); print('b'); print('e', file=sys.stderr)"
+        proc, st = checkpy.run_stamped([sys.executable, "-c", code], None, None)
+        self.assertEqual((proc.returncode, proc.stdout, proc.stderr), (0, "a\nb\n", "e\n"))
+        (ta, _, a), (tb, _, b) = [x for x in st if x[1] == "out"]
+        self.assertEqual((a, b), ("a\n", "b\n"))
+        self.assertGreater(tb - ta, 0.4)
+
+
+class RankedHeadline(unittest.TestCase):
+    """Item 5b: the LAST stderr line of a run that reached `ppa` is the ranked number, area x time, against par."""
+    BLOCK = {"available": True, "area_um2_sky130": 460.4416, "area_e4um2_sky130": 4604416, "delay_ps_sky130": 2611}
+    PAR = {"name": "add_n", "um2ns": 1202.2130176}
+
+    def res(self, block, score=None):
+        return {"task": "add", "stages": {"ppa": {"mode": "auto"}}, "ppa": block, "score": score or {}}
+
+    def test_weighed(self):
+        with mock.patch.object(checkpy, "task_par", return_value=(self.PAR, None)):
+            self.assertEqual(checkpy.ranked_headline(self.res(self.BLOCK)),
+                             "ranked (sky130 A0'): 460.4416 um^2 x 2611 ps = 1202.21 um2*ns; par 1202.21 (add_n)")
+        with mock.patch.object(checkpy, "task_par", return_value=(None, None)):
+            self.assertTrue(checkpy.ranked_headline(self.res(self.BLOCK)).endswith("; par: none recorded"))
+        with mock.patch.object(checkpy, "task_par", return_value=(None, "ValueError: x")):
+            self.assertTrue(checkpy.ranked_headline(self.res(self.BLOCK)).endswith("; par: unavailable (ValueError: x)"))
+
+    def test_clocked_time_is_cycles_times_period(self):
+        block = dict(self.BLOCK, delay_ps_sky130=1000)
+        with mock.patch.object(checkpy, "task_par", return_value=(None, None)):
+            line = checkpy.ranked_headline(self.res(block, {"time_ps": 4000, "cycles": 4, "period_ps": 1000}))
+        self.assertTrue(line.startswith("ranked (sky130 A0'): 460.4416 um^2 x 4000 ps = 1841.77 um2*ns"), line)
+
+    def test_liberty_missing_and_not_computed(self):
+        off = {"available": False, "reason": "liberty not found: /x\n  fetch it"}
+        with mock.patch.object(checkpy, "liberty_problem", return_value="liberty not found: /x"):
+            self.assertEqual(checkpy.ranked_headline(self.res(off)),
+                             "ranked: liberty missing, run python3.12 score/ppa.py --fetch-liberty")
+        with mock.patch.object(checkpy, "liberty_problem", return_value=None):
+            self.assertEqual(checkpy.ranked_headline(self.res({"available": False, "reason": "a cell\n outside"})),
+                             "ranked: not computed: a cell outside")
+        illegal = {"available": False, "illegal": True, "reason": "the net n is illegal"}
+        with mock.patch.object(checkpy, "liberty_problem", side_effect=AssertionError("not asked")):
+            self.assertEqual(checkpy.ranked_headline(self.res(illegal)), "ranked: not computed: the net n is illegal")
+
+    def test_a_run_that_did_not_reach_ppa_has_none(self):
+        self.assertIsNone(checkpy.ranked_headline({"stages": {"design": {}}, "ppa": self.BLOCK}))
+
+    def test_the_real_par_of_add_is_its_board_s(self):
+        """`task_par` reads leaderboard.py's `par_now` (the shipped reference records)."""
+        par, why = checkpy.task_par("add")
+        self.assertIsNone(why)
+        if par is not None:             # (None when this machine's Yosys is not the records' flow)
+            self.assertEqual(par["name"], "add_n")
+
+
+class MainExitAndHeadline(unittest.TestCase):
+    """Item 5a: a clean `--unproved` run exits 0 (its sentence a note, `unproved_ok`); a failed stage exits 1; the
+    ranked headline is the last stderr line."""
+    ARGV = [os.path.join(SVGOLF, "tasks", "_example"),
+            os.path.join(SVGOLF, "tests", "_example", "attacks", "z_rare.sv"), "--unproved"]
+
+    def run_main(self, result, headline=None):
+        out, err = io.StringIO(), io.StringIO()
+        env = {k: v for k, v in os.environ.items() if not k.startswith("SVGOLF_LEAN_WRAP")}
+        with mock.patch.object(checkpy, "check", lambda *a, **kw: result), \
+                mock.patch.object(checkpy, "ranked_headline", lambda res: headline), \
+                mock.patch.dict(os.environ, env, clear=True), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = checkpy.main(self.ARGV + ["--sandbox", "off"])
+        return rc, json.loads(out.getvalue()), err.getvalue().splitlines()
+
+    def test_clean_unproved_exits_zero(self):
+        rc, res, _ = self.run_main({"accepted": False, "stage": "unproved", "errors": [], "notes": ["ok"],
+                                    "unproved_ok": True, "stages": {}})
+        self.assertEqual((rc, res["unproved_ok"], res["accepted"]), (0, True, False))
+
+    def test_a_failed_stage_exits_one(self):
+        rc, _, _ = self.run_main({"accepted": False, "stage": "fourstate", "errors": ["x"], "stages": {}})
+        self.assertEqual(rc, 1)
+
+    def test_the_headline_is_the_last_stderr_line(self):
+        rc, _, err = self.run_main({"accepted": False, "stage": "unproved", "errors": [], "notes": ["ok"],
+                                    "unproved_ok": True, "stages": {}, "warnings": ["functional: a warning"]},
+                                   headline="ranked (sky130 A0'): 1 um^2 x 2 ps = 0.00 um2*ns; par: none recorded")
+        self.assertEqual(err[-2:], ["functional: a warning",
+                                    "ranked (sky130 A0'): 1 um^2 x 2 ps = 0.00 um2*ns; par: none recorded"])
+
+    def test_not_a_task_directory_is_a_usage_error(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), self.assertRaises(SystemExit) as cm:
+            checkpy.main([os.path.join(SVGOLF, "tasks"), self.ARGV[1], "--unproved"])
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("is not a task directory (it has no task.json)", err.getvalue())
+
+
+class StageLines(unittest.TestCase):
+    def test_format(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            checkpy.stage_start("design", "compiling it")
+            checkpy.stage_start("solution", "limit 300 s", ["/w/slot.sh"])
+            checkpy.stage_start("extract")
+        self.assertEqual(err.getvalue().splitlines(),
+                         ["check: design ... (compiling it)",
+                          "check: solution ... (limit 300 s; behind the Lean wrapper, which may queue it first)",
+                          "check: extract ..."])
 
 
 if __name__ == "__main__":

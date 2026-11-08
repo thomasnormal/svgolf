@@ -3,7 +3,8 @@ defines `S` the way the standard does, algebraically (the multiplicative inverse
 map), so a lookup table and a gate network are judged against the same mathematics.
 
 The task has one fixed size, bans no operator, and its post-synthesis check covers all 256 inputs. The
-proved Boyar-Peralta 113-gate circuit has 892.1 µm² and a 4.26 ns critical path on sky130 (200.986 GE,
-depth 21); the proved 256-entry table is almost four times larger and nearly twice as fast, 3445.8 µm² at
-2.29 ns (786.894 GE, depth 11). The S-box is the most golfed Boolean function in cryptography, so the
+proved Boyar-Peralta 113-gate circuit has {{sbox_bp.area}} and a {{sbox_bp.time}} critical path on sky130
+({{sbox_bp.ge}}, depth {{sbox_bp.depth}}), {{sbox_bp.score}}: par. The proved 256-entry table is almost four
+times larger and nearly twice as fast, {{sbox_table.area}} at {{sbox_table.time}} ({{sbox_table.ge}}, depth
+{{sbox_table.depth}}). The S-box is the most golfed Boolean function in cryptography, so the
 published circuits are strong comparison points.

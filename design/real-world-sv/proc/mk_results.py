@@ -12,7 +12,7 @@ for f in sorted(glob.glob(W + '/res/v*.json') + glob.glob(W + '/res/s[0-9]*.json
     except Exception:
         rows.append((b, 'no result', '', '')); continue
     stage = j.get('stage'); tac = j.get('tactics') or {}
-    err = ' '.join(str(e) for e in j.get('errors', []))[:240].replace('\n', ' ')
+    err = ' '.join(str(e) for e in (j.get('errors') or j.get('notes') or []))[:240].replace('\n', ' ')   # a clean --unproved run: its note
     rows.append((b, stage, str(tac.get('in_fragment')), (tac.get('message') or err)[:400].replace('\n', ' ').replace('|', '/')))
 out = ['# Hand-lowered shapes through the pipeline (`check.py --unproved --tactics`)', '',
        '| design | stage reached | in tactic fragment | first message |', '|---|---|---|---|']

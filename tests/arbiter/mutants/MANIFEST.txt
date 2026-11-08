@@ -1,0 +1,211 @@
+# Mutants of tasks/arbiter/reference/rr_mask.sv (sha256 f8b02272b7f264d9), tests/mutate.py with pyslang 11.0.0: 104 generated, 4 duplicates, 0 do not elaborate, 100 kept.
+# Columns: id, operator, ctx, line:col, original -> replacement; check.py --unproved stage (@ the
+# postsynth point it failed at); per N = 1 2 3 4 8: the family verdict and the local verdict (K
+# killed, E equivalent, S survivor; `verdicts` in classify.py), then [equivalence, guarantee G0-G4]
+# as P proved / F falsified / - not applicable (the interface differs), the simulation checks that
+# fired at N, and the reactive check alone at N (p passes, r rejects). Full records: MANIFEST.json.
+
+m001 CRP param  11:36  '8' -> '9'
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m002 CRP param  11:36  '8' -> '7'
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m003 CRP index  13:19  '1' -> '2'
+    check: extract; N1:KK[--]-/r N2:KK[--]G3+G4/- N3:KK[--]G3+G4/- N4:KK[--]G3+G4/- N8:KK[--]G3+G4/-
+m004 CRP index  13:19  '1' -> '0'
+    check: extract; N1:KK[--]-/p N2:KK[--]-/p N3:KK[--]-/p N4:KK[--]-/p N8:KK[--]-/p
+m005 CRP index  13:21  '0' -> '1'
+    check: extract; N1:KK[--]-/r N2:KK[--]G3+G4/- N3:KK[--]G3+G4/- N4:KK[--]G3+G4/- N8:KK[--]G3+G4/-
+m006 CRP index  14:19  '1' -> '2'
+    check: extract; N1:KK[--]-/r N2:KK[--]G3+G4/- N3:KK[--]G3+G4/- N4:KK[--]G3+G4/- N8:KK[--]G3+G4/-
+m007 CRP index  14:19  '1' -> '0'
+    check: extract; N1:KK[--]-/p N2:KK[--]-/p N3:KK[--]-/p N4:KK[--]-/p N8:KK[--]-/p
+m008 CRP index  14:21  '0' -> '1'
+    check: extract; N1:KK[--]-/r N2:KK[--]G3+G4/- N3:KK[--]G3+G4/- N4:KK[--]G3+G4/- N8:KK[--]G3+G4/-
+m009 CRP index  16:12  '1' -> '2'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m010 CRP index  16:12  '1' -> '0'
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m011 CRP index  16:14  '0' -> '1'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m012 DEL stmt   18:5   'mreq = req & mask;' -> ';'
+    check: fourstate; N1:KK[FF]G2/- N2:KK[FF]G2+G4/- N3:KK[FF]G2+G4/- N4:KK[FF]G2+G4/- N8:KK[FF]G2+G4/-
+m013 BOR expr   18:16  '&' -> '|'
+    check: postsynth@N=3; N1:KK[FF]G2/- N2:KK[FF]G2+G4/- N3:KK[FF]G2+G4/- N4:KK[FF]G2+G4/- N8:KK[FF]G2+G4/-
+m014 BOR expr   18:16  '&' -> '^'
+    check: postsynth@N=3; N1:KK[FF]G2/- N2:KK[FF]G2+G4/- N3:KK[FF]G2+G4/- N4:KK[FF]G2+G4/- N8:KK[FF]G2+G4/-
+m015 SA0 read   18:12  'req' -> "'0"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m016 SA1 read   18:12  'req' -> "'1"
+    check: postsynth@N=3; N1:KK[FF]G2/- N2:KK[FF]G2/- N3:KK[FF]G2/- N4:KK[FF]G2/- N8:KK[FF]G2/-
+m017 SA0 read   18:18  'mask' -> "'0"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m018 SA1 read   18:18  'mask' -> "'1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m019 DEL stmt   19:5   "pick = (mreq != '0) ? (mreq & (~mreq + 1'b1)) : (req & (~req + 1'b1));" -> ';'
+    check: fourstate; N1:KK[FF]G2+G3+G4/- N2:KK[FF]G1+G2+G3+G4/- N3:KK[FF]G1+G2+G3+G4/- N4:KK[FF]G1+G2+G3+G4/- N8:KK[FF]G1+G2+G3+G4/-
+m020 NEG ?:     19:12  "(mreq != '0)" -> "!((mreq != '0))"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m021 SWP ?:     19:27  "(mreq != '0) ? (mreq & (~mreq + 1'b1)) : (req & (~req + 1'b1))" -> '(swap)'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m022 ROR expr   19:18  '!=' -> '=='
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m023 ROR expr   19:18  '!=' -> '<'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m024 ROR expr   19:18  '!=' -> '<='
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m025 ROR expr   19:18  '!=' -> '>'
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m026 ROR expr   19:18  '!=' -> '>='
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m027 SA0 read   19:13  'mreq' -> "'0"
+    check: design; N1:KK[PP]-/r N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m028 SA1 read   19:13  'mreq' -> "'1"
+    check: design; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m029 CRP expr   19:21  "'0" -> "'1"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m030 CRP expr   19:21  "'0" -> "1'b1"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m031 CRP expr   19:21  "'0" -> "~('1 >> 1)"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m032 BOR expr   19:33  '&' -> '|'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G1+G2/- N3:KK[FF]G1+G2/- N4:KK[FF]G1+G2/- N8:KK[FF]G1+G2/-
+m033 BOR expr   19:33  '&' -> '^'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G2+G3+G4/- N3:KK[FF]G1+G2+G3+G4/- N4:KK[FF]G1+G2+G3+G4/- N8:KK[FF]G1+G2+G3+G4/-
+m034 SA0 read   19:28  'mreq' -> "'0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m035 SA1 read   19:28  'mreq' -> "'1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G1+G2/- N3:KK[FF]G1+G2/- N4:KK[FF]G1+G2+G4/- N8:KK[FF]G1+G2+G4/-
+m036 AOR expr   19:42  '+' -> '-'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G1+G3+G4/- N3:KK[FF]G1+G3+G4/- N4:KK[FF]G1+G3+G4/- N8:KK[FF]G1+G3+G4/-
+m037 AOR expr   19:42  '+' -> '*'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m038 UOD expr   19:36  '~' -> ''
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G1+G3+G4/- N4:KK[FF]G1+G3+G4/- N8:KK[FF]G1+G3+G4/-
+m039 UOR expr   19:36  '~' -> '!'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m040 UOR expr   19:36  '~' -> '-'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3/-
+m041 SA0 read   19:37  'mreq' -> "'0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m042 SA1 read   19:37  'mreq' -> "'1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m043 CRP expr   19:44  "1'b1" -> "1'b0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m044 BOR expr   19:58  '&' -> '|'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G1+G2/- N3:KK[FF]G1+G2/- N4:KK[FF]G1+G2/- N8:KK[FF]G1+G2/-
+m045 BOR expr   19:58  '&' -> '^'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G2+G3+G4/- N3:KK[FF]G1+G2+G3+G4/- N4:KK[FF]G1+G2+G3+G4/- N8:KK[FF]G1+G2+G3+G4/-
+m046 SA0 read   19:54  'req' -> "'0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m047 SA1 read   19:54  'req' -> "'1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G1+G2/- N3:KK[FF]G1+G2+G4/- N4:KK[FF]G1+G2+G4/- N8:KK[FF]G1+G2+G4/-
+m048 AOR expr   19:66  '+' -> '-'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G1+G3+G4/- N3:KK[FF]G1+G3+G4/- N4:KK[FF]G1+G3+G4/- N8:KK[FF]G1+G3+G4/-
+m049 AOR expr   19:66  '+' -> '*'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m050 UOD expr   19:61  '~' -> ''
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G1+G3+G4/- N4:KK[FF]G1+G3+G4/- N8:KK[FF]G1+G3+G4/-
+m051 UOR expr   19:61  '~' -> '!'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m052 UOR expr   19:61  '~' -> '-'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m053 SA0 read   19:62  'req' -> "'0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m054 SA1 read   19:62  'req' -> "'1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m055 CRP expr   19:68  "1'b1" -> "1'b0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m056 NEG if     22:9   'rst' -> '!(rst)'
+    check: postsynth@N=3; N1:KK[FF]G0+G3+G4/- N2:KK[FF]G0+G3+G4/- N3:KK[FF]G0+G3+G4/- N4:KK[FF]G0+G3+G4/- N8:KK[FF]G0+G3+G4/-
+m057 SWP if     22:14  "if (rst) begin\n      gnt <= '0;\n      mask <= '1;\n    end else begin\n      gnt <= pick;\n      if (pick != '0) mask <= ~((pick << 1) - 1'b1);\n    end" -> '(swap)'
+    check: postsynth@N=3; N1:KK[FF]G0+G3+G4/- N2:KK[FF]G0+G3+G4/- N3:KK[FF]G0+G3+G4/- N4:KK[FF]G0+G3+G4/- N8:KK[FF]G0+G3+G4/-
+m058 SA0 read   22:9   'rst' -> "'0"
+    check: design; N1:KK[FF]G0/- N2:KK[FF]G0/- N3:KK[FF]G0/- N4:KK[FF]G0/- N8:KK[FF]G0/-
+m059 SA1 read   22:9   'rst' -> "'1"
+    check: design; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m060 DEL stmt   23:7   "gnt <= '0;" -> ';'
+    check: postsynth@N=3; N1:KK[FF]G0/- N2:KK[FF]G0/- N3:KK[FF]G0/- N4:KK[FF]G0/- N8:KK[FF]G0/-
+m061 RST reset  23:14  "'0" -> "'1"
+    check: postsynth@N=3; N1:KK[FF]G0/- N2:KK[FF]G0/- N3:KK[FF]G0/- N4:KK[FF]G0/- N8:KK[FF]G0/-
+m062 RST reset  23:14  "'0" -> "1'b1"
+    check: postsynth@N=3; N1:KK[FF]G0/- N2:KK[FF]G0/- N3:KK[FF]G0/- N4:KK[FF]G0/- N8:KK[FF]G0/-
+m063 RST reset  23:14  "'0" -> "~('1 >> 1)"
+    check: postsynth@N=3; N1:KK[FF]G0/- N2:KK[FF]G0/- N3:KK[FF]G0/- N4:KK[FF]G0/- N8:KK[FF]G0/-
+m064 CRP expr   23:14  "'0" -> "'1"  DROPPED: duplicate of m061
+m065 CRP expr   23:14  "'0" -> "1'b1"  DROPPED: duplicate of m062
+m066 CRP expr   23:14  "'0" -> "~('1 >> 1)"  DROPPED: duplicate of m063
+m067 DEL stmt   24:7   "mask <= '1;" -> ';'
+    check: unproved; N1:EE[PP]-/p N2:SS[FP]-/p N3:SS[FP]-/p N4:SS[FP]-/p N8:SS[FP]-/p
+m068 RST reset  24:15  "'1" -> "'0"
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m069 RST reset  24:15  "'1" -> "1'b1"
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m070 RST reset  24:15  "'1" -> "~('1 >> 1)"
+    check: unproved; N1:EE[PP]-/p N2:SS[FP]-/p N3:SS[FP]-/p N4:SS[FP]-/p N8:SS[FP]-/p
+m071 CRP expr   24:15  "'1" -> "'0"  DROPPED: duplicate of m068
+m072 CRP expr   24:15  "'1" -> "~1'b1"
+    check: unproved; N1:EE[PP]-/p N2:SS[FP]-/p N3:SS[FP]-/p N4:SS[FP]-/p N8:SS[FP]-/p
+m073 CRP expr   24:15  "'1" -> "('1 >> 1)"
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m074 DEL stmt   26:7   'gnt <= pick;' -> ';'
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m075 SA0 read   26:14  'pick' -> "'0"
+    check: postsynth@N=3; N1:KK[FF]G3+G4/- N2:KK[FF]G3+G4/- N3:KK[FF]G3+G4/- N4:KK[FF]G3+G4/- N8:KK[FF]G3+G4/-
+m076 SA1 read   26:14  'pick' -> "'1"
+    check: postsynth@N=3; N1:KK[FF]G2/- N2:KK[FF]G1+G2/- N3:KK[FF]G1+G2/- N4:KK[FF]G1+G2/- N8:KK[FF]G1+G2/-
+m077 NEG if     27:11  "pick != '0" -> "!(pick != '0)"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m078 SWP if     27:23  "if (pick != '0) mask <= ~((pick << 1) - 1'b1);" -> "begin end else mask <= ~((pick << 1) - 1'b1);"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m079 ROR expr   27:16  '!=' -> '=='
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m080 ROR expr   27:16  '!=' -> '<'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m081 ROR expr   27:16  '!=' -> '<='
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m082 ROR expr   27:16  '!=' -> '>'
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m083 ROR expr   27:16  '!=' -> '>='
+    check: unproved; N1:EE[PP]-/p N2:SS[FP]-/p N3:SS[FP]-/p N4:SS[FP]-/p N8:SS[FP]-/p
+m084 SA0 read   27:11  'pick' -> "'0"
+    check: design; N1:KK[PP]-/r N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m085 SA1 read   27:11  'pick' -> "'1"
+    check: design; N1:KK[PP]-/r N2:KK[FP]-/r N3:KK[FP]-/r N4:KK[FP]-/r N8:KK[FP]-/r
+m086 CRP expr   27:19  "'0" -> "'1"
+    check: unproved; N1:EE[PP]-/p N2:SS[FP]-/p N3:SS[FP]-/p N4:SS[FP]-/p N8:SS[FP]-/p
+m087 CRP expr   27:19  "'0" -> "1'b1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m088 CRP expr   27:19  "'0" -> "~('1 >> 1)"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m089 DEL stmt   27:23  "mask <= ~((pick << 1) - 1'b1);" -> ';'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m090 UOD expr   27:31  '~' -> ''
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m091 UOR expr   27:31  '~' -> '!'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m092 UOR expr   27:31  '~' -> '-'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m093 AOR expr   27:45  '-' -> '+'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m094 AOR expr   27:45  '-' -> '*'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m095 OSW expr   27:33  "(pick << 1) - 1'b1" -> '(swap)'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m096 SOR expr   27:39  '<<' -> '>>'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m097 SOR expr   27:39  '<<' -> '<<<'
+    check: unproved; N1:EE[PP]-/p N2:EE[PP]-/p N3:EE[PP]-/p N4:EE[PP]-/p N8:EE[PP]-/p
+m098 SOR expr   27:39  '<<' -> '>>>'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m099 OSW expr   27:34  'pick << 1' -> '(swap)'
+    check: postsynth@N=5; N1:KE[PP]-/p N2:KE[PP]-/p N3:KE[PP]-/p N4:KK[FF]G4/- N8:KK[FF]G4/-
+m100 SA0 read   27:34  'pick' -> "'0"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m101 SA1 read   27:34  'pick' -> "'1"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m102 CRP shift  27:42  '1' -> '2'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m103 CRP shift  27:42  '1' -> '0'
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-
+m104 CRP expr   27:47  "1'b1" -> "1'b0"
+    check: postsynth@N=3; N1:KE[PP]-/p N2:KK[FF]G4/- N3:KK[FF]G4/- N4:KK[FF]G4/- N8:KK[FF]G4/-

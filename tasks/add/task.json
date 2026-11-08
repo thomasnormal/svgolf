@@ -7,7 +7,7 @@
   "parameters": [
     {
       "name": "N",
-      "range": "1 <= N"
+      "range": "1 <= N < 2^31"
     }
   ],
   "ports": {
@@ -82,7 +82,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "postsynth": {
     "random": 4000,
     "_comment": "The checker's postsynth stage (README.md, `postsynth` in the task.json table): the fixed corners (134 vectors at N = 16), the harvested comparison constants and 4000 seeded random vectors; ls-sv about 0.3 ms per vector for the ripple reference."

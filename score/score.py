@@ -46,12 +46,18 @@ Options:
   --yosys PATH    the Yosys binary (default: $SVGOLF_YOSYS, else `yosys` on PATH)
   --no-gate       score the files as they are (research only: an ungated
                   score is not an svGolf score, and the result says so)
-  --seq           the CLOCKED flow: score/svgolf_seq.ys (svgolf.ys plus
-                  `dfflegalize -cell $_DFF_P_ x`) and score/ge_seq.json (the
+  --seq           the CLOCKED flow: score/svgolf_seq.ys (svgolf.ys with
+                  `synth -nofsm`, plus `dfflegalize -cell $_DFF_P_ x`, and
+                  `opt_clean -purge` as the last clean-up) and
+                  score/ge_seq.json (the
                   legacy weights plus DFF_P, derived from the pinned sky130
                   liberty by derive_seq_prices.py); the result adds flow,
-                  ffs, area_ff_mge, area_comb_mge, reg_overhead_nand2 and
-                  period (= depth)
+                  ffs, area_ff_mge, area_comb_mge, reg_overhead_nand2,
+                  period (= depth) and flop_removals (the synthesis log's
+                  flop removals that can leave a register's reads
+                  undefined, the memory lanes it leaves undefined and, a
+                  backstop, a state register re-implemented as an FSM:
+                  check.py's never-loaded rule)
   --reg-overhead  with --seq: period = depth + ceil(reg_overhead_nand2)
                   (dfxtp_1 clock-to-Q + setup in nand2 delays; not ruled)
 
@@ -86,7 +92,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "svgolf.ys")         # stage 2: synthesis and measurement
 CANON_SCRIPT = os.path.join(HERE, "canon.ys")    # stage 1: canonicalization
 GE_TABLE = os.path.join(HERE, "ge.json")
-# The CLOCKED flow (`--seq`): svgolf.ys plus `dfflegalize` (svgolf_seq.ys) and the legacy weights plus the flop price
+# The CLOCKED flow (`--seq`): svgolf.ys with `synth -nofsm`, plus `dfflegalize`, and `opt_clean -purge` (svgolf_seq.ys), and the legacy
+# weights plus the flop price
 # derived from the pinned sky130 liberty (ge_seq.json, written by derive_seq_prices.py). Separate files, so the
 # combinational flow, its hashes and every combinational record are untouched.
 SCRIPT_SEQ = os.path.join(HERE, "svgolf_seq.ys")
@@ -97,6 +104,53 @@ FLOWS = {"comb": (SCRIPT, GE_TABLE), "seq": (SCRIPT_SEQ, GE_SEQ)}
 # `$scopeinfo` cell per flattened instance, for debug info only).
 IGNORED_CELLS = {"$scopeinfo"}
 YOSYS_TIMEOUT_S = 1800
+
+# NEVER-LOADED REGISTERS (txtask-v2, decided 2026-11-06): the pinned flow's own report of a flop it removes while
+# its readers stay, read off the synthesis log of the clocked flow (Yosys 0.53, passes/opt/opt_dff.cc). A flop
+# whose next value is always its own (D = Q, no sync reset), whose enable is never active, or whose clock is
+# constant loses its D path; with no initial value (contract C1: none) `FfData::emit` then drives its output with
+# the undefined initial value, and every later pass resolves each READ of it separately, which breaks the
+# one-power-up-value-per-register correlation ls-sv's semantics has. Refused in every clocked task (check.py
+# `never_loaded`).
+FF_UNDEFINED = re.compile(r"^Handling (D = Q|never-active EN|const CLK) on (\S+) \((\S+)\) from module (\S+) "
+                          r"\(removing D path\)\.$", re.M)
+# opt_dff's constant replacement (`run_constbits`): one value for every reader when the constant is 0 or 1, but the
+# message prints an undefined (x) constant as "1-bit" too (`val ? 1 : 0` over State::Sx, READ), so a "1-bit" line is
+# decided by `undefined_registers` (a names-kept run), never by the line.
+FF_CONST1 = re.compile(r"^Setting constant 1-bit at position \d+ on (\S+) \((\S+)\) from module (\S+)\.$", re.M)
+# The memory analogue (the 2026-11-06 adversarial round, finding F1): `opt_mem` (passes/opt/opt_mem.cc) finds a bit
+# lane of an unpacked array that no write ever loads with a defined value (no write port left, or every enabled
+# write's data is x there) and connects every READ of that lane to the undefined value, before `memory_map` could
+# make a flop of it, so opt_dff never sees a flop and logs nothing. Refused like FF_UNDEFINED. Its "const-0 lane"
+# and "const-1 lane" (every write loads that constant) give every read one value, the power-up with that lane
+# constant in every word: kept, like opt_dff's constant 0 and 1.
+MEM_UNDEFINED = re.compile(r"^(\S+?)\.(\S+): removing const-x lane (\d+)$", re.M)
+# Its const-1 lanes are kept, but the netlist's all-zeros start then reads 1 where ls-sv's `zeros` power-up reads 0,
+# so the two zero starts are not the same state (as with opt_dff's kept "1-bit" constants): recorded for the
+# post-synthesis check, which compares the two bit for bit only from the same state.
+MEM_CONST1 = re.compile(r"^(\S+?)\.(\S+): removing const-1 lane (\d+)$", re.M)
+# A state register the `fsm` pass re-implements (finding F2): fsm_detect marks a register read only by comparisons
+# with constants, fsm_extract keeps the state codes it finds in the next-state mux tree, fsm_recode re-encodes them
+# (one-hot for `auto`) and fsm_map builds new flip-flops. Their power-up values include codes that are no value of
+# the original register (all zeros, two-hot), and a value of it that is no extracted state has no code, so the
+# netlist is not the design from every power-up; a reset on the state register does not repair that (a register
+# without a reset that samples the state at the reset edge keeps the difference: `fsm_reset.sv`, MEASURED). The
+# clocked flow runs `synth -nofsm` (decided 2026-11-06), so its log has no such line; the pattern is a BACKSTOP
+# (should the pass ever run, check.py `never_loaded` refuses every mapped FSM).
+FSM_MAPPED = re.compile(r"^Mapping FSM `(\S+)' from module `(\S+)'\.$", re.M)
+
+
+def flop_removals(log_text):
+    """The clocked flow's flop removals that can leave readers undefined, from its synthesis log: `undefined` (the
+    three D-path removals, always refused), `constant_one_or_x` (the "1-bit" constant replacements, a 1 or an
+    x), `memory_undefined` (opt_mem's const-x lanes, always refused), `memory_constant_one` (its const-1 lanes, kept)
+    and `fsm_mapped` (a state register the fsm pass re-implements, always refused: a backstop, since the clocked flow
+    runs no fsm pass)."""
+    return {"undefined": [m.group(0) for m in FF_UNDEFINED.finditer(log_text)],
+            "constant_one_or_x": [m.group(0) for m in FF_CONST1.finditer(log_text)],
+            "memory_undefined": [m.group(0) for m in MEM_UNDEFINED.finditer(log_text)],
+            "memory_constant_one": [m.group(0) for m in MEM_CONST1.finditer(log_text)],
+            "fsm_mapped": [m.group(0) for m in FSM_MAPPED.finditer(log_text)]}
 
 
 class ScoreError(Exception):
@@ -248,6 +302,9 @@ def score_once(sources, top, params, yosys, netlist_out=None, rtlil_out=None, fl
         cells = parse_stat(stat_path, top)
         depth = parse_ltp(ltp_path)
         rtlil_sha = sha256_file(rtlil)
+        if flow == "seq":
+            with open(os.path.join(workdir, "synth.log"), errors="replace") as fh:
+                removals = flop_removals(fh.read())
         if netlist_out:
             shutil.copyfile(netlist, netlist_out)
         if rtlil_out:
@@ -272,7 +329,7 @@ def score_once(sources, top, params, yosys, netlist_out=None, rtlil_out=None, fl
     if flow == "seq":
         ff_mge = sum(ge[g] * n for g, n in gates.items() if g in FLOP_TYPES)
         extra = {"ffs": sum(n for g, n in gates.items() if g in FLOP_TYPES),
-                 "area_ff_mge": ff_mge, "area_comb_mge": area_mge - ff_mge}
+                 "area_ff_mge": ff_mge, "area_comb_mge": area_mge - ff_mge, "flop_removals": removals}
     return {**extra,
         "top": top,
         "params": dict(params),
@@ -334,6 +391,60 @@ def score(sources, top, params, yosys=None, repeat=1, gate=True, netlist_out=Non
     if repeat > 1:
         res["repeat_identical"] = repeat
     return res
+
+
+# a register `proc` created a flop for (the canonicalization log, names kept): "`\<module>.<signal>'"
+PROC_REGISTER = re.compile(r"^Creating register for signal `\\[^.]+\.(.*)' using process", re.M)
+# an assignment of the netlist (write_verilog -noattr -noexpr) whose right-hand side has an x constant
+NETLIST_X_ASSIGN = re.compile(r"^\s*assign (.+?) = ([^;]*\d+'[bh][0-9a-fA-F]*x[^;]*);$", re.M)
+VERILOG_NAME = re.compile(r"\\(\S+)|([A-Za-z_][A-Za-z0-9_$]*)")
+
+
+def undefined_registers(sources, top, params, yosys=None):
+    """The signals the clocked flow leaves UNDEFINED, by name: `diagnose_names(...)["undefined"]`."""
+    return diagnose_names(sources, top, params, yosys)["undefined"]
+
+
+def diagnose_names(sources, top, params, yosys=None):
+    """A DIAGNOSTIC run (never scored): the two-stage flow of `score(..., flow="seq")` with canon.ys's two `rename`
+    lines dropped and the last clean-up a plain `opt_clean` (not `-purge`), so that the netlist and the log keep the
+    design's names. Returns {"undefined": ..., "fsm": ...}.
+    `undefined`: the signals the flow leaves UNDEFINED; a register whose flop the flow removed (FF_UNDEFINED) or
+    replaced by an undefined constant (FF_CONST1 with an x) is a wire that netlist assigns an x: the sorted names of
+    those wires that are registers (`proc` created a flop for them; for a flattened instance, by the last component of
+    the name), or of every x-assigned wire if none is one. `fsm`: the sorted names of the state registers the fsm pass
+    re-implements (FSM_MAPPED: the cell `$fsm$<register>$<n>`; empty while the flow runs no fsm pass). The verdict is the scored run's log
+    (`flop_removals`); this run only names, and decides whether a "1-bit" constant was a 1 or an x."""
+    yosys = yosys_bin(yosys)
+    workdir = tempfile.mkdtemp(prefix="svgolf-named-")
+    try:
+        read, _ = gate_sources(sources, workdir)
+        il = os.path.join(workdir, "named.il")
+        canon = "\n".join(ln for ln in render_canon(read, top, params, il).splitlines()
+                          if not ln.strip().startswith("rename "))
+        run_yosys(yosys, canon, workdir, "canon", read)
+        netlist = os.path.join(workdir, "netlist.v")
+        synth = render_script(il, top, os.path.join(workdir, "stat.json"), os.path.join(workdir, "ltp.txt"), netlist,
+                              SCRIPT_SEQ).splitlines()
+        # the scored flow's last clean-up, `opt_clean -purge` (decided 2026-11-07), removes the public names this run
+        # keeps to read: here it is the plain `opt_clean` the clocked flow ran before (it removes no cell either)
+        purge = [k for k, ln in enumerate(synth) if ln.strip() == "opt_clean -purge"]
+        if len(purge) != 1:
+            raise ScoreError(f"diagnose_names: {SCRIPT_SEQ} has {len(purge)} `opt_clean -purge` lines, not one")
+        synth[purge[0]] = "opt_clean"
+        run_yosys(yosys, "\n".join(synth) + "\n", workdir, "synth")
+        with open(os.path.join(workdir, "canon.log"), errors="replace") as fh:
+            regs = {m.group(1) or m.group(2) for sig in PROC_REGISTER.findall(fh.read())
+                    for m in VERILOG_NAME.finditer(sig)}
+        with open(netlist, errors="replace") as fh:
+            xs = {(m.group(1) or m.group(2)) for lhs, _ in NETLIST_X_ASSIGN.findall(fh.read())
+                  for m in VERILOG_NAME.finditer(lhs)}
+        with open(os.path.join(workdir, "synth.log"), errors="replace") as fh:
+            fsms = {re.sub(r"^\$fsm\$\\?(.*)\$\d+$", r"\1", cell) for cell, _ in FSM_MAPPED.findall(fh.read())}
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+    named = sorted(x for x in xs if x in regs or x.rsplit(".", 1)[-1] in regs)
+    return {"undefined": named or sorted(xs), "fsm": sorted(fsms)}
 
 
 def load_task(task_dir):

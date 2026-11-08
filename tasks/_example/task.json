@@ -7,7 +7,7 @@
   "parameters": [
     {
       "name": "N",
-      "range": "1 <= N"
+      "range": "1 <= N < 2^31"
     }
   ],
   "ports": {
@@ -66,7 +66,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "postsynth": {
     "random": 4000,
     "_comment": "The checker's postsynth stage (README.md, `postsynth` in the task.json table): the fixed corners (130 vectors at N = 16), the harvested comparison constants and 4000 seeded random vectors, each through ls-sv (`svgolf-eval`, about 0.05 ms per vector here) and the scored netlist (Verilator)."
@@ -81,6 +81,11 @@
       "sv": "reference/band_lp.sv",
       "lean": "reference/band_lp.lean",
       "note": "localparams in the header (port widths) and in the body (constant arithmetic)"
+    },
+    {
+      "sv": "reference/band_tactics.sv",
+      "lean": "reference/band_tactics.lean",
+      "note": "the same design (byte-identical to the first), proved with the sv_comb tactics (sv_structure, sv_interface, sv_equations) by the route of tasks/add/reference/add_n.lean: the proof the tutorial walks through"
     }
   ]
 }

@@ -18,11 +18,13 @@ import tasks._example.Spec
 import tasks.add.Spec
 import tasks.mul.Spec
 import tasks.fdivp.Spec
--- the sequential tasks (txtask-v1): matmul (ready), sorter (statement frozen, reference proof pending)
+-- the sequential tasks (txtask-v2 statements, `TxTask.StatementV2`, `StreamTask.StatementV2`): matmul and sorter (ready, references proved)
 import tasks.matmul.Spec
 import tasks.sorter.Spec
 import tasks.aes_sbox.Spec
 import tasks.clmul.Spec
+-- the reactive tasks (ReactTask, SvGolf/TaskReact.lean, 2026-11-05; txtask-v2's rules 2026-11-06; final trusted text, decided 2026-11-07): the arbiter (ready, reference proved)
+import tasks.arbiter.Spec
 -- the statements as named properties (proved, not trusted)
 import tasks._example.Properties
 import tasks.add.Properties

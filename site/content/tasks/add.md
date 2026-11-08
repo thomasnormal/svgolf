@@ -3,6 +3,8 @@ out of the top bit. The proof covers every width `N ≥ 1`; the score is taken a
 
 The circuit must be built from bitwise logic, multiplexers, selects and concatenations: run-time
 `+ - * / % **` are banned, because addition is the task (constant arithmetic on parameters and genvars
-stays allowed). The proved ripple-carry reference has 460.4 µm² and a 2.59 ns critical path on sky130
-(112 GE, depth 33). Parallel-prefix adders trade area for delay (Sklansky 541.8 µm² at 2.43 ns, Kogge-Stone
-641.9 µm² at 2.05 ns, both simulated but not yet proved), so there is a real frontier to golf.
+stays allowed). The proved ripple-carry reference has {{add_n.area}} and a {{add_n.time}} critical path on
+sky130 ({{add_n.ge}}, depth {{add_n.depth}}), {{add_n.score}}: par. Parallel-prefix adders trade area for
+delay (Sklansky {{add_n_sklansky.area}} at {{add_n_sklansky.time}}, Kogge-Stone {{add_n_kogge_stone.area}} at
+{{add_n_kogge_stone.time}}, both simulated but not yet proved); on area × time neither is ahead of the ripple
+yet ({{add_n_sklansky.score}} and {{add_n_kogge_stone.score}}).

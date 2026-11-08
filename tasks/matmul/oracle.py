@@ -15,7 +15,7 @@ complement, least significant entry first; B likewise; entry (i, j) of C is bits
   each reduced mod 2^AccW. It transcribes `Spec.lean`'s `product`.
 - `good(params, txn, result)`: True iff `result["C"]` is the product of the transaction's operands.
 - `mismatch(params, txn, result)`: None, or the first wrong entry in words, for reports.
-- `txns(params, seed, count=24)`: a deterministic list of transactions (below).
+- `txns(params, seed, count=24, rng=None)`: a deterministic list of transactions (below); `rng`: the checker's random source for the seed (check/postsynth.py `seed_draw`: derived from $SVGOLF_POSTSYNTH_SALT, F5, 2026-11-07); None: the deterministic one of (seed, params), for this file's self-test and the simulations.
 - `oracle(params, inputs)`: the comb tasks' shape (`check/postsynth.py`, `load_oracle`):
   {"C": product} for inputs {"A": .., "B": ..}.
 
@@ -128,10 +128,11 @@ def _signed(w, u):
     return (u ^ half) - half
 
 
-def txns(params, seed, count=24):
+def txns(params, seed, count=24, rng=None):
     n, w, accw = _point(params)
     big = 1000003
-    rng = random.Random(((seed * big + n) * big + w) * big + accw)
+    if rng is None:
+        rng = random.Random(((seed * big + n) * big + w) * big + accw)
     lo, hi, nn = -(1 << (w - 1)), (1 << (w - 1)) - 1, n * n
     extremes = sorted({lo, hi, -1, 0, 1 if w >= 2 else 0})
     unit = 1 if w >= 2 else -1   # the identity's diagonal; 1 is not a 1-bit signed value

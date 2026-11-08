@@ -1,0 +1,27 @@
+// svGolf reactive-controller probe: a round-robin arbiter adapted from a real-world design.
+//
+// PROVENANCE. lowRISC OpenTitan, https://github.com/lowRISC/opentitan, commit
+// 0a6ff6855bd9c6489110df167501e4d5f5c9bdbd, file hw/ip/prim/rtl/prim_arbiter_tree.sv
+// (sha256 cad891e0479a377896ecbcddaf6dd7d5b9aa6e5b18ba23654b61795fcf3083e1), Apache-2.0
+// (the upstream notice is kept below). Kept verbatim: the module name, the parameters, the
+// request/priority/select/mask trees, the generate structure (no loop unrolled), the grant and
+// mask-update equations. CHANGES, each with its reason:
+//  1. `include "prim_assert.sv"`, `ASSERT_INIT`, and the whole assertions section (the `ASSERT`/
+//     `ASSUME`/`ASSERT_KNOWN` macros and the `ifdef FPV_ON` block) are removed: the source gate
+//     refuses every directive and macro, and the extractor marks every assertion Unsupported.
+//     They are verification-only (no synthesized logic). Their content is the reactive spec a
+//     task statement would carry instead (RTL.md, the property catalogue).
+//  2. The asynchronous active-low reset `always_ff @(posedge clk_i or negedge rst_ni) if (!rst_ni)`
+//     becomes the synchronous active-high `always_ff @(posedge clk_i) if (rst_i)` (port rst_ni ->
+//     rst_i): contract C1 and the clocked rules (one event, posedge clk) and the pinned seq flow
+//     (no async-reset flop cell).
+//  3. The unpacked port `input [DW-1:0] data_i [N]` becomes the packed `input [N-1:0][DW-1:0]
+//     data_i` (the selects data_i[0], data_i[offset] are unchanged): the extractor refuses
+//     unpacked ports (PortSymbol:type) and the selects from them.
+//  4. The two packed 2-D trees `idx_tree` and `data_tree` are declared at module scope instead of
+//     inside the generate block `gen_normal_case` (same type, same name, same uses): the pinned
+//     Yosys 0.53 `read_verilog -sv` stops at any element access of a packed multidimensional array
+//     declared in a generate block ("Failed to detect width of signal access"; measured on the
+//     upstream file and on a 6-line repro). They are unused (and removed) when N = 1.
+// Nothing else changed (see the diff in RTL.md).
+//

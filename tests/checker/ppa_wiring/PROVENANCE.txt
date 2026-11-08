@@ -27,3 +27,48 @@ them, and that order is not stable: after the ls-sv change that added `*` to the
 `add_n` on ONE checkout reported [Quot.sound, Classical.choice, propext] and [propext, Quot.sound, Classical.choice] (the
 golden had [Quot.sound, propext, Classical.choice]). byte_identity.py now compares that list as a set (`ORDER_VOLATILE`:
 sorted on both sides), and the `axioms` lists of the two `full` files are written sorted; nothing else changed.
+
+CLEAN --unproved, 2026-11-05 (the newcomer study's B3, the shared contract item 1): a clean `check.py --unproved` run exits 0,
+and its success sentence moved from `errors` to a new `notes` list, with the new key `unproved_ok: true`. The two `unproved`
+files were re-recorded with UPDATE_GOLDEN=1 (`ByteIdentity.test_off_equals_the_baseline_and_has_no_ppa_trace`, the fake
+Lean): diffed against the previous goldens, `errors` is empty, `notes` holds the sentence character for character, and
+`unproved_ok` is new; nothing else changed. The `full` files do not have the keys (a proved run) and are unchanged. What a
+Lean slot wrapper adds (`waited` in a stage, the key `lean_wrap` of SVGOLF_LEAN_WRAP_ONCE=1) is stripped by
+byte_identity.without_ppa, like the sandbox's keys: whether a wrapper is in front of Lean is the machine's property.
+
+THE SOLUTION'S PROGRESS, 2026-11-05 (item 9 of the from-scratch study): the solution stage's record gains `progress`, when
+the kernel finished each declaration of this run (`check.py`, `progress_summary`). Its times are the run's, so
+byte_identity.without_ppa strips it like `waited`; the progress lines themselves are removed from `messages`, which stay
+as recorded. No golden was re-recorded.
+
+THE CPU LIMIT, 2026-11-06 (decided 2026-11-05: the proof time limit counts the Lean process's CPU seconds, not wall-clock
+seconds): the solution stage's record gains `cpu_seconds` (this run's CPU time: masked, RUN_VOLATILE), `time_limit_counts:
+"cpu"` and `wall_limit_s` (the wall-clock backstop, 5 x `time_limit_s` = 600). The two `full` files were edited by hand
+to add exactly these three keys; nothing else changed. The `unproved` files have no solution stage and are unchanged.
+
+EVERY TASK BANS RUN-TIME / % **, 2026-11-06 (the universal-correctness audit): `banlist.task_banlist` adds them to every
+task's list, so the `aes_sbox` results' `stages.banlist.operators` is `["/", "%", "**"]` instead of `[]` (front, backstop
+and diagnostics stay empty for `sbox_bp`). The two `aes_sbox` files were edited by hand to change exactly that list; the
+`add` files already listed the six operators and are unchanged.
+
+FOURSTATE AT EVERY PROBED POINT, 2026-11-06 (the universal-correctness audit C2, F4): the `fourstate` stage runs at the
+scoring point, then the task's probe and backstop points, and its record gains `points` (each point's verdict and time,
+the times masked) and `failed_point` (null on a pass). The two `unproved` files were re-recorded with UPDATE_GOLDEN=1
+(diffed: the fourstate record alone changed, and `add` lists N = 16, 1, 2, 3, 32, 64, `aes_sbox` its one point); the
+same fourstate record was copied into the two `full` files by hand, nothing else changed.
+
+THE CPU LIMIT'S VALUE, 2026-11-06 (decided 2026-11-06: 300 CPU s, CPU seconds count every elaboration thread): every
+task's `time_limit_s` is 300, so the `task` record and the solution stage's `time_limit_s` read 300 and `wall_limit_s`
+1500 (5 x 300). The four files were edited by hand to change exactly these numbers; nothing else changed.
+
+THE REPLAY LIMITS COUNT CPU, 2026-11-06 (the review of the CPU-seconds limit: a wall-clock limit on the comparator and
+`leanchecker` let the machine's load reject an honest record): `verify_time_limit_s` counts the CPU seconds of each run, with
+a wall-clock backstop of 5 times it, as the solution's limit does. Their stage records gain `cpu_seconds` (this run's CPU time:
+masked, RUN_VOLATILE), `time_limit_s` (900), `time_limit_counts: "cpu"` and `wall_limit_s` (4500), and `stopped_by` on a
+timeout only. The two `full` files were edited by hand to add exactly these four keys to `stages.comparator` and
+`stages.leanchecker`; nothing else changed. The `unproved` files run neither and are unchanged.
+
+THE PORTS, 2026-11-07: check.py's `extract` stage compares the top module's ports at every probe point with task.json `ports`
+(`port_problems`) and records the points it judged, `stages.extract.ports_checked`. The four files gained that key and nothing
+else: the two `unproved` ones rewritten by `UPDATE_GOLDEN=1` (diffed: the one key), the two `full` ones by inserting the same
+key with the same value (the same design, the same probe points: `N=1 ... N=64` for add_n, `the defaults` for sbox_bp).

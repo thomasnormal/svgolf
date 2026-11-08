@@ -45,15 +45,15 @@ load_sv wideOut from "tests/clmul/negative/wide_out.sv"
 /-! ## The two kinds of refutation -/
 
 /-- A concrete run that disagrees with the task refutes the statement at that `N`. -/
-theorem refuted_of_run {sem : Nat → Design2} (N : Nat) (hN : 1 ≤ N) (v : BitVec N × BitVec N × Unit)
+theorem refuted_of_run {sem : Nat → Design2} (N : Nat) (hN : task.inRange N) (v : BitVec N × BitVec N × Unit)
     (h : task.counterexample N (sem N) σ_src 256 v = true) : ¬ Statement sem :=
-  CombTask.not_statement_of (N := N) (show 1 ≤ N from hN) fun hs =>
+  CombTask.not_statement_of (N := N) hN fun hs =>
     CombTask.not_computes_of_counterexample (by simp [task]) h hs.2.2
 
 /-- A design whose output ports differ from the task's at some `N` fails the interface conjunct. -/
-theorem refuted_of_ports {sem : Nat → Design2} (N : Nat) (hN : 1 ≤ N)
+theorem refuted_of_ports {sem : Nat → Design2} (N : Nat) (hN : task.inRange N)
     (h : (outputPorts (sem N) != task.outputs N) = true) : ¬ Statement sem :=
-  CombTask.not_statement_of (N := N) (show 1 ≤ N from hN) fun hs => by
+  CombTask.not_statement_of (N := N) hN fun hs => by
     have hi := hs.1.2
     rw [hi] at h
     simp at h
@@ -62,30 +62,30 @@ theorem refuted_of_ports {sem : Nat → Design2} (N : Nat) (hN : 1 ≤ N)
 
 theorem topShift_refuted
     (h : task.counterexample 2 (topShift.sem 2) σ_src 256 (3#2, 3#2, ()) = true) :
-    ¬ Statement topShift.sem := refuted_of_run 2 (by omega) _ h
+    ¬ Statement topShift.sem := refuted_of_run 2 (by simp [task]) _ h
 
 theorem dropTop_refuted
     (h : task.counterexample 2 (dropTop.sem 2) σ_src 256 (3#2, 3#2, ()) = true) :
-    ¬ Statement dropTop.sem := refuted_of_run 2 (by omega) _ h
+    ¬ Statement dropTop.sem := refuted_of_run 2 (by simp [task]) _ h
 
 theorem orAccumulate_refuted
     (h : task.counterexample 2 (orAccumulate.sem 2) σ_src 256 (3#2, 3#2, ()) = true) :
-    ¬ Statement orAccumulate.sem := refuted_of_run 2 (by omega) _ h
+    ¬ Statement orAccumulate.sem := refuted_of_run 2 (by simp [task]) _ h
 
 /-- The reflected orientation: right at `N = 1`, wrong at `N = 2`, `a = b = 1`. -/
 theorem reversedP_refuted
     (h : task.counterexample 2 (reversedP.sem 2) σ_src 256 (1#2, 1#2, ()) = true) :
-    ¬ Statement reversedP.sem := refuted_of_run 2 (by omega) _ h
+    ¬ Statement reversedP.sem := refuted_of_run 2 (by simp [task]) _ h
 
 /-- Works only at the scoring point: at `N = 1` it gives `p = 0` for `a = b = 1`. -/
 theorem onlyN16_refuted
     (h : task.counterexample 1 (onlyN16.sem 1) σ_src 256 (1#1, 1#1, ()) = true) :
-    ¬ Statement onlyN16.sem := refuted_of_run 1 (by omega) _ h
+    ¬ Statement onlyN16.sem := refuted_of_run 1 (by simp [task]) _ h
 
 /-- A 2N-bit `p`: at `N = 1` the output port is 2 bits, the task's is 1. -/
 theorem wideOut_refuted
     (h : (outputPorts (wideOut.sem 1) != task.outputs 1) = true) : ¬ Statement wideOut.sem :=
-  refuted_of_ports 1 (by omega) h
+  refuted_of_ports 1 (by simp [task]) h
 
 /-! The hypotheses, by the interpreter: every run completes and disagrees with the task. -/
 

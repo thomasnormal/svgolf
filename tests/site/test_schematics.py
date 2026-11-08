@@ -57,7 +57,7 @@ def records():
 class CommittedTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tasks = gen.listed_tasks()
+        cls.tasks = gen.drawn_tasks()
         cls.display = read_json(gen.DISPLAY)
         cls.data = {}
         for t in cls.tasks:
@@ -71,7 +71,9 @@ class CommittedTest(unittest.TestCase):
         self.assertEqual(gen.check(self.tasks), [])
 
     def test_every_listed_task_has_a_display_instance(self):
-        self.assertEqual(sorted(self.tasks), sorted(self.display["tasks"]))
+        """Every listed task has one; a task the site does not list yet may have one prepared (the arbiter, decided
+        2026-11-07: drawn at N = 4 before it is listed), and its files are checked like the others."""
+        self.assertLessEqual(set(gen.listed_tasks()), set(self.display["tasks"]))
         for t in self.tasks:
             task = read_json(os.path.join(SVGOLF, "tasks", t, "task.json"))
             names = [p["name"] for p in task.get("parameters", [])]
@@ -163,6 +165,15 @@ class CommittedTest(unittest.TestCase):
                     compared += 1
                     self.assertEqual((sc["area_e4um2_sky130"], sc["delay_ps_sky130"], sc["cells_sky130"]),
                                      (g["area_e4um2"], g["delay_ps"], g["cells"]))
+                if sc.get("sequential"):     # a clocked reference: tests/expected.json's clocked columns
+                    exp = read_json(os.path.join(SVGOLF, "tests", "expected.json"))["tasks"][t]["references"]
+                    key = ",".join(f"{k}={v}" for k, v in sorted(sc["params"].items()))
+                    for name in d["names"]:
+                        s_ = (exp.get(name.split(" ", 1)[1]) or {}).get("scores", {}).get(key)
+                        if name.startswith("reference ") and s_:
+                            compared += 1
+                            self.assertEqual((sc["area_e4um2_sky130"], sc["delay_ps_sky130"], sc["flops"]),
+                                             (round(s_["area_um2"] * 10000), s_["period_ps"], s_["ffs"]))
                 path = sc["path"]
                 self.assertEqual(sum(1 for n in path if n["inst"]), sc["critical"]["cells"])
                 if not sc.get("sequential"):
@@ -197,13 +208,13 @@ def tools_missing():
 @unittest.skipIf(tools_missing(), tools_missing() or "")
 class DeterminismTest(unittest.TestCase):
     def test_two_runs_give_the_committed_bytes(self):
-        """The smallest designs, drawn whole and as a critical path: two runs byte-identical, and equal to the
-        committed files."""
+        """The smallest designs, drawn whole and as a critical path, and a clocked one (the arbiter, through the
+        clocked flow): two runs byte-identical, and equal to the committed files."""
         display = read_json(gen.DISPLAY)
         nsvg = gen.node_tool(os.environ["SVGOLF_NETLISTSVG"])
         tools = {"netlistsvg": gen.NETLISTSVG, "elkjs": gen.ELKJS, "yosys": gen.yosys_version(),
                  "skin_sha256": sha(gen.SKIN)}
-        for task in ("_example", "aes_sbox"):
+        for task in ("_example", "aes_sbox", "arbiter"):
             d = min(gen.designs(task), key=lambda d: os.path.getsize(os.path.join(SVGOLF, d["src"])))
             cfg = dict(display["tasks"][task], max_full_cells=display["max_full_cells"])
             runs = [gen.one_design(task, d, cfg, nsvg=nsvg, tools=tools, budget_left=10 ** 9) for _ in range(2)]

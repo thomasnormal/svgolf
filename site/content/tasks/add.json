@@ -1,5 +1,5 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `score_tips` (optional): the \"What moves the score\" box, observations from trial runs (Markdown inline, placeholders allowed), never promises.",
  "title": "N-bit adder",
  "subtitle": "Add two N-bit numbers and a carry in, with logic gates only.",
  "references": {
@@ -13,6 +13,12 @@
   "plus": "Yosys's own adder, `assign {cout, s} = a + b + cin;`, which uses the banned `+`.",
   "add_n_sklansky": "A Sklansky parallel-prefix adder, checked by simulation, not proved yet.",
   "add_n_kogge_stone": "A Kogge-Stone parallel-prefix adder, checked by simulation, not proved yet.",
-  "cmp_carry": "Every carry computed by a run-time comparison (the banlist allows comparisons), checked by simulation only."
- }
+  "cmp_carry": "Every carry computed by a run-time comparison, which Yosys builds as its own adder: banned in this task since 2026-11-05, like `+`."
+ },
+ "score_tips": [
+  "The pinned flow's ABC script restructures what you write: a two-bit lookahead carry came back as the same ripple of NAND gates, and scored worse.",
+  "Statement order and gate forms move both area and delay: the carry assign before the sum assign in the loop, and bit 0's carry written as a majority at module level with the loop from `i = 1`, each moved area × time by a few percent. Blank lines and signal or block names changed nothing.",
+  "Commuting the operands of one operator moves the A0' area by up to 11% and the delay by up to 32% (the maintainers' measurement, `score/PPA.md`).",
+  "`score/ppa.py solution.sv --task tasks/add --no-mapped --path` names the critical path with each net's arrival time: read it before you guess."
+ ]
 }

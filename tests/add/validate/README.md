@@ -11,8 +11,8 @@ python3.12 tests/add/validate/validate.py [--quick] [--lean-wrap CMD]
 ```
 
 For each design (the reference `tasks/add/reference/add_n.sv`, the baselines
-in `tests/add/baselines/` (Sklansky, Kogge-Stone and the comparison-carry
-probe `cmp_carry.sv`), Yosys's own `+` baseline `tests/add/negative/plus.sv`,
+in `tests/add/baselines/` (Sklansky, Kogge-Stone and the banned
+comparison-carry adder `cmp_carry.sv`), Yosys's own `+` baseline `tests/add/negative/plus.sv`,
 and the four functional negatives), at each width `N`:
 
 1. the source gate's canonical text is extracted by the pinned lean-surfaces
@@ -92,7 +92,7 @@ python3.12 tests/add/validate/postsynth.py [--widths 16,32,64] [--vectors 5000]
 ```
 
 Each design (the reference, the two prefix baselines, the `+` baseline and
-the `cmp_carry.sv` probe) is scored by exactly the pinned flow
+the banned `cmp_carry.sv`) is scored by exactly the pinned flow
 (`score/score.py`: the two-stage canonical flow, from the source gate's
 canonical text), which writes the scored gate netlist, and Verilator simulates
 THAT netlist (with Yosys's `simcells.v`, through the harness of
@@ -110,19 +110,24 @@ Every design's score at `N = 16, 32, 64` (gate mix, area in exact milli-GE,
 depth) is in `tests/expected.json`, and `tests/run.py` re-measures each with
 the pinned flow (`score/score.py`, source gate included).
 
-## `tests/add/baselines/cmp_carry.sv`: a policy probe
+## `tests/add/baselines/cmp_carry.sv`: Yosys's adder through comparisons (banned)
 
 Not a reference and not a negative: an adder whose every carry is a run-time
 comparison (`c[i] = (a[i-1:0] > ~b[i-1:0]) | ((a[i-1:0] == ~b[i-1:0]) & cin)`).
-The task bans `+ - * / % **` and keeps comparisons allowed, so it passes the
-banlist (front check and backstop, which runs before `alumacc`); Yosys then
-builds each comparison through an `$alu`, i.e. its own carry logic, and the
-pinned flow scores it at 195.975 GE, depth 17 (`N = 16`), lower depth than
-the proved reference. The extractor accepts it; it is correct in Verilator and
+Yosys's `alumacc` builds each comparison through an `$alu`, i.e. its own
+carry logic, and the pinned flow scores it at 195.975 GE, depth 17
+(`N = 16`), lower depth than every proved design. It was the policy probe of
+the question "should a comparison count as the banned operator in an adder
+task?", and the answer (decided 2026-11-05) is yes, at the Yosys level: in a
+task that bans `+` or `-`, the banlist's backstop runs `alumacc` after
+`proc; opt` and rejects every `$alu` it builds, i.e. every run-time ordering
+comparison (`score/banlist.py`; equality and comparisons Yosys folds as
+constants stay allowed). So it is now a BANNED baseline, scored with the
+banlist lifted like `tests/add/negative/plus.sv` (`tests/expected.json`
+`"banned": true`; `tests/run.py` checks that the banlist rejects it, at its
+comparison's line). The extractor accepts it; it is correct in Verilator and
 in ls-sv's `run2` (`validate.py`'s quick plan: exhaustive `N <= 3`, sampled
-`N = 8, 16`) and has no proof. It is here so the
-policy question (should a comparison count as the banned operator in an
-adder task?) has a concrete, reproducible example.
+`N = 8, 16`) and has no proof.
 
 ## The dead-clock negatives: where ls-sv and the simulators disagree
 

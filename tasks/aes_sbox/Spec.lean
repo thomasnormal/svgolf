@@ -14,7 +14,8 @@ module aes_sbox (
 ```
 
 Statement: the design has exactly the ports `x` (input, 8 bits) and `y` (output, 8 bits), every run
-terminates, no process is clocked, and in every cycle whose stimulus drives `x` with a known value
+terminates, no process is clocked, there is no combinational loop, and in every cycle whose stimulus
+drives `x` with a known value
 the snapshot's `y` is `sbox x`: the multiplicative inverse in
 GF(2^8) = GF(2)[x]/(x^8+x^4+x^3+x+1) (with 0 mapped to 0) followed by the affine transformation
 `b ^ rotl b 1 ^ rotl b 2 ^ rotl b 3 ^ rotl b 4 ^ 0x63`. It is `CombTask.StatementFixed` of

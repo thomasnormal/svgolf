@@ -6,7 +6,7 @@ import LeanModels.Sv.SeqProfile
 import LeanModels.Sv.SeqFamily
 import LeanModels.Sv.Known2
 import LeanModels.Sv.Mono2
-import SvGolf.Seq
+import SvGolf.SeqV2
 
 /-!
 # Reference solution for task `sorter`: the insertion-cell array (cell sort), latency `2N`
@@ -21,9 +21,9 @@ Proved at every in-range `(N, W)` through `StreamTask.satisfiedAt_of_phases` (`S
    ascending cells, and insertions commute, so `t` loads give `[0]^(N-t) ++ sortAsc` of the inputs.
 4. **The invariant** (`cv`, `tokv`, `ovb`, `at_step`): the cells, the token delay line and the output
    `j` cycles after a start; a drain shifts the sorted list down, so the state ends all zero.
-5. **The protocol** (`model`): `Ready` (zero) and `At ys j`, then `solution`. The packed-family lemmas
-   (`bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV`, `LVec.foldl_range_insertAt_last`) are in
-   `LeanModels.Sv.SeqFamily`, the per-signal commit `nbaFold` in `LeanModels.Sv.NbaCommit`.
+5. **The protocol** (`model`): `Ready` (zero) and `At ys j`; txtask-v2's rules (section 9); then
+   `solution`. The packed-family lemmas (`bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV`,
+   `LVec.foldl_range_insertAt_last`) are in `LeanModels.Sv.SeqFamily`, `nbaFold` in `LeanModels.Sv.NbaCommit`.
 -/
 
 namespace Submission
@@ -890,7 +890,11 @@ def model (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) : task.PhaseModel (N, W) (la
 
 theorem so_interface (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) :
     Tasks.Sorter.task.Interface (N, W) (design.sem N W) := by
-  rw [so_sem_eq N W hN hW]; exact ⟨rfl, rfl⟩
+  rw [so_sem_eq N W hN hW]
+  exact ⟨rfl, rfl, by
+    show (["clk", "rst", "start", "in_valid", "in_data", "out_valid", "out_data", "data", "tok"] :
+      List String).Nodup
+    decide⟩
 
 theorem so_disciplined (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) : Tasks.Sorter.task.Disciplined (design.sem N W) := by
   rw [so_sem_eq N W hN hW]
@@ -901,12 +905,79 @@ theorem so_disciplined (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) : Tasks.Sorter.
     simp [Tasks.Sorter.task, topP, outP, cellP, edgeClock, asyncReset, processDataNames, stmtNames,
       stmtOptNames, stmtListNames, lhsNames, exprNames]
 
-/-- **The reference satisfies the sorter statement at latency `2N`** (`16` at the scoring point). -/
+/-! ## 9. txtask-v2: every power-up (rule 2), Moore outputs (rule 1), no x-creating construct (rule 3)
+
+Rule 2: the phase model's shape `I` (the register widths, any values) holds at every power-up state
+(`so_powerUp`), and every obligation of the model holds from any state of the shape (a reset clears
+every cell and token), so the claim holds from every power-up (`StreamTask.satisfiedAtV2_of_phases`,
+`SvGolf.SeqV2`); the same cycle gives termination from every power-up (`so_terminatesPU`). Rule 1:
+every process is an `always_ff` (`so_profile`), so the design has no combinational dependency at all
+(`combDeps_of_ffOnly`). Rule 3 (`so_xsafe`): every expression is a known literal, a declared signal,
+an in-range window of `data` or `tok`, or a comparison. -/
+
+/-- **Rule 1.** -/
+theorem so_moore (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) :
+    MooreOutDep (design.sem N W) [Tasks.Sorter.task.rst] := by
+  rw [so_sem_eq N W hN hW]
+  exact MooreOutDep.of_noComb (combDeps_of_ffOnly (FFOnly.ofProfile (so_profile N W hN)))
+    (by simp [soD, soDeclsW, Design2.outputNames, Design2.inputNames])
+
+/-- Every power-up state of the design has its shape. -/
+theorem so_powerUp (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (st : SvState)
+    (h : PowerUp (design.sem N W) st) : I N W st := by
+  rw [so_sem_eq N W hN hW] at h
+  obtain ⟨ck, r1, rfl, -, -, h1⟩ := powerUp_cons.mp h
+  obtain ⟨r, r2, rfl, -, -, h2⟩ := powerUp_cons.mp h1
+  obtain ⟨s, r3, rfl, -, -, h3⟩ := powerUp_cons.mp h2
+  obtain ⟨iv, r4, rfl, -, -, h4⟩ := powerUp_cons.mp h3
+  obtain ⟨id, r5, rfl, -, -, h5⟩ := powerUp_cons.mp h4
+  obtain ⟨ov, r6, rfl, w6, -, h6⟩ := powerUp_cons.mp h5
+  obtain ⟨od, r7, rfl, w7, -, h7⟩ := powerUp_cons.mp h6
+  obtain ⟨dt, r8, rfl, w8, -, h8⟩ := powerUp_cons.mp h7
+  obtain ⟨tk, r9, rfl, w9, -, h9⟩ := powerUp_cons.mp h8
+  obtain rfl := powerUp_nil.mp h9
+  exact ⟨ck, r, s, iv, id, ov, od, dt, tk, rfl, w6, w7, w8, w9⟩
+
+/-- **Termination from every power-up** (the cycle of `so_terminates`). -/
+theorem so_terminatesPU (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) : TerminatesPU (design.sem N W) := by
+  refine TerminatesPU.of_invariant (I N W) (so_powerUp N W hN hW) (fun σ => ⟨30, ?_⟩) ?_
+  · rintro e _ kk ⟨ck, r, s, iv, id, ov, od, dt, tk, rfl, hw⟩
+    exact ⟨_, _, so_cycle N W hN hW σ e ck r s iv id ov od dt tk kk 30 (Nat.le_refl _),
+      next_I _ _ _ _ _ _ _ _ _ hw⟩
+  · rw [so_sem_eq N W hN hW]
+    simp [soD, topP, outP, cellP, Process2.hasQualifiedCase, Stmt2.hasQualifiedCase,
+      Stmt2.listHasQualifiedCase]
+
+/-- **Rule 3.** -/
+theorem so_xsafe (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) : XSafe (design.sem N W) := by
+  rw [so_sem_eq N W hN hW]
+  have hTop : (N - 1) * W + W ≤ N * W := rowMajor_le (K := W) (show N - 1 < N by omega)
+  have hOut : 0 + W ≤ N * W := by
+    have := rowMajor_le (K := W) (show 0 < N by omega); simpa using this
+  refine List.all_eq_true.mpr fun p hp => ?_
+  have hm : p ∈ topP N W :: outP W :: (List.range (N - 1)).map (cellP W) := by simpa [soD] using hp
+  simp only [List.mem_cons, List.mem_map, List.mem_range] at hm
+  rcases hm with rfl | rfl | ⟨k, hk, rfl⟩
+  · simp [xsProc, xsStmt, xsStmts, xsOpt, xsLhs, xsWidth, binW, sigWidth, topP, dw, zW, soD, soDeclsW,
+      LVec.replicate_l0, hTop]
+    all_goals omega
+  · simp [xsProc, xsStmt, xsStmts, xsOpt, xsLhs, xsWidth, binW, sigWidth, outP, dw, zW, soD, soDeclsW,
+      LVec.replicate_l0, hOut]
+    all_goals omega
+  · have h1 : (k + 1) * W + W ≤ N * W := rowMajor_le (K := W) (show k + 1 < N by omega)
+    have h2 : k * W + W ≤ N * W := rowMajor_le (K := W) (show k < N by omega)
+    simp [xsProc, xsStmt, xsStmts, xsOpt, xsLhs, xsWidth, binW, sigWidth, cellP, dw, zW, soD, soDeclsW,
+      LVec.replicate_l0, h1, h2]
+    all_goals omega
+
+/-- **The reference satisfies the sorter statement (txtask-v2) at latency `2N`** (`16` at the
+scoring point). -/
 theorem solution : Goal lat := by
   refine ⟨fun p hp => ?_, rfl⟩
   obtain ⟨N, W⟩ := p
   obtain ⟨hN, hW, -⟩ := hp
-  exact Tasks.Sorter.task.satisfiedAt_of_phases (so_interface N W hN hW) (so_disciplined N W hN hW)
-    (so_terminates N W hN hW) hN (show N ≤ 2 * N by omega) (fun xs h => (len_sort xs).trans h) (model N W hN hW)
+  exact Tasks.Sorter.task.satisfiedAtV2_of_phases (so_interface N W hN hW) (so_disciplined N W hN hW)
+    (so_terminatesPU N W hN hW) hN (show N ≤ 2 * N by omega) (fun xs h => (len_sort xs).trans h)
+    (model N W hN hW) (so_powerUp N W hN hW) (so_moore N W hN hW) (so_xsafe N W hN hW)
 
 end Submission

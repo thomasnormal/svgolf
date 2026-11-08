@@ -1,0 +1,219 @@
+{
+  "assisted_by": [
+    "Claude Opus 5.5 (Anthropic)"
+  ],
+  "canonical_sha256": "86215572ee2ce6b6f4e134debd96e9d4cd4b62cdfa579fcc96cf068ccd661c68",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "e708084f72f955b0ae1aaabe469dba3eacc5a91484a1ed81bcc073b60f3c0b6d",
+      "check/Comparator.lean": "3145eb578ca71e452eff05a398e8ad04673e6c72ca5343b234cb22e2cefe65a6",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "4e1ee2110c63f24e033dd689c929ea686ddf10f4db23b9057c6fb711394c7558",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "f18c14c23a14d55db63e202f42cc424dc84c1dd1c337f132ad60859dc9d5d33a",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "95332451ae3754226fb87b46027385b46a91121e7eb9ae25b302bce756d90475",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "54b93ca63888009d0671c8978e8ab7bf4fb8ce303bc78d3b4e1f83d946cc3201",
+      "score/ppa.py": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "88a13caa17ef6765f2c63bf22455ab39071df750",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "tasks/add/Spec.lean": "08be62a5c0b228b14ffb23c4d02148d62972027480a4ebbc50a9de7e53a201cb"
+    },
+    "svgolf_revision": "88a13caa17ef6765f2c63bf22455ab39071df750",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "Solution.lean",
+      "sha256": "ecb1b45b3b17e9fb9a86083f6bc821e6ce8cbae22ae702df25e8b6cecb78765b"
+    },
+    "sv": {
+      "name": "solution.sv",
+      "sha256": "52e1d40feb1823cf5a143674deb33d6d77ea611f898ee83b81fa3725abbebee9"
+    }
+  },
+  "notes": "Made by an AI agent (Claude Opus, Anthropic) in the maintainers' newcomer study on 2026-11-05, as a new design rather than a variation of a shipped one; the agent chose the player name. The design is a carry-select adder with 6-bit blocks, for every N >= 1: Q = N/6 blocks and an R = N%6 ripple tail, both integer localparams. Block j keeps two ripple chains in row j of the 2-D arrays c0 (block carry-in 0) and c1 (block carry-in 1); a multiplexer row cs picks the carry into each bit by the block carry cb[j], the block carries ripple through one multiplexer per block, and the sum bits are p ^ carry, written in two trailing loops. The block size and the placement of the sum assigns were chosen by sweeps scored with score/ppa.py. The proof takes the sv_structure / sv_interface / sv_equations / sv_bridge / sv_cover route with its own rank function over the site ids; its arithmetic is plain Lean, generic in the block size (a ripple carry restarted at any position, two chain lemmas and a multiplexer lemma), and shows that the selected carries are the ripple carries, so the design meets CombLib.AddView and add_spec finishes the proof. The comments in both files are the agent's. Proof ported by the maintainers for the 2026-11-06 range change; design unchanged.",
+  "player": "select-six",
+  "postsynth": {
+    "full_vectors": 4132,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "N=16",
+    "salted": false,
+    "seed": "4348e13c54f2015c5f7ef8bd27a4f22ed7e1bcd4e984869b354d99d2b45f12e7",
+    "vectors": 4132
+  },
+  "ppa": {
+    "area_e4um2_sky130": 4742048,
+    "area_um2_sky130": 474.2048,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 1,
+      "mux2_1": 1,
+      "nand2_1": 49,
+      "or2_1": 3,
+      "xnor2_1": 1,
+      "xor2_1": 28
+    },
+    "cells_sky130": 83,
+    "constants": false,
+    "critical": {
+      "cells": 30,
+      "edge": "r",
+      "output": "s[15]"
+    },
+    "delay_ps_sky130": 2479,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.144,
+      "worst_transition_ratio": 0.178
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+      "area_e4um2_sky130_mapped_v1": 4479296,
+      "area_um2_sky130_mapped_v1": 447.9296,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 15,
+        "edge": "f",
+        "output": "cout"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "a211oi_1": 1,
+        "a21oi_1": 1,
+        "and2_0": 2,
+        "maj3_1": 13,
+        "nand2_1": 1,
+        "nand3_1": 1,
+        "nor2_1": 4,
+        "nor3_1": 1,
+        "o21ai_0": 1,
+        "o31ai_1": 1,
+        "or2_0": 1,
+        "xnor2_1": 26,
+        "xor2_1": 2
+      },
+      "mapped_cells_sky130_v1": 55,
+      "mapped_delay_sky130_v1": 5525,
+      "mapped_inverters_sky130_v1": 0,
+      "mapped_levels_sky130_v1": 15,
+      "netlist_sha256": "788e952ac5fc8b4efe4f9a980b5cd59fcc2659205ace26f8713cc473d9a3d7c0",
+      "ppa_mapped_pins_sha256": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v1",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+      "rtlil_sha256": "8c7d4b7ea7ac23b7d36520b2c742dcd08655d29414d5fdd7440df5b095ab8180",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "netlist_sha256": "8336e9565c6f0afb8d7124305394f022f1878b9b9c33f5fee277995dda94041c",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 83,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "202476f3c9450be314ecab23dfe870ff3ad300ea4671a0e0647e20981380f779",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 33
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 28.65,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombLib"
+    ],
+    "lines": 332,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp",
+      "sv_cover",
+      "sv_equations",
+      "sv_interface",
+      "sv_rowmajor",
+      "sv_structure"
+    ],
+    "uses_comb_eq": true,
+    "uses_comb_view": false
+  },
+  "record_hash": "d20bd7d9a6e6c181bf3ce92b55d7bb610fd7bd7dada03f3bab5ca0bb000dc315",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 114.665,
+    "area_mge": 114665,
+    "depth": 33,
+    "gates": {
+      "AND": 1,
+      "MUX": 1,
+      "NAND": 49,
+      "OR": 3,
+      "XNOR": 1,
+      "XOR": 28
+    },
+    "num_gates": 83,
+    "rtlil_sha256": "8c7d4b7ea7ac23b7d36520b2c742dcd08655d29414d5fdd7440df5b095ab8180",
+    "scoring_point": {
+      "N": 16
+    },
+    "top": "add_n"
+  },
+  "submitted_at": "2026-11-05",
+  "task": "add"
+}

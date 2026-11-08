@@ -14,7 +14,10 @@ four properties, each under the same protocol (`UnderProtocol`): `OutValidKnown`
 `SilentBeforeFirstStart`, `EmitsSorted` and `SilentAfterLatency`. The last two split the
 statement's per-transaction claim (one list of observations that emits the sorted values and is
 silent after the latency) in two; they are equivalent to it because the snapshots fix the
-`out_valid` bit of every observation.
+`out_valid` bit of every observation. Under txtask-v2 (DRAFT, 2026-11-05, revision 2) every run is
+from a power-up state: `Terminates` and `UnderProtocol` quantify over every power-up state and every
+known stimulus (rule 2); rules 1 and 3 are two more properties, `MooreOutputs` and `NoXCreating`,
+each the trusted conjunct verbatim.
 -/
 
 namespace SvGolf.Tasks.Sorter.Properties
@@ -25,10 +28,10 @@ open SvGolf LeanModels.Sv
 def ParamsInRange (N W : Nat) : Prop :=
   1 ≤ N ∧ 1 ≤ W ∧ N * W < 2 ^ 31
 
-/-- Exactly these ports, in this order, with these widths. -/
+/-- Exactly these ports, in this order, with these widths; no two declarations share a name. -/
 def Interface (W : Nat) (d : Design2) : Prop :=
   inputPorts d = [("clk", 1), ("rst", 1), ("start", 1), ("in_valid", 1), ("in_data", W)] ∧
-    outputPorts d = [("out_valid", 1), ("out_data", W)]
+    outputPorts d = [("out_valid", 1), ("out_data", W)] ∧ (d.decls.toList.map Decl.name).Nodup
 
 /-- `clk` is an input; every process that runs at a clock edge is clocked by `clk`; an
 asynchronous reset can only be `rst`; no process reads `clk` as data. -/
@@ -39,20 +42,33 @@ def ClockDiscipline (d : Design2) : Prop :=
       (∀ r, asyncReset p = some r → r = "rst") ∧
       "clk" ∉ processDataNames p
 
-/-- Under every schedule and every stimulus, the run completes. -/
+/-- From every power-up state, under every schedule and every known stimulus, the run completes. -/
 def Terminates (d : Design2) : Prop :=
-  ∀ (σ : ScheduleOracle) (stim : List SvState), ∃ tr, Runs2 d σ stim tr
+  ∀ st0, PowerUp d st0 → ∀ (σ : ScheduleOracle) (stim : List SvState), KnownStim d stim →
+    ∃ tr, RunsAt d σ st0 stim tr
 
 /-- The declared latency is at least one cycle. -/
 def LatencyAtLeastOne (lat : Nat) : Prop :=
   1 ≤ lat
 
-/-- `G` holds in every completed run, from every release `c1` of the reset, up to every horizon
-`h` before which the environment kept the protocol (`StreamTask.Rely`). -/
+/-- No combinational path leads from an input port other than `rst` to an output port
+(`MooreOutDep`, txtask-v2 rule 1): `out_valid` and `out_data` are functions of the registers, so
+every snapshot is what the wires show for the whole next period. -/
+def MooreOutputs (d : Design2) : Prop :=
+  MooreOutDep d ["rst"]
+
+/-- `G` holds in every completed run from every power-up state on every known stimulus, from every
+release `c1` of the reset, up to every horizon `h` before which the environment kept the protocol
+(`StreamTask.Rely`). -/
 def UnderProtocol (N W : Nat) (d : Design2)
     (G : List SvState → List SvState → Nat → Nat → Prop) : Prop :=
-  d ⊨₂ spec2 fun stim tr =>
+  ModelsPU d fun stim tr =>
     ∀ c1 h, Released "rst" stim c1 h → task.Rely (N, W) stim tr c1 h → G stim tr c1 h
+
+/-- No construct of the design can create an `x` or `z` from known operands (`XSafe`, txtask-v2
+rule 3): with the power-up rule, every value of every run is known. -/
+def NoXCreating (d : Design2) : Prop :=
+  XSafe d
 
 /-- `out_valid` is a known bit at every cycle from the release. -/
 def OutValidKnown (N W : Nat) (d : Design2) : Prop :=
@@ -111,25 +127,25 @@ private theorem bitIs_unique {st : SvState} {n : String} {a b : Bool} (ha : BitI
 
 /-- The guarantee is the four properties. -/
 theorem follows_iff (N W lat : Nat) (d : Design2) :
-    task.Follows (N, W) lat d ↔
+    task.FollowsPU (N, W) lat d ↔
       OutValidKnown N W d ∧ SilentBeforeFirstStart N W d ∧ EmitsSorted N W lat d ∧
         SilentAfterLatency N W lat d := by
   constructor
   · intro hF
     refine ⟨?_, ?_, ?_, ?_⟩
-    · intro σ stim tr hr c1 h hrel hrely
-      exact (hF σ stim tr hr c1 h hrel hrely).1
-    · intro σ stim tr hr c1 h hrel hrely
-      exact (hF σ stim tr hr c1 h hrel hrely).2.1
-    · intro σ stim tr hr c1 h hrel hrely s xs e hlat htx
+    · intro st0 h0 σ stim tr hks hr c1 h hrel hrely
+      exact (hF st0 h0 σ stim tr hks hr c1 h hrel hrely).1
+    · intro st0 h0 σ stim tr hks hr c1 h hrel hrely
+      exact (hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.1
+    · intro st0 h0 σ stim tr hks hr c1 h hrel hrely s xs e hlat htx
       obtain ⟨hs, hst, hlen, hdata, hse, heh, hno, hnext⟩ := htx
       obtain ⟨obs, hl, hsh, hem, _⟩ :=
-        (hF σ stim tr hr c1 h hrel hrely).2.2 s xs hs hlat hst hlen hdata e hse heh hno hnext
+        (hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.2 s xs hs hlat hst hlen hdata e hse heh hno hnext
       exact ⟨obs, hl, hsh, hem⟩
-    · intro σ stim tr hr c1 h hrel hrely s xs e hlat htx c hc hce
+    · intro st0 h0 σ stim tr hks hr c1 h hrel hrely s xs e hlat htx c hc hce
       obtain ⟨hs, hst, hlen, hdata, hse, heh, hno, hnext⟩ := htx
       obtain ⟨obs, hl, hsh, _, hq⟩ :=
-        (hF σ stim tr hr c1 h hrel hrely).2.2 s xs hs hlat hst hlen hdata e hse heh hno hnext
+        (hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.2 s xs hs hlat hst hlen hdata e hse heh hno hnext
       have hk : c - s < obs.length := by omega
       obtain ⟨o, ho⟩ : ∃ o, obs[c - s]? = some o := ⟨_, List.getElem?_eq_getElem hk⟩
       obtain ⟨st, hst', hb, _⟩ := hsh (c - s) o ho
@@ -138,17 +154,17 @@ theorem follows_iff (N W lat : Nat) (d : Design2) :
       refine ⟨st, hst', ?_⟩
       rw [hq (c - s) o ho (by omega)] at hb
       exact hb
-  · rintro ⟨hK, hS, hE, hQ⟩ σ stim tr hr c1 h hrel hrely
-    refine ⟨hK σ stim tr hr c1 h hrel hrely, hS σ stim tr hr c1 h hrel hrely,
+  · rintro ⟨hK, hS, hE, hQ⟩ st0 h0 σ stim tr hks hr c1 h hrel hrely
+    refine ⟨hK st0 h0 σ stim tr hks hr c1 h hrel hrely, hS st0 h0 σ stim tr hks hr c1 h hrel hrely,
       fun s xs hs hlat hst hlen hdata e hse heh hno hnext => ?_⟩
     have htx : Transaction N W stim c1 h s xs e := ⟨hs, hst, hlen, hdata, hse, heh, hno, hnext⟩
-    obtain ⟨obs, hl, hsh, hem⟩ := hE σ stim tr hr c1 h hrel hrely s xs e hlat htx
+    obtain ⟨obs, hl, hsh, hem⟩ := hE st0 h0 σ stim tr hks hr c1 h hrel hrely s xs e hlat htx
     refine ⟨obs, hl, hsh, hem, fun k o hk hlk => ?_⟩
     obtain ⟨st, hst', hb, _⟩ := hsh k o hk
     have hkl : k < obs.length := by
       obtain ⟨hkl, _⟩ := List.getElem?_eq_some_iff.1 hk
       exact hkl
-    obtain ⟨st', hst'', hb'⟩ := hQ σ stim tr hr c1 h hrel hrely s xs e hlat htx (s + k)
+    obtain ⟨st', hst'', hb'⟩ := hQ st0 h0 σ stim tr hks hr c1 h hrel hrely s xs e hlat htx (s + k)
       (by omega) (by omega)
     rw [hst'] at hst''
     cases hst''
@@ -158,15 +174,16 @@ theorem follows_iff (N W lat : Nat) (d : Design2) :
 theorem statement_iff_properties (sem : Nat → Nat → Design2) (lat : Nat → Nat → Nat) :
     Statement sem lat ↔ ∀ N W, ParamsInRange N W →
       Interface W (sem N W) ∧ ClockDiscipline (sem N W) ∧ Terminates (sem N W) ∧
-        LatencyAtLeastOne (lat N W) ∧ OutValidKnown N W (sem N W) ∧
+        LatencyAtLeastOne (lat N W) ∧ MooreOutputs (sem N W) ∧ NoXCreating (sem N W) ∧
+        OutValidKnown N W (sem N W) ∧
         SilentBeforeFirstStart N W (sem N W) ∧ EmitsSorted N W (lat N W) (sem N W) ∧
         SilentAfterLatency N W (lat N W) (sem N W) := by
   constructor
   · intro h N W hp
-    obtain ⟨hi, ⟨hd, ht⟩, hl, hf⟩ := h (N, W) hp
-    exact ⟨hi, (clockDiscipline_iff _).2 hd, ht, hl, (follows_iff N W _ _).1 hf⟩
+    obtain ⟨hi, ⟨hd, ht⟩, hl, hf, hm, hk⟩ := h (N, W) hp
+    exact ⟨hi, (clockDiscipline_iff _).2 hd, ht, hl, hm, hk, (follows_iff N W _ _).1 hf⟩
   · rintro h ⟨N, W⟩ hp
-    obtain ⟨hi, hd, ht, hl, hf⟩ := h N W hp
-    exact ⟨hi, ⟨(clockDiscipline_iff _).1 hd, ht⟩, hl, (follows_iff N W _ _).2 hf⟩
+    obtain ⟨hi, hd, ht, hl, hm, hk, hf⟩ := h N W hp
+    exact ⟨hi, ⟨(clockDiscipline_iff _).1 hd, ht⟩, hl, (follows_iff N W _ _).2 hf, hm, hk⟩
 
 end SvGolf.Tasks.Sorter.Properties

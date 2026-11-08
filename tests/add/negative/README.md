@@ -2,9 +2,15 @@
 
 Each design here tries one way to look like an adder without meeting the
 statement. Every Lean-level case is REFUTED in `Refute.lean` (built by
-`lake build`): a kernel-checked proof of
+`lake build tests.add.negative.Refute`): a kernel-checked proof of
 `¬ SvGolf.Tasks.Add.Statement <design>.sem`, standard axioms only, at the
 smallest width `N = 1`.
+
+**Waits for the int32 port round.** The pinned ls-sv's loader refuses `only_n16.sv` (`PDesign.int32Agrees`:
+at the defaults an INT-class constant expression leaves the 32-bit range), so `Refute.lean` does not build at
+the pin. It is unchanged and not in the default `lake build` (`tests.lean` does not import it); `tests/run.py`'s
+`negatives` step builds it alone and checks that it fails with that refusal (`PENDING_REFUTES`; the svGolf
+README, "Building"). The `check.py` rejections in the table do not depend on it.
 
 | design | what it tries | how it fails | refutation | checker stage |
 |---|---|---|---|---|

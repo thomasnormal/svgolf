@@ -1,0 +1,28 @@
+{
+ "_comment": "Public one-sentence descriptions of the designs the checker rejects (site/build.py, \"What does not count\"), keyed by the stem of the file in tests/<task>/negative/ (`negatives`) or tests/<task>/attacks/ (`attacks`). Every negative and attack of tests/expected.json that the checker rejects needs one; the stage comes from tests/expected.json. The internal notes there are never shown.",
+ "negatives": {
+  "bit_ring": "A correct round-robin behind a test of a 2-state ring that is never reset: fair from the power-up value 0, where a simulator starts it, and fixed priority for ever from all ones.",
+  "reset_edge": "A correct round-robin behind a flag that the reset sets from a register's power-up value: from all ones the first segment after the reset is fixed priority."
+ },
+ "attacks": {
+  "a01_never": "Never grant: nobody is served when someone requests.",
+  "a02_everyone": "Grant every requester: two clients hold the grant at once.",
+  "a03_zero": "Always grant client 0: a grant to a client that does not ask, and the others starve.",
+  "a04_fixed": "Fixed priority, the lowest requester wins: every cycle is legal, but a persistent high requester starves.",
+  "a05_ring": "A free-running token ring that ignores the requests: it grants clients that do not ask.",
+  "a06_tdma": "Time division: a token ring gated by the requests is fair but idles while someone waits.",
+  "a07_late": "A correct round-robin decision delivered one cycle late: it answers the previous cycle's requests.",
+  "a08_sticky": "A sticky round-robin: the priority stays with the granted client, so a persistent requester keeps it.",
+  "a09_rotate_pow2": "Rotating priority whose counter wraps at the next power of two: right at N = 8, wrong at N = 3 and 5.",
+  "a10_mealy_last": "A correct registered grant behind a combinational output that copies the requests whenever they change: every snapshot is right, the wire is not.",
+  "a11_noreset": "A round-robin whose grant register has no reset: out of reset it still shows its power-up value or its last grant.",
+  "a12_stale_mask": "A mask round-robin that forgets to update the mask on the wrap-around grant: a requester starves.",
+  "a13_async": "A round-robin with an asynchronous reset: the reset is synchronous on this task, and the source check refuses the second event.",
+  "a14_mealy_rr": "A combinational round-robin with the mask registered, no output register: the grant moves with the requests within a cycle.",
+  "a15_half_rate": "A round-robin that arbitrates every other cycle: requesters wait while nobody is granted.",
+  "a16_xopt": "A correct round-robin behind a test of a register that only holds itself: synthesis removes the register and builds fixed priority, a simulator stays fair, and from the power-up value 0 the design is fixed priority too. The checker refuses a register that is never loaded.",
+  "a17_timebomb": "A correct round-robin for 4095 cycles after a reset and fixed priority after that: only a long run without a reset shows it.",
+  "m004_wide_req": "The reference with its request port one bit wider than the task's: right grants on the wrong interface, so no proof can exist; refused when the checker compares the ports, before any other stage.",
+  "m007_wide_gnt": "The reference with its grant port one bit wider than the task's, the extra bit never set: refused when the checker compares the ports."
+ }
+}

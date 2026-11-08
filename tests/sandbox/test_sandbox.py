@@ -204,12 +204,74 @@ class SupervisorLimits(unittest.TestCase):
         self.assertEqual(p.returncode, 3)
         self.assertIn("out", p.stdout)
         self.assertIn("err", p.stderr)
-        self.assertRegex(p.stderr, r"SVGOLF_ELAPSED [\d.]+ peak_rss_mb=\d+ out_bytes=\d+ verdict=none\n$")
+        self.assertRegex(p.stderr, r"SVGOLF_ELAPSED [\d.]+ cpu_s=[\d.]+ peak_rss_mb=\d+ out_bytes=\d+ verdict=none\n$")
 
     def test_wall_clock(self):
         p = self.run_sup(["1"], "import time; time.sleep(30)")
         self.assertEqual(p.returncode, 124)
-        self.assertIn("SVGOLF_TIMEOUT", p.stderr)
+        self.assertRegex(p.stderr, r"SVGOLF_TIMEOUT after [\d.]+s cpu_s=[\d.]+ by=wall\n$")
+
+    # The CPU limit (`--cpu-limit-s`, decided 2026-11-05: the proof limit counts CPU seconds, not wall-clock seconds)
+
+    def timeout_fields(self, stderr):
+        line = [ln for ln in stderr.splitlines() if ln.startswith("SVGOLF_TIMEOUT after ")][-1]
+        wall = float(line.split()[2].rstrip("s"))
+        return wall, dict(kv.split("=") for kv in line.split()[3:])
+
+    def test_cpu_limit_stops_a_computation(self):
+        """A CPU-bound command is stopped at the CPU limit, long before the wall-clock limit: `by=cpu`."""
+        p = self.run_sup(["60", "--cpu-limit-s", "1.5"], "while True: pass")
+        self.assertEqual(p.returncode, 124)
+        wall, f = self.timeout_fields(p.stderr)
+        self.assertEqual(f["by"], "cpu")
+        self.assertGreaterEqual(float(f["cpu_s"]), 1.5)
+        self.assertLess(wall, 30)
+
+    def test_a_sleeping_command_uses_no_cpu_and_meets_the_wall_clock_backstop(self):
+        """Waiting is not CPU: a command that sleeps never reaches its CPU limit, and the wall-clock limit (the
+        backstop) stops it: `by=wall`, with the few CPU seconds it used."""
+        p = self.run_sup(["2", "--cpu-limit-s", "1.5"], "import time; time.sleep(30)")
+        self.assertEqual(p.returncode, 124)
+        wall, f = self.timeout_fields(p.stderr)
+        self.assertEqual(f["by"], "wall")
+        self.assertLess(float(f["cpu_s"]), 1.0)
+        self.assertGreaterEqual(wall, 2.0)
+
+    def test_the_cpu_of_the_whole_process_tree_counts(self):
+        """A child that computes while its parent waits is the command's CPU too."""
+        code = ("import subprocess, sys\n"
+                "subprocess.run([sys.executable, '-c', 'while True: pass'])")
+        p = self.run_sup(["60", "--cpu-limit-s", "1.5"], code)
+        self.assertEqual(p.returncode, 124)
+        wall, f = self.timeout_fields(p.stderr)
+        self.assertEqual(f["by"], "cpu")
+        self.assertLess(wall, 30)
+
+    def test_cpu_over_the_limit_between_two_polls_is_still_over(self):
+        """A short-lived child the poll may miss is counted when the command ends (`wait4` of the tree): a command that
+        finishes with more CPU than its limit is stopped by it all the same."""
+        burn = "import time\nt = time.process_time()\nwhile time.process_time() - t < 0.4: pass\n"
+        code = ("import subprocess, sys\n"
+                f"for _ in range(5): subprocess.run([sys.executable, '-c', {burn!r}])\n")
+        p = self.run_sup(["60", "--cpu-limit-s", "1.0"], code)
+        self.assertEqual(p.returncode, 124, p.stderr)
+        _, f = self.timeout_fields(p.stderr)
+        self.assertEqual(f["by"], "cpu")
+        self.assertGreater(float(f["cpu_s"]), 1.0)
+
+    def test_a_run_under_the_cpu_limit_reports_its_cpu(self):
+        p = self.run_sup(["60", "--cpu-limit-s", "30"],
+                         "import time\nt = time.process_time()\nwhile time.process_time() - t < 0.5: pass\n")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        cpu = float(p.stderr.split("cpu_s=")[-1].split()[0])
+        self.assertGreaterEqual(cpu, 0.5)
+        self.assertLess(cpu, 5.0)
+
+    def test_ps_time_parses_both_platforms(self):
+        self.assertEqual(supervisor.ps_time_s("0:00.33"), 0.33)
+        self.assertEqual(supervisor.ps_time_s("122:08.37"), 7328.37)
+        self.assertEqual(supervisor.ps_time_s("00:02:05"), 125.0)
+        self.assertEqual(supervisor.ps_time_s("1-02:00:00"), 93600.0)
 
     def test_output_cap_stops_a_flood_and_bounds_what_the_checker_buffers(self):
         p = self.run_sup(["30", "--out-mb", "1"], "import sys\nwhile True: sys.stdout.write('A'*65536); sys.stdout.flush()")
@@ -239,6 +301,24 @@ class SupervisorLimits(unittest.TestCase):
         clean, elapsed, fields = check.split_status(p.stderr)
         self.assertGreater(elapsed, 0.0 - 1e-9)
         self.assertNotIn("SVGOLF_ELAPSED", clean)
+
+    def test_pty_delivers_each_line_before_the_kill_and_keeps_the_bytes(self):
+        """`--pty`: the command's stdout is a pseudo-terminal, so a program that buffers by C stdio's rule (Python
+        here, Lean in the checker) writes each line as it ends: what it printed before the wall-clock kill arrives,
+        byte for byte (raw mode: no carriage returns); through the default pipe it is lost in the buffer."""
+        code = "import sys, time; print('one'); print('two\\tx'); time.sleep(30)"
+        on = self.run_sup(["2", "--pty"], code)
+        self.assertEqual(on.returncode, 124)
+        self.assertEqual(on.stdout, "one\ntwo\tx\n")
+        self.assertIn("SVGOLF_TIMEOUT", on.stderr)
+        off = self.run_sup(["2"], code)
+        self.assertEqual((off.returncode, off.stdout), (124, ""))
+
+    def test_pty_with_merge_carries_stderr_and_the_status_line_stays_apart(self):
+        p = self.run_sup(["30", "--pty", "--merge"], "import sys; print('o'); print('e', file=sys.stderr); sys.exit(4)")
+        self.assertEqual(p.returncode, 4)
+        self.assertEqual(sorted(p.stdout.splitlines()), ["e", "o"])
+        self.assertRegex(p.stderr, r"^SVGOLF_ELAPSED [\d.]+ cpu_s=[\d.]+ peak_rss_mb=\d+ out_bytes=4 verdict=none\n$")
 
     def test_merge_and_cwd(self):
         with tempfile.TemporaryDirectory() as d:
@@ -483,7 +563,7 @@ class LeanPlumbing(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
         self.pol.close()
 
-    def run_lean(self, args, timeout=None, produce=None, bv_solver=False):
+    def run_lean(self, args, timeout=None, produce=None, bv_solver=False, cpu_limit=None, lean_out=None):
         lean = self.check.Lean(self.stage, ["/slot.sh"])
         lean._lake_env = (self.search, self.sysroot)
         calls = self.calls
@@ -492,9 +572,34 @@ class LeanPlumbing(unittest.TestCase):
             calls.append((cmd, kw))
             if produce:
                 produce(cmd)
-            return subprocess.CompletedProcess(cmd, 0, "out text\n", "SVGOLF_ELAPSED 1.50 peak_rss_mb=7 out_bytes=9 verdict=none\n")
+            if lean_out:
+                return subprocess.CompletedProcess(cmd, *lean_out)
+            return subprocess.CompletedProcess(cmd, 0, "out text\n",
+                                              "SVGOLF_ELAPSED 1.50 cpu_s=2.25 peak_rss_mb=7 out_bytes=9 verdict=none\n")
         with mock.patch.object(sandbox, "policy", return_value=self.pol), mock.patch.object(self.check.subprocess, "run", fake_run):
-            return lean.run(args, timeout, bv_solver=bv_solver)
+            self.lean = lean
+            return lean.run(args, timeout, bv_solver=bv_solver, cpu_limit=cpu_limit)
+
+    def test_the_cpu_limit_reaches_the_supervisor_and_the_usage_is_read(self):
+        """The solution's CPU limit (decided 2026-11-05): `--cpu-limit-s` after the wall-clock backstop; the CPU seconds
+        and the wall seconds of the run come back apart (`Lean.usage`), and a stop names the limit that fired."""
+        target = os.path.join(self.stage, "build", "Submission", "Solution.olean")
+        args = ["lean", "-R", self.stage, "-o", target, os.path.join(self.stage, "Submission", "Solution.lean")]
+        rc, out, el = self.run_lean(args, 600, cpu_limit=120)
+        (cmd, kw), = self.calls
+        i = cmd.index(sandbox.SUPERVISOR)
+        self.assertEqual(cmd[i + 1:i + 4], ["600", "--cpu-limit-s", "120"])
+        self.assertEqual(self.lean.usage, {"wall_s": 1.5, "cpu_s": 2.25, "stopped_by": None})
+        self.calls.clear()
+        rc, out, el = self.run_lean(args, 600, cpu_limit=120,
+                                    lean_out=(124, "", "SVGOLF_TIMEOUT after 71.20s cpu_s=120.40 by=cpu\n"))
+        self.assertEqual((rc, el), (124, 71.2))           # the wall seconds of a run stopped at its CPU limit
+        self.assertEqual(self.lean.usage, {"wall_s": 71.2, "cpu_s": 120.4, "stopped_by": "cpu"})
+        self.calls.clear()
+        rc, out, el = self.run_lean(args, 600, cpu_limit=120,
+                                    lean_out=(124, "", "SVGOLF_TIMEOUT after 600.10s cpu_s=3.10 by=wall\n"))
+        self.assertEqual((rc, el), (124, 600.0))          # the backstop: the run took the limit
+        self.assertEqual(self.lean.usage["stopped_by"], "wall")
 
     def outdir_of(self, cmd):
         i = cmd.index("-o")

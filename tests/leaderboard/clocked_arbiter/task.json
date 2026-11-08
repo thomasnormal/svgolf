@@ -1,0 +1,97 @@
+{
+  "name": "arbiter",
+  "title": "Fair N-client arbiter, clocked and reactive: at most one grant, only to a requester, someone whenever anyone requests, and a client that requests N cycles in a row is granted within them",
+  "status": "ready",
+  "kind": "react-family",
+  "top": "arbiter",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N"
+    }
+  ],
+  "ports": {
+    "inputs": [
+      {
+        "name": "clk",
+        "width": "1"
+      },
+      {
+        "name": "rst",
+        "width": "1"
+      },
+      {
+        "name": "req",
+        "width": "N"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "gnt",
+        "width": "N"
+      }
+    ]
+  },
+  "clock": "clk",
+  "reset": {
+    "port": "rst",
+    "level": 1
+  },
+  "protocol": {
+    "contract": "ReactTask",
+    "bound": "N - 1"
+  },
+  "statement": {
+    "module": "tasks.arbiter.Spec",
+    "constant": "SvGolf.Tasks.Arbiter.Statement"
+  },
+  "banlist": {
+    "operators": []
+  },
+  "probe_points": [
+    "N=1",
+    "N=2",
+    "N=3",
+    "N=5",
+    "N=8"
+  ],
+  "scoring": {
+    "params": {
+      "N": 8
+    },
+    "depth_budget": null
+  },
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 120,
+  "postsynth": {
+    "points": [
+      {
+        "N": 3
+      },
+      {
+        "N": 5
+      },
+      {
+        "N": 8
+      }
+    ],
+    "seeds": 3,
+    "reset_cycles": 1,
+    "segments": 24,
+    "long": 70000,
+    "time_limit_s": 900
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/rr_mask.sv",
+      "lean": "reference/rr_mask.lean",
+      "note": "A registered mask round-robin (own code): the lowest requester of req & mask wins, else the lowest requester; the mask is the thermometer above the last grant. Proved for every N >= 1 (reference/rr_mask.lean: the agreement design.sem N = rrD N, the comb settle and the clock step in closed form, the rank model with the cyclic distance from the mask's edge as the rank). The real-world candidate, OpenTitan prim_arbiter_tree behind an output register (tests/arbiter/designs/arbiter_ot.sv, Apache-2.0), is the next reference once ls-sv instantiates generate-local declarations (README.md (l))."
+    }
+  ]
+}

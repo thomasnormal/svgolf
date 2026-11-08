@@ -1,15 +1,17 @@
 #!/usr/bin/env python3.12
-"""A program slang reports illegal is rejected, also for a task with an EMPTY banlist (WP-RB1), without Lean:
-`check.py`'s real source / extract / banlist / fourstate stages (pyslang, the extractor and Yosys) run on a design with a
-slang ERROR that the source gate does not see, and the Lean runner is a fake (as in test_design_stage.py).
+"""A program slang reports illegal is rejected, also for a task whose task.json bans no operator (WP-RB1), without
+Lean: `check.py`'s real source / extract / banlist / fourstate stages (pyslang, the extractor and Yosys) run on a design
+with a slang ERROR that the source gate does not see, and the Lean runner is a fake (as in test_design_stage.py).
 
-  * `banlist.check` with no banned operator returns `passed` BEFORE it compiles anything, and `check.py` skips the
-    banlist front check (`if ops:`): that is the hole, and the premise of the pin below (if it is ever closed, this
-    file says so and the pin can move);
-  * the `fourstate` stage ALWAYS runs and reads slang's diagnostics: the design is rejected there, under its own
-    header ("slang reports the program illegal at the scoring point"), not under the x/z header;
-  * with the task's banlist non-empty the same design is rejected earlier, at `banlist`;
-  * a legal design passes both stages with an empty banlist (the pin is not a blanket refusal).
+  * `banlist.check` with no banned operator returns `passed` BEFORE it compiles anything, and `check.py` used to skip
+    the banlist front check for a task with no banned operator (an `else` of `if ops:`). That WAS the hole for a task
+    with an empty banlist; it is closed since every task bans run-time / % ** (2026-11-06: `banlist.task_banlist` adds
+    them), so the banlist front check runs for every task and rejects the design at `banlist`, a task.json that lists
+    no operator included; and since no task could reach the `else` any more, it was removed;
+  * the `fourstate` stage also reads slang's diagnostics and refuses the design under its own header ("slang reports
+    the program illegal at the scoring point"), not under the x/z header: pinned with a banlist that does not look
+    (its front check and backstop stubbed to find nothing), since no task gets past the banlist that way any more;
+  * a legal design passes both stages for a task.json that lists no operator (the pin is not a blanket refusal).
 
 The error is an unused `localparam int UNUSED = UNDEFINED_NAME;`: slang rejects it (UndeclaredIdentifier), Yosys reads the
 program without a finding, so nothing but slang's own report stands between the program and the proof.
@@ -25,6 +27,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -111,16 +114,39 @@ class SlangErrorsAtTheChecker(unittest.TestCase):
         self.assertEqual(res["findings"], [])                      # Yosys and the x/z rules have nothing to say
         self.assertEqual(len(res["diagnostics"]), 1)
 
-    def test_an_illegal_program_is_rejected_at_fourstate_for_a_task_with_an_empty_banlist(self):
+    def test_the_hole_is_closed_every_task_runs_the_front_check(self):
+        """A task.json that lists no operator still bans run-time / % ** (`task_banlist`), so the front check runs and
+        reads slang's analysis errors: the illegal program is rejected at `banlist`."""
         res = self.run_check(self.empty, self.design(ILLEGAL))
+        self.assertEqual((res["accepted"], res["stage"]), (False, "banlist"))
+        self.assertEqual(res["stages"]["banlist"]["operators"], ["/", "%", "**"])
+        self.assertIn("UndeclaredIdentifier", res["errors"][0])
+
+    def test_an_illegal_program_is_rejected_at_fourstate_where_the_banlist_does_not_look(self):
+        # a banlist that does not look (what a task with no banned operator once got): front check and backstop stubbed
+        with mock.patch.object(checkpy.banlist, "front_check", return_value=([], [])), \
+                mock.patch.object(checkpy.banlist, "backstop_check", return_value=[]):
+            res = self.run_check(self.empty, self.design(ILLEGAL))
         self.assertEqual((res["accepted"], res["stage"]), (False, "fourstate"))
         (err,) = res["errors"]
         self.assertTrue(err.startswith("slang reports the program illegal at the scoring point"), err)
         self.assertIn("slang error UndeclaredIdentifier", err)
         self.assertNotIn("an x or z value can arise", err)         # the wording: a slang error is not an x/z finding
         banlist_stage = res["stages"]["banlist"]
-        self.assertEqual((banlist_stage["operators"], banlist_stage["diagnostics"]), ([], []))   # it got past the banlist
+        self.assertEqual((banlist_stage["front"], banlist_stage["diagnostics"]), ([], []))   # it got past the banlist
         self.assertNotIn("design", res["stages"])                  # and never reached Lean
+
+    def test_every_task_bans_an_operator_so_the_front_check_always_runs(self):
+        """Why check.py's `else` of `if ops:` (no front check, no backstop) was removed: `task_banlist` gives every
+        shipped task, and a task.json that lists no operator, the run-time / % ** ban."""
+        for d in sorted(os.listdir(os.path.join(SVGOLF, "tasks"))) + [self.empty]:
+            path = os.path.join(d if os.path.isabs(d) else os.path.join(SVGOLF, "tasks", d), "task.json")
+            if not os.path.isfile(path):
+                continue
+            with open(path) as fh:
+                ops, _ = banlist.task_banlist(json.load(fh))
+            with self.subTest(task=path):
+                self.assertTrue(set(banlist.ALWAYS_BANNED) <= set(ops), ops)
 
     def test_the_same_program_is_rejected_earlier_when_the_banlist_is_not_empty(self):
         res = self.run_check(TASK, self.design(ILLEGAL))

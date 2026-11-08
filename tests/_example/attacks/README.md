@@ -15,9 +15,16 @@ below are the full mode's.
 Every known disagreement is refused STATICALLY and exactly, before any proof
 is tried: the source gate refuses `unique`/`unique0`/`priority` and every
 x/z literal digit outside a casez/casex item wildcard; the `fourstate` stage
-(`score/fourstate.py`) refuses every other source of an x at the scoring
-point (a parameter or constant with unknown bits, an out-of-range select, an
-undriven net). The post-synthesis check is the backstop for the
+(`score/fourstate.py`) refuses every other source of an x it knows at every
+point the checker probes, the scoring point first (a parameter or constant with
+unknown bits, an out-of-range select, an undriven net; at the scoring point
+only before 2026-11-06: `undriven_offpoint.sv`), and the banlist refuses the
+run-time `/ % **` that every task bans. "Exactly" is about those points: a
+parameter value nobody probes is not checked, and the statement itself still
+resolves an x the simulator's way (the svGolf README, "Checker v0 limits"): `undriven_mux.sv`, `oob_rare.sv`
+and `rare_mid.sv` are "provably `a & b`" because the trusted statement holds for them, so the Python rules, not
+the statement, are what refuse them (they are part of the trusted base until ls-sv's every-resolution semantics
+lands). The post-synthesis check is the backstop for the
 disagreements nobody has found yet; `oob_rare.sv` shows why it cannot be the
 only line: a difference on one input pair in 2^32 passes it.
 
@@ -30,6 +37,7 @@ only line: a difference on one input pair in 2^32 passes it.
 | `zeq_pair_if.sv` | `if ((a[1:0] == 2'b0z) \|\| (a[1:0] == 2'b1z))` | always true: `y = a \| b` | `source` | rejects 4132 of 4134 |
 | `param_divzero.sv` | `localparam logic [1:0] K = 2'd1 / 2'd0;` as a case item (constant `/` is not banned) | `K` a don't-care: the item matches every input, `y = a \| b` | `fourstate` (a parameter with unknown bits; slang's `DivisionByZero`) | rejects, failing closed as `zconst_param.sv` (ls-sv does not support the constant division) |
 | `undriven_mux.sv` | `logic u; t = u ? 0 : 1; if (t) y = a \| b; else y = a & b;` | `u` a don't-care resolved to `t = 1`: `y = a \| b` | `fourstate` (Yosys `check`: `u` used but undriven) | rejects 4128 of 4130 |
+| `undriven_offpoint.sv` | `undriven_mux.sv`'s undriven `u`, driven only at `N = 16` by a generate-if (the universal-correctness audit, 2026-11-06) | at `N = 8`: `y = a \| b` (the audit's netlist: 0xC3, 0xA5 gives 0xE7) | `fourstate` at `N = 1`, the first probe point (passed every stage at the scoring point before the stage ran at every probed point) | PASSES at the scoring point, where `u` is driven (it runs at `N = 16` only) |
 | `oob_select.sv` | `t = k[{1'b1, a[1:0]}] ? 0 : 1` on a 4-bit `k` (always out of range: x) | `t = 1`: `y = a \| b` | `fourstate` (a 3-bit run-time index into `[3:0]`) | rejects 4130 of 4130 |
 | `oob_rare.sv` | `t = k[{rare, 2'b00}]` with `rare` true on ONE input pair (a reduction-AND detector) | `k[0]` there: `y[0]` flipped on that pair | `fourstate` | PASSES (4130 vectors): the difference is 2^-32 of the inputs and no comparison constant leads to it |
 | `fn_uninit.sv` | a function-local `logic r;` that only `s = 1` assigns, returned by `f(s)`, in `if (f(a[0]))` | the unassigned `r` resolved to 1: `y = a \| b` | `design` (LATENT: no static rule sees it; ls-sv has no user function calls yet, so the design loads with an Unsupported node and the `design` stage rejects it, WP-C3, naming `CallExpression: f(a[0])`; before WP-C3 the postsynth stage failed closed with "ls-sv does not support this design". A function-call PR must add a 4-state rule for unassigned locals first) | rejects (fails closed) |

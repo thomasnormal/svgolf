@@ -3,7 +3,7 @@ module ok_constant #(parameter int N = 4) (
   input  logic [N-1:0] a, b,
   output logic [N-1:0] s, t,
   output logic [N:0]   c,
-  output logic         lt
+  output logic         eq
 );
   localparam int M = N + 1;               // parameter arithmetic
   localparam int L = $clog2(N) - 1;       // system call
@@ -16,5 +16,6 @@ module ok_constant #(parameter int N = 4) (
     t = '0;
     for (int k = 0; k < N; k++) t[k] = a[N-1-k] & b[k];      // loop counter, k++
   end
-  assign lt = a < b;                      // comparisons stay allowed
+  assign eq = a == b;                     // equality stays allowed (an ordering comparison does
+                                          // not in a task that bans + or -: bad_cmp_gt.sv)
 endmodule

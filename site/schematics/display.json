@@ -9,6 +9,8 @@
   "clmul": {"params": {"N": 4}, "draw": "auto"},
   "fdivp": {"params": {"W": 3, "P": 3}, "draw": "auto",
             "_why": "a 6-bit float, 3 exponent bits and 3 significand bits (the hidden one included): the binary16 divider's every stage at 191 (fdivp), 230 (fdivp_srt) and 290 (fdivp_newton) cells, against 1,515 to 5,692 at the scoring point"},
-  "aes_sbox": {"params": {}, "draw": "critical"}
+  "aes_sbox": {"params": {}, "draw": "critical"},
+  "arbiter": {"params": {"N": 4}, "draw": "auto",
+              "_why": "a small display instance, labelled as one on the page: four clients, the mask round-robin's every part (8 flops, the masked and the plain lowest-requester pick, the mask update) at 48 cells, against 103 at the scoring point N = 8"}
  }
 }

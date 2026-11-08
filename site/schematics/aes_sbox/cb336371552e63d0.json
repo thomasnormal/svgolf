@@ -1,0 +1,360 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "mux2_1": 112608,
+  "nand2_1": 37536,
+  "nand2b_1": 62560,
+  "nor2_1": 37536,
+  "nor2b_1": 62560,
+  "or2_1": 62560,
+  "xnor2_1": 87584,
+  "xor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 8908544,
+  "cell_hist_sky130": {
+   "and2_1": 7,
+   "mux2_1": 2,
+   "nand2_1": 22,
+   "nand2b_1": 5,
+   "nor2_1": 4,
+   "nor2b_1": 4,
+   "or2_1": 5,
+   "xnor2_1": 53,
+   "xor2_1": 20
+  },
+  "cells_sky130": 122,
+  "critical": {
+   "cells": 15,
+   "edge": "r",
+   "output": "y[3]"
+  },
+  "delay_ps_sky130": 3208,
+  "drawn": "critical",
+  "drawn_cells": 15,
+  "params": {},
+  "path": [
+   {
+    "arrival_ps": 116.6,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "x[2]",
+    "slew_ps": 24.0
+   },
+   {
+    "arrival_ps": 356.6,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_322_",
+    "net": "_240_",
+    "slew_ps": 260.9
+   },
+   {
+    "arrival_ps": 557.9,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_323_",
+    "net": "_241_",
+    "slew_ps": 247.8
+   },
+   {
+    "arrival_ps": 716.7,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_324_",
+    "net": "_242_",
+    "slew_ps": 142.7
+   },
+   {
+    "arrival_ps": 782.5,
+    "cell": "nor2_1",
+    "edge": "f",
+    "inst": "_325_",
+    "net": "_243_",
+    "slew_ps": 83.5
+   },
+   {
+    "arrival_ps": 1022.7,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_326_",
+    "net": "_244_",
+    "slew_ps": 251.2
+   },
+   {
+    "arrival_ps": 1222.5,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_327_",
+    "net": "_245_",
+    "slew_ps": 248.2
+   },
+   {
+    "arrival_ps": 1344.5,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_328_",
+    "net": "_246_",
+    "slew_ps": 84.3
+   },
+   {
+    "arrival_ps": 1521.0,
+    "cell": "nand2b_1",
+    "edge": "f",
+    "inst": "_357_",
+    "net": "_275_",
+    "slew_ps": 76.4
+   },
+   {
+    "arrival_ps": 1847.1,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_360_",
+    "net": "_278_",
+    "slew_ps": 346.4
+   },
+   {
+    "arrival_ps": 2005.0,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_366_",
+    "net": "_284_",
+    "slew_ps": 104.8
+   },
+   {
+    "arrival_ps": 2210.6,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_387_",
+    "net": "_190_",
+    "slew_ps": 61.6
+   },
+   {
+    "arrival_ps": 2460.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_399_",
+    "net": "_200_",
+    "slew_ps": 250.9
+   },
+   {
+    "arrival_ps": 2601.9,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_400_",
+    "net": "_201_",
+    "slew_ps": 95.4
+   },
+   {
+    "arrival_ps": 2933.6,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_404_",
+    "net": "_205_",
+    "slew_ps": 343.5
+   },
+   {
+    "arrival_ps": 3208.4,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_421_",
+    "net": "_161_",
+    "slew_ps": 247.4
+   }
+  ],
+  "repaired_sha256": "44c5b4c32e8f30fd21fb1e931e045d76a692a2b8113e73fb044c6c1ab61d7354",
+  "svg_bytes": 14931,
+  "svg_sha256": "fc66dbf47b850e574b764a023c8ee71a9eda2dda62c681626b3102d854337748"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 8908544,
+  "cell_hist_sky130": {
+   "and2_1": 7,
+   "mux2_1": 2,
+   "nand2_1": 22,
+   "nand2b_1": 5,
+   "nor2_1": 4,
+   "nor2b_1": 4,
+   "or2_1": 5,
+   "xnor2_1": 53,
+   "xor2_1": 20
+  },
+  "cells_sky130": 122,
+  "critical": {
+   "cells": 15,
+   "edge": "r",
+   "output": "y[3]"
+  },
+  "delay_ps_sky130": 3208,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.222,
+   "worst_transition_ratio": 0.252
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "17dab15a1dbbf2d016ae90e5bf85fc33136a09384a9ee9e1f560fd159f6b7511",
+  "params": {},
+  "path": [
+   {
+    "arrival_ps": 116.6,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "x[2]",
+    "slew_ps": 24.0
+   },
+   {
+    "arrival_ps": 356.6,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_322_",
+    "net": "_240_",
+    "slew_ps": 260.9
+   },
+   {
+    "arrival_ps": 557.9,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_323_",
+    "net": "_241_",
+    "slew_ps": 247.8
+   },
+   {
+    "arrival_ps": 716.7,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_324_",
+    "net": "_242_",
+    "slew_ps": 142.7
+   },
+   {
+    "arrival_ps": 782.5,
+    "cell": "nor2_1",
+    "edge": "f",
+    "inst": "_325_",
+    "net": "_243_",
+    "slew_ps": 83.5
+   },
+   {
+    "arrival_ps": 1022.7,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_326_",
+    "net": "_244_",
+    "slew_ps": 251.2
+   },
+   {
+    "arrival_ps": 1222.5,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_327_",
+    "net": "_245_",
+    "slew_ps": 248.2
+   },
+   {
+    "arrival_ps": 1344.5,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_328_",
+    "net": "_246_",
+    "slew_ps": 84.3
+   },
+   {
+    "arrival_ps": 1521.0,
+    "cell": "nand2b_1",
+    "edge": "f",
+    "inst": "_357_",
+    "net": "_275_",
+    "slew_ps": 76.4
+   },
+   {
+    "arrival_ps": 1847.1,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_360_",
+    "net": "_278_",
+    "slew_ps": 346.4
+   },
+   {
+    "arrival_ps": 2005.0,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_366_",
+    "net": "_284_",
+    "slew_ps": 104.8
+   },
+   {
+    "arrival_ps": 2210.6,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_387_",
+    "net": "_190_",
+    "slew_ps": 61.6
+   },
+   {
+    "arrival_ps": 2460.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_399_",
+    "net": "_200_",
+    "slew_ps": 250.9
+   },
+   {
+    "arrival_ps": 2601.9,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_400_",
+    "net": "_201_",
+    "slew_ps": 95.4
+   },
+   {
+    "arrival_ps": 2933.6,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_404_",
+    "net": "_205_",
+    "slew_ps": 343.5
+   },
+   {
+    "arrival_ps": 3208.4,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_421_",
+    "net": "_161_",
+    "slew_ps": 247.4
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 122,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "44c5b4c32e8f30fd21fb1e931e045d76a692a2b8113e73fb044c6c1ab61d7354",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 16
+ },
+ "sv_sha256": "cb336371552e63d0cd9de9439e2faf7bc8fbee407cb19868f1ebb5e5c7fcd06d",
+ "task": "aes_sbox",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

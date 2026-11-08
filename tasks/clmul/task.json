@@ -7,7 +7,7 @@
   "parameters": [
     {
       "name": "N",
-      "range": "1 <= N"
+      "range": "1 <= N < 2^30"
     }
   ],
   "ports": {
@@ -36,9 +36,12 @@
     "operators": [
       "+",
       "-",
-      "*"
+      "*",
+      "/",
+      "%",
+      "**"
     ],
-    "_comment": "The task is to build a carry-less product from XOR/AND networks, so the arithmetic that would build the integer product (or the Kronecker trick: spread the bits, multiply as integers, read the parities) is banned at run time: * and the + - that Yosys merges into the same $macc/$alu cells. / % ** are not banned: they cannot reach this function (tests/clmul/negative/kronecker_mul.sv is the only trick found, and it needs *). Constant arithmetic (parameter expressions, genvar indices) stays allowed."
+    "_comment": "The task is to build a carry-less product from XOR/AND networks, so the arithmetic that would build the integer product (or the Kronecker trick: spread the bits, multiply as integers, read the parities) is banned at run time: * and the + - that Yosys merges into the same $macc/$alu cells. Run-time / % ** are banned in every task (since 2026-11-06, under the 2026-11-05 ruling that svGolf disallows a construct where Yosys departs from the standard): a zero divisor or a negative exponent makes an x from known operands, which ls-sv carries into decisions and Yosys builds as a defined value (score/banlist.py ALWAYS_BANNED). Constant arithmetic (parameter expressions, genvar indices) stays allowed."
   },
   "probe_points": [
     "N=1",
@@ -76,7 +79,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "references": [
     {
       "sv": "reference/clmul_n.sv",

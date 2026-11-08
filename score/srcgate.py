@@ -118,7 +118,8 @@ The gate therefore:
    stops at it (`Can't resolve task name`).
 
 6. For a CLOCKED task (`gate_text(..., clock=<port>)`, `--clock`; check.py passes the task's
-   `clock` for the kinds `seq-family` and `tx-family`; PLAN4 Gate 2 step 2) it also REJECTS what
+   `clock` for every clocked kind, `seq-family`, `tx-family` and `stream-family`; PLAN4 Gate 2 step 2)
+   it also REJECTS what
    the clocked profile does not run (`clocked_findings`): an edge process that is not exactly
    `always_ff @(posedge <clock>)` (a second clock, `negedge`/`edge`, a second event such as an
    asynchronous reset, `iff`); any other event control, any delay, `wait`, `fork`; `initial`,

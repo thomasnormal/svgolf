@@ -7,6 +7,12 @@ theorems where noted, interpreter-checked counterexamples otherwise), and
 is rejected at when submitted with the reference proof
 `tasks/mul/reference/mul_n.lean` (`tests/run.py` runs them).
 
+**Waits for the int32 port round.** The pinned ls-sv's loader refuses `only_n16.sv` (`PDesign.int32Agrees`:
+at the defaults an INT-class constant expression leaves the 32-bit range), so `Refute.lean` does not build at
+the pin. It is unchanged and not in the default `lake build` (`tests.lean` does not import it); `tests/run.py`'s
+`negatives` step builds it alone and checks that it fails with that refusal (`PENDING_REFUTES`; the svGolf
+README, "Building"). The `check.py` rejections in the table do not depend on it.
+
 | design | bug | evidence | rejected at |
 |---|---|---|---|
 | `drop_carry.sv` | **off-by-one carry**: every adder row drops its carry-out (`s[i][N] = 1'b0`) | `#guard` on the `run2` counterexample at `N = 2`, `a = b = 3`: `p = 1`, not `9`, plus the kernel-checked `dropCarry_refuted_of_run` (that run ⇒ `¬ Statement`); Verilator agrees | `solution` |

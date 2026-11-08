@@ -1,0 +1,10 @@
+{
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `preview_note` is a preview's status line (why it is not ranked yet); `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "title": "Fair N-client arbiter, clocked and reactive",
+ "subtitle": "At most one grant per cycle, only to a requester, someone whenever anyone requests, and a requester that asks N cycles in a row granted within them.",
+ "banlist_note": "Only run-time `/ % **` are banned: a zero divisor or a negative exponent makes an unknown value from known operands, which ls-sv carries into decisions and synthesis builds as a defined value. Comparisons, additions and shifts are an arbiter's own tools; the score prices the policy and its state.",
+ "references": {
+  "rr_mask": "A registered mask round-robin: the lowest requester above the last grant wins, else the lowest requester; proved for every number of clients."
+ },
+ "baselines": {}
+}

@@ -8,10 +8,12 @@ that runs check.py is exercised against a FAKE check.py script.
 
 Covers: record round trip, record_hash canonicality and a pinned hash, tamper
 detection (record, stored .sv and .lean), refusal of rejected submissions, the
-ranked board (decided 11/03: the sky130 A0' area and time rank, GE and depth are
-extra columns; a record without sky130 columns, or of another PPA identity or
-input drive, is not ranked; a clocked record's time is cycles x period), the
-Pareto frontier (dominance, ties, determinism, agreement with score.py's),
+ranked board (decided 2026-11-05: area x time, the sky130 A0' area times the
+time, is the one ranked number, equal products share a rank and are listed as
+the site lists them; the Pareto layer, GE and depth are extra columns; a record
+without sky130 columns, or of another PPA identity or input drive, is not
+ranked; a clocked record's time is cycles x period), the Pareto frontier, an
+exploration view (dominance, ties, determinism, agreement with score.py's),
 layers, the depth budget ranking, staleness (flow / scoring point), the
 Markdown golden file, `assisted_by` handling, Lean line counting, the task.json
 `leaderboard` field, the CLI end to end, the committed records' integrity, and
@@ -27,6 +29,7 @@ a record without it stays valid, hashes as before and verifies as before; the op
 """
 import contextlib
 import copy
+import importlib.util
 import io
 import json
 import os
@@ -43,7 +46,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.join(SVGOLF, "leaderboard"))
 sys.path.insert(0, os.path.join(SVGOLF, "score"))
 import leaderboard as lb  # noqa: E402
-import score  # noqa: E402  (only for the cross-check of the Pareto filter)
+import score  # noqa: E402  (the cross-check of the Pareto filter, and the flows' files)
 
 GOLDEN = os.path.join(HERE, "golden_board.md")
 
@@ -105,7 +108,9 @@ def fake_result(task="toy", sv_sha=SV_SHA, gates=None, depth=10, flow=None, poin
             "source": {"sha256": sv_sha, "canonical_sha256": CANON_SHA, "findings": []},
             "imports": {"imports": ["Submission.Design", "LeanModels.Sv.CombView"], "rejected": []},
             "extract": {"extractor_sha256": "e" * 64, "lean_surfaces": "0123abcd+dirty"},
-            "solution": {"exit": 0, "seconds": 8.41},
+            "trusted": {"exit": 0, "seconds": 1.0},
+            "solution": {"exit": 0, "seconds": 8.41, "cpu_seconds": 9.1, "time_limit_s": 600,
+                         "time_limit_counts": "cpu", "wall_limit_s": 3000},
             "integrity": {"changed": [], "changed_by_end": [], "files": 5},
             "comparator": {"exit": 0, "result": {
                 "accepted": True, "axioms": ["propext", "Quot.sound", "Classical.choice"]}},
@@ -118,11 +123,15 @@ def fake_result(task="toy", sv_sha=SV_SHA, gates=None, depth=10, flow=None, poin
                           "seed": "5" * 64, "verilator": "Verilator 5.042 2025-11-02 rev X"},
         },
     }
+    res["complete"] = True
     if mode is not None:
         ps = res["stages"]["postsynth"]
         ps.update(mode=mode, full_vectors=500)
         if mode == "light":
             ps["vectors"] = 120
+            res["complete"] = False
+            res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local "
+                                 "feedback): rerun with --postsynth full"]
     return res
 
 
@@ -176,6 +185,89 @@ def with_ppa(res, mode="require", **kw):
         res["ppa"]["mapped"] = (fake_mapped(**mapped) if isinstance(mapped, dict) and mapped.get("available") is not False
                                 else mapped)
     return res
+
+
+with open(os.path.join(SVGOLF, "score", "ge_seq.json")) as _fh:
+    GE_SEQ = {k: round(v * 1000) for k, v in json.load(_fh).items() if not k.startswith("_")}
+REAL_SEQ_FLOW = lb.current_flow(SVGOLF, "seq")
+# the clocked flow (svgolf_seq.ys, ge_seq.json) in the form `FLOW` has, for the synthetic clocked results
+SEQ = {"flow": "seq", "yosys": FLOW["yosys"], "canon_script_sha256": REAL_SEQ_FLOW["canon_script_sha256"],
+       "script_sha256": REAL_SEQ_FLOW["script_sha256"], "ge_table_sha256": REAL_SEQ_FLOW["ge_table_sha256"]}
+
+
+def clocked_task(**kw):
+    """A synthetic tx-family task (scoring point N = 16): its post-synthesis points N = 2 and N = 16, 2 seeds each."""
+    t = toy_task(kind="tx-family", clock="clk", postsynth={"points": [{"N": 2}, {"N": 16}], "seeds": 2})
+    t.update(kw)
+    return t
+
+
+def fake_clocked_result(task=None, *, area_e4=90000, period=1000, latency=None, gates=None, mode="full"):
+    """A check.py result of an accepted CLOCKED submission (check.py `score_clocked`): scored by the clocked flow, the
+    clocked score (area_um2, period_ps, cycles = the declared latency or 1, time_ps), the `ppa` block it is held to,
+    and `stages.postsynth.points`: every point of `task` (`clocked_points`), each with every seed, as
+    check/postsynth.py `run_clocked` writes them (timings and transaction logs included, which a record drops)."""
+    task = task or clocked_task()
+    gates = dict(gates or {"AND": 5, "DFF_P": 1})
+    res = with_ppa(fake_result(task=task["name"], gates=gates, flow=SEQ, ge=GE_SEQ, point=lb.scoring_point(task)),
+                   area_e4=area_e4, delay_ps=period)
+    res["stages"]["score"]["flow"] = "seq"
+    cycles = latency or 1
+    if latency is not None:
+        res["latency"] = latency
+    res["score"].update(area_um2=area_e4 / 10000, period_ps=period, cycles=cycles, time_ps=cycles * period,
+                        ffs=gates.get("DFF_P", 0), ranked=["area_um2", "time_ps"])
+    pts = []
+    for k, q in enumerate(lb.clocked_points(task)):
+        pts.append({"kind": task["kind"], "point": lb.point_text(q), "mode": mode, "mismatches": 0,
+                    "netlist_sha256": res["ppa"]["netlist_sha256"] if q == lb.scoring_point(task) else str(k + 1) * 64,
+                    "envelope_sha256": "7" * 64, "oracle_sha256": "8" * 64, "fuel": 100000, "latency": latency,
+                    "verilator": "Verilator 5.042 2025-11-02 rev X", "seconds": 1.5, "t_netlist_build_s": 0.5,
+                    "seeds": [{"seed": s, "reset_cycles": 1, "cycles": 300 + s, "late": False, "t_netlist_run_s": 0.1,
+                               "t_lssv_s": 0.2, "transactions": [{"tag": "t", "start": 1 + 3 * j} for j in range(24)]}
+                              for s in range(lb.clocked_seeds(task))]})
+    res["stages"]["postsynth"] = {"points": pts, "netlist_sha256": res["ppa"]["netlist_sha256"]}
+    if mode == "light":
+        res["complete"] = False
+        res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback): "
+                             "rerun with --postsynth full"]
+    return res
+
+
+# The arbiter's accepted check result (tests/leaderboard/clocked_arbiter/: check.py --postsynth full --ppa require on
+# the reference rr_mask, kind react-family, the run's task.json and design; check.json's `_fixture` says what was
+# changed: the run's temporary paths only)
+ARBITER = os.path.join(HERE, "clocked_arbiter")
+# A stand-in proof: a check result does not bind the .lean (leaderboard/README.md, "Commands"), and the record's proof
+# facts are not what these tests are about
+ARB_LEAN = (b"import Submission.Design\nimport SvGolf.React\n\nnamespace Submission\n"
+            b"theorem solution : Goal := by\n  exact rr_mask_satisfies\n\nend Submission\n")
+
+
+def arbiter_fixture():
+    """(task.json, check result, design bytes) of the arbiter fixture, fresh copies."""
+    with open(os.path.join(ARBITER, "task.json")) as fh:
+        task = json.load(fh)
+    with open(os.path.join(ARBITER, "check.json")) as fh:
+        res = json.load(fh)
+    with open(os.path.join(ARBITER, "rr_mask.sv"), "rb") as fh:
+        sv = fh.read()
+    return task, res, sv
+
+
+def arbiter_flow():
+    """The flow the arbiter's result was scored under (its clocked flow), as `current_flow` gives one."""
+    s = arbiter_fixture()[1]["stages"]["score"]
+    return {"flow": "seq", "yosys": s["yosys_version"], "canon_script_sha256": s["canon_script_sha256"],
+            "script_sha256": s["script_sha256"], "ge_table_sha256": s["ge_table_sha256"]}
+
+
+def arbiter_record(res=None, *, task=None, player=lb.REFERENCE_PLAYER, postsynth="full", date="2026-11-07"):
+    """The record `add` makes of the arbiter's result (or of `res`, a changed copy of it)."""
+    t, r, sv = arbiter_fixture()
+    return lb.build_record(task or t, res or r, player=player, assisted_by=["Claude (Anthropic)"],
+                           notes="reference solution", submitted_at=date, sv_name="/x/rr_mask.sv", sv_bytes=sv,
+                           lean_name="/x/rr_mask.lean", lean_bytes=ARB_LEAN, environment=ENV, postsynth=postsynth)
 
 
 def make_record(task=None, player="alice", assisted=(), date="2026-10-29", notes="", sv=SV_TEXT,
@@ -558,6 +650,55 @@ class AcceptanceTest(Tmp):
         self.assertIn("did not accept", err)
         self.assertFalse(os.path.exists(env.data))
 
+    def test_acceptance_needs_the_trusted_build_and_the_tasks_own_limit(self):
+        """The board's own kernel check (the universal-correctness audit, F7): a result made with
+        `--no-trusted-build` (no `stages.trusted`), under another `--time-limit`, stopped at a limit, or marked
+        INCOMPLETE by check.py cannot enter a record."""
+        def problems(change):
+            res = fake_result()
+            change(res)
+            return " | ".join(lb.acceptance_problems(res, toy_task(), SV_SHA))
+        self.assertEqual(problems(lambda r: None), "")
+        self.assertIn("--no-trusted-build", problems(lambda r: r["stages"].pop("trusted")))
+        self.assertIn("--no-trusted-build", problems(lambda r: r["stages"]["trusted"].update(exit=1)))
+        self.assertIn("not the task's 600 CPU s", problems(lambda r: r["stages"]["solution"].update(time_limit_s=20)))
+        self.assertIn("not the task's", problems(lambda r: r["stages"]["solution"].pop("time_limit_s")))
+        self.assertIn("over the task's 600 s limit",
+                      problems(lambda r: r["stages"]["solution"].update(cpu_seconds=600.5)))
+        self.assertIn("stopped at its cpu limit", problems(lambda r: r["stages"]["solution"].update(stopped_by="cpu")))
+        self.assertIn("INCOMPLETE: --no-score",
+                      problems(lambda r: r.update(complete=False, incomplete=["--no-score: no score"])))
+        self.assertIn("INCOMPLETE", problems(lambda r: r.update(complete=False)))
+
+    def test_the_boards_own_data_directory_takes_only_its_own_sandboxed_check(self):
+        """F7: `add --from-check` and `add --sandbox off` are refused for the board's own data directory
+        (leaderboard/data, here a temporary one standing in for it) and stay available for a `--data-dir`
+        trial; a live `add` there needs a check that ran in the OS sandbox (`sandbox.active`)."""
+        env = CliEnv(self)
+        sv_sha = lb.sha256_bytes(SV_TEXT + b"// alice\n")       # what CliEnv.files writes
+        res = env.write_result(fake_result(sv_sha=sv_sha))
+        with mock.patch.object(lb, "DEFAULT_DATA", env.data):
+            rc, out, err = env.add("alice", from_check=res)
+            self.assertEqual(rc, 1)
+            self.assertIn("--from-check records a stored check.py result", err)
+            rc, out, err = env.add("alice", extra=("--sandbox", "off"))
+            self.assertEqual(rc, 1)
+            self.assertIn("--sandbox off", err)
+            self.assertFalse(os.path.exists(env.data))
+            with mock.patch.dict(os.environ, {"FAKE_SANDBOX": "inactive"}):
+                rc, out, err = env.add("alice", extra=("--sandbox", "auto"))
+            self.assertEqual(rc, 1)
+            self.assertIn("did not run in the OS sandbox", err)
+            self.assertFalse(os.path.exists(env.data))
+            rc, out, err = env.add("alice")                      # the default: `--sandbox require`, active
+            self.assertEqual(rc, 0, err)
+        # elsewhere (a trial) both stay available
+        rc, out, err = env.add("bob", from_check=env.write_result(fake_result(sv_sha=lb.sha256_bytes(
+            SV_TEXT + b"// bob\n"))))
+        self.assertEqual(rc, 0, err)
+        rc, out, err = env.add("carol", extra=("--sandbox", "off"))
+        self.assertEqual(rc, 0, err)
+
     def test_from_check_bound_to_the_file(self):
         env = CliEnv(self)
         res = fake_result(sv_sha="0" * 64)      # a result about some other design
@@ -627,13 +768,18 @@ class PostsynthModeTest(Tmp):
         light = make_record(task, "lighta", res=fake_result(mode="light", gates={"AND": 10}),
                             postsynth="light", sky=(100000, 900))
         board = lb.build_board(task, [full, light], flow=FLOW)
+        # a light check is incomplete: the record is listed, marked, and NEVER ranked (even with the better score)
         by = {r["player"]: r["postsynth"] for r in board["frontier"] + board["dominated"]}
-        self.assertEqual(by, {"fulla": "full", "lighta": "light"})
+        self.assertEqual(by, {"fulla": "full"})
+        (un,) = board["unranked"]
+        self.assertEqual((un["player"], un["postsynth"]), ("lighta", "light"))
+        self.assertIn("LIGHT", un["reason"])
+        self.assertIn("never ranks", un["reason"])
         md = lb.render_markdown(board)
         self.assertIn(f"`{light['record_hash'][:12]}` light |", md)
         self.assertNotIn(f"`{full['record_hash'][:12]}` light", md)
         self.assertIn(lb.LIGHT_NOTE, md)
-        self.assertIn("[light post-synthesis check]", lb.render_pareto_text(board))
+        self.assertIn("never ranks", lb.render_pareto_text(board))
         only_full = lb.render_markdown(lb.build_board(task, [full], flow=FLOW))
         self.assertNotIn("light", only_full)
 
@@ -725,9 +871,9 @@ class ParetoTest(unittest.TestCase):
 
 
 class BoardTest(unittest.TestCase):
-    """The default board: ranked on the sky130 A0' area and time. `recs` gives each record a sky130 score in the order of
-    its GE score (area = ANDs x 1 um^2, time = depth x 100 ps), so the expected orders read in either;
-    test_the_board_ranks_sky130_not_ge pulls the two apart."""
+    """The default board: ranked by area x time, the sky130 A0' area times the time. `recs` gives each record a sky130
+    score in the order of its GE score (area = ANDs x 1 um^2, time = depth x 100 ps); test_the_board_ranks_sky130_not_ge
+    pulls the two apart, test_the_board_ranks_area_x_time_not_the_pareto_layer the product and the frontier."""
     def recs(self, task, specs):
         out = []
         for player, ands, depth, date in specs:
@@ -765,9 +911,15 @@ class BoardTest(unittest.TestCase):
         board = lb.build_board(task, self.recs(task, specs), flow=FLOW)
         self.assertEqual(board["depth_budget"], 20)
         br = board["budget_ranking"]
+        # by area x time (area = ANDs um^2, time = depth x 100 ps): c 110 x 1800 < e 105 x 1900 < a = d 100 x 2000
+        # < f 130 x 1800, ties sharing a rank; b (90 x 2500) is over the budget
         self.assertEqual([(r["player"], r["rank"], r["over_budget"]) for r in br],
-                         [("a", 1, False), ("d", 1, False), ("e", 3, False), ("c", 4, False),
+                         [("c", 1, False), ("e", 2, False), ("a", 3, False), ("d", 3, False),
                           ("f", 5, False), ("b", None, True)])
+        # the board itself ranks every entry by area x time, the budget only flags; the layer is exploration
+        self.assertEqual([(r["player"], r["rank"], r["layer"], r["over_budget"]) for r in board["ranking"]],
+                         [("c", 1, 1, False), ("e", 2, 1, False), ("a", 3, 1, False), ("d", 3, 1, False),
+                          ("b", 5, 1, True), ("f", 6, 2, False)])
         # the frontier is independent of the budget: b is on it, flagged
         front = {r["player"]: r["over_budget"] for r in board["frontier"]}
         self.assertEqual(front, {"b": True, "a": False, "e": False, "c": False, "d": False})
@@ -810,14 +962,17 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(board["ranked_axes"], ["area_um2_sky130", "time_ps"])
         self.assertEqual([(r["player"], r["layer"]) for r in board["frontier"] + board["dominated"]],
                          [("sky", 1), ("ge", 2)])
+        self.assertEqual([(r["rank"], r["player"], r["exact"]) for r in board["ranking"]],
+                         [(1, "sky", 80000 * 800), (2, "ge", 90000 * 900)])
         (un,) = board["unranked"]
         self.assertEqual(un["player"], "old")
         self.assertIn("no sky130 columns (a record made before them): not ranked until it is backfilled", un["reason"])
         # --all-flows ranks every flow, but never a record without the columns
         self.assertEqual([r["player"] for r in lb.build_board(task, [ge, sky, old], flow=None)["unranked"]], ["old"])
         md = lb.render_markdown(board)
-        self.assertIn("| # | layer | player | assisted by | area (um^2) | time (ps) | area (GE) | depth |", md)
-        self.assertIn("| 1 | 1 | sky | none | 8.0000 | 800 | 11.997 | 9 |", md)
+        self.assertIn("| # | player | assisted by | area x time (um2*ns) | area (um^2) | time (ps) | layer | area (GE) | "
+                      "depth |", md)
+        self.assertIn("| 1 | sky | none | 6.40 | 8.0000 | 800 | 1 | 11.997 | 9 |", md)
         self.assertIn("| old | - | - | 1.333 | 1 |", md)
         text = lb.render_pareto_text(board)
         self.assertIn("Pareto frontier of (sky130 area, time) at N=16 (1 of 2 ranked records)", text)
@@ -828,6 +983,42 @@ class BoardTest(unittest.TestCase):
         unw = make_record(task, "unw", res=res)
         (un,) = lb.build_board(task, [unw], flow=FLOW)["unranked"]
         self.assertIn("the sky130 columns were not computed: no cell", un["reason"])
+
+    def test_the_board_ranks_area_x_time_not_the_pareto_layer(self):
+        """Decided 2026-11-05: area x time is the one ranked number. `w` is dominated by `y` (layer 2) and still ranks
+        above `x`, which is on the frontier; the `#` column is the rank, the layer an exploration column."""
+        task = toy_task()
+        x = make_record(task, "x", gates={"AND": 3}, sky=(100000, 1000))     # 10 um^2 x 1000 ps = 10 um2*ns
+        y = make_record(task, "y", gates={"AND": 4}, sky=(1000000, 50))      # 100 um^2 x 50 ps = 5
+        w = make_record(task, "w", gates={"AND": 5}, sky=(1010000, 60))      # 101 um^2 x 60 ps = 6.06, dominated by y
+        board = lb.build_board(task, [x, y, w], flow=FLOW)
+        self.assertEqual([(r["rank"], r["player"], r["layer"]) for r in board["ranking"]],
+                         [(1, "y", 1), (2, "w", 2), (3, "x", 1)])
+        self.assertEqual([r["player"] for r in board["frontier"]], ["x", "y"])      # exploration: area order
+        self.assertEqual([r["player"] for r in board["dominated"]], ["w"])
+        md = lb.render_markdown(board)
+        rows = [ln for ln in md.splitlines() if ln.startswith("| ") and not ln.startswith("| #")]
+        self.assertEqual([ln.split(" | ")[:2] for ln in rows], [["| 1", "y"], ["| 2", "w"], ["| 3", "x"]])
+        self.assertIn("| 2 | w | none | 6.06 | 101.0000 | 60 | 2 |", md)
+        text = lb.render_pareto_text(board)
+        self.assertIn("(2 of 3 ranked records), exploration: the board ranks area x time", text)
+        self.assertRegex(text, r"\n  3 +10\.00 +10\.0000 +1000 .* x ")
+        self.assertRegex(text, r"\n  1 +5\.00 +100\.0000 +50 .* y ")
+
+    def test_equal_area_x_time_shares_a_rank_and_breaks_ties_as_the_site(self):
+        """Equal products share a rank (1, 1, 3) and are listed as the site lists them (site/build.py `score_key`): the
+        smaller area in GE first, then the smaller depth, then the earlier date, then the record hash."""
+        task = toy_task()
+        big = make_record(task, "big", gates={"AND": 9}, depth=3, sky=(200000, 1000))        # 20 x 1000 = 20
+        small = make_record(task, "small", gates={"AND": 2}, depth=9, sky=(400000, 500), date="2026-11-03")  # 40 x 500
+        late = make_record(task, "late", gates={"AND": 2}, depth=9, sky=(100000, 2000), date="2026-11-02")
+        early = make_record(task, "early", gates={"AND": 2}, depth=9, sky=(100000, 2000), date="2026-10-30")
+        shallow = make_record(task, "shallow", gates={"AND": 2}, depth=4, sky=(1000000, 200))
+        worse = make_record(task, "worse", gates={"AND": 1}, depth=1, sky=(200001, 1000))
+        board = lb.build_board(task, [worse, late, big, early, small, shallow], flow=FLOW)
+        self.assertEqual([(r["rank"], r["player"]) for r in board["ranking"]],
+                         [(1, "shallow"), (1, "early"), (1, "late"), (1, "small"), (1, "big"), (6, "worse")])
+        self.assertEqual(len({r["exact"] for r in board["ranking"][:5]}), 1)
 
     def test_identity_and_input_drive_decide_comparability(self):
         """Columns of another ppa_version/liberty/pins than the current ones, or weighed under another input drive than
@@ -853,17 +1044,22 @@ class BoardTest(unittest.TestCase):
 
     def test_a_clocked_record_ranks_by_cycles_times_period(self):
         """A clocked record's time is check.py's clocked `time_ps` = cycles x the register-to-register period (the
-        `ppa` block's `delay_ps_sky130`), never the period alone; validate_record holds the three together."""
-        task = toy_task()
-        res = with_ppa(fake_result(gates={"AND": 5}), area_e4=90000, delay_ps=1000)
-        res["score"].update(area_um2=9.0, period_ps=1000, cycles=4, time_ps=4000)
-        slow = make_record(task, "clk4", res=res)                  # 4 cycles x 1000 ps
-        fast = make_record(task, "comb", gates={"AND": 5}, sky=(90000, 3000))
+        `ppa` block's `delay_ps_sky130`), never the period alone; validate_record holds the three together. Since the
+        clocked record format (decided 2026-11-07) a clocked record is the record of a clocked task, so the board is a
+        tx-family task's (a one-cycle record with the longer period beats the four-cycle one), and a combinational
+        record on it is not ranked."""
+        task = clocked_task()
+        slow = make_record(task, "clk4", res=fake_clocked_result(task, period=1000, latency=4))   # 4 cycles x 1000 ps
+        fast = make_record(task, "clk1", res=fake_clocked_result(task, period=3000, latency=1))   # 1 cycle x 3000 ps
+        comb = make_record(toy_task(), "comb", gates={"AND": 5}, sky=(90000, 3000))
         self.assertEqual(lb.validate_record(slow), [])
         self.assertEqual(lb.ranked_columns(slow), {"area_e4um2": 90000, "time_ps": 4000, "cycles": 4, "period_ps": 1000})
-        board = lb.build_board(task, [slow, fast], flow=FLOW)
-        self.assertEqual([r["player"] for r in board["frontier"]], ["comb"])
+        board = lb.build_board(task, [slow, fast, comb], flow=SEQ)
+        self.assertEqual([r["player"] for r in board["frontier"]], ["clk1"])
         self.assertEqual([r["player"] for r in board["dominated"]], ["clk4"])
+        self.assertEqual([(r["player"], r["reason"]) for r in board["unranked"]],
+                         [("comb", "scored under the comb flow, and a tx-family task is scored under the seq flow "
+                                   "(svgolf_seq.ys, ge_seq.json)")])
         self.assertIn("| 4000 (4 x 1000) |", lb.render_markdown(board))
         for k, v, why in (("time_ps", 3000, "is not cycles x period_ps"), ("period_ps", 999, "is not ppa.delay_ps"),
                           ("area_um2", 8.0, "is not ppa.area_um2_sky130"), ("cycles", 0, "positive integer")):
@@ -1052,6 +1248,12 @@ if "--postsynth" in sys.argv:     # a current check.py writes the mode it ran in
     ps["full_vectors"] = 500
     if ps["mode"] == "light":
         ps["vectors"] = 120
+        res["complete"] = False
+        res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback): "
+                             "rerun with --postsynth full"]
+if "--sandbox" in sys.argv and sys.argv[sys.argv.index("--sandbox") + 1] != "off":
+    res["sandbox"] = {"mode": sys.argv[sys.argv.index("--sandbox") + 1], "mechanism": "fake",
+                      "active": os.environ.get("FAKE_SANDBOX", "active") == "active"}
 if "FAKE_GATES" in os.environ:
     g = json.loads(os.environ["FAKE_GATES"])
     res["score"]["gates"], res["score"]["num_gates"] = g, sum(g.values())
@@ -1123,8 +1325,11 @@ class CliTest(Tmp):
         self.assertIn("alice", out)
         self.assertIn("bob", out)
         self.assertNotIn("carol", out)
+        self.assertIn("exploration: the board ranks area x time", out)
         rc, out, _ = env.run("pareto", "--task", "toy", "--format", "json")
-        self.assertEqual([r["player"] for r in json.loads(out)["frontier"]], ["bob", "alice"])
+        js = json.loads(out)
+        self.assertEqual([(r["player"], r["rank"]) for r in js["frontier"]], [("bob", 2), ("alice", 1)])
+        self.assertEqual((js["view"], js["ranked_by"]), ("exploration", "area_x_time"))
         rc, out, _ = env.run("pareto", "--task", "toy", "--unassisted")
         self.assertEqual(rc, 0)
         self.assertIn("1 of 2 ranked records", out)
@@ -1132,11 +1337,16 @@ class CliTest(Tmp):
         rc, md, _ = env.run("board", "--task", "toy")
         self.assertEqual(rc, 0)
         self.assertIn("Depth budget: depth <= 22", md)
-        self.assertIn("Best area under the depth budget", md)
+        self.assertIn("Best area x time under the depth budget", md)
         self.assertIn("over budget", md)         # bob: depth 25 > 22
         rc, js, _ = env.run("board", "--task", "toy", "--format", "json")
         board = json.loads(js)
         self.assertEqual(board["depth_budget"], 22)
+        self.assertEqual(board["ranked_by"], "area_x_time")
+        # by area x time (alice 399.9 um^2 x 2000 ps < bob 359.91 x 2500 < carol), the Pareto layer beside it
+        self.assertEqual([(r["rank"], r["player"], r["layer"], r["exact"]) for r in board["ranking"]],
+                         [(1, "alice", 1, 3999000 * 2000), (2, "bob", 1, 3599100 * 2500), (3, "carol", 2, 4798800 * 3000)])
+        self.assertIn("| 1 | alice | none | 799.80 | 399.9000 | 2000 | 1 |", md)
         self.assertEqual([r["player"] for r in board["budget_ranking"]], ["alice", "bob", "carol"])
         self.assertEqual([r["player"] for r in board["budget_ranking"] if r["rank"] is not None],
                          ["alice"])
@@ -1178,14 +1388,30 @@ class CliTest(Tmp):
         env = CliEnv(self)
         calls = []
 
-        def drifting(svgolf=lb.SVGOLF):
+        def drifting(svgolf=lb.SVGOLF, task=None):
             calls.append(1)
             return {"svgolf_revision": "r", "lean_toolchain": "t",
                     "files": {"check.py": str(len(calls)) * 64}}
         with mock.patch.object(lb, "collect_environment", drifting):
             rc, out, err = env.add("alice")
         self.assertEqual(rc, 1)
-        self.assertIn("checker files changed while the check ran (check.py)", err)
+        self.assertIn("checker or statement files changed while the check ran (check.py)", err)
+        self.assertFalse(os.path.exists(env.data))
+
+    def test_a_statement_changing_during_the_check_is_refused(self):
+        """A record names the statement it was checked under (2026-11-07): a statement file that changes while the
+        check runs is refused like a checker file."""
+        env = CliEnv(self)
+        calls = []
+
+        def drifting(svgolf=lb.SVGOLF, task=None):
+            calls.append(1)
+            return {"svgolf_revision": "r", "lean_toolchain": "t", "files": {"check.py": "4" * 64},
+                    "statement": {"tasks/toy/Spec.lean": str(len(calls)) * 64}}
+        with mock.patch.object(lb, "collect_environment", drifting):
+            rc, out, err = env.add("alice")
+        self.assertEqual(rc, 1)
+        self.assertIn("checker or statement files changed while the check ran (tasks/toy/Spec.lean)", err)
         self.assertFalse(os.path.exists(env.data))
 
     def test_require_clean(self):
@@ -1323,7 +1549,9 @@ class PostsynthModeCliTest(Tmp):
         rc, md, _ = self.env.run("board", "--task", "toy")
         self.assertIn(" light |", md)
         rc, js, _ = self.env.run("board", "--task", "toy", "--format", "json")
-        self.assertEqual(json.loads(js)["frontier"][0]["postsynth"], "light")
+        board = json.loads(js)
+        self.assertEqual(board["frontier"], [])                 # a light record never ranks
+        self.assertEqual(board["unranked"][0]["postsynth"], "light")
 
     def test_from_check_light_needs_the_light_flag(self):
         sv_sha = lb.sha256_bytes(SV_TEXT + b"// alice\n")       # what CliEnv.files writes
@@ -1950,7 +2178,8 @@ class PpaInputDriveTest(Tmp):
 
         def run(*argv):
             return quiet(lb.main, list(argv[:1]) + ["--data-dir", data, "--tasks-dir", tasks] + list(argv[1:]))
-        put_task(self.task8)
+        # (the task without its statement module: the review's records name none, and this test is about the drive)
+        put_task({k: v for k, v in self.task8.items() if k != "statement"})
         rc, out, err = run("verify", "--offline")
         self.assertEqual(rc, 0, out + err)
         self.assertIn("3 records, 0 failed, 2 stale", out)
@@ -1966,7 +2195,7 @@ class PpaInputDriveTest(Tmp):
         rc, out, err = run("pareto", "--task", "add", "--axes", "area_um2_sky130,delay_ps_sky130", "--all-flows")
         self.assertIn("records that carry the axes)", out)
         self.assertNotIn("not shown", out)
-        put_task(self.task1)                            # the task chooses buf_1: the buf_8 record is the stale one
+        put_task({k: v for k, v in self.task1.items() if k != "statement"})   # the task chooses buf_1: the buf_8 record is stale
         rc, out, err = run("verify", "--offline")
         self.assertEqual(rc, 0, out + err)
         self.assertIn("3 records, 0 failed, 1 stale", out)
@@ -2230,6 +2459,518 @@ class PpaCliTest(Tmp):
         self.assertIn("dave: sky130 columns computed under another version", plain)
         self.assertIn("old: no sky130 columns", plain)
         self.assertNotIn("carol", plain.split("not ranked")[0])
+
+
+class ParTest(Tmp):
+    """PAR (item 12 of the 11/05 newcomer study): the board shows the best proved reference by area x time, the ONE
+    ranked number (leaderboard/combined.py), from the reference player's records that rank on it."""
+    REF = lb.REFERENCE_PLAYER
+
+    def rec(self, player, tag, area_e4, delay, **kw):
+        return make_record(player=player, sv=SV_TEXT + f"// {tag}\n".encode(), sky=(area_e4, delay), **kw)
+
+    def test_the_best_area_times_time_of_the_reference_player(self):
+        task = toy_task()
+        small = self.rec(self.REF, "small", 1000000, 3000)      # the smaller area: 3.0e9
+        fast = self.rec(self.REF, "fast", 1200000, 2000)        # the smaller product: 2.4e9
+        player = self.rec("alice", "alice", 500000, 1000)       # better still, but an entry, not par
+        par = lb.par_of(task, [small, fast, player], flow=FLOW)
+        self.assertEqual((par["record_hash"], par["exact"]), (fast["record_hash"], 1200000 * 2000))
+        self.assertAlmostEqual(par["um2ns"], 240.0)
+        self.assertEqual(par["name"], "toy")                     # no task.json name known: the stored .sv's
+        self.assertIsNone(lb.par_of(task, [player], flow=FLOW))
+
+    def test_a_tie_goes_to_the_reference_listed_first(self):
+        task = toy_task()
+        a = self.rec(self.REF, "a", 1000000, 2000, date="2026-10-30")
+        b = self.rec(self.REF, "b", 2000000, 1000, date="2026-10-29")
+        names = {a["files"]["sv"]["sha256"]: (0, "first_ref"), b["files"]["sv"]["sha256"]: (1, "second_ref")}
+        self.assertEqual(lb.par_of(task, [b, a], flow=FLOW, names=names)["name"], "first_ref")
+        names = {a["files"]["sv"]["sha256"]: (1, "first_ref"), b["files"]["sv"]["sha256"]: (0, "second_ref")}
+        self.assertEqual(lb.par_of(task, [a, b], flow=FLOW, names=names)["name"], "second_ref")
+
+    def test_a_reference_record_that_does_not_rank_is_not_par(self):
+        task = toy_task()
+        stale = self.rec(self.REF, "stale", 1000000, 2000, flow=dict(FLOW, script_sha256="8" * 64))
+        nocols = make_record(player=self.REF, sv=SV_TEXT + b"// nocols\n")
+        self.assertIsNone(lb.par_of(task, [stale, nocols], flow=FLOW))
+        self.assertEqual(lb.par_of(task, [stale], flow=None)["record_hash"], stale["record_hash"])
+
+    def test_rendered_on_the_board_and_the_pareto_text(self):
+        task = toy_task()
+        ref = self.rec(self.REF, "ref", 1000000, 2000)
+        board = lb.build_board(task, [ref], flow=FLOW)
+        self.assertNotIn("Par,", lb.render_markdown(board))       # a board built alone has no par line
+        self.assertNotIn("Par:", lb.render_markdown(board))
+        board["par"] = lb.par_of(task, [ref], flow=FLOW, names={ref["files"]["sv"]["sha256"]: (0, "ref_n")})
+        md = lb.render_markdown(board)
+        self.assertIn("Par, the best proved reference by area x time (the ranked number; lower is better): "
+                      f"`ref_n`: 100.0000 um^2 x 2000 ps = 200.00 um2*ns (record `{ref['record_hash'][:12]}`).", md)
+        self.assertIn("  Par, the best proved reference by area x time", lb.render_pareto_text(board))
+        board["par"] = None
+        self.assertIn("Par: none recorded (no record of `svgolf-reference` ranks here", lb.render_markdown(board))
+
+    def test_the_board_command_shows_par(self):
+        env = CliEnv(self)
+        os.environ["FAKE_SKY"] = "current"
+        self.addCleanup(os.environ.pop, "FAKE_SKY", None)
+        rc, md, _ = env.run("board", "--task", "toy")
+        self.assertEqual(rc, 0)
+        self.assertIn("Par: none recorded", md)
+        rc, out, err = env.add(self.REF)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("(area x time ", out)
+        rc, md, _ = env.run("board", "--task", "toy")
+        self.assertIn("Par, the best proved reference by area x time (the ranked number; lower is better): "
+                      f"`{self.REF}`: ", md)
+        rc, js, _ = env.run("board", "--task", "toy", "--format", "json")
+        self.assertEqual(json.loads(js)["par"]["player"], self.REF)
+        rc, out, _ = env.run("pareto", "--task", "toy")
+        self.assertIn("Par, the best proved reference", out)
+
+    def test_every_ranked_task_shows_par_from_the_committed_records(self):
+        """The shipped reference records give every listed task a par (site/config.json `listed`/`tutorial`), and
+        it agrees with the site's par where the site has a sky130 golden for the reference."""
+        with open(os.path.join(SVGOLF, "site", "config.json")) as fh:
+            listing = json.load(fh)["tasks"]
+        for t, kind in sorted(listing.items()):
+            if kind not in ("listed", "tutorial"):
+                continue
+            with self.subTest(task=t):
+                par = lb.par_now(t)
+                if REAL_FLOW["yosys"] is None:
+                    continue                 # no Yosys here: no record is comparable with this machine's flow
+                self.assertIsNotNone(par, f"{t}: no par (seed its references: leaderboard.py seed-references --task {t})")
+                task = lb.load_task(lb.DEFAULT_TASKS, t)
+                self.assertIn(par["name"], [os.path.splitext(os.path.basename(r["sv"]))[0] for r in task["references"]])
+
+    def test_an_unproved_result_is_refused_by_name(self):
+        res = fake_result()
+        res.update(accepted=False, stage="unproved", errors=[], notes=["--unproved: every check ..."],
+                   unproved_ok=True)
+        problems = lb.acceptance_problems(res, toy_task(), SV_SHA)
+        self.assertIn("check.py --unproved", problems[0])
+
+
+def _load_by_path(name, rel):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(SVGOLF, rel))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class StatementTest(unittest.TestCase):
+    """A record names the trusted statement it was checked under (decided 2026-11-07, round 7b review M1):
+    `checker.statement` maps the task's statement files (the statement module and the svgolf/ modules it imports,
+    transitively) to their sha256; the board, par, the Pareto view and `verify` treat a record checked under another
+    statement, or made before records named theirs, as stale and unranked instead of ranking it."""
+
+    def test_the_statement_files_of_each_kind(self):
+        def files(t):
+            return lb.statement_files(lb.load_task(lb.DEFAULT_TASKS, t))
+        self.assertEqual(files("add"), ["tasks/add/Spec.lean", "SvGolf/Task.lean"])
+        self.assertEqual(files("fdivp"), ["tasks/fdivp/Spec.lean", "SvGolf/Task.lean", "tasks/fdivp/IEEE754.lean"])
+        self.assertEqual(files("matmul"), ["tasks/matmul/Spec.lean", "SvGolf/TaskSeq.lean", "SvGolf/Task.lean"])
+        self.assertEqual(files("arbiter"), ["tasks/arbiter/Spec.lean", "SvGolf/TaskReact.lean", "SvGolf/TaskSeq.lean",
+                                            "SvGolf/Task.lean"])
+        now = lb.current_statement(lb.load_task(lb.DEFAULT_TASKS, "add"))
+        self.assertEqual(now["SvGolf/Task.lean"], lb.sha256_file(os.path.join(lb.SVGOLF, "SvGolf", "Task.lean")))
+        with self.assertRaises(lb.Refused):
+            lb.statement_files({"name": "x", "statement": {"module": "tasks.nope.Spec"}})
+
+    def ranked(self, sky=(4604416, 2611)):
+        return make_record(sky=sky)
+
+    def test_a_record_carries_the_statement_and_is_ranked_only_under_it(self):
+        task = toy_task()
+        now = {"SvGolf/Task.lean": "a" * 64, "tasks/toy/Spec.lean": "b" * 64}
+        res = with_ppa(fake_result(sv_sha=lb.sha256_bytes(SV_TEXT)), area_e4=4604416, delay_ps=2611)
+        rec = lb.build_record(task, res, player="alice", assisted_by=[], notes="", submitted_at="2026-11-07",
+                              sv_name="/x/toy.sv", sv_bytes=SV_TEXT, lean_name="/x/toy.lean", lean_bytes=LEAN_TEXT,
+                              environment=dict(ENV, statement=now))
+        self.assertEqual(lb.validate_record(rec), [])
+        self.assertEqual(rec["checker"]["statement"], now)
+        self.assertIsNone(lb.unranked_reason(rec, task, statement=now))
+        other = dict(now, **{"tasks/toy/Spec.lean": "c" * 64})
+        why = lb.unranked_reason(rec, task, statement=other)
+        self.assertEqual(why, "checked under another statement (tasks/toy/Spec.lean differ)")
+        board = lb.build_board(task, [rec], statement=other)
+        self.assertEqual((board["ranking"], [r["reason"] for r in board["unranked"]]), ([], [why]))
+        self.assertIsNone(lb.par_of(task, [dict(rec, player=lb.REFERENCE_PLAYER)], statement=other))
+        self.assertEqual(len(lb.build_board(task, [rec], statement=now)["ranking"]), 1)
+        self.assertEqual(len(lb.build_board(task, [rec])["ranking"]), 1)           # not compared without one
+        # a record made before records named their statement: stale, not ranked
+        old = make_record(sky=(4604416, 2611))
+        self.assertNotIn("statement", old["checker"])
+        self.assertEqual(lb.unranked_reason(old, task, statement=now),
+                         "checked before records named the statement they were checked under (2026-11-07)")
+        for bad in ({}, {"SvGolf/Task.lean": "x"}, {"Task": "a" * 64}, ["a" * 64]):
+            r2 = copy.deepcopy(rec)
+            r2["checker"]["statement"] = bad
+            self.assertTrue(any("checker.statement" in p for p in lb.validate_record(r2)), bad)
+
+    def test_verify_calls_another_statement_stale(self):
+        tmp = tempfile.mkdtemp(prefix="svgolf-lb-stmt-")
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        now = {"SvGolf/Task.lean": "a" * 64}
+        rec = lb.build_record(toy_task(), fake_result(sv_sha=lb.sha256_bytes(SV_TEXT)), player="alice", assisted_by=[],
+                              notes="", submitted_at="2026-11-07", sv_name="/x/toy.sv", sv_bytes=SV_TEXT,
+                              lean_name="/x/toy.lean", lean_bytes=LEAN_TEXT, environment=dict(ENV, statement=now))
+        path = lb.store_record(tmp, rec, SV_TEXT, LEAN_TEXT)
+        r = lb.verify_record(path, rec, toy_task(), statement=now)
+        self.assertFalse(any("statement" in x for x in r.stale), r.stale)
+        r = lb.verify_record(path, rec, toy_task(), statement={"SvGolf/Task.lean": "d" * 64})
+        self.assertEqual(r.status, "stale")
+        self.assertIn("checked under another statement (SvGolf/Task.lean differ): not ranked", r.stale)
+
+
+class ClockedRecordTest(Tmp):
+    """The clocked record format (decided 2026-11-07): for a task of a CLOCKED_KINDS kind, acceptance requires
+    `stages.postsynth.points` (every point of the task, full mode, every seed, 0 mismatches); the record keeps those
+    points; it carries the flow of its kind (`checker.flow` "seq", the hashes of svgolf_seq.ys and ge_seq.json); and the
+    board, the rescore (`--seq`) and verify compare it only with the current flow of its own kind. On the arbiter's real
+    accepted check result (tests/leaderboard/clocked_arbiter/)."""
+
+    def test_a_seeds_power_up_draws_are_kept_and_checked(self):
+        """F5 (2026-11-07): a seed of a clocked check records the power-ups it drew from the salt, Verilator's
+        `netlist_randseed` and ls-sv's `lssv_start`; the record keeps both, and validation holds them to their forms."""
+        task, res, sv = arbiter_fixture()
+        res = copy.deepcopy(res)
+        for q in res["stages"]["postsynth"]["points"]:
+            for x in q["seeds"]:
+                x["netlist_randseed"] = 1234567 + x["seed"]
+                x["lssv_start"] = "zeros" if x["seed"] == 0 else f"seed:{100 + x['seed']}"
+        rec = arbiter_record(res)
+        self.assertEqual(lb.validate_record(rec), [])
+        kept = rec["postsynth"]["points"][0]["seeds"]
+        self.assertEqual([(x["netlist_randseed"], x["lssv_start"]) for x in kept],
+                         [(1234567, "zeros"), (1234568, "seed:101"), (1234569, "seed:102")])
+        for k, bad, why in (("netlist_randseed", 0, "Verilator's randSeed"), ("netlist_randseed", 2 ** 31,
+                                                                            "Verilator's randSeed"),
+                            ("lssv_start", "seed:-1", "ls-sv's power-up"), ("lssv_start", "x", "ls-sv's power-up")):
+            r2 = copy.deepcopy(rec)
+            r2["postsynth"]["points"][0]["seeds"][1][k] = bad
+            self.assertTrue(any(why in p for p in lb.validate_record(r2)), (k, bad))
+
+    def test_the_arbiters_result_is_accepted_and_keeps_its_points(self):
+        task, res, sv = arbiter_fixture()
+        self.assertEqual(lb.acceptance_problems(res, task, lb.sha256_bytes(sv)), [])
+        rec = arbiter_record()
+        self.assertEqual(lb.validate_record(rec), [])
+        c, s, ps = rec["checker"], rec["score"], rec["postsynth"]
+        self.assertEqual((c["flow"], lb.record_flow(rec)), ("seq", "seq"))
+        rs = res["stages"]["score"]
+        self.assertEqual((c["script_sha256"], c["ge_table_sha256"], c["canon_script_sha256"]),
+                         (rs["script_sha256"], rs["ge_table_sha256"], rs["canon_script_sha256"]))
+        self.assertTrue(c["verilator"].startswith("Verilator 5.042"))
+        self.assertEqual((s["area_um2"], s["period_ps"], s["cycles"], s["time_ps"], s["ffs"], s["area_mge"], s["depth"]),
+                         (769.488, 2826, 1, 2826, 16, 188979, 17))
+        self.assertEqual(s["scoring_point"], {"N": 8})
+        self.assertEqual((ps["mode"], ps["mismatches"]), ("full", 0))
+        self.assertEqual(ps["netlist_sha256"], res["ppa"]["netlist_sha256"])
+        self.assertEqual([(q["point"], q["params"], q["mode"], q["mismatches"], q["latency"]) for q in ps["points"]],
+                         [("N=3", {"N": 3}, "full", 0, None), ("N=5", {"N": 5}, "full", 0, None),
+                          ("N=8", {"N": 8}, "full", 0, None)])
+        by_point = {x["point"]: x for x in res["stages"]["postsynth"]["points"]}
+        for q in ps["points"]:
+            self.assertEqual(q["netlist_sha256"], by_point[q["point"]]["netlist_sha256"])
+            self.assertEqual([x["seed"] for x in q["seeds"]], [0, 1, 2])
+            for kept, given in zip(q["seeds"], by_point[q["point"]]["seeds"]):
+                # the facts of the run are kept, its timings are not
+                # (this fixture's run predates F5, 2026-11-07: no `netlist_randseed`, `lssv_start` in it)
+                self.assertEqual(kept, {k: given[k] for k in ("seed", "cycles", "reset_cycles", "salted", "seed_sha256",
+                                                              "segments", "netlist_randseed", "lssv_start")
+                                        if k in given})
+        self.assertEqual([sum(x["cycles"] for x in q["seeds"]) for q in ps["points"]], [210519, 210683, 211527])
+        self.assertNotIn("vectors", ps)
+
+    def test_ranked_and_par_under_the_flow_of_its_kind(self):
+        """The finding the format answers (the record's flow is the clocked one, the board compared it with the
+        combinational one and never ranked it): compared with the current flow of its kind it ranks, and is par."""
+        task, _, _ = arbiter_fixture()
+        rec = arbiter_record()
+        board = lb.build_board(task, [rec], flow=arbiter_flow())
+        self.assertEqual(board["unranked"], [])
+        (row,) = board["ranking"]
+        self.assertEqual((row["rank"], row["area_e4um2"], row["time_ps"], row["cycles"], row["period_ps"], row["exact"]),
+                         (1, 7694880, 2826, 1, 2826, 7694880 * 2826))
+        self.assertIn("| 1 | svgolf-reference | Claude (Anthropic) | 2174.57 | 769.4880 | 2826 (1 x 2826) |",
+                      lb.render_markdown(board))
+        par = lb.par_of(task, [rec], flow=arbiter_flow(), names={rec["files"]["sv"]["sha256"]: (0, "rr_mask")})
+        self.assertEqual((par["name"], par["record_hash"]), ("rr_mask", rec["record_hash"]))
+        self.assertIn("`rr_mask`: 769.4880 um^2 x 2826 (1 x 2826) ps = 2174.57 um2*ns", lb.fmt_par(par))
+        # the combinational flow is another flow for it, by name and by its two hashes
+        comb = dict(arbiter_flow(), flow="comb", script_sha256=FLOW["script_sha256"],
+                    ge_table_sha256=FLOW["ge_table_sha256"])
+        (un,) = lb.build_board(task, [rec], flow=comb)["unranked"]
+        self.assertEqual(un["reason"], "checked under another flow (flow, ge_table_sha256, script_sha256 differ)")
+        # a clocked task ranks only clocked records, whatever flow it is handed
+        other = make_record(dict(toy_task(), name="arbiter", scoring={"params": {"N": 8}, "depth_budget": None}),
+                            "comb", res=fake_result(task="arbiter", point={"N": 8}), sky=(90000, 3000))
+        self.assertEqual({r["player"]: r["reason"] for r in lb.build_board(task, [rec, other], flow=None)["unranked"]},
+                         {"comb": "scored under the comb flow, and a react-family task is scored under the seq flow "
+                                  "(svgolf_seq.ys, ge_seq.json)"})
+
+    def test_verified_offline_and_by_rescore(self):
+        task, res, sv = arbiter_fixture()
+        rec = arbiter_record()
+        path = self.store(rec, sv=sv, lean=ARB_LEAN)
+        r = lb.verify_record(path, rec, task, flow=arbiter_flow())
+        self.assertEqual((r.status, r.fails, r.stale), ("ok", [], []))
+        ge_seq_now = lb.sha256_file(os.path.join(SVGOLF, "score", "ge_seq.json"))
+        if ge_seq_now == rec["checker"]["ge_table_sha256"]:
+            # the area arithmetic is checked against the clocked flow's GE table, the one the record names
+            self.assertNotIn("GE table differs from the recorded one: area arithmetic not rechecked", r.notes)
+            bad = copy.deepcopy(rec)
+            bad["score"]["gates"].update(DFF_P=15, AND=27)      # the same gate count, another area
+            bad["record_hash"] = lb.compute_record_hash(bad)
+            bpath = self.store(bad, sv=sv, lean=ARB_LEAN)
+            self.assertIn("score.area_mge is not the sum of the gate weights in score/ge_seq.json",
+                          lb.verify_record(bpath, bad, task).fails)
+        # the rescore: score.py --seq's result (the score, the canonical text, the RTLIL) and ppa.py --seq's columns
+        rs = res["stages"]["score"]
+        honest = dict({k: rs[k] for k in ("area_mge", "depth", "gates", "num_gates", "rtlil_sha256", "sources")},
+                      ppa=dict(res["ppa"]))
+        r = lb.verify_record(path, rec, task, flow=arbiter_flow(), rescore=lambda _sv: honest)
+        self.assertEqual((r.status, r.fails), ("ok", []))
+        self.assertIn("rescored: same score", r.notes)
+        self.assertIn("ppa columns reproduced", r.notes)
+        r = lb.verify_record(path, rec, task, flow=arbiter_flow(),
+                             rescore=lambda _sv: dict(honest, ppa=dict(res["ppa"], delay_ps_sky130=2900)))
+        self.assertIn("rescore: ppa.delay_ps_sky130 recorded 2826, now 2900", r.fails)
+        # under the combinational flow it is stale, and no rescore runs
+        called = []
+        r = lb.verify_record(path, rec, task, flow=dict(FLOW, flow="comb"), rescore=called.append)
+        self.assertEqual((r.status, called), ("stale", []))
+        self.assertIn("rescore skipped: the flow has changed", r.notes)
+        # a record whose flow is not its task's kind's is stale whatever flow is handed
+        r = lb.verify_record(path, rec, dict(task, kind="comb-family"))
+        self.assertEqual(r.status, "stale")
+        self.assertIn("scored under the seq flow, and a comb-family task is scored under the comb flow "
+                      "(svgolf.ys, ge.json): the score is not comparable with the task's", r.stale)
+
+    def test_the_rescore_runs_the_clocked_flow(self):
+        seen = []
+
+        class Done:
+            returncode, stderr = 0, ""
+            stdout = json.dumps({"score": {"area_mge": 1}, "ppa": {"area_e4um2_sky130": 1}})
+
+        def run(argv, **kw):
+            seen.append(argv[2:])
+            return Done()
+        with mock.patch.object(lb.subprocess, "run", run):
+            lb.run_rescore("d.sv", "tasks/t", ppa_py="ppa.py", seq=True)
+            lb.run_rescore("d.sv", "tasks/t", seq=True)
+            lb.run_rescore("d.sv", "tasks/t", ppa_py="ppa.py")
+            lb.run_rescore("d.sv", "tasks/t", ppa_py="ppa.py", mapped=False)
+        self.assertEqual(seen[0], ["d.sv", "--task", "tasks/t", "--seq", "--no-mapped"])
+        self.assertEqual(seen[1][-1], "--seq")
+        self.assertEqual(seen[2], ["d.sv", "--task", "tasks/t"])                       # combinational: as before
+        self.assertEqual(seen[3], ["d.sv", "--task", "tasks/t", "--no-mapped"])
+
+    def test_each_clocked_rejection_is_refused(self):
+        task, base, sv = arbiter_fixture()
+        sha = lb.sha256_bytes(sv)
+
+        def problems(change, postsynth="full"):
+            res = copy.deepcopy(base)
+            change(res)
+            return " | ".join(lb.acceptance_problems(res, task, sha, postsynth))
+
+        def pts(res):
+            return res["stages"]["postsynth"]["points"]
+        self.assertEqual(problems(lambda r: None), "")
+        cases = [
+            (lambda r: r["stages"]["postsynth"].pop("points"), "has no `stages.postsynth.points`"),
+            (lambda r: r["stages"].update(postsynth={"point": "N=8", "vectors": 500, "mismatches": 0}),
+             "has no `stages.postsynth.points`"),
+            (lambda r: pts(r).pop(1), "did not run at every point of the task: ['N=5'] missing"),
+            (lambda r: pts(r).append(dict(pts(r)[0], point="N=4")), "points the task does not list: ['N=4']"),
+            (lambda r: pts(r).append(copy.deepcopy(pts(r)[0])), "lists the points ['N=3'] more than once"),
+            (lambda r: pts(r)[0].update(mismatches=2), "points['N=3'] did not pass: mismatches 2"),
+            (lambda r: pts(r)[0].update(report=[{"seed": 0}]), "did not pass"),
+            (lambda r: pts(r)[2].update(mode="light"), "points['N=8'] ran in LIGHT mode"),
+            (lambda r: pts(r)[0].update(kind="tx-family"), "a check of the kind 'tx-family'"),
+            (lambda r: pts(r)[1]["seeds"].pop(), "did not run every seed of the task: seeds [0, 1], not the task's "
+                                                 "0 to 2"),
+            (lambda r: pts(r)[1]["seeds"][0].pop("cycles"), "seed 0 does not record its cycles"),
+            (lambda r: pts(r)[1]["seeds"][0].pop("segments"), "points['N=5'] seed 0 does not record its segments"),
+            (lambda r: pts(r)[0].update(latency=3), "checked the latency 3, not the declared None"),
+            (lambda r: pts(r)[0].pop("netlist_sha256"), "has no netlist sha256"),
+            (lambda r: r["stages"]["postsynth"].update(netlist_sha256=pts(r)[0]["netlist_sha256"]),
+             "not the netlist checked at the scoring point"),
+            (lambda r: r["ppa"].update(netlist_sha256="0" * 64), "the `ppa` block weighed another netlist"),
+            (lambda r: r["stages"]["score"].pop("flow"), "is scored by the clocked flow"),
+            (lambda r: r["score"].pop("time_ps"), "the result's score lacks ['time_ps']"),
+            (lambda r: r["score"].update(cycles=2), "score.cycles 2 is not the declared latency"),
+        ]
+        for change, frag in cases:
+            self.assertIn(frag, problems(change), frag)
+        # a light check at a point: a light record (marked, never ranked), never an official one
+        self.assertEqual(problems(lambda r: pts(r)[2].update(mode="light"), postsynth="light"), "")
+        light = copy.deepcopy(base)
+        pts(light)[2]["mode"] = "light"
+        rec = arbiter_record(light, postsynth="light")
+        self.assertEqual((rec["postsynth"]["mode"], [q["mode"] for q in rec["postsynth"]["points"]]),
+                         ("light", ["full", "full", "light"]))
+        self.assertIn("ran LIGHT", lb.unranked_reason(rec, task, flow=arbiter_flow()))
+        # the task's own seeds count: a task that asks for 8 seeds refuses a result with 3
+        self.assertIn("not the task's 0 to 7", " | ".join(lb.acceptance_problems(
+            base, dict(task, postsynth=dict(task["postsynth"], seeds=8)), sha)))
+        # and a combinational task refuses a clocked result
+        comb = dict(toy_task(), name="arbiter", scoring={"params": {"N": 8}, "depth_budget": None}, time_limit_s=120)
+        self.assertIn("a combinational task is scored by the combinational flow",
+                      " | ".join(lb.acceptance_problems(base, comb, sha)))
+
+    def test_every_clocked_kind_keeps_its_own_count(self):
+        """A seed keeps the count its kind's check makes (CLOCKED_SEED_UNIT): the transactions of a tx-family or
+        stream-family run (check.py logs them, the record counts them), the segments of a react-family one, nothing
+        but its cycles for a seq-family one; a seed without its kind's count is refused."""
+        for kind, unit in (("tx-family", "transactions"), ("stream-family", "transactions"),
+                           ("react-family", "segments"), ("seq-family", None)):
+            with self.subTest(kind=kind):
+                task = clocked_task(kind=kind)
+                res = fake_clocked_result(task, latency=2 if kind in ("tx-family", "stream-family") else None)
+                for q in res["stages"]["postsynth"]["points"]:
+                    for s in q["seeds"]:
+                        s.pop("transactions")
+                        if unit == "transactions":
+                            s[unit] = [{"tag": "t", "start": 1 + 3 * j} for j in range(24)]
+                        elif unit == "segments":
+                            s.update(segments=24, longest_segment=70000)
+                rec = make_record(task, "p", res=res)
+                self.assertEqual(lb.validate_record(rec), [])
+                seed = rec["postsynth"]["points"][0]["seeds"][1]
+                self.assertEqual(seed, dict({"seed": 1, "cycles": 301, "reset_cycles": 1},
+                                            **({unit: 24} if unit else {})))
+                self.assertEqual(rec["score"]["cycles"], 2 if kind in ("tx-family", "stream-family") else 1)
+                if unit:
+                    res["stages"]["postsynth"]["points"][1]["seeds"][0].pop(unit)
+                    self.assertIn(f"seed 0 does not record its {unit}",
+                                  " | ".join(lb.acceptance_problems(res, task, SV_SHA)))
+
+    def test_the_record_is_held_together(self):
+        """validate_record (no task needed): the points, their seeds and the record's own score and `ppa` block."""
+        rec = arbiter_record()
+
+        def problems(change):
+            bad = copy.deepcopy(rec)
+            change(bad)
+            return " | ".join(lb.validate_record(bad))
+
+        def pts(r):
+            return r["postsynth"]["points"]
+        cases = [
+            (lambda r: r["checker"].pop("flow"), "is the score of a record of the clocked flow"),
+            (lambda r: r["checker"].pop("flow"), "postsynth must record vectors and mismatches 0"),
+            (lambda r: r["checker"].update(flow="comb"), "checker.flow must be 'seq'"),
+            (lambda r: r["postsynth"].pop("points"), "postsynth.points must be a non-empty list"),
+            (lambda r: r["postsynth"].update(vectors=500), "unknown keys ['vectors']"),
+            (lambda r: r["postsynth"].update(mismatches=1), "postsynth.mismatches must be 0"),
+            (lambda r: r["postsynth"].update(mode="light"), "'light' exactly when one of its points ran light"),
+            (lambda r: pts(r)[0].update(point="N=4"), "'N=4' is not the name of its params {'N': 3}"),
+            (lambda r: pts(r)[0].update(mismatches=3), "postsynth.points[0].mismatches must be 0"),
+            (lambda r: pts(r)[0].pop("seeds"), "must have exactly the keys"),
+            (lambda r: pts(r)[0]["seeds"].reverse(), "seeds must be the seeds 0 to 2, in order"),
+            (lambda r: pts(r)[0]["seeds"][0].update(segments=24, transactions=24), "at most one of segments"),
+            (lambda r: pts(r)[0]["seeds"][0].update(segments=-1), "at most one of segments, transactions (a non-"),
+            (lambda r: pts(r)[0]["seeds"][0].update(t_lssv_s=1.2), "unknown keys ['t_lssv_s']"),
+            (lambda r: pts(r)[1].update(params={"N": 3}, point="N=3"), "lists a point twice"),
+            (lambda r: pts(r).pop(2), "has no check at the scoring point"),
+            (lambda r: r["postsynth"].update(netlist_sha256=pts(r)[0]["netlist_sha256"]),
+             "postsynth.netlist_sha256 is not the netlist checked at the scoring point"),
+            (lambda r: r["ppa"].update(netlist_sha256="0" * 64), "the sky130 columns weighed another netlist"),
+            (lambda r: pts(r)[0].update(latency=2), "score.cycles 1 is not the latency the check used at ['N=3']"),
+        ]
+        for change, frag in cases:
+            self.assertIn(frag, problems(change), frag)
+        # a combinational record never carries the clocked form
+        comb = make_record()
+        comb["postsynth"]["points"] = []
+        self.assertIn("postsynth.points is the post-synthesis check of a clocked record", " | ".join(
+            lb.validate_record(comb)))
+
+    def test_add_board_and_verify_from_the_command_line(self):
+        """`add --from-check` (a --data-dir trial) records the arbiter's result, `board` ranks it and `verify` passes
+        it, each comparing it with the clocked flow of this tree, never with the combinational one."""
+        task, res, sv = arbiter_fixture()
+        tasks, data = os.path.join(self.tmp, "tasks"), os.path.join(self.tmp, "data")
+        os.makedirs(os.path.join(tasks, "arbiter"))
+        with open(os.path.join(tasks, "arbiter", "task.json"), "w") as fh:
+            json.dump(task, fh)
+        paths = {}
+        for name, data_ in (("rr_mask.sv", sv), ("rr_mask.lean", ARB_LEAN), ("check.json", json.dumps(res).encode())):
+            paths[name] = os.path.join(self.tmp, name)
+            with open(paths[name], "wb") as fh:
+                fh.write(data_)
+
+        def run(*argv):
+            return quiet(lb.main, list(argv[:1]) + ["--data-dir", data, "--tasks-dir", tasks] + list(argv[1:]))
+        rc, out, err = run("add", "--task", "arbiter", "--player", lb.REFERENCE_PLAYER, "--sv", paths["rr_mask.sv"],
+                           "--lean", paths["rr_mask.lean"], "--date", "2026-11-07", "--from-check", paths["check.json"],
+                           "--assisted-by", "Claude (Anthropic)")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("769.4880 um^2, 2826 (1 x 2826) ps (188.979 GE, depth 17)", out)
+        self.assertIn("post-synthesis check (clocked): full mode at 3 point(s), N=3 (3 seeds, 210519 cycles), "
+                      "N=5 (3 seeds, 210683 cycles), N=8 (3 seeds, 211527 cycles), 0 mismatches", out)
+        rc, md, _ = run("board", "--task", "arbiter", "--all-flows")
+        self.assertIn("| 1 | svgolf-reference | Claude (Anthropic) | 2174.57 | 769.4880 | 2826 (1 x 2826) |", md)
+        rc, js, _ = run("board", "--task", "arbiter", "--format", "json")
+        board = json.loads(js)
+        if lb.flow_mismatch(lb.flow_of(arbiter_record()), REAL_SEQ_FLOW):
+            # this tree's clocked flow is another one than the run's (a later svgolf_seq.ys): stale, and why
+            (un,) = board["unranked"]
+            self.assertTrue(un["reason"].startswith("checked under another flow ("), un["reason"])
+            self.assertNotIn("(flow,", un["reason"])          # compared with the clocked flow, not the combinational
+        else:
+            self.assertEqual([r["player"] for r in board["ranking"]], [lb.REFERENCE_PLAYER])
+            self.assertEqual(board["par"]["name"], "rr_mask")
+        rc, out, _ = run("verify", "--offline", "--task", "arbiter")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("verify (offline): 1 records, 0 failed", out)
+        self.assertNotIn("(flow,", out)
+
+
+class KindsAndFlowsTest(unittest.TestCase):
+    """leaderboard.py's kinds, flow files and defaults agree with the checker's own (check.py, check/postsynth.py,
+    score/score.py, score/points.py, check/envelope.py)."""
+
+    def test_the_flows_are_score_pys(self):
+        self.assertEqual({k: tuple(os.path.basename(p) for p in v) for k, v in score.FLOWS.items()}, lb.FLOW_FILES)
+        for name, (script, table) in lb.FLOW_FILES.items():
+            now = lb.current_flow(SVGOLF, name)
+            self.assertEqual((now["flow"], now["script_sha256"], now["ge_table_sha256"]),
+                             (name, lb.sha256_file(os.path.join(SVGOLF, "score", script)),
+                              lb.sha256_file(os.path.join(SVGOLF, "score", table))))
+        self.assertEqual(lb.current_flow(), lb.current_flow(SVGOLF, "comb"))
+        self.assertEqual(lb.current_flows(), {n: lb.current_flow(SVGOLF, n) for n in ("comb", "seq")})
+
+    def test_the_kinds_are_the_checkers(self):
+        try:
+            check = _load_by_path("svgolf_check_for_lb_test", "check.py")
+        except ImportError as e:            # check.py needs python3.12 and its packages
+            self.skipTest(f"check.py cannot be loaded here: {e}")
+        postsynth, points = check.postsynth, _load_by_path("svgolf_points_for_lb_test", "score/points.py")
+        for kind in check.KINDS:
+            with self.subTest(kind=kind):
+                want = kind in check.CLOCKED_KINDS
+                self.assertEqual(kind in lb.CLOCKED_KINDS, want)
+                self.assertEqual(kind in postsynth.CLOCKED_KINDS, want)
+                self.assertEqual(kind in points.CLOCKED_KINDS, want)
+                self.assertEqual(lb.task_flow({"kind": kind}), "seq" if want else "comb")
+        self.assertEqual(lb.CLOCKED_SEEDS_DEFAULT, postsynth.CLOCKED_DEFAULTS["seeds"])
+        self.assertEqual((lb.CLOCKED_SEEDS_DEFAULT, postsynth.REACT_DEFAULTS["seeds"]), (8, 8))     # F5, 2026-11-07
+        self.assertEqual(points.FLOW_FILES, lb.FLOW_FILES)
+        for t in lb.all_task_names(lb.DEFAULT_TASKS):
+            task = lb.load_task(lb.DEFAULT_TASKS, t)
+            if lb.is_clocked_task(task):
+                with self.subTest(task=t):
+                    pts = lb.clocked_points(task)
+                    self.assertIn(lb.scoring_point(task), pts)
+                    self.assertEqual([lb.point_text(q) for q in pts], [check.point_str(q) for q in pts])
+                    self.assertEqual(lb.clocked_seeds(task), postsynth.config(task)["seeds"])
 
 
 class CommittedDataTest(unittest.TestCase):

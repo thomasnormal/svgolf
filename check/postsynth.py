@@ -197,10 +197,16 @@ DEFAULT_MODE = "light"
 MODE_ENV = "SVGOLF_POSTSYNTH"
 # The clocked kinds' block (`run_clocked`): `points` (None: the scoring point; check.py synthesizes
 # the others), per point `seeds` runs, each `reset_cycles` reset entries, `txns` generator items
-# and `tail` idle entries after the last transaction.
-CLOCKED_KINDS = ("seq-family", "tx-family", "stream-family")
-CLOCKED_DEFAULTS = {"points": None, "seeds": 3, "reset_cycles": 1, "txns": 24, "tail": 3,
+# and `tail` idle entries after the last transaction. The reactive kind (`react-family`) has no
+# transactions: per seed `segments` segments of oracle.py `segments` (a reset entry, then entries
+# with the reset deasserted), the last one `long` entries long (a long reset-free run: "THE
+# REACTIVE CHECK", below).
+CLOCKED_KINDS = ("seq-family", "tx-family", "stream-family", "react-family")
+LATENCY_KINDS = ("tx-family", "stream-family")
+CLOCKED_DEFAULTS = {"points": None, "seeds": 8, "reset_cycles": 1, "txns": 24, "tail": 3,
                     "fuel": 100000, "time_limit_s": 900}
+REACT_DEFAULTS = {"points": None, "seeds": 8, "reset_cycles": 1, "segments": 24, "long": 70000,
+                  "fuel": 100000, "time_limit_s": 900}
 REPORT_MAX = 20      # failing vectors in the bug report (and simulated as RTL)
 CMP_CELLS = {"$eq", "$ne", "$eqx", "$nex", "$lt", "$le", "$gt", "$ge"}
 
@@ -238,12 +244,19 @@ def sha256_file(path):
 
 
 def config(task):
-    base = CLOCKED_DEFAULTS if task.get("kind") in CLOCKED_KINDS else DEFAULTS
+    base = (REACT_DEFAULTS if task.get("kind") == "react-family" else
+            CLOCKED_DEFAULTS if task.get("kind") in CLOCKED_KINDS else DEFAULTS)
     cfg = dict(base)
     cfg.update({k: v for k, v in (task.get("postsynth") or {}).items() if not k.startswith("_")})
     unknown = sorted(set(cfg) - set(base))
     if unknown:
         raise InfraError(f"task.json `postsynth` has unknown keys {unknown}")
+    if base is REACT_DEFAULTS:
+        bad = [k for k in ("seeds", "reset_cycles", "segments", "long")
+               if isinstance(cfg[k], bool) or not isinstance(cfg[k], int) or cfg[k] < 1]
+        if bad or not isinstance(cfg["points"], (list, type(None))):
+            raise InfraError(f"task.json `postsynth`: {bad or ['points']} out of range")
+        return cfg
     if base is CLOCKED_DEFAULTS:
         bad = [k for k in ("seeds", "reset_cycles", "txns", "tail")
                if isinstance(cfg[k], bool) or not isinstance(cfg[k], int) or cfg[k] < (k != "tail")]
@@ -554,7 +567,7 @@ def dedup(ins, vecs):
 
 # ---------------------------------------------------------------- evaluators
 
-def lssv_eval(envl, point_s, ins, vecs, fuel, work, deadline, trace=False):
+def lssv_eval(envl, point_s, ins, vecs, fuel, work, deadline, trace=False, start=None):
     if not os.path.isfile(SVEVAL):
         raise InfraError(f"{SVEVAL} is not built (`lake build svgolf-eval`, part of check.py's "
                          "trusted stage)")
@@ -566,7 +579,8 @@ def lssv_eval(envl, point_s, ins, vecs, fuel, work, deadline, trace=False):
             fh.write(" ".join(f"{n}={v[n]:x}" for n, _ in ins) + "\n")
     t0 = time.time()
     try:
-        p = sandbox.run([SVEVAL] + ["--trace"] * trace + [envl, point_s, vp, op, str(fuel)],
+        p = sandbox.run([SVEVAL] + ["--trace"] * trace + (["--start", start] if trace and start else [])
+                        + [envl, point_s, vp, op, str(fuel)],
                         sandbox.exec_spec(SVEVAL, read=[os.path.dirname(os.path.abspath(envl)), ld], write=[ld],
                                           label="svgolf-eval"),
                         env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None,
@@ -926,14 +940,15 @@ def load_oracle(task_dir, task):
     return fn, None
 
 
-def clocked_oracle(oracle):
+def clocked_oracle(oracle, kind=None):
     """The clocked check's evaluator from `load_oracle`'s pair: BINDING (check (ii)), so a missing
-    one, or one without `txns` and `good` (tx-family, stream-family) / `expect` (seq-family), is an
-    infrastructure error, never a pass."""
+    one, or one without `txns` and `good` (tx-family, stream-family) / `expect` (seq-family) /
+    `segments` and `violations` (react-family), is an infrastructure error, never a pass."""
     mod, why = oracle if oracle else (None, "the task names no oracle.py")
-    if mod is None or not all(callable(getattr(mod, f, None)) for f in ("txns",)):
+    need = ("segments", "violations") if kind == "react-family" else ("txns",)
+    if mod is None or not all(callable(getattr(mod, f, None)) for f in need):
         raise InfraError(f"the clocked post-synthesis check needs the task's oracle.py with "
-                         f"`txns`: {why or 'it has none'}")
+                         f"{' and '.join(f'`{f}`' for f in need)}: {why or 'it has none'}")
     return mod
 
 
@@ -1202,10 +1217,11 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
 
 # ---------------------------------------------------------------- the clocked check
 #
-# PLAN4 Gate 2 step 4, for the CLOCKED kinds (`run_clocked`). Per seed, the netlist starts from a
-# randomized state (Verilator `--x-initial unique`, `randSeed`), reset is asserted for
+# PLAN4 Gate 2 step 4, for the CLOCKED kinds (`run_clocked`). Per seed (S = 8 per point, F5), the netlist starts
+# from a concrete power-up state (Verilator `--x-initial unique`: seed 0 all zeros, `randReset(0)`; every
+# other seed random, `randReset(2)`, `randSeed` from the seed's salted draw: `seed_draw`), reset is asserted for
 # `reset_cycles` entries (C1; the other inputs random), then the task's own generator (oracle.py
-# `txns(params, seed, count)`) drives it: for tx-family each transaction's `gap` free entries, its
+# `txns(params, seed, count, rng)`, `rng` the seed's salted source) drives it: for tx-family each transaction's `gap` free entries, its
 # start entry, then its operands held until the netlist's `done` shows 1, so a gap of 0 is C2's
 # back-to-back start (or until `n` cycles have passed: late, the run stops), and `tail` idle
 # entries after the last; for stream-family each transaction's `gap` free entries, its start entry,
@@ -1214,8 +1230,20 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
 # that snapshot; at most `n` cycles after the start, then late), `in_valid` = 0 outside the values;
 # for seq-family the generator's entries verbatim. One entry is one clock
 # period: the inputs with the clock at 0, then the rising edge; the row is the snapshot after it
-# (ls-sv's protocol). The realized stimulus is then ONE `svgolf-eval --trace` run (ls-sv from its
-# own all-x start). Binding, either failing rejects: (i) on the CARED outputs of every cycle the
+# (ls-sv's protocol). The realized stimulus is then ONE `svgolf-eval --trace` run of ls-sv from a
+# concrete power-up state (txtask-v2 rule 2, 2026-11-05: an unreset register is an unknown 0/1 value,
+# not ls-sv's x start, whose x-optimism is a simulator's resolution): seed 0 from all zeros, the
+# netlist's own start; every other seed from ls-sv's seeded random power-up (`--start seed:<n>`),
+# which need not be the netlist's (its flops are not named after the registers): a design whose
+# claims hold from every power-up and FIX the cared outputs shows the same cared outputs from both
+# (seq-family's claim fixes every output; a tx/stream design whose `done`/`out_valid` timing within
+# the latency depends on an unreset register can be correct and differ between two power-ups: an
+# over-rejection recorded in design/soundness/TXTASK-V2-REVIEW.md section 12, not changed here; the
+# reactive check, below, compares bit for bit only from the same state).
+# Before 2026-11-05 ls-sv ran from `initState2` (declaration initializers, all else x), which
+# rejected an x-pessimistic design that is correct from every concrete start (`y = u ^ u`, u
+# unreset: x there, 0 in every run).
+# Binding, either failing rejects: (i) on the CARED outputs of every cycle the
 # netlist equals ls-sv (under σ_src, which must equal σ_rev), and ls-sv's value is known (an x or z
 # there would be some 0/1 in the 2-state netlist); (ii) the netlist's claimed payload is the task's
 # evaluator's, oracle.py `good(params, txn, result)` (tx-family; stream-family with result
@@ -1227,18 +1255,19 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
 # claim). The latency (C3): `done` shows 1 / every `out_valid` = 1 is at most `n` cycles after the
 # start entry's snapshot (cycle 0).
 VL_X_CLOCKED = ("--x-assign", "0", "--x-initial", "unique")
-CLOCKED_HARNESS = HARNESS.split("int main(")[0] + r"""// THE CLOCKED HARNESS: argv VECTORS SEED CAP.
+CLOCKED_HARNESS = HARNESS.split("int main(")[0] + r"""// THE CLOCKED HARNESS: argv VECTORS SEED CAP RESET (RESET: Verilator's randReset policy, 0 = all
+// zeros, 2 = random from SEED).
 // A line is a kind, then one hex token per input but the clock: `E` one entry, `S` one entry that
 // starts a transaction (its row is cycle 0), `H` the hold: unless the last row shows done = 1,
 // entries of these values until one does, at most CAP rows after the start (then `END <rows> LATE`),
 // `W` one entry unless the last row shows done = 1 (a stream's wait, each with its own values).
 // A row is the line number, then the outputs after the cycle.
 int main(int argc, char** argv) {
-  if (argc != 4) { fprintf(stderr, "usage: harness VECTORS SEED CAP\n"); return 2; }
+  if (argc != 5) { fprintf(stderr, "usage: harness VECTORS SEED CAP RESET\n"); return 2; }
   FILE* fp = fopen(argv[1], "r");
   if (!fp) { fprintf(stderr, "cannot open %%s\n", argv[1]); return 2; }
   const std::unique_ptr<VerilatedContext> ctx{new VerilatedContext};
-  ctx->randReset(2);
+  ctx->randReset(atoi(argv[4]));
   ctx->randSeed(atoi(argv[2]));
   const long cap = atol(argv[3]);
   const std::unique_ptr<%(prefix)s> top{new %(prefix)s{ctx.get(), "TOP"}};
@@ -1278,7 +1307,7 @@ def clocked_plan(task, mod, point, seed, cfg, dins, rng):
     def rnd(**kv):
         return {**{n: rng.getrandbits(w) for n, w in dins}, **kv}
     lines = [("E", rnd(**{rp: lvl})) for _ in range(cfg["reset_cycles"])]
-    items = mod.txns(dict(point), seed, cfg["txns"])
+    items = mod.txns(dict(point), seed, cfg["txns"], rng=rng)   # the salted source (F5); `seed` picks the corner case
     if task["kind"] == "seq-family":
         return lines + [("E", rnd(**e)) for e in items], items
     proto = task["protocol"]
@@ -1303,16 +1332,45 @@ def clocked_plan(task, mod, point, seed, cfg, dins, rng):
     return lines + [("E", rnd(**{rp: 1 - lvl, proto["start"]: 0})) for _ in range(cfg["tail"])], items
 
 
-def vl_run_clocked(exe, dins, outs, lines, seed, cap, work, timeout):
-    """The clocked model on `lines`: ([(line, {output: bits})], late, seconds, None) or
-    (None, None, seconds, error). Fails closed like `vl_run`."""
+# THE SALTED RANDOMNESS OF A CLOCKED RUN (F5, decided 2026-11-07; S = 8 seeds per point, CLOCKED_DEFAULTS and
+# REACT_DEFAULTS). Every clocked kind derives everything random in one seed's run from h = sha256($SVGOLF_POSTSYNTH_SALT,
+# task, point, seed) and records it (`seed_draw`, the seed's record): the stimulus generator's source (the free input
+# bits, oracle.py's `txns` or `segments`), Verilator's `randSeed` (the netlist's random power-up) and ls-sv's
+# power-up `seed:<k>`. With the default empty salt anyone reproduces a run; a competition sets a secret one, and
+# neither the stimulus nor either power-up can be predicted. The design is not in h. Seed 0 starts both sides from
+# all zeros (no draw: `start_of`); seed s > 0 from a random power-up of each.
+SEED_MAX_VL = 2 ** 31 - 1      # Verilator's `randSeed` is an int (the harness's `atoi`); 0 would be time-seeded
+
+
+def seed_draw(task, point_s, seed, salt=None):
+    """One seed's randomness (above): {`rng` (random.Random(int(h, 16))), `seed_sha256` (h), `salted` (a salt was
+    set), `vl_seed` (1 .. SEED_MAX_VL: sha256(h + "/verilator")), `lssv_k` (64 bits: sha256(h + "/lssv"))}."""
+    salt = os.environ.get("SVGOLF_POSTSYNTH_SALT", "") if salt is None else salt
+    h = hashlib.sha256(b"\0".join([salt.encode(), task["name"].encode(), point_s.encode(),
+                                   str(seed).encode()])).hexdigest()
+    sub = lambda tag: int(hashlib.sha256(f"{h}/{tag}".encode()).hexdigest(), 16)  # noqa: E731
+    return {"rng": random.Random(int(h, 16)), "seed_sha256": h, "salted": bool(salt),
+            "vl_seed": 1 + sub("verilator") % SEED_MAX_VL, "lssv_k": sub("lssv") % 2 ** 64}
+
+
+def start_of(seed, draw):
+    """The power-up of `seed`'s run: (Verilator's randReset policy, svgolf-eval's `--start`). Seed 0 starts both
+    from all zeros; every other seed each from its own random power-up, ls-sv's `seed:<k>` from the seed's draw
+    (`seed_draw`; the netlist's from its `vl_seed`)."""
+    return (0, "zeros") if seed == 0 else (2, f"seed:{draw['lssv_k']}")
+
+
+def vl_run_clocked(exe, dins, outs, lines, seed, draw, cap, work, timeout):
+    """The clocked model on `lines`, from `seed`'s power-up (`start_of`, Verilator's `randSeed` the draw's
+    `vl_seed`): ([(line, {output: bits})], late, seconds, None) or (None, None, seconds, error). Fails closed like
+    `vl_run`."""
     vp = os.path.join(work, f"clocked_{seed}.hex")
     with open(vp, "w") as fh:
         for k, v in lines:
             fh.write(k + " " + " ".join(f"{v[n]:x}" for n, _ in dins) + "\n")
     t0 = time.time()
     try:
-        r = run_group([exe, vp, str(seed + 1), str(cap)], timeout,   # randSeed(0) would be time-seeded
+        r = run_group([exe, vp, str(draw["vl_seed"]), str(cap), str(start_of(seed, draw)[0])], timeout,
                       spec=sandbox.exec_spec(exe, read=[vp], label="model"), label="model",
                       env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None)
     except subprocess.TimeoutExpired:
@@ -1330,23 +1388,226 @@ def vl_run_clocked(exe, dins, outs, lines, seed, cap, work, timeout):
             time.time() - t0, None)
 
 
+# ---------------------------------------------------------------- THE REACTIVE CHECK
+#
+# For `react-family` (a ReactTask statement, SvGolf/TaskReact.lean: no transactions, a safety monitor and
+# bounded response over the whole trace). Per seed, the netlist starts from a power-up state (seed 0 all
+# zeros, every other seed random, as the transaction kinds: `start_of`), then the task's oracle.py
+# `segments(params, rng, count, long)` drives it: each segment is ONE reset entry (the
+# first segment: `reset_cycles` of them) and then its entries with the reset deasserted; the last segment
+# is `long` entries long, so a design that changes after many cycles (a counter, a time bomb) is driven past
+# that point. The generator's random source is seeded by sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed):
+# with the default empty salt anyone reproduces a run; a competition sets a secret one, and the stimulus is
+# unpredictable. The design is not in the seed, so no edit of the text chooses its own stimulus. The
+# realized stimulus is then ONE `svgolf-eval --trace` run of ls-sv from a power-up state (the statement's
+# runs since 2026-11-06, txtask-v2's rule 2: seed 0 from all zeros, the netlist's own start; every other
+# seed from ls-sv's seeded random power-up, which need not be the netlist's). A reactive guarantee admits
+# several outputs (any legal grant), so a design correct from every power-up may show different outputs
+# from two different power-ups (an arbiter whose mask is not reset: txtask-v2 review section 12, F4):
+# the netlist is compared with ls-sv bit for bit only where the two start from the SAME state
+# (`zero_starts_agree`: seed 0, when the pinned flow replaced no register and no array lane by the
+# constant 1). Binding, any failure rejects:
+#   (i)   every output at every snapshot from the last entry of the first reset on: ls-sv's value is
+#         known and σ_src equals σ_rev; from the same state the netlist equals ls-sv; from different
+#         states ls-sv's outputs meet the guarantee (the evaluator of (ii), on ls-sv's run);
+#   (ii)  on every segment, the NETLIST's outputs meet the guarantee, oracle.py `violations(params,
+#         reset snapshot, entries, snapshots)` (for the arbiter: G0 to G4, the bound K = N - 1);
+#   (iii) Moore: the harness also samples every output BEFORE each rising edge, with the entry's inputs
+#         applied to the previous snapshot's state, and that sample must equal the previous snapshot: an
+#         output that moves with the inputs between two edges has a combinational path from an input
+#         (the statement's `MooreOut`; a snapshot-only check cannot see it, the silicon does).
+REACT_HARNESS = HARNESS.split("int main(")[0] + r"""// THE REACTIVE HARNESS: argv VECTORS SEED RESET (RESET: Verilator's randReset policy, 0 = all
+// zeros, 2 = random from SEED).
+// A line is `E`, then one hex token per input but the clock: one entry. A row is the line number, the
+// outputs BEFORE the rising edge (the entry's inputs applied, the clock at 0, settled), `|`, then the
+// outputs after the edge (the snapshot).
+int main(int argc, char** argv) {
+  if (argc != 4) { fprintf(stderr, "usage: harness VECTORS SEED RESET\n"); return 2; }
+  FILE* fp = fopen(argv[1], "r");
+  if (!fp) { fprintf(stderr, "cannot open %%s\n", argv[1]); return 2; }
+  const std::unique_ptr<VerilatedContext> ctx{new VerilatedContext};
+  ctx->randReset(atoi(argv[3]));
+  ctx->randSeed(atoi(argv[2]));
+  const std::unique_ptr<%(prefix)s> top{new %(prefix)s{ctx.get(), "TOP"}};
+  char tok[4096], kind[8];
+  std::string out;
+  long rows = 0, line = -1;
+  while (fscanf(fp, "%%7s", kind) == 1) {
+    ++line;
+    if (kind[0] != 'E') { fprintf(stderr, "bad line kind %%s\n", kind); return 3; }
+%(read)s
+%(set)s
+    top->%(clk)s = 0; top->eval();
+    out += std::to_string(line) + ' ';
+%(print)s
+    out += " |";
+    top->%(clk)s = 1; top->eval();
+    out += ' ';
+%(print)s
+    out += '\n';
+    ++rows;
+  }
+  fwrite(out.data(), 1, out.size(), stdout);
+  printf("END %%ld\n", rows);
+  top->final();
+  return 0;
+}
+"""
+
+
+def react_rng(task, point_s, seed, salt=None):
+    """The generator's random source for one seed and its h (`seed_draw`)."""
+    d = seed_draw(task, point_s, seed, salt)
+    return d["rng"], d["seed_sha256"]
+
+
+def react_plan(task, mod, point, rng, cfg, dins):
+    """One seed's stimulus lines [("E", {input: value})], the generator's segments and, per segment, the
+    line index of its reset entry (the snapshot G0 reads) and of its first entry after the release."""
+    rp, lvl = task["reset"]["port"], int(task["reset"].get("level", 1))
+    data = [n for n, _ in dins if n != rp]
+    segs = mod.segments(dict(point), rng, cfg["segments"], cfg["long"])
+    lines, spans = [], []
+    for k, sg in enumerate(segs):
+        if set(sg["reset"]) != set(data) or any(set(e) != set(data) for e in sg["entries"]):
+            raise InfraError(f"oracle.py `segments`: segment {k} ({sg.get('tag')}) does not drive exactly the data "
+                             f"inputs {data}")
+        lines += [("E", {**{n: rng.getrandbits(w) for n, w in dins if n != rp}, rp: lvl})
+                  for _ in range(cfg["reset_cycles"] - 1 if k == 0 else 0)]
+        lines.append(("E", {**sg["reset"], rp: lvl}))
+        spans.append((len(lines) - 1, len(lines), len(lines) + len(sg["entries"])))
+        lines += [("E", {**e, rp: 1 - lvl}) for e in sg["entries"]]
+    return lines, segs, spans
+
+
+def vl_run_react(exe, dins, outs, lines, seed, draw, work, timeout):
+    """The reactive model on `lines`, from `seed`'s power-up (`start_of`, `randSeed` the draw's `vl_seed`):
+    ([(pre {output: bits}, post {output: bits})], seconds, None) or (None, seconds, error). Fails closed like
+    `vl_run`: one row per line, in order."""
+    vp = os.path.join(work, f"react_{seed}.hex")
+    with open(vp, "w") as fh:
+        for k, v in lines:
+            fh.write(k + " " + " ".join(f"{v[n]:x}" for n, _ in dins) + "\n")
+    t0 = time.time()
+    try:
+        r = run_group([exe, vp, str(draw["vl_seed"]), str(start_of(seed, draw)[0])], timeout,
+                      spec=sandbox.exec_spec(exe, read=[vp], label="model"), label="model",
+                      env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None)
+    except subprocess.TimeoutExpired:
+        return None, time.time() - t0, f"the Verilator model did not finish within {timeout:.0f}s"
+    rows = [ln.split() for ln in r.stdout.splitlines()]
+    end = rows.pop() if rows else []
+    n = len(outs)
+    ok = (r.returncode == 0 and end == ["END", str(len(lines))] and len(rows) == len(lines)
+          and all(len(x) == 2 * n + 2 and x[0] == str(i) and x[n + 1] == "|"
+                  and all(len(t) == w and not set(t) - set("01")
+                          for t, (_, w) in zip(x[1:n + 1] + x[n + 2:], outs + outs))
+                  for i, x in enumerate(rows)))
+    if not ok:
+        return None, time.time() - t0, (f"the reactive Verilator model printed malformed rows (exit "
+                                        f"{r.returncode}): {(r.stdout[-300:] + r.stderr).strip()[-800:]}")
+    names = [o for o, _ in outs]
+    return ([(dict(zip(names, x[1:n + 1])), dict(zip(names, x[n + 2:]))) for x in rows],
+            time.time() - t0, None)
+
+
+def zero_starts_agree(sres):
+    """Whether the netlist's all-zeros start (Verilator `randReset(0)`) is ls-sv's `zeros` power-up. Every flop the
+    netlist keeps is a register bit, a merged copy of one or a bit equal to its lower neighbour (0 in both starts),
+    and a register the flow replaced by the constant 0 is 0 in both; a register replaced by the constant 1 (opt_dff's
+    "Setting constant 1-bit", a 1 once `never_loaded` has passed) or an array lane by the constant 1 (opt_mem's
+    const-1 lane) reads 1 in the netlist where ls-sv's zero start reads 0 (txtask-v2 review section 11.2's KEPT
+    rows); an undefined removal is refused at `score` before this check, and the clocked flow runs no fsm pass
+    (`synth -nofsm`, decided 2026-11-06; an FSM re-encoding would be refused at `score` too, by the backstop)."""
+    fr = (sres or {}).get("flop_removals") or {}
+    return not fr.get("constant_one_or_x") and not fr.get("memory_constant_one")
+
+
+def react_seed(task, mod, point, point_s, seed, cfg, envl, exe, nports, work, deadline, zeros_agree=True):
+    """One seed of THE REACTIVE CHECK: (the record, the failures [(cycle, why)]). `zeros_agree`:
+    `zero_starts_agree` of the scored record (seed 0 then starts both from the same state)."""
+    clk, R = task["clock"], cfg["reset_cycles"]
+    ins = sorted((n, w) for d, n, w in nports if d == "input")
+    outs = sorted((n, w) for d, n, w in nports if d == "output")
+    dins = [(n, w) for n, w in ins if n != clk]
+    draw = seed_draw(task, point_s, seed)
+    lines, segs, spans = react_plan(task, mod, point, draw["rng"], cfg, dins)
+    rows, el, err = vl_run_react(exe, dins, outs, lines, seed, draw, work, max(60.0, deadline - time.time()))
+    if rows is None:
+        raise Reject(f"the scored netlist does not simulate: {err}")
+    pre, net = [p for p, _ in rows], [q for _, q in rows]
+    stim = [e for _, e in lines]
+    start = start_of(seed, draw)
+    rec = {"seed": seed, "seed_sha256": draw["seed_sha256"], "salted": draw["salted"],
+           "reset_cycles": R, "cycles": len(stim), "segments": len(segs),
+           "longest_segment": max(len(sg["entries"]) for sg in segs), "t_netlist_run_s": round(el, 3),
+           "netlist_randreset": start[0], "netlist_randseed": draw["vl_seed"], "lssv_start": start[1]}
+    same = seed == 0 and zeros_agree
+    rec["compared"] = ("the netlist with ls-sv, bit for bit (the same all-zeros start)" if same else
+                       "each run with the guarantee (the netlist and ls-sv start from different power-ups)")
+    lports, lrows, _, _, el = lssv_eval(envl, point_s, ins, [{clk: 0, **e} for e in stim], cfg["fuel"],
+                                        work, deadline, trace=True, start=start[1])
+    rec["t_lssv_s"] = round(el, 2)
+    if lports != nports:
+        raise Reject(f"the ports differ: ls-sv has {sorted(lports)}, the netlist {sorted(nports)}")
+    errs = [r[1] for r in lrows if r[0] == "ERROR"]
+    if errs:
+        raise Reject(f"ls-sv does not complete the run (seed {seed}): {errs[0][:300]}"
+                     + (" (an ls-sv limit: no proof about such a design can hold)" if "UNSUPPORTED" in errs[0] else ""))
+    bad = []
+    # (i) ls-sv known and σ_src = σ_rev, every output from the last entry of the first reset; from the same
+    # state, the netlist against ls-sv
+    for c in range(R - 1, len(stim)):
+        src, rev = lrows[c]
+        for o, _ in outs:
+            if src.get(o) != rev.get(o):
+                bad.append((c, f"ls-sv: σ_src and σ_rev disagree on {o}"))
+            elif has_xz(src.get(o, "x")):
+                bad.append((c, f"ls-sv: {o} is x/z in a claimed snapshot ({o} = {src.get(o)}, MSB first)"))
+            elif same and src[o] != net[c][o]:
+                bad.append((c, f"{o}: the netlist ({net[c][o]}) is not ls-sv ({src[o]})"))
+
+    def ints(row):
+        return {o: int(row[o], 2) for o, _ in outs}
+    # (ii) the guarantee, on the netlist's outputs, segment by segment; from different states (i)'s other half,
+    # the guarantee on ls-sv's outputs (when (i) found them known)
+    runs = [("", net)] + ([] if same or bad else [("ls-sv: ", [lrows[c][0] for c in range(len(stim))])])
+    for who, rows_ in runs:
+        for k, (sg, (r0, a, b)) in enumerate(zip(segs, spans)):
+            for j, why in mod.violations(dict(point), ints(rows_[r0]), sg["entries"],
+                                         [ints(rows_[c]) for c in range(a, b)]):
+                bad.append((r0 if j < 0 else a + j, f"{who}segment {k} ({sg.get('tag')}), entry {j}: {why}"))
+    # (iii) Moore: nothing an output shows moves between two edges
+    for c in range(1, len(stim)):
+        moved = [o for o, _ in outs if pre[c][o] != net[c - 1][o]]
+        if moved:
+            bad.append((c, f"{', '.join(moved)} changed before the edge of cycle {c} with the clock low, from the "
+                        f"snapshot's {' '.join(net[c - 1][o] for o in moved)} to "
+                        f"{' '.join(pre[c][o] for o in moved)} when the inputs changed: a combinational path "
+                        "from an input to an output (the task's outputs are Moore, `MooreOut`)"))
+    return rec, sorted(bad)
+
+
 def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports, work, deadline):
     """One seed: (the record, the failures [(cycle, why)])."""
     clk, kind, R = task["clock"], task["kind"], cfg["reset_cycles"]
     ins = sorted((n, w) for d, n, w in nports if d == "input")
     outs = sorted((n, w) for d, n, w in nports if d == "output")
     dins = [(n, w) for n, w in ins if n != clk]
-    rng = random.Random(f"{task['name']}/{point_s}/{seed}")
-    lines, items = clocked_plan(task, mod, point, seed, cfg, dins, rng)
-    rows, late, el, err = vl_run_clocked(exe, dins, outs, lines, seed, latency or 0, work,
+    draw = seed_draw(task, point_s, seed)
+    lines, items = clocked_plan(task, mod, point, seed, cfg, dins, draw["rng"])
+    rows, late, el, err = vl_run_clocked(exe, dins, outs, lines, seed, draw, latency or 0, work,
                                          max(60.0, deadline - time.time()))
     if rows is None:
         raise Reject(f"the scored netlist does not simulate: {err}")
     stim = [lines[li][1] for li, _ in rows]
     net = [r for _, r in rows]
-    rec = {"seed": seed, "reset_cycles": R, "cycles": len(stim), "late": late, "t_netlist_run_s": round(el, 3)}
+    start = start_of(seed, draw)
+    rec = {"seed": seed, "seed_sha256": draw["seed_sha256"], "salted": draw["salted"], "reset_cycles": R,
+           "cycles": len(stim), "late": late, "t_netlist_run_s": round(el, 3),
+           "netlist_randreset": start[0], "netlist_randseed": draw["vl_seed"], "lssv_start": start[1]}
     lports, lrows, _, _, el = lssv_eval(envl, point_s, ins, [{clk: 0, **e} for e in stim], cfg["fuel"],
-                                        work, deadline, trace=True)
+                                        work, deadline, trace=True, start=start[1])
     rec["t_lssv_s"] = round(el, 2)
     if lports != nports:
         raise Reject(f"the ports differ: ls-sv has {sorted(lports)}, the netlist {sorted(nports)}")
@@ -1432,7 +1693,7 @@ def run_clocked(task, envl, netlist, sres, work, mod, point, latency=None, mode=
     if task["kind"] not in CLOCKED_KINDS or "reset" not in task:
         raise InfraError(f"the clocked post-synthesis check covers the kinds {CLOCKED_KINDS} with "
                          f"a task.json `reset` (this is {task['kind']})")
-    if task["kind"] != "seq-family" and not latency:
+    if task["kind"] in LATENCY_KINDS and not latency:
         raise InfraError(f"the clocked post-synthesis check of a {task['kind']} task needs the declared latency")
     point_s = envelope.point_str(point)
     rec = {"kind": task["kind"], "point": point_s or "default", "mode": resolve_mode(mode),
@@ -1457,8 +1718,10 @@ def run_clocked(task, envl, netlist, sres, work, mod, point, latency=None, mode=
         elif task["kind"] == "stream-family":      # the count-th out_valid = 1 since the start row
             done = (f"[&]{{ static long n = 0; n = (kind[0] == 'S' ? 0 : n) + (top->{ccode_ident(proto['out_valid'])}"
                     f" != 0); return n >= {int(point[proto['count']])}; }}()")
-        harness = harness_cpp([p for p in ins if p[0] != task["clock"]], outs, CLOCKED_HARNESS,
-                              clk=ccode_ident(task["clock"]), done=done)
+        harness = (harness_cpp([p for p in ins if p[0] != task["clock"]], outs, REACT_HARNESS,
+                               clk=ccode_ident(task["clock"])) if task["kind"] == "react-family" else
+                   harness_cpp([p for p in ins if p[0] != task["clock"]], outs, CLOCKED_HARNESS,
+                               clk=ccode_ident(task["clock"]), done=done))
         exe, el, err = vl_build([netlist, simcells()], top, {}, ins, outs, work, "clocked",
                                 max(120.0, deadline - time.time()), harness=harness, xflags=VL_X_CLOCKED)
         rec["t_netlist_build_s"] = round(el, 2)
@@ -1466,15 +1729,21 @@ def run_clocked(task, envl, netlist, sres, work, mod, point, latency=None, mode=
             raise Reject(f"the scored netlist does not compile: {err}")
         bad = []
         for seed in range(cfg["seeds"]):
-            srec, sbad = clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports,
-                                      work, deadline)
+            if task["kind"] == "react-family":
+                srec, sbad = react_seed(task, mod, point, point_s, seed, cfg, envl, exe, nports, work, deadline,
+                                        zeros_agree=zero_starts_agree(sres))
+            else:
+                srec, sbad = clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports,
+                                          work, deadline)
             rec["seeds"].append(srec)
             bad += [(seed, c, why) for c, why in sbad]
         rec["mismatches"] = len(bad)
         if bad:
             rec["report"] = [{"seed": s, "cycle": c, "why": w} for s, c, w in bad[:REPORT_MAX]]
             raise Reject(f"{len(bad)} failures at {point_s or 'default'} (reset for {cfg['reset_cycles']} "
-                         "cycles from a randomized state; cycle = stimulus entry):\n"
+                         "cycles from a power-up state: seed 0 all zeros, the others random; cycle = stimulus entry"
+                         + (f"; segments of oracle.py `segments`, the last {cfg['long']} entries long"
+                            if task["kind"] == "react-family" else "") + "):\n"
                          + "\n".join(f"  seed {s}, cycle {c}: {w}" for s, c, w in bad[:8]))
     except Reject as r:
         rec["seconds"] = round(time.time() - t_start, 2)

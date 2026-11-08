@@ -28,14 +28,18 @@ STEPS, in order:
               `tasks/<name>/reference/`; no extractor output (`*.sv.json`,
               `*.probes.json`) outside `.lake/`; `tests/expected.json` lists
               exactly the designs on disk; the aggregators `tasks.lean` and
-              `tests.lean` import every Spec and every Refute;
+              `tests.lean` import every Spec and every Refute (but the
+              PENDING_REFUTES, which `tests.lean` must not import);
               `tests/mul/baselines/gen_dadda.py --check`; every task's `time_limit_s`
-              is the one limit and no reference in `score/time_limits.json` is over it
-              (`score/time_limits.py --check`)
+              is the one limit, every reference a task.json lists has cold runs in CPU
+              seconds in `score/time_limits.json` and none is over the limit
+              (`score/time_limits.py --check`, which also names every reference over the
+              150 CPU s target without failing)
   build       `lake build` of the svGolf project (SvGolf, tasks, tests):
               every statement, and every kernel-checked refutation of a
               negative design (`tests/<name>/negative/Refute.lean`, whose
-              designs `load_sv` extracts at elaboration time)
+              designs `load_sv` extracts at elaboration time), but the
+              PENDING_REFUTES (the `negatives` step builds those)
   unit        score/test_score.py, score/test_srcgate.py,
               score/banlist.py --selftest, score/fourstate.py --selftest,
               score/time_limits.py --selftest,
@@ -64,10 +68,13 @@ STEPS, in order:
               banlist, under its own header, and at `banlist` otherwise),
               tests/checker/test_clocked.py (no Lean, PLAN4 Gate 2: the clocked
               source-gate rules on tests/seq_counter/attacks/, the latency header,
-              the generated goals of seq-family, tx-family and stream-family),
+              the generated goals of seq-family, tx-family, stream-family and
+              react-family),
               tests/checker/test_clocked_post.py (no Lean: the clocked score,
-              post-synthesis check and negatives, tests/seq_tx/ and the sorter's
-              stream mutants),
+              post-synthesis check and negatives, tests/seq_tx/, the sorter's
+              stream mutants and the arbiter's reactive check: the goalpost passes,
+              a Mealy output, an unreset grant and fixed priority each fail on
+              their own clause),
               score/test_ppa.py (the sky130 PPA columns, stage 1),
               score/test_ppa_opensta.py (ppa.py's STA against OpenSTA's recorded
               arrivals, cell arcs to clocked periods, the input-drive convention),
@@ -106,7 +113,10 @@ STEPS, in order:
               the DORMANT re-verification of bv_decide axioms: real proofs accepted when the
               comparator is given --bv-decide, forged and malformed axioms, a hostile shared or
               deep term, ofReduceBool and native_decide rejected, and every bv_decide axiom
-              rejected, naming the policy, without the flag, which is what check.py passes)
+              rejected, naming the policy, without the flag, which is what check.py passes); and
+              tests/checker/test_xsafe_twin.py (REAL Lean: rule 3's Python twin, check/clocked_rules.py,
+              against `xsafeB` of the designs `load_sv` loads from tests/seq_counter/xsafe/, at every
+              probe point: sound, and in agreement where no earlier stage refuses)
   canon       the canonical scoring flow (score/canon.ys, then score/svgolf.ys
               in a fresh Yosys process): every reference and draft goalpost,
               re-laid-out (blank lines, line joins, one token per line,
@@ -126,7 +136,7 @@ STEPS, in order:
               for a task with an `oracle`, the advisory functional check agrees
               on every vector of the postsynth stage (a proved design computes
               the task's function: a mismatch would be an oracle bug). A CLOCKED
-              task (tx-family, seq-family, stream-family): the clocked postsynth record at the
+              task (tx-family, seq-family, stream-family, react-family): the clocked postsynth record at the
               scoring point and every `postsynth.points` point (full mode, every
               seed, no failure; its oracle check is binding there), the ranked
               score (um^2, cycles x period, flops) beside GE and depth, the
@@ -136,12 +146,16 @@ STEPS, in order:
               it passes); its scores; the postsynth check at the scoring point.
               A statement draft: `check.py --unproved` (`--latency`: its
               goalpost's) reaches `unproved`, and for a clocked kind its clocked
-              postsynth record passes as a reference's; a draft of a kind
+              postsynth record passes as a reference's and its ranked score is
+              tests/expected.json's (when it records one); a draft of a kind
               check.py has no checker for (`checker_kind`) is skipped
   negatives   every negative design through check.py with the task's first
               reference proof (a draft task: its partial file; a statement
               draft: skipped): rejected at its expected stage; its expected
-              scores, if any
+              scores, if any. And each PENDING_REFUTES module, built alone
+              (`lake build tests.<name>.negative.Refute`): it must fail with
+              its pinned message; one that builds fails the step until
+              `tests.lean` imports it again and the entry is dropped
   baselines   every baseline (unproved, simulation-only, or banned-operator)
               scored at its expected points (score.py, which applies no
               banlist: "the banlist lifted"); the banlist's verdict as
@@ -201,7 +215,8 @@ STEPS, in order:
               tests/expected.json gives (`source`, `fourstate`, `banlist`;
               `design` for a design that loads with an Unsupported node: the
               functions and latches ls-sv cannot run, WP-C3, whose entry may
-              add `message_contains`, a phrase the rejection must carry),
+              add `message_contains`, a phrase the rejection must carry, or a
+              list of phrases of which it must carry one: `why` says why),
               and, where it says `postsynth_alone`, through the postsynth
               check with the source gate and the fourstate stage bypassed:
               what that sampling check would do on its own (`rejects`, or
@@ -291,6 +306,19 @@ def checkpy():
 
 STEPS = ["layout", "build", "unit", "comparator", "leaderboard", "modes", "canon", "references",
          "drafts", "negatives", "baselines", "ppa", "validate", "attacks", "sandbox"]
+
+# The refutations that wait for the int32 port round: the pinned ls-sv's loader refuses each one's
+# `only_n16.sv` (`PDesign.int32Agrees`: at the defaults an INT-class constant expression leaves the 32-bit
+# range), so the module does not build at the pin. `tests.lean` does not import them, which keeps the default
+# `lake build` green; they are kept unchanged, and the `negatives` step builds each one alone and pins its
+# known failure: module -> the phrases its error output must carry. A module that builds fails that step: import
+# it in `tests.lean` again and drop it here.
+PENDING_REFUTES = {
+    f"tests.{t}.negative.Refute": (f"tests/{t}/negative/Refute.lean", f"tests/{t}/negative/only_n16.sv",
+                                   "REFUSED", "INT-class constant expression leaves the 32-bit range",
+                                   "(`PDesign.int32Agrees`)")
+    for t in ("add", "mul", "clmul")
+}
 WRAP = os.environ.get("SVGOLF_LEAN_WRAP", "").split()
 
 # The sky130 PPA columns (WP-X3). "present": the pinned liberty opens (sha256 verified); "absent": there is no file
@@ -425,18 +453,31 @@ def run_check(task_dir, sv, lean, extra=(), postsynth_mode="full", ppa_flag="off
         res = {"accepted": False, "stage": "crash",
                "errors": [proc.stdout[-2000:] + proc.stderr[-2000:]]}
     res["_seconds"] = time.time() - t0
+    res["_exit"] = proc.returncode
     return res
 
 
 def verdict(res):
-    return "accepted" if res.get("accepted") else f"rejected at {res.get('stage')}"
+    if res.get("accepted"):
+        return "accepted"
+    if res.get("unproved_ok"):
+        return "unproved (every check without a proof passed)"
+    return f"rejected at {res.get('stage')}"
+
+
+def clean_unproved(res):
+    """check.py's contract for a clean `--unproved` run: stage `unproved`, not accepted, `unproved_ok`, no
+    `errors` (the sentence is in `notes`) and exit status 0."""
+    return (res.get("stage") == "unproved" and not res.get("accepted") and res.get("unproved_ok") is True
+            and not res.get("errors") and bool(res.get("notes")) and res.get("_exit") == 0)
 
 
 def first_error(res):
-    """The rejection's headline, and its first Lean/tool error line if any."""
-    errs = res.get("errors") or ["?"]
+    """The rejection's headline, and its first Lean/tool error line if any (a clean `--unproved` run: its note)."""
+    errs = res.get("errors") or res.get("notes") or ["?"]
     lines = (errs[0] or "?").splitlines() or ["?"]
-    detail = next((ln.strip() for ln in lines[1:] if "error" in ln), "")
+    # (check.py's `errors_first` heads a long Lean output with "the errors (n, ...):", then the error lines)
+    detail = next((ln.strip() for ln in lines[1:] if "error" in ln and not ln.startswith("the errors (")), "")
     return (lines[0] + (" " + detail if detail else ""))[:220]
 
 
@@ -469,11 +510,14 @@ def score_diff(got, want):
     return "; ".join(out)
 
 
-def current_flow():
+def current_flow(flow="comb"):
+    """The pin of score.py's flow `flow` as it is now: "comb" (svgolf.ys, ge.json; tests/expected.json `flow`) or
+    "seq" (svgolf_seq.ys, ge_seq.json; `flow_seq`, the pin a clocked task's records are compared with)."""
+    script, table = score.FLOWS[flow]
     return {"yosys_version": score.yosys_version(score.yosys_bin()),
             "canon_script_sha256": score.sha256_file(score.CANON_SCRIPT),
-            "script_sha256": score.sha256_file(score.SCRIPT),
-            "ge_table_sha256": score.sha256_file(score.GE_TABLE)}
+            "script_sha256": score.sha256_file(script),
+            "ge_table_sha256": score.sha256_file(table)}
 
 
 def measure(sv, top, point):
@@ -546,6 +590,11 @@ def step_layout(tasks, expected):
             errs.append(f"unknown keys {unknown} (README.md documents the schema)")
         if task.get("name") != t:
             errs.append(f"name {task.get('name')!r} is not the directory name")
+        # every task bans run-time / % ** (banlist.py ALWAYS_BANNED, since 2026-11-06): task_banlist adds them anyway,
+        # and the task.json lists them so that every reader of the file (the site, the READMEs) sees the rule
+        missing_ops = [op for op in banlist.ALWAYS_BANNED if op not in task.get("banlist", {}).get("operators", [])]
+        if missing_ops:
+            errs.append(f"banlist.operators lacks {missing_ops}: every task bans run-time / % ** (README.md, Rules)")
         try:
             postsynth.config(task)
         except postsynth.InfraError as e:
@@ -680,6 +729,13 @@ def step_layout(tasks, expected):
                    "Yosys version and the sha256 of canon.ys, svgolf.ys, ge.json" if not diff
                    else f"differs in {diff}: the expected scores are for another flow "
                    "(--update-scores after a deliberate change)")
+    # the clocked flow's pin (decided 2026-11-07): the site compares a clocked task's records with it
+    flow, want = current_flow("seq"), expected.get("flow_seq", {})
+    diff = [k for k in flow if flow[k] != want.get(k)]
+    good &= record("layout", "tests/expected.json flow_seq = the pinned clocked flow", not diff,
+                   "Yosys version and the sha256 of canon.ys, svgolf_seq.ys, ge_seq.json" if not diff
+                   else f"differs in {diff}: the clocked records are compared with another flow "
+                   "(--update-scores after a deliberate change)")
     missing = [p for p in expected.get("canonical_layout", {}).get("designs", {})
                if not os.path.isfile(os.path.join(SVGOLF, p))]
     good &= record("layout", "tests/expected.json canonical_layout designs exist", not missing,
@@ -708,7 +764,13 @@ def step_layout(tasks, expected):
     miss = [f"tasks.{t}.Spec" for t in tasks_on_disk() if f"import tasks.{t}.Spec\n" not in tl]
     miss += [f"tests.{t}.negative.Refute" for t in tasks_on_disk()
              if os.path.isfile(os.path.join(HERE, t, "negative", "Refute.lean"))
+             and f"tests.{t}.negative.Refute" not in PENDING_REFUTES
              and f"import tests.{t}.negative.Refute\n" not in sl]
+    # a pending refutation is a file on disk that tests.lean does NOT import (the negatives step builds it)
+    miss += [f"{m} (PENDING_REFUTES: " + ("no such file" if not os.path.isfile(os.path.join(SVGOLF, pin[0]))
+                                          else "imported by tests.lean") + ")"
+             for m, pin in PENDING_REFUTES.items()
+             if not os.path.isfile(os.path.join(SVGOLF, pin[0])) or f"import {m}\n" in sl]
     good &= record("layout", "tasks.lean / tests.lean import every Spec / Refute", not miss,
                    ", ".join(miss))
     proc = subprocess.run([PY, os.path.join(HERE, "mul", "baselines", "gen_dadda.py"), "--check"],
@@ -733,7 +795,9 @@ def step_layout(tasks, expected):
                           capture_output=True, text=True)
     good &= record("layout", "time_limit_s of every task = score/time_limits.py's rule",
                    proc.returncode == 0,
-                   "every limit is 120 s and no reference in score/time_limits.json is over it"
+                   "every limit is 300 CPU s; every reference is measured in CPU seconds and none is over it"
+                   + "".join(f"; {ln.split(': ', 1)[1]}" for ln in proc.stdout.splitlines()
+                             if ln.startswith("time_limits.py: over the"))
                    if proc.returncode == 0 else (proc.stdout + proc.stderr).strip()[-400:])
     return good
 
@@ -837,10 +901,13 @@ def step_unit():
 
 
 def step_comparator():
-    """check/Comparator.lean on a hand-built module chain, with real Lean (about a minute), and its point 6,
-    the re-verification of `bv_decide` axioms (tests/checker/test_bv_decide.py, about two minutes)."""
+    """check/Comparator.lean on a hand-built module chain, with real Lean (about a minute), its point 6,
+    the re-verification of `bv_decide` axioms (tests/checker/test_bv_decide.py, about two minutes), and rule 3's
+    Python twin against the Lean `xsafeB` on tests/seq_counter/xsafe/ and on the arbiter's designs
+    (tests/checker/test_xsafe_twin.py)."""
     good = True
-    for script in ("tests/checker/test_comparator.py", "tests/checker/test_bv_decide.py"):
+    for script in ("tests/checker/test_comparator.py", "tests/checker/test_bv_decide.py",
+                   "tests/checker/test_xsafe_twin.py"):
         t0 = time.time()
         proc = subprocess.run([PY, script], cwd=SVGOLF, capture_output=True, text=True)
         out = (proc.stdout + proc.stderr).strip().splitlines()
@@ -1194,8 +1261,12 @@ def check_reference_ppa(t, stem, sv_rel, res):
     consistent with the score of the same run and, where score/tests/ppa/expected_ppa.json has the design, equal to
     its golden (one record per reference; skipped with a message where the pinned liberty is absent)."""
     good = True
-    base = {k: v for k, v in res.items() if k != "_seconds"}
+    base = {k: v for k, v in res.items() if not k.startswith("_")}     # this runner's own keys (`_seconds`, `_exit`)
     base["stages"] = {k: v for k, v in base["stages"].items() if k != "trusted"}   # a run without --no-trusted-build
+    # ... and its completeness verdict, which says whether the run built the trusted modules (check.py
+    # `incomplete_reasons`): a function of this runner's flags, not of the design
+    base.pop("complete", None)
+    base.pop("incomplete", None)
     if byte_identity.FULL_GOLDEN_REFERENCE.get(t) == stem:
         want = byte_identity.golden(t, "full")
         got = byte_identity.render(byte_identity.without_ppa(base))
@@ -1382,13 +1453,27 @@ def statement_draft_goalpost(t, task, tdir, stem, args):
     lat = ["--latency", str(d.get("latency"))] if task.get("kind") in checkpy().LATENCY_KINDS else []
     res = run_check(tdir, os.path.join(tdir, d["sv"]), None, args.check_extra + ["--unproved"] + lat,
                     ppa_flag=ppa_mode())
-    ok = res.get("stage") == "unproved"
-    detail = "every stage without a proof passes" if ok else f"{verdict(res)} (want unproved)"
-    if ok and task.get("kind") in checkpy().CLOCKED_KINDS:
+    ok = clean_unproved(res)
+    detail = "every stage without a proof passes (exit 0)" if ok else f"{verdict(res)} (want a clean unproved run)"
+    clocked = task.get("kind") in checkpy().CLOCKED_KINDS
+    if ok and clocked:
         ok, detail = clocked_postsynth_ok(task, res["stages"].get("postsynth") or {})
         detail += f"; score {show_score(res['score'])}"
-    return record("drafts", f"{t}/{stem} goalpost --unproved {' '.join(lat)}".rstrip(), ok,
+    good = record("drafts", f"{t}/{stem} goalpost --unproved {' '.join(lat)}".rstrip(), ok,
                   detail if ok else f"{detail}: {first_error(res)}", res["_seconds"])
+    # the goalpost's ranked score at the scoring point, where tests/expected.json records it (a clocked kind: the
+    # sky130 pair of check.py's clocked score, so a change of the design or the flow shows here)
+    want = (((args.expected_tasks or {}).get(t) or {}).get("references") or {}).get(stem) or {}
+    spoint = envelope.point_str(task["scoring"]["params"]) or "default"
+    if res.get("stage") == "unproved" and clocked and spoint in want.get("scores", {}):
+        got = {k: res["score"][k] for k in ("area_ge", "area_mge", "depth", "num_gates", "gates") + CLOCKED_SCORE_KEYS}
+        if args.update_scores:
+            want["scores"][spoint] = got
+        else:
+            same = same_score(got, want["scores"][spoint])
+            good &= record("drafts", f"{t}/{stem} goalpost check.py score {spoint}", same,
+                           show_score(got) + ("" if same else " (expected " + show_score(want["scores"][spoint]) + ")"))
+    return good
 
 
 def step_negatives(tasks, expected, args):
@@ -1417,7 +1502,31 @@ def step_negatives(tasks, expected, args):
                            res["_seconds"])
             good &= check_scores("negatives", f"{t}/{stem}", sv, task["top"],
                                  n.get("scores", {}), args)
+        mod = f"tests.{t}.negative.Refute"
+        if mod in PENDING_REFUTES:
+            good &= pending_refute(mod)
     return good
+
+
+def pending_refute(mod):
+    """Build one PENDING_REFUTES module alone: it must FAIL, and its FIRST error must carry every pinned phrase
+    (the loader's refusal of its `only_n16.sv`; the errors after it follow from the missing design). One that
+    builds, or fails another way first, fails the step."""
+    t0 = time.time()
+    proc = subprocess.run(WRAP + ["lake", "build", mod], cwd=SVGOLF, capture_output=True, text=True)
+    out = proc.stdout + proc.stderr
+    label = f"{mod.split('.')[1]}: {mod} (waits for the int32 port round)"
+    if proc.returncode == 0:
+        return record("negatives", label, False,
+                      f"`lake build {mod}` now SUCCEEDS: import it in tests.lean again and drop it from "
+                      "PENDING_REFUTES", time.time() - t0)
+    phrases = PENDING_REFUTES[mod][1:]
+    errors = [ln for ln in out.splitlines() if ln.startswith("error:")]
+    if not errors or not all(ph in errors[0] for ph in phrases):
+        return record("negatives", label, False, "failed, but its first error is not the pinned refusal "
+                      f"{phrases!r}:\n" + ("\n".join(errors[:5]) or out[-1500:])[-1500:], time.time() - t0)
+    return record("negatives", label, True, f"fails as pinned ({len(errors)} errors; the first: "
+                  + errors[0].split(": ", 1)[1][:160] + ")", time.time() - t0)
 
 
 def canon_tokens(path):
@@ -1737,6 +1846,18 @@ def VALIDATION(full, work):
              [f"tests/clmul/attacks/{k}.sv"])
             for k in clmul_styles],
         "fdivp": fdivp_validation(full),
+        "arbiter": [
+            # Icarus on tb.sv, the statement read per snapshot plus the silicon Moore check, at N = 1, 2, 3, 4, 5, 8,
+            # four stimulus modes, each design from a 0/1 power-up state (sim.py `powerup`, 2026-11-07; a state bit
+            # left without a 0/1 value is an error, the review's F1): the goalpost and the two other correct designs
+            # pass, every attack fails on its clause (A17 passes here by design: a reset comes before its bomb;
+            # check.py's postsynth rejects it), and the harness's self-test selftest/alias_ptr.sv fails on G3 with
+            # the self-check XK silent. Quick: 4000 cycles per run (about 60 s); full: 20000.
+            ("sim.py: the goalpost, designs/, the 17 attacks and the harness self-test (Icarus, tb.sv)",
+             [PY, "tests/arbiter/sim.py", "--cycles", "20000" if full else "4000"],
+             ["tasks/arbiter/reference/rr_mask.sv", "tests/arbiter/designs/rotate.sv",
+              "tests/arbiter/designs/arbiter_ot.sv"]),
+        ],
     }
     return v
 
@@ -1882,7 +2003,8 @@ MATHLIB_FIXTURE = os.path.join(HERE, "imports", "mathlib_band.lean")
 # every reference proved with the sv_comb tactics: all of them are accepted under `import Mathlib.Tactic` with the
 # proof otherwise unchanged (the tactics' own `simp` runs with Lean core's simp set: `sv_simp`,
 # LeanModels/Sv/CombCoreSimp.lean; before gate M (2026-11-01) it needed `sv_core_simp`, SvGolf/CoreSimp.lean)
-TACTIC_REFERENCES = [("add", "add_n"), ("add", "add_proc"), ("add", "add_proc_m"), ("mul", "mul_n"),
+TACTIC_REFERENCES = [("_example", "band_tactics"), ("add", "add_n"), ("add", "add_proc"), ("add", "add_proc_m"),
+                     ("mul", "mul_n"),
                      ("mul", "mul_wallace"),
                      ("mul", "mul_tree_h"), ("mul", "mul_tree"), ("aes_sbox", "sbox_bp"), ("clmul", "clmul_n"),
                      ("fdivp", "fdivp")]
@@ -1923,6 +2045,29 @@ theorem bv_helper : ∀ a b : BitVec 16, (a &&& b) + (a ||| b) = a + b := by
   bv_decide
 
 /-- **The reference solution**"""
+# The `slow_proof` attack (item 9 of the from-scratch study): a step that outlasts the test's limit, before the reference
+# proof's theorem. `sleep` waits and computes nothing, so it never reaches the CPU limit (decided 2026-11-05: the limit
+# counts CPU seconds) and the run is stopped by the wall-clock BACKSTOP (check.py's SOLUTION_WALL_FACTOR x the limit),
+# after the declarations above it finished in about 2 s.
+SLOW_STEP = """/-- A step that takes longer than the test's limit: `sleep` waits, nothing is computed. -/
+theorem slow_step : True := by
+  sleep 600000
+  trivial
+
+/-- **The reference solution**"""
+# The `cpu_proof` attack: the same place, a step that COMPUTES past the CPU limit (`#eval` of a loop of 10^12 steps),
+# stopped by the CPU limit long before the backstop.
+CPU_STEP = """/-- A step that computes past the test's CPU limit: `#eval` runs a loop of 10^12 steps. -/
+def burn : Nat → Nat → Nat
+  | 0, acc => acc
+  | n + 1, acc => burn n (acc + 1)
+
+#eval burn 1000000000000 0
+
+/-- **The reference solution**"""
+SLOW_LIMIT_S = 10
+# the declaration of `_example`'s first reference proof just above the slow step: the last one that finishes
+SLOW_LAST = "Submission.band_interface"
 
 
 def step_attacks(args):
@@ -1952,6 +2097,20 @@ def step_attacks(args):
                         the real subgoal is ACCEPTED, its axiom re-verified by the comparator; the
                         forged axiom is rejected by EVALUATION ("does not verify")  -> done / comparator
       implemented_by    a valid proof plus an `implemented_by`     -> comparator
+      slow_proof        the reference proof with a step that sleeps
+                        before `solution`, under a 10 s CPU limit
+                        (`--time-limit 10`): sleeping uses no CPU, so
+                        the WALL-CLOCK BACKSTOP (50 s) stops it, with
+                        its few CPU seconds reported apart, and the
+                        rejection says where the time went, naming
+                        the declaration above the step as the last
+                        one that finished (item 9 of the from-scratch
+                        study: Lean's stdout is a pseudo-terminal and
+                        `trace.Kernel` is on)                      -> solution
+      cpu_proof         the same place, a step that computes (`#eval`
+                        of a 10^12-step loop): stopped by the 10 s CPU
+                        limit (`stopped_by: cpu`), long before the
+                        backstop                                   -> solution
       env_hack_top      adds `solution : Goal := trivial` with the
                         kernel check switched off                  -> comparator
       env_hack_dep      the same for a lemma `helper`, and a real
@@ -1967,7 +2126,7 @@ def step_attacks(args):
                         `norm_num`) in its arithmetic, tests/imports/
                         mathlib_band.lean                          -> done
       mathlib_lookalike the same file importing `Mathlib2.Tactic.Ring` -> imports
-      mathlib_tactics_<ref> ACCEPTED, for every tactic-proved reference (add_n, add_proc, add_proc_m, mul_n,
+      mathlib_tactics_<ref> ACCEPTED, for every tactic-proved reference (band_tactics, add_n, add_proc, add_proc_m, mul_n,
                         mul_wallace, mul_tree_h, mul_tree, sbox_bp, clmul_n, fdivp): the reference proof
                         unchanged but for `import Mathlib.Tactic` (the tactics' own
                         `simp` ignores Mathlib's simp lemmas: `sv_simp`; no
@@ -1996,8 +2155,11 @@ def step_attacks(args):
                         in the walked closure                      -> comparator
       param_name        the design's parameter is `W`, not `N`     -> extract
       narrow_param      `parameter bit [3:0] N`: Yosys would score
-                        N = 16 as N = 0 (a 2-bit AND); the probe
-                        cross-check at the scoring point refuses   -> design
+                        N = 16 as N = 0 (a 2-bit AND); the port
+                        check refuses it first (at N = 16 its ports
+                        are 2 bits wide, the task's 16); the probe
+                        cross-check at the scoring point (`design`)
+                        is the second line                         -> extract
       gate:<fixture>    each design in score/tests/gate that the
                         source gate refuses (`ifdef SYNTHESIS`,
                         `translate_off`, `unique case`, x/z literal
@@ -2024,6 +2186,11 @@ def fastId (n : Nat) : Nat := n
 @[implemented_by fastId] def slowId (n : Nat) : Nat := n
 
 end Submission"""), "comparator")
+        slow = proof.replace("/-- **The reference solution**", SLOW_STEP, 1)
+        if slow == proof or f"theorem {SLOW_LAST.split('.')[-1]} " not in proof:
+            return record("attacks", "slow_proof", False, "the reference proof changed shape; update the attack")
+        cases["slow_proof"] = (slow, "solution")
+        cases["cpu_proof"] = (proof.replace("/-- **The reference solution**", CPU_STEP, 1), "solution")
         bv = proof.replace("import Submission.Design", "import Submission.Design\n"
                            "import Std.Tactic.BVDecide")
         bvok = bv.replace("/-- **The reference solution**", BV_HELPER)
@@ -2077,13 +2244,14 @@ end Submission"""), "comparator")
             # the plant attacks test the integrity TRIPWIRE, which the sandbox now makes unreachable (the
             # write is denied before it can happen): they run WITHOUT it; the `sandbox` step has their twins
             more = (["--sandbox", "off"] if label.startswith("mathlib_plant") or label == "bv_decide_subgoal_off"
-                    else ["--sandbox", "require"] if label == "bv_decide_subgoal_sandbox" else None)
+                    else ["--sandbox", "require"] if label == "bv_decide_subgoal_sandbox"
+                    else ["--time-limit", str(SLOW_LIMIT_S)] if label in ("slow_proof", "cpu_proof") else None)
             if label.startswith("bv_decide_groundwork"):
                 runs.append((label, ref_sv, path, stage, bv_enabled_task_dir(tmp), []))
             else:
                 runs.append((label, ref_sv, path, stage) + ((tdir, more) if more else ()))
         for label, text, stage in (("param_name", PARAM_W_SV, "extract"),
-                                   ("narrow_param", NARROW_PARAM_SV, "design")):
+                                   ("narrow_param", NARROW_PARAM_SV, "extract")):
             sv = os.path.join(tmp, f"{label}.sv")
             with open(sv, "w") as fh:
                 fh.write(text)
@@ -2162,14 +2330,33 @@ end Submission"""), "comparator")
                         "HINT:" in msg if label.endswith("sandbox") else "`bv_decide` is not supported" in msg)
                 if ok and label.startswith("mathlib_plant"):
                     ok = "SvgolfAttackPlanted.olean" in json.dumps(res.get("errors"))
+                # sleeping: stopped by the wall-clock backstop with few CPU seconds, and the rejection names the last
+                # declaration that finished
+                if ok and label == "slow_proof":
+                    msg = " ".join(res.get("errors") or [])
+                    sol = res["stages"]["solution"]
+                    backstop = checkpy().solution_wall_backstop(SLOW_LIMIT_S)
+                    ok = (msg.startswith(f"the proof did not compile within the {backstop:g} s wall-clock backstop")
+                          and f"the last `{SLOW_LAST}" in msg and sol.get("exit") == 124
+                          and sol.get("stopped_by") == "wall" and (sol.get("cpu_seconds") or 0) < SLOW_LIMIT_S
+                          and sol.get("seconds", 0) >= backstop
+                          and ((sol.get("progress") or {}).get("last") or {}).get("decls", "").startswith(SLOW_LAST)
+                          and "[Kernel]" not in sol.get("messages", ""))
+                # computing: stopped by the CPU limit, long before the backstop
+                if ok and label == "cpu_proof":
+                    msg = " ".join(res.get("errors") or [])
+                    sol = res["stages"]["solution"]
+                    ok = (msg.startswith(f"the proof did not compile within the {SLOW_LIMIT_S:g} s CPU limit")
+                          and sol.get("exit") == 124 and sol.get("stopped_by") == "cpu"
+                          and (sol.get("cpu_seconds") or 0) >= SLOW_LIMIT_S
+                          and sol.get("seconds", 1e9) < checkpy().solution_wall_backstop(SLOW_LIMIT_S))
                 detail = (f"{verdict(res)} (want {stage}): "
                           + (first_error(res) if ok else json.dumps(res.get("errors"))[:600]))
             good &= record("attacks", label, ok, detail, res["_seconds"])
         for f in GATE_OK_FIXTURES:
             res = run_check(tdir, os.path.join(GATE_DIR, f), None, ["--unproved"] + args.check_extra)
             src = (res.get("stages") or {}).get("source") or {}
-            ok = (not res.get("accepted") and res.get("stage") == "unproved"
-                  and src.get("findings") == [])
+            ok = clean_unproved(res) and src.get("findings") == []
             good &= record("attacks", f"gate-ok:{f}", ok,
                            f"{verdict(res)} (want unproved, no source findings): "
                            + ("every check that needs no proof passed" if ok else
@@ -2370,7 +2557,7 @@ def step_sandbox(args):
         for label, body, env, msg_want, more in (
                 ("host_memory_bomb", A.MEMORY, {"SVGOLF_SANDBOX_RSS_MB": "1500"}, "SVGOLF_MEMORY", ()),
                 ("host_output_flood", A.OUTPUT, {"SVGOLF_SANDBOX_OUT_MB": "4"}, "SVGOLF_OUTPUT", ()),
-                ("host_cpu_bomb", A.SPIN, {}, "did not compile within 10", ("--time-limit", "10")),
+                ("host_cpu_bomb", A.SPIN, {}, "did not compile within the 10 s CPU limit", ("--time-limit", "10")),
                 # by default no process can be started at all (no fork): the file's first spawn fails
                 ("host_spawn_bomb (default flags: no fork)", A.SPAWN, {}, "operation not permitted", ()),
                 # the dormant groundwork, support forced on: the grant lets lean copies start, the memory limit stops them
@@ -2463,8 +2650,14 @@ def step_design_attacks(tasks, expected, args):
             res = run_check(tdir, sv, lean, ([] if lean else ["--unproved"]) + a.get("args", [])
                             + args.check_extra, postsynth_mode=pmode)
             ok = not res.get("accepted") and res.get("stage") == a["stage"]
+            if ok and a["stage"] == "unproved":
+                ok = clean_unproved(res)          # the advisory attacks: a clean run, exit 0, its sentence a note
             if ok and a.get("message_contains"):
-                ok = a["message_contains"] in " ".join(res.get("errors") or [])
+                # a rejection's phrase is in `errors`; a clean `--unproved` run has none, its sentence is in `notes`;
+                # a list: one of its phrases (the entry's `why` says why there is more than one)
+                text = " ".join(res.get("errors") or res.get("notes") or [])
+                want_m = a["message_contains"]
+                ok = any(m in text for m in (want_m if isinstance(want_m, list) else [want_m]))
             ps = (res.get("stages") or {}).get("postsynth") or {}
             extra = (f" [{ps.get('mismatches')} of {ps.get('vectors')} vectors differ]"
                      if ps.get("mismatches") else
@@ -2589,6 +2782,7 @@ def main():
             ap.error(f"unknown tasks {sorted(set(only) - set(tasks))} (known: {tasks})")
         tasks = [t for t in tasks if t in only]
     expected = load_json(EXPECTED)
+    args.expected_tasks = expected["tasks"]        # (the statement-draft goalposts' scores, step_drafts)
     state, ppath, why = ppa_state()
     if state == "present":
         os.environ["SVGOLF_PPA_REQUIRE_LIB"] = "1"     # the real-library tests of score/test_ppa.py cannot skip silently
@@ -2650,6 +2844,7 @@ def main():
             step_sandbox(args)
     if args.update_scores:
         expected["flow"] = current_flow()
+        expected["flow_seq"] = current_flow("seq")
         with open(EXPECTED, "w") as fh:
             json.dump(expected, fh, indent=2)
             fh.write("\n")

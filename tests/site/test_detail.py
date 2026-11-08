@@ -185,7 +185,9 @@ class DetailTest(unittest.TestCase):
         shown = 0
         for t, path, rec, stem in self.detail_pages():
             dash = text_of(section(self.page(path), "dashboard"))
-            if rec is not None and isinstance(rec.get("ppa"), dict) and rec["ppa"].get("available"):
+            if rec is not None and lb.statement_mismatch(rec, lb.current_statement(tasks[t].task)):
+                cols = None        # checked under another statement, or before records named theirs: not ranked
+            elif rec is not None and isinstance(rec.get("ppa"), dict) and rec["ppa"].get("available"):
                 cols = lb.ranked_columns(rec)
             else:
                 d = next((d for d in tasks[t].designs if d["kind"] == "reference" and d["stem"] == stem), None)
@@ -311,7 +313,8 @@ class DetailTest(unittest.TestCase):
                     want = [n["inst"] for n in disp["path"] if n.get("inst")]
                     chain = re.search(r'<ol class="chain">(.*?)</ol>', cp, re.S)
                     self.assertIsNotNone(chain)
-                    self.assertIn(disp["critical"]["output"], text_of(chain.group(1)))
+                    end = disp["critical"]["output"]            # a clocked path ends at a flip-flop's D: `D:<net>`
+                    self.assertIn(f"{end[2:]} flip-flop D" if end.startswith("D:") else end, text_of(chain.group(1)))
                 self.assertEqual(hrefs, want)
                 linked += 1
         self.assertGreaterEqual(linked, 15)

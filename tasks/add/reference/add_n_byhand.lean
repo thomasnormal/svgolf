@@ -743,7 +743,7 @@ theorem add_interface (N : Nat) (hN : 1 ≤ N) :
 /-- **The reference solution**: the `add` statement, for every `N ≥ 1`. -/
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   refine CombTask.satisfiedAt_of_comb (add_interface N hN') (ripple_comb N hN')
     (ripple_acyclic N hN') ?_
   intro st heqs hs v hv

@@ -76,7 +76,9 @@ rounded to nearest, ties to even, with gradual underflow and overflow to `±inf`
    bias `2^0 - 1 = 0` and no normal exponent below the all-ones one; `P = 1` would have no fraction bit, hence no quiet-NaN
    bit. Any larger lower bound would be a free choice; there is no upper bound (the statement is for ALL formats, so a
    design must be generic in `W` and `P`: a design specialized to `(5, 11)` has no proof of `forall W P`). The checker's
-   `parameters` ranges say the same (`2 <= W`, `2 <= P`).
+   `parameters` ranges say the same (`2 <= W`, `2 <= P`). Since 2026-11-06 the range also requires `W + P + 1 < 2^31`
+   (decided 2026-11-06, README "The statement"): the port and exponent widths are `int` expressions of the module,
+   and an `int` holds no value of `2^31` or more.
 2. **The canonical quiet NaN, whatever the operands.** Every NaN result is `{0, all-ones exponent, fraction MSB set, rest 0}`
    (sign `0`): the payload and sign of an operand NaN are NOT propagated. That is the spec's choice at binary16 too (and
    `0x7E00` there). At `P = 2` the fraction has ONE bit, which is the quiet bit.
@@ -143,6 +145,7 @@ allowed. `task.json` `banlist.operators = ["/", "%", "**"]`.
 
 1. Port and module names `fdiv`, `a`, `b`, `q`, parameters `W`, `P` in that order (the former 16-bit task had `a`, `b`, `q`): acceptable?
 2. `inRange = 2 <= W /\ 2 <= P` with no upper bound: confirmed? (The statement is for ALL formats, which the proof delivers.)
+   Answered 2026-11-06: the range is `2 ≤ W ∧ 2 ≤ P ∧ W + P + 1 < 2^31`, so that every width stays an `int`.
 3. The canonical quiet NaN with sign 0 and no payload propagation, as in the former 16-bit task: confirmed for every format?
 4. Round to nearest even only, no flags, full subnormals, overflow to infinity: confirmed?
 5. Option C (`StatementFixed` family) rather than the `CombTask2` patch: confirmed?

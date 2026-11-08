@@ -2,14 +2,20 @@
   "_comment": [
     "Golden expectations for tests/run.py: every score quoted in a README is here and is re-measured by tests/run.py (area_mge and depth exactly, and the gate mix).",
     "Per task: `references` (tasks/<task>/reference/<stem>.sv; accepted by check.py with <stem>.lean, or for a draft task the `stage` check.py stops at with the draft's partial Lean file), `baselines` (tests/<task>/baselines/<stem>.sv unless `sv` says otherwise, relative to tests/<task>/; scored only, never accepted: `banned` says whether the task's banlist rejects it, the score is taken with the banlist lifted), `negatives` (tests/<task>/negative/<stem>.sv; rejected by check.py at `stage` when submitted with the task's first reference proof).",
-    "`scores` maps a parameter point (`N=16`, or `default` for a parameterless top) to the pinned flow's result there (score/score.py: score/svgolf.ys + score/ge.json, Yosys 0.53). Regenerate the scores with `python3.12 tests/run.py --update-scores` after a deliberate change of the flow.",
-    "`attacks` (tests/<task>/attacks/<stem>.sv; through `check.py --unproved`, or with a reference proof when `lean` says so: `reference` the task's first, `reference/<stem>.lean` that one; rejected at `stage`): optional `message_contains` (a phrase the rejection must carry; WP-C3's `design` rejections name the unsupported construct), `postsynth_alone` (`rejects` | `passes`: the postsynth check alone with the source gate and the fourstate stage bypassed), `postsynth_mode` (`light` when absent; `full` for an attack that ONLY the full post-synthesis check rejects: the mode of the check.py run and of the `postsynth_alone` run, WP-C2), `postsynth_light` (the LIGHT mode's own verdict where it is documented, `rejects` | `passes`), `functional` and `tactics` (the advisory checks). `advisory` (true): a test of the checker's own behavior that the refusal register (docs/sv-refusals.json, tools/gen_sv_refusals.py) does not need to cite; WP-C2/WP-C3 set it on `func_call`, `assign_func` and `rare_mid` until the register has entries for them."
+    "`scores` maps a parameter point (`N=16`, or `default` for a parameterless top) to the pinned flow's result there (score/score.py: score/svgolf.ys + score/ge.json, Yosys 0.53). Regenerate the scores with `python3.12 tests/run.py --update-scores` after a deliberate change of the flow. `flow` pins that combinational flow and `flow_seq` the clocked one (score/svgolf_seq.ys + score/ge_seq.json, the same Yosys and canon.ys): the boards compare a record with the pin of its task's kind (decided 2026-11-07).",
+    "`attacks` (tests/<task>/attacks/<stem>.sv; through `check.py --unproved`, or with a reference proof when `lean` says so: `reference` the task's first, `reference/<stem>.lean` that one; rejected at `stage`): optional `message_contains` (a phrase the rejection must carry, or a list of phrases of which it must carry one, with the reason in `why`; WP-C3's `design` rejections name the unsupported construct), `postsynth_alone` (`rejects` | `passes`: the postsynth check alone with the source gate and the fourstate stage bypassed), `postsynth_mode` (`light` when absent; `full` for an attack that ONLY the full post-synthesis check rejects: the mode of the check.py run and of the `postsynth_alone` run, WP-C2), `postsynth_light` (the LIGHT mode's own verdict where it is documented, `rejects` | `passes`), `functional` and `tactics` (the advisory checks). `advisory` (true): a test of the checker's own behavior that the refusal register (docs/sv-refusals.json, tools/gen_sv_refusals.py) does not need to cite; WP-C2/WP-C3 set it on `func_call`, `assign_func` and `rare_mid` until the register has entries for them."
   ],
   "flow": {
     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
     "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
     "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
     "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea"
+  },
+  "flow_seq": {
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+    "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6"
   },
   "tasks": {
     "_example": {
@@ -39,6 +45,20 @@
               }
             }
           }
+        },
+        "band_tactics": {
+          "same_design_as": "band",
+          "scores": {
+            "N=16": {
+              "area_ge": 21.328,
+              "area_mge": 21328,
+              "depth": 1,
+              "num_gates": 16,
+              "gates": {
+                "AND": 16
+              }
+            }
+          }
         }
       },
       "baselines": {},
@@ -52,12 +72,14 @@
           "why": "reads an undriven net (x): the fourstate stage refuses it (Yosys `check`: used but no driver) before any proof is tried; the statement refutes it too, in negative/Refute.lean (readsX_refuted)"
         },
         "wide_out": {
-          "stage": "solution",
-          "why": "output N+1 bits wide; refuted in negative/Refute.lean (wideOut_refuted)"
+          "stage": "extract",
+          "message_contains": "output `y` is 2 bits wide, the task's is 1 bit",
+          "why": "output N+1 bits wide; refuted in negative/Refute.lean (wideOut_refuted). Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "extra_in": {
-          "stage": "solution",
-          "why": "hidden extra input; refuted in negative/Refute.lean (extraIn_refuted)"
+          "stage": "extract",
+          "message_contains": "the inputs are ['a', 'b', 'en'] (in declaration order), the task's are ['a', 'b']",
+          "why": "hidden extra input; refuted in negative/Refute.lean (extraIn_refuted). Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "arith_and": {
           "stage": "banlist",
@@ -99,6 +121,13 @@
           "stage": "fourstate",
           "why": "`logic u; t = u ? 0 : 1; if (t) y = a | b; else y = a & b;`: u is x in ls-sv (else branch, a & b), a don't-care Yosys resolves to t = 1 (a | b). Refused by the fourstate stage (Yosys `check`: used but no driver); postsynth alone rejects.",
           "postsynth_alone": "rejects"
+        },
+        "undriven_offpoint": {
+          "stage": "fourstate",
+          "why": "ATTACK (the universal-correctness audit, 2026-11-06): undriven_mux's undriven `u`, driven only at N = 16 by a generate-if: ls-sv computes a & b at every N, the pinned flow's N = 8 netlist a | b. Every stage passed it at the scoring point; refused since the fourstate stage runs at every point the checker probes (here N = 1); postsynth alone, which runs at the scoring point only, passes it",
+          "message_contains": "a point the statement covers",
+          "postsynth_alone": "passes",
+          "postsynth_mode": "full"
         },
         "oob_select": {
           "stage": "fourstate",
@@ -484,8 +513,8 @@
           }
         },
         "cmp_carry": {
-          "banned": false,
-          "why": "policy probe: every carry a run-time comparison; passes the banlist; simulation only (validate/validate.py, postsynth.py)",
+          "banned": true,
+          "why": "every carry a run-time comparison, which alumacc builds as Yosys's own adder ($alu): banned run-time ordering comparisons in a task that bans + and - (decided 2026-11-05; scored with the banlist lifted); simulation only (validate/validate.py, postsynth.py)",
           "scores": {
             "N=16": {
               "area_ge": 195.975,
@@ -630,12 +659,14 @@
           }
         },
         "wide_s": {
-          "stage": "solution",
-          "why": "interface: one (N+1)-bit output s = {cout, sum}, no cout port; refuted in negative/Refute.lean (wideS_refuted)"
+          "stage": "extract",
+          "message_contains": "the outputs are ['s'] (in declaration order), the task's are ['s', 'cout']",
+          "why": "interface: one (N+1)-bit output s = {cout, sum}, no cout port; refuted in negative/Refute.lean (wideS_refuted). Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "cin_name": {
-          "stage": "solution",
-          "why": "interface: the carry in is named ci; refuted in negative/Refute.lean (cinName_refuted)"
+          "stage": "extract",
+          "message_contains": "the inputs are ['a', 'b', 'ci'] (in declaration order), the task's are ['a', 'b', 'cin']",
+          "why": "interface: the carry in is named ci; refuted in negative/Refute.lean (cinName_refuted). Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "dead_clock": {
           "stage": "fourstate",
@@ -741,7 +772,7 @@
         },
         "localparam_carry": {
           "stage": "unproved",
-          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `localparam int M = N - 1;` read in an index, checker-legal. It WAS tactic-refused (\"local parameters are outside the v1 fragment\"); since the localparam extension (WP-F, PROVING.md section 4) a localparam of constant arithmetic over the parameters is one more named constant of the sv_comb summary, so the same design is now INSIDE the fragment (in_fragment true), kept as the regression for that; the refused shapes are localparam_clog2 and localparam_intdiv. The functional smoke check agrees with the oracle on every vector",
+          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `localparam int M = N - 1;` read in an index, checker-legal. It WAS tactic-refused (\"local parameters are outside the v1 fragment\"); since the localparam extension (WP-F, PROVING.md section 4) a localparam of constant arithmetic over the parameters is one more named constant of the sv_comb summary, so the same design is now INSIDE the fragment (in_fragment true), kept as the regression for that; the refused shape is localparam_intdiv (localparam_clog2 is inside too). The functional smoke check agrees with the oracle on every vector",
           "args": [
             "--tactics"
           ],
@@ -753,14 +784,13 @@
         },
         "localparam_clog2": {
           "stage": "unproved",
-          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `localparam int L = $clog2(N + 1);` (the level count of the prefix-adder baselines), checker-legal and tactic-refused (PROVING.md section 4: `$clog2` is not a linear function of the parameters, and `paramEnv2` cannot evaluate it at a symbolic N); the functional smoke check agrees with the oracle on every vector",
+          "why": "ADVISORY CHECK (--tactics), not an attack: a CORRECT ripple adder with a `localparam int L = $clog2(N + 1);` (the level count of the prefix-adder baselines), checker-legal. It WAS tactic-refused (\"localparam `L`: `$clog2` is outside the v1 fragment\"); since ls-sv admits an `int` localparam defined by `$clog2` (one more opaque named constant of the sv_comb summary; the instantiation evaluates it exactly, IEEE 1800-2023 20.8.1, and refuses a negative argument loudly), the same design is INSIDE the fragment (in_fragment true), kept as the regression for that; the refused shape is localparam_intdiv. The functional smoke check agrees with the oracle on every vector",
           "args": [
             "--tactics"
           ],
           "functional": "agrees",
           "tactics": {
-            "in_fragment": false,
-            "message_contains": "localparam `L`: `$clog2` is outside the v1 fragment"
+            "in_fragment": true
           },
           "advisory": true
         },
@@ -1256,8 +1286,9 @@
           "why": "wrong bit: top half from s[N-1][N-1:0]; counterexample N = 1, a = b = 1, p = 3 (negative/Refute.lean, #guard)"
         },
         "narrow_out": {
-          "stage": "solution",
-          "why": "interface: p is 2N-1 bits; refuted in negative/Refute.lean (narrowOut_refuted)"
+          "stage": "extract",
+          "message_contains": "at N=1: output `p` is 1 bit wide, the task's is 2 bits",
+          "why": "interface: p is 2N-1 bits; refuted in negative/Refute.lean (narrowOut_refuted). Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "only_n16": {
           "stage": "solution",
@@ -1418,8 +1449,9 @@
           "why": "the inverse S-box (FIPS 197 InvSubBytes) as a case table: wrong on 254 of 256 inputs; the reference proof does not apply to a case table"
         },
         "wrong_names": {
-          "stage": "solution",
-          "why": "the right circuit on ports a, s instead of x, y: the interface conjunct; the reference proof's interface step (`sv_interface`) refuses the ports"
+          "stage": "extract",
+          "message_contains": "the inputs are ['a'] (in declaration order), the task's are ['x']",
+          "why": "the right circuit on ports a, s instead of x, y: the interface conjunct; the reference proof's interface step (`sv_interface`) refuses the ports. Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "undriven_bit": {
           "stage": "fourstate",
@@ -1438,8 +1470,9 @@
           "postsynth_mode": "full"
         },
         "case_missing_nodefault": {
-          "stage": "fourstate",
-          "why": "the same table with no default arm: always_comb keeps the old value, a latch; Yosys infers a latch (fourstate refuses it; the scorer cannot price a latch either, so there is no post-synthesis row)"
+          "stage": "banlist",
+          "why": "the same table with no default arm: always_comb keeps the old value, a latch; Yosys infers a latch and its `proc` refuses it (\"Latch inferred ... from always_comb process\"): at the banlist backstop since every task bans run-time / % ** (2026-11-06; before, the task banned nothing, the backstop did not run, and the fourstate stage refused the same latch); the scorer cannot price a latch either, so there is no post-synthesis row",
+          "message_contains": "Latch inferred"
         },
         "unique_case_partial": {
           "stage": "source",
@@ -1775,8 +1808,9 @@
           "why": "bit orientation: coefficient k delivered at p[2N-2-k] (GHASH's reflected convention); right at N = 1, counterexample N = 2, a = b = 1, p = 3'b100 (negative/Refute.lean, #guard)"
         },
         "wide_out": {
-          "stage": "solution",
-          "why": "interface: p is 2N bits with a constant-zero top bit (the value is right); refuted in negative/Refute.lean (wideOut_refuted, the interface conjunct at N = 1)"
+          "stage": "extract",
+          "message_contains": "at N=1: output `p` is 2 bits wide, the task's is 1 bit",
+          "why": "interface: p is 2N bits with a constant-zero top bit (the value is right); refuted in negative/Refute.lean (wideOut_refuted, the interface conjunct at N = 1). Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "only_n16": {
           "stage": "solution",
@@ -1844,6 +1878,13 @@
           "advisory": true,
           "message_contains": "run-time index"
         },
+        "div_zero_x": {
+          "stage": "banlist",
+          "why": "ATTACK (the universal-correctness audit, 2026-11-06): the reference array plus `q = 1'b1 / ~rare`, x (a zero divisor) on the one input pair where `rare`, a reduction-AND detector, is true, and `if (q) p = pp ^ rare; else p = pp;`: ls-sv takes the else branch and computes clmul at every input, the scored netlist flips p[0] on that pair. Rejected since every task bans run-time / % ** (2026-11-06, banlist.py ALWAYS_BANNED); before, clmul banned only + - * and every other stage, the full post-synthesis check included, passed it",
+          "message_contains": "every task bans run-time / % **",
+          "postsynth_alone": "passes",
+          "postsynth_mode": "full"
+        },
         "func_shift_xor": {
           "stage": "banlist",
           "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): the shift-and-XOR as an automatic function with `return` (akerlund bch_gf.sv): the pinned scoring flow's own Yosys frontend refuses `return` (syntax error), which the banlist backstop runs first; before that, ls-sv marks the call and the subroutine Unsupported (ex-user-call, rank 2)",
@@ -1870,9 +1911,9 @@
         },
         "gen_local_column": {
           "stage": "design",
-          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): a column temporary declared inside a generate block (`logic [N-1:0] t;`) plus a conditional generate: ls-sv refuses the generate-local declaration",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): a column temporary declared inside a generate block (`logic [N-1:0] t;`) plus a conditional generate: ls-sv refuses the generate-local declaration. TWO PHRASES (2026-11-06): on lean-surfaces master the design loads and the unsupported-construct check names it ('GenerateDecl:Var: generate-local declaration 't''); on the ls-sv of svgolf-prep (measured 2026-11-06) the loader refuses it first, at the defaults, with `PDesign.int32Agrees` ('an INT-class constant expression leaves the 32-bit range'), although no constant of this design is near 2^31 at N = 16: the same ls-sv refusal as tests/{add,clmul,mul}/negative/only_n16.sv, which master fixes. Drop the second phrase at the master merge",
           "advisory": true,
-          "message_contains": "generate-local declaration"
+          "message_contains": ["generate-local declaration", "`PDesign.int32Agrees`"]
         },
         "inst_karatsuba_1level": {
           "stage": "fourstate",
@@ -1933,9 +1974,9 @@
         },
         "gen_unpacked_pp": {
           "stage": "design",
-          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): partial products and accumulator as parameter-sized UNPACKED arrays, `logic [2*N-2:0] pp [N]` (ibex_alu.sv's clmul_and_stage, the survey's probe c01): ls-sv reports `assign target 'acc[0]' undeclared`",
+          "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): partial products and accumulator as parameter-sized UNPACKED arrays, `logic [2*N-2:0] pp [N]` (ibex_alu.sv's clmul_and_stage, the survey's probe c01): ls-sv refuses the array as memory storage outside its E fragment, `decl 'pp': unpacked array storage outside E (UnpackedDecl:memory)` (until ls-sv retained parameter-dependent unpacked arrays, a01cecbe7, it reported `assign target 'acc[0]' undeclared`; the stage is the same)",
           "advisory": true,
-          "message_contains": "undeclared"
+          "message_contains": "UnpackedDecl:memory"
         },
         "gen_mask_replication": {
           "stage": "unproved",
@@ -2319,18 +2360,19 @@
           "message_contains": "banned run-time binary `/`"
         },
         "rm_pin": {
-          "stage": "solution",
-          "why": "an extra input rtz that is never read (right function at every format and every rtz); the interface conjunct: sv_interface refuses the ports",
-          "message_contains": "sv_interface: the declared ports do not match the task's interface"
+          "stage": "extract",
+          "message_contains": "the inputs are ['a', 'b', 'rtz'] (in declaration order), the task's are ['a', 'b']",
+          "why": "an extra input rtz that is never read (right function at every format and every rtz); the interface conjunct: sv_interface refuses the ports. Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points). (The pin was the proof's refusal, \"sv_interface: the declared ports do not match the task's int\", before.)"
         },
         "status_flag": {
-          "stage": "solution",
-          "why": "a second output `inexact` next to q (constant 0); the interface conjunct: sv_interface refuses the ports",
-          "message_contains": "sv_interface: the declared ports do not match the task's interface"
+          "stage": "extract",
+          "message_contains": "the outputs are ['q', 'inexact'] (in declaration order), the task's are ['q']",
+          "why": "a second output `inexact` next to q (constant 0); the interface conjunct: sv_interface refuses the ports. Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points). (The pin was the proof's refusal, \"sv_interface: the declared ports do not match the task's int\", before.)"
         },
         "wide_q": {
-          "stage": "solution",
-          "why": "q one bit wider than the task's W + P bits (the top bit constant 0, the low W + P bits the right function at every format; ported from the former 16-bit task's inexact_flag.sv, a 17-bit q): the interface conjunct, kernel-refuted at (2, 2) by negative/Refute.lean's wideQ_refuted (the ports differ). No message is pinned: the reference proof also fails at its q-site steps (the wider q has a fourth site: known_q_plain_24 is no longer the one it uses), and those later errors push sv_interface's refusal out of the reported tail"
+          "stage": "extract",
+          "message_contains": "at W=2,P=2: output `q` is 5 bits wide, the task's is 4 bits",
+          "why": "q one bit wider than the task's W + P bits (the top bit constant 0, the low W + P bits the right function at every format; ported from the former 16-bit task's inexact_flag.sv, a 17-bit q): the interface conjunct, kernel-refuted at (2, 2) by negative/Refute.lean's wideQ_refuted (the ports differ). No message is pinned: the reference proof also fails at its q-site steps (the wider q has a fourth site: known_q_plain_24 is no longer the one it uses), and those later errors push sv_interface's refusal out of the reported tail. Since 2026-11-07 check.py rejects it at extract, before any proof: its ports at the probe points are not task.json's (`port_problems`, the statement's Interface at those points)."
         },
         "const_nan": {
           "stage": "solution",
@@ -2417,8 +2459,8 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "eq_zr_plain_12 eq_r_plain_13\n",
-          "why": "the Newton reference with the working precision F = P + 2 instead of P + 4: the constant {6'd45, zr[P-2:0]} of r[0] is 45/32 only at F = P + 4, so the initial reciprocal is wrong and the estimate falls far more than 2 below the quotient (up to 2070 at P = 10 in the core's Python model), out of the correction's reach; wrong on every format (48 of 256 pairs at (2,2), 670,984 of 2^20 at (4,6); exhaustive). The Newton proof fails at the application of `chain`: the argument eq_r_plain_13, the printed equation of r[0], is F + 1 = P + 3 bits wide where the chain assumes P + 5 (the error's tail ends with the application up to that argument)."
+          "message_contains": "Solution.lean:5761:21: error: Application type mismatch: The argument",
+          "why": "the Newton reference with the working precision F = P + 2 instead of P + 4: the constant {6'd45, zr[P-2:0]} of r[0] is 45/32 only at F = P + 4, so the initial reciprocal is wrong and the estimate falls far more than 2 below the quotient (up to 2070 at P = 10 in the core's Python model), out of the correction's reach; wrong on every format (48 of 256 pairs at (2,2), 670,984 of 2^20 at (4,6); exhaustive). The Newton proof fails at the application of `chain`: the argument eq_r_plain_13, the printed equation of r[0], is F + 1 = P + 3 bits wide where the chain assumes P + 5 (the error's tail ends with the application up to that argument). The pin (2026-11-07) is the application error's location and first line, 5761:21, the argument eq_r_plain_13 of that application (column 21 of `eq_zr_plain_12 eq_r_plain_13 ...`): check.py's excerpt of a proof with several errors keeps the first line of each, and the printed tail of the application (the phrase pinned before, `eq_zr_plain_12 eq_r_plain_13`) is no longer in it since Lean reports four errors after this one (MEASURED: five errors, this one first)."
         },
         "newton_ge1_const": {
           "lean": "reference/fdivp_newton.lean",
@@ -2697,7 +2739,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:155:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
+          "message_contains": "Solution.lean:157:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
           "why": "the token shift of cells 0 .. N-2 reads the cell's own token (`tok[k] <= tok[k]`, the neighbour index k+1 dropped): the tokens below the top never move, out_valid stays 0 and no value is emitted. Wrong for every N >= 2, right at N = 1 (the cell family is empty). WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 3 failures at (3,4), one per seed, each run stopping; the first: transaction 0 (zeros): 0 values emitted, want 3; no more outputs within the declared latency 16. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: `decide` refutes that the instantiated cell process is the reference's. (It replaces the designer's loop-bound mutant `k < N-2` of tests/sorter/sim.py, which leaves cell N-2 and token N-2 undriven: check.py refuses that one at fourstate, Yosys `check` reporting the undriven bits, before any proof.)"
         },
         "missing_else": {
@@ -2706,7 +2748,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:155:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
+          "message_contains": "Solution.lean:157:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
           "why": "the cell's second test lost its `else` (`if (in_data > data[k*W +: W])`): when the input beats both the upper neighbour and the cell's own value both writes fire and the later one, the input, wins, so a large value is copied into several cells and the neighbour's value is lost. Wrong for every N >= 2, right at N = 1. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 61 failures at (3,4); the first: transaction 1 (one zero): output 0 is 15, want 0. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: `decide` refutes the instantiated cell process."
         },
         "push_own_value": {
@@ -2715,7 +2757,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:155:26: error: Expected type must not contain free variables\n  k * W = (k + 1) * W",
+          "message_contains": "Solution.lean:157:26: error: Expected type must not contain free variables\n  k * W = (k + 1) * W",
           "why": "the neighbour-push test compares the input with the cell's OWN value (`in_data > data[k*W +: W]`) instead of its upper neighbour's: a cell takes its neighbour's value whenever the input beats its own value, so the input itself is never stored below the top cell. Wrong for every N >= 2, right at N = 1. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 27 failures at (3,4); the first: transaction 6 (descending): output 0 is 15, want 11. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: the compared window is data[k*W +: W], not data[(k+1)*W +: W] (`k * W = (k + 1) * W`)."
         },
         "early_valid": {
@@ -2724,7 +2766,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:132:90: error: unsolved goals",
+          "message_contains": "Solution.lean:134:90: error: unsolved goals",
           "why": "the valid token enters with the start (`tok[N-1] <= in_valid | start`), one cycle before the first value: out_valid rises at the snapshot N after the start and stays up N + 1 cycles, one value too many (the padding 0 in cell 0). Wrong for every N. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 69 failures at (3,4); the first: transaction 1 (one zero): output 1 is 0, want 15 (other transactions: 4 values emitted, want 3). the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in so_static: the top process is not the reference's (unsolved goal False). (It replaces the designer's mutant `out_valid <= tok[N > 1 ? 1 : 0]`, whose netlist carries a 1'hx constant that the post-synthesis check refuses on every vector.)"
         },
         "reset_keeps_cells": {
@@ -2733,7 +2775,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:155:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
+          "message_contains": "Solution.lean:157:26: error: Tactic `decide` proved that the proposition\n  False\nis false",
           "why": "the reset clears the tokens and the top cell but not cells 0 .. N-2: the first transaction after a reset sorts its input together with whatever the cells held (the drain clears them, so later transactions are right). Wrong for every N >= 2 from an arbitrary power-up state, right at N = 1. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 2 failures at (3,4); the first: transaction 0 (zeros): output 0 is 4, want 0, then ls-sv: out_data is x/z in a cared position (ls-sv's cells start x). the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in cell_inst: `decide` refutes the instantiated cell process (no reset write of the cell)."
         },
         "top_not_drained": {
@@ -2742,7 +2784,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:132:90: error: unsolved goals",
+          "message_contains": "Solution.lean:134:90: error: unsolved goals",
           "why": "the top cell is not cleared by the drain (its `else` branch is gone): it keeps the transaction's maximum, which shifts down behind the sorted values and is still in the top cell for the next transaction, whose values below it never reach the top. Wrong for every N from the second transaction on. WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 63 failures at (3,4); the first: transaction 3 (alternating): output 0 is 15, want 0. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in so_static: the top process is not the reference's (unsolved goal False)."
         },
         "signed_order": {
@@ -2751,8 +2793,148 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "Solution.lean:132:90: error: unsolved goals",
+          "message_contains": "Solution.lean:134:90: error: unsolved goals",
           "why": "the comparisons are signed (`$signed(in_data) > $signed(data[...])`, all three) instead of unsigned: values with the top bit set sort below the others and below the padding 0, so they are lost. Wrong for every N and W (at W = 1 the value 1 is -1). WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 57 failures at (3,4); the first: transaction 1 (one zero): output 1 is 0, want 15. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), in so_static (the top process: unsolved goal False) and in cell_inst (`decide`)."
+        }
+      }
+    },
+    "arbiter": {
+      "references": {
+        "rr_mask": {
+          "why": "the proved reference (2026-11-05; reference/rr_mask.lean, every N with 1 <= N, N*N < 2^31, through SvGolf.ReactTask.satisfiedAt_of_rank): a registered mask round-robin, own code (the real-world candidate, OpenTitan prim_arbiter_tree behind an output register, tests/arbiter/designs/arbiter_ot.sv, waits on ls-sv's generate-local declarations: tasks/arbiter/README.md (l)). check.py ACCEPTS it (MEASURED 2026-11-05, cold, a fresh --stage-dir, --postsynth full): the clocked source rules, extraction and the design stage at the 5 probe points N = 1, 2, 3, 5, 8 (no unsupported construct), the solution stage 8.25 s, comparator and leanchecker (axioms propext, Classical.choice, Quot.sound), the clocked score and the reactive post-synthesis check at N = 3, 5, 8 (3 seeds x 24 segments, the last 70000 entries long: 70 134 to 70 597 cycles per seed, 0 failures; the oracle binding, the Moore sample). The score: 769.488 um^2 x 2826 ps (one decision per cycle), 16 flops, 103 cells. RE-PROVED 2026-11-06 against the revised statement (txtask-v2's rules 2 and 3: the claims from every power-up state, TerminatesPU, XSafe; the design unchanged): rr_powerUp (every power-up state has the shape), rr_terminates (TerminatesPU.of_invariant), rr_xsafe (xsafeB by simp); check.py ACCEPTS it (MEASURED 2026-11-06, --postsynth full, a fresh --stage-dir): solution 4.79 s, comparator 13.3 s, leanchecker 15.3 s, the rule-3 twin and the never-loaded check pass, the reactive check at N = 3, 5, 8 from power-up states (seed 0 all zeros, seeds 1, 2 random on both sides), 70 134 to 70 597 cycles per seed, 0 failures; the score unchanged.",
+          "scores": {
+            "N=8": {
+              "area_ge": 188.979,
+              "area_mge": 188979,
+              "depth": 17,
+              "num_gates": 103,
+              "gates": {
+                "AND": 26,
+                "ANDNOT": 12,
+                "DFF_P": 16,
+                "MUX": 1,
+                "NAND": 32,
+                "NOR": 8,
+                "OR": 2,
+                "ORNOT": 6
+              },
+              "area_um2": 769.488,
+              "period_ps": 2826,
+              "cycles": 1,
+              "time_ps": 2826,
+              "ffs": 16
+            }
+          }
+        }
+      },
+      "baselines": {},
+      "negatives": {
+        "bit_ring": {
+          "stage": "solution",
+          "why": "the universal-correctness audit (2026-11-06): the reference round-robin behind `if (&u)` on a never-reset 2-state 32-bit ring u (fixed priority when &u). ls-sv's own start gives a 2-state variable 0, so every run from it is fair and txtask-v1 accepted it; the scored netlist keeps u's 32 flops without an initial value and is fixed priority for ever from the power-up u = all ones. check.py rejects it at solution (the reference's proof is not about it; the gate, the extraction, the design and the rule-3 twin pass); refuted in negative/Refute.lean (ring_refuted, from u all ones, on the twin ringD, checked equal to the loaded design at N = 2 and 8)"
+        },
+        "reset_edge": {
+          "stage": "solution",
+          "why": "the universal-correctness audit (2026-11-06): the reference round-robin behind `if (bad)`, where the reset branch sets bad from the PRE-reset &u of a 32-bit register u. At the first reset edge ls-sv's own start reads u as x and takes the else branch, so txtask-v1 accepted it; from the power-up u = all ones the netlist's first segment is fixed priority. check.py rejects it at solution (the reference's proof is not about it); refuted in negative/Refute.lean (reset_edge_refuted, from u all ones, on the twin edgeD, checked equal to the loaded design at N = 2 and 8)"
+        }
+      },
+      "attacks": {
+        "a01_never": {
+          "stage": "postsynth",
+          "message_contains": "G3: req = ",
+          "why": "never grant (gnt <= 0). WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G3 on the first request (oracle.py `violations`, on the netlist's grants); G4 too. Simulation: G3, G4 at every N."
+        },
+        "a02_everyone": {
+          "stage": "postsynth",
+          "message_contains": "G1: gnt = ",
+          "why": "grant every requester (gnt <= req). WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G1, mutual exclusion. Simulation: G1 at N >= 2."
+        },
+        "a03_zero": {
+          "stage": "postsynth",
+          "message_contains": "which do not request",
+          "why": "always grant client 0 (gnt <= 1). WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G4 (client 1 starves) and G2 (a grant to client 0 when it does not request). Simulation: G2 at every N, G4 at N >= 2."
+        },
+        "a04_fixed": {
+          "stage": "postsynth",
+          "message_contains": "G4: client",
+          "why": "fixed priority, the lowest requester wins (gnt <= req & -req): mutual exclusion, no spurious grant and work conservation hold. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G4 only: a client requests at N = 3 consecutive entries and is granted in none. Simulation: G4 at N >= 2."
+        },
+        "a05_ring": {
+          "stage": "postsynth",
+          "message_contains": "G2: gnt = ",
+          "why": "a free-running token ring, gnt = token (the SYNTCOMP-minimal simple / round-robin arbiter): request-ignoring. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G2, a grant to a client that does not request. Simulation: G2 at every N."
+        },
+        "a06_tdma": {
+          "stage": "postsynth",
+          "message_contains": "G3: req = ",
+          "why": "time division: the token ring gated by the requests (fair, not work-conserving). WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G3 only: someone requests, the token's slot is empty. Simulation: G3 at N >= 2."
+        },
+        "a07_late": {
+          "stage": "postsynth",
+          "message_contains": "G3: req = ",
+          "why": "a correct round-robin decision delivered one cycle late (the grant answers the previous entry's request). WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G3 and G2. Simulation: G2, G3, G4."
+        },
+        "a08_sticky": {
+          "stage": "postsynth",
+          "message_contains": "G4: client",
+          "why": "a sticky round-robin: the priority stays AT the granted client, so a persistent requester keeps it. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G4 only. Simulation: G4 at N >= 2."
+        },
+        "a09_rotate_pow2": {
+          "stage": "postsynth",
+          "message_contains": "G4: client 1 requested at the 3 entries",
+          "why": "rotating priority whose counter wraps at 2^clog2(N) instead of N: right at N = 1, 2, 4, 8 (the scoring point), wrong at N = 3, 5. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G4 at N = 3, the first of the postsynth points, which include N = 3 and 5 for this reason (a check at the scoring point alone passes it). Simulation: G4 at N = 3, 5 only (and G3 at 5). The design was rewritten on 2026-11-05 from a scan with a cast (`32'(p)`, which ls-sv refuses) and a run-time `% N` index (which the fourstate stage refuses) to a padded scan, so that it reaches the property it breaks."
+        },
+        "a10_mealy_last": {
+          "stage": "postsynth",
+          "message_contains": "a combinational path from an input to an output",
+          "why": "the Mealy phantom: a correct registered grant g behind gnt = (req == last) ? g : req, last <= req. Every snapshot shows g (in a snapshot req == last), so every snapshot claim holds; in silicon gnt = req while req changes. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: the Moore sample, check (iii): gnt moves with the inputs before the edge. The statement rejects it by MooreOut (Refute.lean `mealy_refuted`, on the N = 2 twin). Simulation: MO only."
+        },
+        "a11_noreset": {
+          "stage": "postsynth",
+          "message_contains": "G0: the reset snapshot shows gnt",
+          "why": "a round-robin whose grant flop has no reset branch. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G0 on the netlist's grants (the reset snapshot shows the reset entry's pick, not 0; since 2026-11-06 both sides start from a power-up state, so ls-sv's gnt is known and the netlist and ls-sv may also differ from the random power-ups). The statement rejects it by G0 (a known zero at every reset snapshot, from every power-up state). Simulation: G0."
+        },
+        "a12_stale_mask": {
+          "stage": "postsynth",
+          "message_contains": "G4: client",
+          "why": "a mask round-robin that forgets the mask update on the wrap-around grant. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G4 only. Simulation: G4 at N >= 2."
+        },
+        "a13_async": {
+          "stage": "source",
+          "message_contains": "a second event in an `always_ff` sensitivity list",
+          "why": "a round-robin with an asynchronous reset (posedge rst). WRONG for the kind (an asynchronous process changes the outputs inside a period; the scoring flow has no async-reset flop) and INVISIBLE to the statement: the loader drops the extractor's `areset` field, so ls-sv would see a synchronous design (design/reactive/README.md H2). check.py rejects it at source: react-family is a clocked kind, so the source gate's clocked rules apply. Simulation: MO at reset entries."
+        },
+        "a14_mealy_rr": {
+          "stage": "postsynth",
+          "message_contains": "a combinational path from an input to an output",
+          "why": "a combinational (Mealy) round-robin with the mask registered: the OpenTitan / pulp shape without an output register. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: the Moore sample, check (iii), and G0 on the netlist (the reset snapshot shows the combinational grant). The statement rejects it by MooreOut. Simulation: MO, G0, G4 (N >= 3)."
+        },
+        "a15_half_rate": {
+          "stage": "postsynth",
+          "message_contains": "G3: req = ",
+          "why": "a round-robin that arbitrates every other cycle. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G3 (and G4). Simulation: G3, G4."
+        },
+        "a16_xopt": {
+          "stage": "score",
+          "message_contains": "never-loaded register",
+          "why": "x-optimism (review 2026-11-04): a correct round-robin behind `if (!u)` on a never-reset, self-holding register u. ls-sv's own start (and a 4-state simulator) read u as x for ever and take the else branch: every snapshot is fair. The pinned Yosys removes the flop (`Handling D = Q ... (removing D path)`, MEASURED at N = 3 and 8) and keeps the then branch: the scored netlist is fixed priority (280 um^2 at N = 8, MEASURED by the study). WRONG; check.py --unproved rejects it at score since 2026-11-06 (txtask-v2: a never-loaded register is refused in every clocked task, check.py `never_loaded`; before, at postsynth: the netlist's grants are not ls-sv's). The statement rejects it from the power-up u = 0, where it is fixed priority (Refute.lean `a16_refuted` on its twin a16D, checked equal to the loaded design, and `xopt_refuted` on the N = 2 twin). Simulation: passed from Icarus's x start (simulation could not see it); since 2026-11-07 tb.sv runs from 0/1 power-up states and sees G4 at N >= 2 (from u = 0)."
+        },
+        "a17_timebomb": {
+          "stage": "postsynth",
+          "message_contains": "(long (70000 entries)), entry",
+          "why": "a time bomb (review 2026-11-04): a correct round-robin for 4095 cycles after a reset, fixed priority after that. WRONG; check.py --unproved (no proof: a wrong design has none) rejects it at postsynth, the reactive check (check/postsynth.py, THE REACTIVE CHECK) at its first point N = 3: G4 in the 70000-entry reset-free segment, after entry 4095 (the reason the reactive stimulus has a long reset-free run). The statement rejects it by G4 on a segment longer than 4095 entries. Simulation (a reset every ~256 entries): passes."
+        },
+        "m004_wide_req": {
+          "sv": "mutants/m004.sv",
+          "stage": "extract",
+          "message_contains": "input `req` is 2 bits wide, the task's is 1 bit",
+          "why": "the reference with the input port one bit wider (`input logic [N-0:0] req`; mutant m004 of the 2026-11-07 sweep, tests/arbiter/mutants/MANIFEST.json). WRONG at every N (the statement's Interface: no proof exists), yet before 2026-11-07 the simulation, every stage of check.py --unproved and the reactive check at every N passed it (the harnesses drive what the netlist has; the oracle never sets the extra bit): tasks/arbiter/README.md section 8, F-a. check.py rejects it at extract since 2026-11-07: its ports differ from task.json `ports` at every probe point, first at N = 1 (req 2 bits, the task's 1)."
+        },
+        "m007_wide_gnt": {
+          "sv": "mutants/m007.sv",
+          "stage": "extract",
+          "message_contains": "output `gnt` is 2 bits wide, the task's is 1 bit",
+          "why": "the reference with the output port one bit wider (`output logic [N-0:0] gnt`, its top bit never set; mutant m007 of the 2026-11-07 sweep). WRONG at every N (Interface), passed by every check that needs no proof before 2026-11-07 (F-a, as m004). check.py rejects it at extract since 2026-11-07: its ports differ from task.json `ports` at every probe point, first at N = 1 (gnt 2 bits, the task's 1)."
         }
       }
     }

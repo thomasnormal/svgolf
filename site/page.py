@@ -20,7 +20,7 @@ from highlight import highlight, language_of
 _TAG = re.compile(r"<[^>]*>")
 
 NAV = (("index.html", "Tasks"), ("rules.html", "Rules"), ("proving.html", "Proving"),
-       ("refusals.html", "Refusals"), ("roadmap.html", "Roadmap"), ("about.html", "About"))
+       ("refusals.html", "Refusals"), ("about.html", "About"))
 
 
 def esc(s):

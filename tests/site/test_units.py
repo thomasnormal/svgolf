@@ -542,6 +542,34 @@ class CombinedTest(unittest.TestCase):
         self.assertEqual(c.of_record(clocked), 871736064 * 42820)
 
 
+class BoardOrderTest(unittest.TestCase):
+    """`leaderboard.py board` lists the records in the site's order (decided 2026-11-05: area x time is the one ranked
+    number): leaderboard.py `score_key` sorts a board's rows as site/build.py `score_key` sorts their designs, ties
+    included, and its ranks are the site's (equal products share one)."""
+
+    def test_the_cli_board_order_is_the_site_order(self):
+        import random
+        spec = importlib.util.spec_from_file_location("svgolf_site_build_units", os.path.join(SITE, "build.py"))
+        build = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(build)
+        lb = build.lb
+        rng = random.Random(5)
+        for _ in range(30):
+            rows = []
+            for i in range(12):
+                exact = rng.choice((None, 6, 6, 8, 12)) if i % 5 else rng.choice((6, 8))
+                rows.append({"exact": exact, "area_mge": rng.choice((1000, 2000)), "depth": rng.choice((3, 4)),
+                             "submitted_at": rng.choice(("2026-10-01", "2026-10-02")), "record_hash": f"{i:02d}" * 32})
+            designs = {r["record_hash"]: {"exact": r["exact"], "m": {"area_ge": r["area_mge"] / 1000, "depth": r["depth"]},
+                                          "date": r["submitted_at"], "id": r["record_hash"]} for r in rows}
+            cli = [r["record_hash"] for r in sorted(rows, key=lb.score_key)]
+            site = [d["id"] for d in sorted(designs.values(), key=build.score_key)]
+            self.assertEqual(cli, site)
+            ranked = sorted((r for r in rows if r["exact"] is not None), key=lb.score_key)
+            self.assertEqual(lb._competition_ranks(ranked),
+                             [1 + sum(o["exact"] < r["exact"] for o in ranked) for r in ranked])
+
+
 LEAN_SAMPLE = """import X
 
 /-!

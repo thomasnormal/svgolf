@@ -24,9 +24,11 @@ including the implicit leading bit), so the trailing significand has `P - 1` bit
 has `1 + W + (P - 1) = W + P` bits: binary16 is `W = 5, P = 11`, bfloat16 `W = 8, P = 8`,
 binary32 `W = 8, P = 24`, binary64 `W = 11, P = 53`.
 
-Statement: for every `W ≥ 2` and `P ≥ 2` (the spec's own well-formedness `Format.hw`, `Format.hp`;
-no upper bound), the design has exactly the ports `a`, `b` (inputs, `W + P` bits) and `q`
-(output, `W + P` bits), every run terminates, and in every cycle whose stimulus drives `a` and
+Statement: for every `W ≥ 2` and `P ≥ 2` (the spec's own well-formedness `Format.hw`, `Format.hp`)
+with `W + P + 1 < 2^31` (so that the widths `W + P` and `W + P + 1`, `int` expressions of the module,
+stay below `2^31`, the values an `int` holds), the design has exactly the ports `a`, `b`
+(inputs, `W + P` bits) and `q` (output, `W + P` bits), no process is clocked, there is no
+combinational loop, every run terminates, and in every cycle whose stimulus drives `a` and
 `b` with known values the snapshot's `q` is `SvGolf.IEEE754.divide ⟨W, P⟩ .roundTiesToEven a b`,
 the trusted spec of `svgolf/tasks/fdivp/IEEE754.lean` at that format. `REVIEW.md` lists the modelling choices.
 -/
@@ -58,11 +60,14 @@ def task (W P : Nat) : CombTask where
   outputs _ := [("q", W + P)]
   fn _ := fun (a, b, ()) => (fdivBits W P a b, ())
 
-/-- Which parameter pairs the statement covers: the spec's own `Format` well-formedness. -/
-def inRange (W P : Nat) : Prop := 2 ≤ W ∧ 2 ≤ P
+/-- Which parameter pairs the statement covers: the spec's own `Format` well-formedness, and
+`W + P + 1 < 2^31`, so that the port width `W + P` and the exponent width `W + P + 1` a design computes
+in (the ports' `[W+P-1:0]` and a `localparam integer EW = W + P + 1`, evaluated as `int`s) stay below
+`2^31`, the values an `int` holds. -/
+def inRange (W P : Nat) : Prop := 2 ≤ W ∧ 2 ≤ P ∧ W + P + 1 < 2 ^ 31
 
 /-- **The challenge statement** for the two-parameter design family
-`Submission.design.sem : Nat → Nat → Design2`: at every `W, P ≥ 2` the design satisfies the
+`Submission.design.sem : Nat → Nat → Design2`: at every `W, P ≥ 2` in range the design satisfies the
 fixed-size task at that format. A submission proves
 `SvGolf.Tasks.FdivP.Statement Submission.design.sem`. -/
 abbrev Statement (sem : Nat → Nat → LeanModels.Sv.Design2) : Prop :=
@@ -72,7 +77,12 @@ abbrev Statement (sem : Nat → Nat → LeanModels.Sv.Design2) : Prop :=
 
 /-- binary16, bfloat16-like and binary32 are in range. -/
 example : inRange 5 11 ∧ inRange 8 8 ∧ inRange 8 24 := by
-  refine ⟨?_, ?_, ?_⟩ <;> exact ⟨by decide, by decide⟩
+  simp [inRange]
+
+/-- The range ends where `W + P + 1` reaches `2^31`, the first value an `int` does not hold. -/
+example : inRange (2 ^ 31 - 4) 2 ∧ ¬ inRange (2 ^ 31 - 3) 2 ∧ inRange 2 (2 ^ 31 - 4) ∧
+    ¬ inRange 2 (2 ^ 31 - 3) := by
+  simp [inRange]
 
 /-- The input names are distinct (the non-vacuity theorem `CombTask.SatisfiedAt.exists_run`
 needs it), at every parameter pair. -/

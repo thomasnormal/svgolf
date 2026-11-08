@@ -38,6 +38,9 @@ def task : CombTask where
   fn N := fun (a, b, ()) => (ofBits (2 * N - 1) (coeff N a b), ())
 ```
 
+(As reviewed. Since 2026-11-06 the range is `1 ≤ N ∧ N < 2 ^ 30`, so that the widths `2N-1` and `2N-2`, `int`
+expressions of the module, stay below `2^31`: `Spec.lean`, README "The statement".)
+
 ## Why the definition can be trusted (independent evidence, none of it part of the statement)
 
 All of this is run by `tests/run.py` (`tests/clmul/validate/validate.py`, `Spec.lean`'s `example`s):
@@ -88,6 +91,9 @@ All of this is run by `tests/run.py` (`tests/clmul/validate/validate.py`, `Spec.
    the carry dropped (`negative/plus_xor.sv`, a correct array, also the same netlist). `/ % **` are not
    banned: none of them reaches this function and Yosys does not merge them into the cells of `+ *`.
    Say if you prefer the full `+ - * / % **` set for uniformity with `add` and `mul`.
+   UPDATE 2026-11-06: the banlist is now `+ - * / % **`, for another reason than uniformity: every task bans
+   run-time `/ % **` (the svGolf README, "Rules"), because a zero divisor makes an x from known inputs that
+   ls-sv and Yosys resolve differently (`tests/clmul/attacks/div_zero_x.sv`).
 5. **Range `1 ≤ N`, scoring point `N = 16`, reported at 8 and 32** (`mul`'s choice; the study measured the
    Karatsuba crossover at those sizes).
 6. **No hidden state, one statement**: the unchanged `CombTask`; no change to `SvGolf/Task.lean`.

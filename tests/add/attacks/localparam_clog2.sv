@@ -1,11 +1,9 @@
-// CHECKER-LEGAL, TACTIC-REFUSED (not an attack): a CORRECT ripple adder that carries a `localparam`
-// defined by `$clog2` (the shape of the Sklansky and Kogge-Stone baselines' level count; constant
-// arithmetic is allowed, the banlist only bans run-time operators). `check.py --unproved --tactics`
-// reports
-//   sv_structure: outside the supported fragment -- localparam `L`: `$clog2` is outside the v1 fragment ...
-// (PROVING.md, section 4): a localparam may be an integer constant expression of the parameters built
-// from + - * and / % by a literal; `$clog2` is not a linear function of N, and `paramEnv2` cannot even
-// evaluate it at a symbolic N. The localparam is unused here, and refused all the same.
+// CHECKER-LEGAL, INSIDE THE TACTICS' FRAGMENT (not an attack): a CORRECT ripple adder that carries a
+// `localparam` defined by `$clog2` (the shape of the Sklansky and Kogge-Stone baselines' level count;
+// constant arithmetic is allowed, the banlist only bans run-time operators). It was tactic-refused
+// ("localparam `L`: `$clog2` is outside the v1 fragment" in a 2-state `int` localparam) until ls-sv
+// admitted a `$clog2` `int` localparam (PROVING.md, section 4: one more opaque named constant);
+// `check.py --unproved --tactics` now reports `in_fragment: true`. The localparam is unused here.
 module add_n #(parameter int N = 16) (
   input  logic [N-1:0] a, b,
   input  logic         cin,

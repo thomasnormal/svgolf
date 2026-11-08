@@ -13,7 +13,7 @@ generates the module `Submission.Design`, which loads the player's envelope as
 
     theorem Submission.solution : Submission.Goal
 
-for EVERY `N ≥ 1`, for `reference/band_lp.sv`: the design of `band.lean`
+for EVERY `N` of the task's range (`1 ≤ N < 2^31`), for `reference/band_lp.sv`: the design of `band.lean`
 (`assign y = a & b;`) with a header localparam `W = N` that sizes the ports
 and a body localparam `MSB = W - 1`. The only difference from `band.lean` is
 the parameter environment (`bandScope`): the localparams are bound after `N`,
@@ -227,10 +227,10 @@ theorem band_interface (N : Nat) (hN : 1 ≤ N) :
   simp [CombTask.Interface, inputPorts, outputPorts, band_sem_decls N hN, bandDecls,
     SvGolf.Tasks.Example.task]
 
-/-- **The reference solution**: the `_example` statement, for every `N ≥ 1`. -/
+/-- **The reference solution**: the `_example` statement, for every `N` in range (`1 ≤ N < 2^31`). -/
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   refine CombTask.satisfiedAt_of_comb (band_interface N hN') (band_comb hN') (band_acyclic hN') ?_
   intro st heqs hs v hv
   obtain ⟨x, z, ⟨⟩⟩ := v

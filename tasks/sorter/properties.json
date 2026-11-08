@@ -20,7 +20,7 @@
       "decl": "SvGolf.Tasks.Sorter.Properties.Interface",
       "file": "svgolf/tasks/sorter/Properties.lean",
       "kind": "property",
-      "text": "The module has exactly the input ports clk, rst, start, in_valid (1 bit each) and in_data (W bits) and exactly the output ports out_valid (1 bit) and out_data (W bits), with these widths, in this order. Nothing is missing and nothing is extra: an extra input could serve as a hidden mode pin, and the checker and the scoring tools drive and read the design by these names and widths."
+      "text": "The module has exactly the input ports clk, rst, start, in_valid (1 bit each) and in_data (W bits) and exactly the output ports out_valid (1 bit) and out_data (W bits), with these widths, in this order. Nothing is missing and nothing is extra: an extra input could serve as a hidden mode pin, and the checker and the scoring tools drive and read the design by these names and widths. No two declarations of the module (ports or internal signals) share a name, so every port has exactly one declared width."
     },
     {
       "name": "CLOCK_DISCIPLINE",
@@ -34,7 +34,7 @@
       "decl": "SvGolf.Tasks.Sorter.Properties.Terminates",
       "file": "svgolf/tasks/sorter/Properties.lean",
       "kind": "property",
-      "text": "Whatever order the simulator picks for processes that are ready at the same moment (the schedule), and whatever the environment drives on the inputs, simulating the design completes: every clock cycle settles. A combinational loop that oscillates fails this, and so does a design the tools could not read. It is also what gives the guarantees below their teeth: they are about completed runs, and a design with no completed run would satisfy them without doing anything."
+      "text": "From every power-up state (every register and variable, 2-state ones included, holding some 0 or 1), whatever order the simulator picks for processes that are ready at the same moment (the schedule), and whatever known values the environment drives on the inputs, simulating the design completes: every clock cycle settles. A combinational loop that oscillates fails this, and so does a design the tools could not read. It is also what gives the guarantees below their teeth: they are about completed runs, and a design with no completed run would satisfy them without doing anything."
     },
     {
       "name": "LATENCY_AT_LEAST_ONE",
@@ -42,6 +42,20 @@
       "file": "svgolf/tasks/sorter/Properties.lean",
       "kind": "property",
       "text": "Besides the design, a submission declares its latency: the number of cycles it may take to answer a start, as a function of the parameters. It must be at least one cycle. The checker pins its value at the scoring point, and the score uses it (time = latency × clock period), so declaring a larger latency than needed only costs score."
+    },
+    {
+      "name": "MOORE_OUTPUTS",
+      "decl": "SvGolf.Tasks.Sorter.Properties.MooreOutputs",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "No combinational path leads from start, in_valid and in_data to out_valid and out_data: the outputs are functions of the registers only (rst may gate them). The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another (txtask-v2 rule 1, DRAFT for review)."
+    },
+    {
+      "name": "NO_X_CREATING",
+      "decl": "SvGolf.Tasks.Sorter.Properties.NoXCreating",
+      "file": "svgolf/tasks/sorter/Properties.lean",
+      "kind": "property",
+      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (txtask-v2 rule 3, DRAFT for review)."
     },
     {
       "name": "OUT_VALID_KNOWN",
@@ -137,7 +151,7 @@
       "name": "UnderProtocol",
       "decl": "SvGolf.Tasks.Sorter.Properties.UnderProtocol",
       "file": "svgolf/tasks/sorter/Properties.lean",
-      "text": "UnderProtocol d G: in every completed run, from every release of the reset, up to every later cycle h before which the environment followed the protocol (the task's Rely), G holds up to h. Every guarantee is stated in this frame, so a protocol violation can only void claims about later cycles."
+      "text": "UnderProtocol d G: in every completed run from every power-up state on every known stimulus, from every release of the reset, up to every later cycle h before which the environment followed the protocol (the task's Rely), G holds up to h. Every guarantee is stated in this frame, so a protocol violation can only void claims about later cycles."
     },
     {
       "name": "Released",
@@ -200,24 +214,6 @@
       "text": "HoldAll st ports values: in the state st, every listed port holds its value as a known bit vector (no x, no z) of exactly the port's width."
     },
     {
-      "name": "⊨₂",
-      "decl": "LeanModels.Sv.Models2",
-      "file": "LeanModels/Sv/Spec2.lean",
-      "text": "d ⊨₂ P: in every completed run of the design d, under every schedule and every stimulus, the stimulus and the trace satisfy P."
-    },
-    {
-      "name": "spec2",
-      "decl": "LeanModels.Sv.spec2",
-      "file": "LeanModels/Sv/Spec2.lean",
-      "text": "Turns a property of a stimulus (one input entry per clock cycle) and a trace (one snapshot of every signal per cycle, taken after the clock edge) into the form ⊨₂ takes."
-    },
-    {
-      "name": "Runs2",
-      "decl": "LeanModels.Sv.Runs2",
-      "file": "LeanModels/Sv/Spec2.lean",
-      "text": "Runs2 d σ stim tr: simulating d under the schedule σ on the stimulus stim completes, with the trace tr."
-    },
-    {
       "name": "ScheduleOracle",
       "decl": "LeanModels.Sv.ScheduleOracle",
       "file": "LeanModels/Sv/Semantics.lean",
@@ -228,6 +224,90 @@
       "decl": "LeanModels.Sv.Process2.isEdgePhase",
       "file": "LeanModels/Sv/Sem2.lean",
       "text": "True for the processes that run at the clock edge: always_ff, always @(posedge …) and asynchronous-reset blocks."
+    },
+    {
+      "name": "MooreOutDep",
+      "decl": "SvGolf.MooreOutDep",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted rule 1 of txtask-v2 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list, is closed along every combinational dependency and holds no output port."
+    },
+    {
+      "name": "combDeps",
+      "decl": "SvGolf.combDeps",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The combinational dependencies of a design, by assignment: for each always_comb or continuous assign, every signal a write targets and every signal its value, its indices or an enclosing condition reads. A clocked process contributes none: its writes end a combinational path at the clock edge."
+    },
+    {
+      "name": "ModelsPU",
+      "decl": "SvGolf.ModelsPU",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "ModelsPU d P: from every power-up state, under every schedule, on every known stimulus, every completed run of d satisfies P. It replaces txtask-v1's runs from Lean's own start state, where an unreset register is x: an unreset register is a 0 or 1 nobody knows, so the claims must hold for every value it can have."
+    },
+    {
+      "name": "PowerUp",
+      "decl": "SvGolf.PowerUp",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "PowerUp d st: st binds every declared signal of d, in declaration order, to a value of its declared width whose every bit is 0 or 1 (2-state declarations included, initializers ignored)."
+    },
+    {
+      "name": "KnownStim",
+      "decl": "SvGolf.KnownStim",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "KnownStim d stim: every stimulus entry binds each input port it drives to a value of the port's width whose every bit is 0 or 1. An x on an input is a value the environment does not know; each of its resolutions is a known entry."
+    },
+    {
+      "name": "KnownEntry",
+      "decl": "SvGolf.KnownEntry",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "KnownEntry d e: every input port the entry e binds holds a known value of its declared width."
+    },
+    {
+      "name": "sigWidth",
+      "decl": "SvGolf.sigWidth",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The declared width of a signal (its first declaration's)."
+    },
+    {
+      "name": "RunsAt",
+      "decl": "SvGolf.RunsAt",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "RunsAt d σ st0 stim tr: simulating d from the state st0 under the schedule σ on the stimulus stim completes, with the trace tr."
+    },
+    {
+      "name": "run2At",
+      "decl": "SvGolf.run2At",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Lean's run of a design (ls-sv's run2: the same clock cycles and checks) started from a given state instead of its own start state."
+    },
+    {
+      "name": "TerminatesPU",
+      "decl": "SvGolf.TerminatesPU",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted termination conjunct of txtask-v2 that TERMINATES restates: from every power-up state, under every schedule, every known stimulus completes."
+    },
+    {
+      "name": "XSafe",
+      "decl": "SvGolf.XSafe",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The trusted rule 3 of txtask-v2 that NO_X_CREATING restates: every process passes the structural check xsafeB."
+    },
+    {
+      "name": "xsafeB",
+      "decl": "SvGolf.xsafeB",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The structural check of rule 3, a Boolean function of the design's text and declared widths: every expression of every process has a rule-3 width (xsWidth), and every case pattern is an admitted expression or a casez/casex literal."
+    },
+    {
+      "name": "xsWidth",
+      "decl": "SvGolf.xsWidth",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "The width of an expression's value when no construct in it can create an x from known operands, and none otherwise: literals without x/z digits, declared signals, slices in range, run-time indices whose every value is in range, equal widths for bitwise and equality operators and for the two arms of ?:, and the operator rules of binW."
+    },
+    {
+      "name": "binW",
+      "decl": "SvGolf.binW",
+      "file": "svgolf/SvGolf/TaskSeq.lean",
+      "text": "Rule 3 at a binary operator: / and % only by a nonzero constant, ** with a signed exponent only on a nonzero constant base, &, |, ^, ==, !=, ==?, !=? only on equal widths; every other operator is known on known operands."
     }
   ]
 }

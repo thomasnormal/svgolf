@@ -10,7 +10,8 @@
     "aes_sbox": "listed",
     "fdivp": "listed",
     "matmul": "preview",
-    "sorter": "preview"
+    "sorter": "preview",
+    "arbiter": "listed"
   },
   "pages": {
     "rules": {
@@ -21,7 +22,8 @@
         "The banlist",
         "Leaderboard"
       ],
-      "stages_after": "Rules"
+      "stages_after": "Rules",
+      "rating_build_after": "Scoring"
     },
     "reproduce": {
       "source": "svgolf/score/PPA.md",

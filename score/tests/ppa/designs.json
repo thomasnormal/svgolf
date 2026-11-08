@@ -1,14 +1,14 @@
 {
   "_comment": [
     "The reference and baseline designs of the PPA validation (score/ppa_validate.py, score/test_ppa.py), at their scoring point.",
-    "Paths are relative to svgolf/. `banned`: scored with the banlist lifted (the Yosys `+` / `*` baselines), as in tests/expected.json.",
+    "Paths are relative to svgolf/. `banned`: scored with the banlist lifted (the Yosys `+` / `*` baselines, and `cmp_carry`, Yosys's adder through run-time comparisons), as in tests/expected.json.",
     "`ref` marks a task reference (proved or planned as the task's entry); the rest are baselines without a proof."
   ],
   "designs": [
     {"name": "add_ripple",   "task": "add",      "src": "tasks/add/reference/add_n.sv",              "top": "add_n",     "params": {"N": 16}, "ref": true},
     {"name": "add_sklansky", "task": "add",      "src": "tests/add/baselines/add_n_sklansky.sv",     "top": "add_n",     "params": {"N": 16}, "ref": false},
     {"name": "add_kogge",    "task": "add",      "src": "tests/add/baselines/add_n_kogge_stone.sv",  "top": "add_n",     "params": {"N": 16}, "ref": false},
-    {"name": "add_cmpcarry", "task": "add",      "src": "tests/add/baselines/cmp_carry.sv",          "top": "add_n",     "params": {"N": 16}, "ref": false},
+    {"name": "add_cmpcarry", "task": "add",      "src": "tests/add/baselines/cmp_carry.sv",          "top": "add_n",     "params": {"N": 16}, "ref": false, "banned": true},
     {"name": "add_yosys",    "task": "add",      "src": "tests/add/negative/plus.sv",                "top": "add_n",     "params": {"N": 16}, "ref": false, "banned": true},
     {"name": "mul_array",    "task": "mul",      "src": "tasks/mul/reference/mul_n.sv",              "top": "mul_n",     "params": {"N": 16}, "ref": true},
     {"name": "mul_tree",     "task": "mul",      "src": "tasks/mul/reference/mul_tree.sv",           "top": "mul_n",     "params": {"N": 16}, "ref": true},

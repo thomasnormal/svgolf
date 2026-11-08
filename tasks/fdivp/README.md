@@ -24,6 +24,108 @@ reference proof is one self-contained file over the general ls-sv library `LeanM
 copy the sections they share with D3's verbatim, and `tests/fdivp/shared_sections.py` checks that they stay
 byte-identical).
 
+## Start a new design
+
+A new divider is your own `solution.sv` (the header below; `/ % **` are banned at run time, `+ - *` and the
+comparisons are allowed) and a `Solution.lean` that proves it for every format, `W ≥ 2` and `P ≥ 2`. Find
+the design without Lean, then check it once without a proof:
+
+```bash
+python3.12 score/ppa.py solution.sv --task tasks/fdivp --no-mapped   # area and delay at (5, 11), seconds
+python3.12 check.py tasks/fdivp solution.sv --unproved --tactics --stage-dir stage
+```
+
+The second command runs every stage that needs no proof, the task's oracle included (a wrong divider is
+named there, not deep in a proof), says whether the proof tactics read the design (`tactics.in_fragment`)
+and leaves it staged in `stage/` for probe files ([PROVING.md, section 0](../../PROVING.md#0-the-loop)).
+
+**The route: the `sv_comb` tactics, then a model of your datapath** ([PROVING.md, section
+1](../../PROVING.md#1-the-shape-of-a-proof); three complete proofs, the largest of the course: the restoring
+`reference/fdivp.lean`, 4034 code lines, Newton-Raphson 4693, SRT 4951; "The reference" below says how they are
+built):
+
+1. `sv_structure (rank := …)` over both parameters: one driver per bit and no combinational loop
+   (`CombDesign ∧ Acyclic ∧ SharedObl design.pdesign [W, P]`); the restoring reference ranks its module-level
+   assigns by depth and its two loops, `norm` and `div`, by stage, with `rippleRank`.
+2. `sv_interface`, after `unfold SvGolf.Tasks.FdivP.task` (the tactic does not read the task as an
+   application).
+3. `sv_equations`: each assign as an equation over `Bool` and every driven bit known; the cover obligations of
+   a generate family can be conjunctions, closed by `refine ⟨?_, ?_⟩ <;> sv_cover`.
+4. The arithmetic: a model of your datapath on `Nat` that the printed equations imply (the reference's glue,
+   `Glue.chain`: the equations in, the output's value out), then that model against the task's function
+   (`OutN_fdivBits`). The facts about IEEE 754 rounding do not depend on the datapath: the rounding certificate
+   `certF_bridge` (section `CertF`), for every format, is where a proof of any other divider starts.
+
+**Lay the design out so the tactics take it** (what they refuse, with the messages: [PROVING.md, section
+4](../../PROVING.md#4-what-the-tactics-accept-and-what-they-refuse)):
+
+* continuous `assign`s in at most two nested `generate for` loops, every index and loop bound affine in `W`, `P`
+  and the genvars; word-level `+ - *`, the comparisons and the run-time shifts `<<` and `>>` are in the fragment
+  (PROVING.md, sections 14 and 17);
+* the stages of a loop as the rows of 2-D arrays (the restoring reference's normalizer rows `na_r`, `ya_r` and
+  its remainder rows `rr`);
+* derived sizes as `localparam integer` (`K = W + P`; `+`, `-`, `*` by a literal, `/` and `%` by a literal,
+  `$clog2`; not a 2-state `int`). The natural form D1 (`tests/fdivp/baselines/fdivp_d1.sv`: `$clog2`, `2**`,
+  replication, a logarithmic normalizer and shifter) is validated but ls-sv cannot load it; D2 (`fdivp_d2.sv`)
+  is the same divider written for the fragment;
+* every declared bit driven at `(5, 11)`.
+
+**The skeleton** (`reference/fdivp.lean` is it, filled in for the restoring divider):
+
+```lean
+import Submission.Design
+import SvGolf.Comb
+import LeanModels.Sv.CombEqTactic
+import LeanModels.Sv.CombLib
+import LeanModels.Sv.Lib
+
+namespace Submission
+open LeanModels.Sv LeanModels.Sv.CombView LeanModels.Sv.CombLib LeanModels.Sv.CombEq SvGolf
+
+set_option maxHeartbeats 300000 in
+theorem my_struct (W P : Nat) (hW : 2 ≤ W) (hP : 2 ≤ P) :
+    CombDesign (design.sem W P) ∧ Acyclic (design.sem W P) ∧ SharedObl design.pdesign [W, P] := by
+  sv_structure (rank := myRank W P)           -- your rank, a `def` above
+  all_goals (intros; omega)
+
+theorem my_interface (W P : Nat) (hW : 2 ≤ W) (hP : 2 ≤ P) (hc : CombDesign (design.sem W P)) :
+    (SvGolf.Tasks.FdivP.task W P).Interface 0 (design.sem W P) := by
+  unfold SvGolf.Tasks.FdivP.task
+  sv_interface
+
+-- your arithmetic: the printed equations in, the value of `q` out (fdivp.lean's `Glue.chain`, `OutN_fdivBits`)
+
+set_option maxHeartbeats 500000 in
+theorem solution : Goal := by
+  intro W P hWP
+  obtain ⟨hW, hP, -⟩ := hWP
+  obtain ⟨hc, ha, hso⟩ := my_struct W P hW hP
+  refine CombTask.satisfiedAt_of_comb (my_interface W P hW hP hc) hc ha ?_
+  intro st heqs hs v hv
+  obtain ⟨a, b, ⟨⟩⟩ := v
+  simp only [SvGolf.Tasks.FdivP.task, HoldAll_cons, HoldAll_nil, and_true] at hv ⊢
+  obtain ⟨hav, hbv⟩ := hv
+  sv_equations
+  · -- the main goal: your chain of equations to the value of `q` (fdivp.lean)
+  case inputsKnown_1 => exact inKnown_ofBitVec hav (by omega)
+  case inputsKnown_2 => exact inKnown_ofBitVec hbv (by omega)
+  all_goals first | (intros; omega) | sv_cover | (intros; refine ⟨?_, ?_⟩ <;> sv_cover)
+
+end Submission
+```
+
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-tips-the-library)):
+
+* `LeanModels.Sv.Lib`: `Restoring` (`restRem`, `restQuo`, `restore_spec`: `n + 1` restoring steps give the
+  quotient and the remainder; `val_restQuo`: the value of a row of quotient bits), `XFVal` (the `Nat` value of
+  windows, concatenations, extensions, constants, shifts, `addBits` / `subBits`, multiplexers, reductions),
+  `NatArith` (scaled comparisons, products of powers, modular subtraction, the bands of a remainder),
+  `BitVecArith`, `RowMajor`;
+* the IEEE 754 facts and the rounding certificate are in the references (a task ships no library: copy them):
+  `reference/fdivp.lean`'s sections `IEEE754Proofs`, `ScaleInvariance`, `RneInterval`, `RoundingBounds` and
+  `CertF` hold for every divider; `DpN` .. `DpU` and `DpG1` .. `DpG5` are the restoring datapath's;
+* the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`, `inKnown_ofBitVec`; `sv_bridge`.
+
 ## The circuit
 
 Write a module with exactly this header (parameter and port names, directions, widths and order matter; the module must
@@ -63,7 +165,7 @@ def task (W P : Nat) : CombTask where
   outputs _ := [("q", W + P)]
   fn _ := fun (a, b, ()) => (fdivBits W P a b, ())
 
-def inRange (W P : Nat) : Prop := 2 ≤ W ∧ 2 ≤ P
+def inRange (W P : Nat) : Prop := 2 ≤ W ∧ 2 ≤ P ∧ W + P + 1 < 2 ^ 31
 
 abbrev Statement (sem : Nat → Nat → LeanModels.Sv.Design2) : Prop :=
   ∀ W P, inRange W P → (task W P).StatementFixed (sem W P)
@@ -72,10 +174,15 @@ abbrev Statement (sem : Nat → Nat → LeanModels.Sv.Design2) : Prop :=
 A submission proves `SvGolf.Tasks.FdivP.Statement Submission.design.sem`, where `Submission.design.sem : Nat → Nat →
 Design2` is the two-parameter design that `load_design_sv2` builds from the checker's own extraction of the `.sv`. For
 each `(W, P)` this is a fixed-size statement (`CombTask.StatementFixed`): the design's inputs are exactly `a`, `b` (`W + P` bits) and
-its output exactly `q`; every run terminates under every schedule and stimulus; no process is clocked; and every cycle
+its output exactly `q`; there is no combinational loop; every run terminates under every schedule and stimulus; no process is clocked; and every cycle
 whose stimulus drives `a` and `b` with known values ends with `q = fdivBits W P a b`. At `(5, 11)` that is IEEE binary16
 division and at `(8, 24)` binary32. The choices of the statement (range, NaN, rounding, one fixed-size task per
 format) are listed in `REVIEW.md`.
+
+The range requires `W + P + 1 < 2^31` (decided 2026-11-06): the port widths are `int` expressions of the
+parameters (`[W+P-1:0]`), a design computes its exponent in `W + P + 1` bits (`localparam integer EW = W + P + 1`
+in the references), and an `int` holds no value of `2^31` or more, so beyond that bound the elaborated widths wrap.
+Every task's range keeps every width it implies below `2^31`.
 
 ## The trusted spec (`IEEE754.lean`)
 
@@ -219,7 +326,8 @@ neighbours `c·2^j`, `(c+1)·2^j`, and those two never both have even significan
 ## Rules for this task
 
 * **Banned run-time operators: `/ % **`**: division is the task. Constant arithmetic (parameter
-  expressions, `$clog2`, genvar indices) stays allowed; `+ - *`, shifts and comparisons are free. The checker enforces it
+  expressions, `$clog2`, genvar indices) stays allowed; `+ - *`, shifts and comparisons are free (the ban on run-time
+  ordering comparisons, decided 2026-11-05, is for the tasks that ban `+` or `-`, and this one bans neither). The checker enforces it
   twice (`score/banlist.py`: a pyslang front check and a Yosys backstop). `tests/fdivp/negative/div_op.sv` is a correct
   divider (the reference with its division rewritten as `/` and `%`) that is rejected for it.
 * **The design must be generic.** The statement is for ALL formats, so a design with a width cap, or one that is right only
@@ -236,8 +344,11 @@ neighbours `c·2^j`, `(c+1)·2^j`, and those two never both have even significan
 * **The proof is symbolic and for all formats.** No enumeration of operands, no `bv_decide` (the checker supports no
   external solver: `allow_bv_decide: false`), no `native_decide`, no `sorry`. Axioms `propext`, `Classical.choice`,
   `Quot.sound`.
-* **Proof time limit: `time_limit_s = 120`**, the one limit of every task (a ceiling, not a rule that a slow reference can
-  raise). Cold `solution` stage of the reference, three `check.py` runs (2026-11-03, a shared machine at load average
+* **Proof time limit: `time_limit_s = 300`** (CPU seconds), the one limit of every task (a ceiling, not a rule that a slow reference can
+  raise). In CPU seconds, what the limit counts (2026-11-06, three cold `check.py` runs each, `score/time_limits.json`):
+  `fdivp` 82.2, 79.1 and 80.4, `fdivp_newton` 120.7, 108.3 and 108.4, and `fdivp_srt` 181.8, 160.5 and 160.2 CPU s,
+  `fdivp_srt` over the 150 CPU s target. Before, in wall-clock seconds: cold `solution` stage of the reference, three
+  `check.py` runs (2026-11-03, a shared machine at load average
   9.5, 6.0 and 6.8): 70.3, 64.5 and 71.6 s, above the target of 60 s: the self-contained proof compiles the facts about
   the spec, the certificate, the math layer and the glue in the solution stage (they were a prebuilt library until
   2026-11-03: 31.0, 26.0 and 24.8 s). Heartbeats: `sv_structure` 239 thousand, the whole `solution` 388 thousand. The
@@ -246,14 +357,21 @@ neighbours `c·2^j`, `(c+1)·2^j`, and those two never both have even significan
   slowest of the three; heartbeats 672 and 700 thousand. Its margin under the ceiling depends on the machine's load:
   before it took the shared obligations (959 thousand heartbeats for `solution`), runs at load 10 to 17 took 92 to
   121 s (`tests/fdivp/results/srt_S0.md`).
-* **Scoring** at the scoring point `W = 5, P = 11` (binary16), no depth budget. The ranked score is sky130 A0'
-  (decided 11/03; svGolf `README.md`, "Scoring"): the cell area in um^2 and the critical-path delay in ps of the
-  scored netlist of the pinned two-stage Yosys + ABC flow, weighed by `score/ppa.py` (`sky130_a0_v3`); the
-  leaderboard keeps their Pareto frontier (the restoring reference 9675.5296 um^2 at 37984 ps,
-  `score/tests/ppa/expected_ppa.json`). Area in NAND2 gate equivalents and depth in gates are extra columns. The
-  score depends on the circuit's expression structure, not on its layout or names. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score". One caveat, as for
-  `aes_sbox`: **the ORDER of the statements of a netlist moves the score** (a few percent), and that is decided
-  to stay: a golfer runs the pinned flow on candidate orders and submits the best.
+* **Scoring** at the scoring point `W = 5, P = 11` (binary16), no depth budget. The one ranked number is area x
+  time on sky130 A0' (A0' decided 11/03, the product 11/05; svGolf `README.md`, "Scoring"): the cell area in um^2
+  times the critical-path delay of the scored netlist of the pinned two-stage Yosys + ABC flow, weighed by
+  `score/ppa.py` (`sky130_a0_v3`). Par, the proved SRT divider `fdivp_srt`, is 12356.8512 um^2 x 27592 ps =
+  340 950.2 um2*ns (the restoring reference: 9675.5296 um^2 at 37984 ps, `score/tests/ppa/expected_ppa.json`). The
+  Pareto frontier of area and time, area in NAND2 gate equivalents and depth in gates are extra columns, for
+  exploring; `python3.12 score/ppa.py solution.sv --task tasks/fdivp --no-mapped [--path]` measures a design in
+  seconds, with no Lean. The score is deterministic, the same file always scoring the same on the reference
+  build: names, comments, blank lines, whitespace and the file name never change it, while operand order, how
+  a chain of gates is grouped, gate forms and **the order of the statements** do (a few percent here), and
+  trying them is golf: a golfer runs the pinned flow on candidate orders and submits the best (svGolf
+  `README.md`, "Scoring"). This task is where another build of the same Yosys version was measured to differ
+  (2026-11-05: three of 52 designs, all of this task, up to 2.9% in delay; score/PPA.md, "Determinism
+  (measured)"). Every number can be
+  reproduced bit for bit with the reference build: score/PPA.md, "Reproduce a score".
 * Post-synthesis check (`task.json` `postsynth`): ls-sv's reading and the scored netlist must agree on the fixed corners,
   the 18 x 18 special operand pairs listed there (binary16: signed zeros, extreme subnormals and normals, ±1,
   ±max, ±inf, NaNs), the harvested comparison constants and 4000 seeded random pairs (4443 vectors on the reference;
@@ -294,7 +412,7 @@ within the time limit, the comparator and `leanchecker`, scoring and the post-sy
    the least normal and the largest finite to `inf` for free);
 9. the output by fields (sign, exponent field, top fraction bit, a generate family for the low fraction bits).
 
-**Score** (`score.py`; in `tests/expected.json`, re-measured by `tests/run.py`): **2166.076 GE, depth 289** at `(5, 11)`
+**Score** in the extra GE columns (`score.py`; in `tests/expected.json`, re-measured by `tests/run.py`; the ranked A0' numbers are under "Scoring" above): **2166.076 GE, depth 289** at `(5, 11)`
 (1515 gates); 8826.016 GE, depth 1261 at `(8, 24)`; 1369.84 GE, depth 184 at `(8, 8)`; 102.985 GE, depth 18 at `(2, 2)`.
 The baselines (`tests/fdivp/baselines/`) are: D1, the natural parametric form (`$clog2`, `2**`, replication,
 logarithmic normalizer and shifter; validated, outside today's tactic fragment, ls-sv cannot load it): **1911.446 GE,
@@ -404,7 +522,7 @@ pair of the 66 formats with `W + P <= 14`, on all 2^32 pairs at `(5, 11)`, `(8, 
 corner-rich vectors and 432,400 sampled pairs at 14 formats up to `(11, 53)` and `(2, 62)`: 0 mismatches. The selection
 table is checked exactly over every one of its cells (section 4.1 there, and in the proof).
 
-**The proof** (`reference/fdivp_srt.lean`, 6,090 lines, `check.py` accepts it, the cold `solution` stage takes 70 to 79 s at a load average below 8; `score/time_limits.json`). The sections `IEEE754Proofs` ..
+**The proof** (`reference/fdivp_srt.lean`, 6,090 lines, `check.py` accepts it, the cold `solution` stage takes 160 to 182 CPU s, 64 to 78 s of wall clock (2026-11-06, `score/time_limits.json`; 70 to 79 s of wall clock at a load average below 8 on 2026-11-05). The sections `IEEE754Proofs` ..
 `DpG4` are D3's, copied verbatim (`tests/fdivp/shared_sections.py`). Section `SrCore` is the mathematics of the core:
 the selection table checked cell by cell by one kernel `decide` (`srt_tbl`: the constants are a thermometer, and in every
 cell of estimate and divisor bits the selected digit keeps `|3R| <= 8·dv`), the estimate, containment, the carry-save

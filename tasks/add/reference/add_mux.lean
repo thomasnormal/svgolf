@@ -132,7 +132,7 @@ theorem add_final {N : Nat} {st : SvState} {x y : BitVec N} {c0 : Bool}
 
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨hc, ha, hso⟩ := add_struct N hN'
   refine CombTask.satisfiedAt_of_comb (add_interface N hN' hc) hc ha ?_
   intro st heqs hs v hv

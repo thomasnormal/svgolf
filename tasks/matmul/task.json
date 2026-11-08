@@ -13,18 +13,18 @@
   "parameters": [
     {
       "name": "N",
-      "range": "1 <= N"
+      "range": "1 <= N, N*N*W < 2^31, N*N*AccW < 2^31"
     },
     {
       "name": "W",
-      "range": "1 <= W"
+      "range": "1 <= W, N*N*W < 2^31"
     },
     {
       "name": "AccW",
-      "range": "1 <= AccW"
+      "range": "1 <= AccW, N*N*AccW < 2^31"
     }
   ],
-  "_range_comment": "Spec.lean's `task.inRange` also requires N*N*W < 2^31 and N*N*AccW < 2^31 (C10): every width and index expression of the interface stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
+  "_range_comment": "Each range string states the bounds of Spec.lean's `task.inRange` that involve its parameter (1 <= N, 1 <= W, 1 <= AccW, N*N*W < 2^31, N*N*AccW < 2^31; the products since C10): every width and index expression of the interface stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
   "ports": {
     "inputs": [
       {
@@ -84,8 +84,12 @@
     "_comment": "Of type (Nat -> Nat -> Nat -> Design2) -> (Nat -> Nat -> Nat -> Nat) -> Prop: the design family sem N W AccW and the latency function lat N W AccW. The checker's goal is `Statement design.sem lat ∧ lat 4 8 32 = n` (C3)."
   },
   "banlist": {
-    "operators": [],
-    "_comment": "No banlist (C6, ruled 11/03): every run-time operator is allowed, * included. The task is the schedule (how many multipliers, how many cycles), and the score prices both."
+    "operators": [
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "No task-specific banlist (C6, ruled 11/03): every other run-time operator is allowed, * included. The task is the schedule (how many multipliers, how many cycles), and the score prices both. Run-time / % ** are banned in every task (since 2026-11-06, under the 2026-11-05 ruling that svGolf disallows a construct where Yosys departs from the standard): a zero divisor or a negative exponent makes an x from known operands, which ls-sv carries into decisions and Yosys builds as a defined value (score/banlist.py ALWAYS_BANNED)."
   },
   "probe_points": [
     "N=1,W=1,AccW=1",
@@ -108,7 +112,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "postsynth": {
     "points": [
       {
@@ -122,11 +126,11 @@
         "AccW": 32
       }
     ],
-    "seeds": 3,
+    "seeds": 8,
     "reset_cycles": 1,
     "txns": 24,
     "time_limit_s": 900,
-    "_comment": "The clocked post-synthesis check (PLAN4.md Gate 2 step 4, Gate 3 step 5) at the two points: for each seed s < seeds, the netlist starts from a randomized state, reset is held for reset_cycles cycles (1, the least C1 allows, so a design that needs a longer reset fails), and then oracle.py's txns(params, s, txns) run, with no other idle cycles: the first transaction's gap is the idle time after the release (0, 1 and N + 3 cycles for seeds 0, 1, 2). Binding: (i) the netlist against ls-sv cycle by cycle, done every cycle and C where done = 1; (ii) C where done = 1 against oracle.py's good. Field names are this task's proposal for the tx-family kind; check/postsynth.py's config() learns them with the kind."
+    "_comment": "The clocked post-synthesis check (PLAN4.md Gate 2 step 4, Gate 3 step 5) at the two points: for each seed s < seeds, the netlist starts from a randomized state, reset is held for reset_cycles cycles (1, the least C1 allows, so a design that needs a longer reset fails), and then oracle.py's txns(params, s, txns, rng) run, with no other idle cycles: the first transaction's gap is the idle time after the release (0, 1 and N + 3 cycles for seeds 0, 1, 2, and again from seed 3 on, by s mod 3). Binding: (i) the netlist against ls-sv cycle by cycle, done every cycle and C where done = 1; (ii) C where done = 1 against oracle.py's good. Field names are this task's proposal for the tx-family kind; check/postsynth.py's config() learns them with the kind. F5 (decided 2026-11-07): 8 seeds per point; everything random in a seed's run (the stimulus source, Verilator's randSeed, ls-sv's power-up seed:k) is derived from sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed) and recorded in the seed's record (check/postsynth.py `seed_draw`)."
   },
   "oracle": "oracle.py",
   "references": [

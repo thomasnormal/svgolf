@@ -2,6 +2,7 @@ Multiply two polynomials over GF(2): bit `k` of the `2N-1`-bit result is the XOR
 of `a[i] AND b[j]`. This is multiplication with the carries removed, the operation behind GHASH, CRCs and
 binary-field cryptography. The proof covers every `N ≥ 1`; the score is taken at `N = 16`.
 
-Run-time `+ - *` are banned. The proved `N × N` AND/XOR array has 3429.5 µm² and a 1.11 ns critical
-path on sky130 (772.267 GE, depth 6). It is the first task whose best known designs are recursive: an
-unproved Karatsuba circuit is about a fifth smaller, 2756.4 µm², but slower, 1.80 ns (621.959 GE, depth 8).
+Run-time `+ - *` are banned. The proved `N × N` AND/XOR array has {{clmul_n.area}} and a {{clmul_n.time}}
+critical path on sky130 ({{clmul_n.ge}}, depth {{clmul_n.depth}}). It is the first task whose best known designs
+are recursive: an unproved Karatsuba circuit is about a fifth smaller, {{kara_b4_16.area}}, but slower,
+{{kara_b4_16.time}} ({{kara_b4_16.ge}}, depth {{kara_b4_16.depth}}).

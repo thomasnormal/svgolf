@@ -1,5 +1,5 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `score_tips` (optional): the \"What moves the score\" box, observations from trial runs (Markdown inline, placeholders allowed), never promises.",
  "title": "N-bit multiplier",
  "subtitle": "The full 2N-bit product of two unsigned N-bit numbers, with logic gates only.",
  "references": {
@@ -17,5 +17,11 @@
   "dadda_ks_8": "A Dadda tree with a Kogge-Stone final adder, generated for N = 8 only and checked by simulation.",
   "dadda_ks_16": "A Dadda tree with a Kogge-Stone final adder, generated for N = 16 only and checked by simulation.",
   "dadda_ks_32": "A Dadda tree with a Kogge-Stone final adder, generated for N = 32 only; not scored, because synthesis ran past the flow's time limit."
- }
+ },
+ "score_tips": [
+  "The Boolean form of a cell moves both area and delay: the association of a three-input XOR, a `?:` majority, which input of a 4:2 compressor enters late.",
+  "The pinned flow's ABC script restructures what you write: a structural trick that ABC can factor back into the plain form does not survive.",
+  "Commuting the operands of one operator moves the A0' area by up to 11% and the delay by up to 32% (the maintainers' measurement, `score/PPA.md`).",
+  "`score/ppa.py solution.sv --task tasks/mul --no-mapped --path` names the critical path with each net's arrival time: read it before you guess."
+ ]
 }

@@ -79,22 +79,28 @@ def input_drive(task, svgolf=SVGOLF):
         return None
 
 
-def metric_table(clocked, drive=None):
+def metric_table(clocked, drive=None, latency=True):
     """Every metric, in the order the explorer offers them. The time is the delay of a
     combinational design and cycles x period of a clocked one; `drive` is the task's input drive
-    (`input_drive`), which the delay's sentence names."""
+    (`input_drive`), which the delay's sentence names. A clocked task without a latency (`latency`
+    false: a reactive task, one decision per cycle) has the period as its time, so it has no
+    separate period and no latency column."""
     cell = drive[len(CELL_PREFIX):] if isinstance(drive, str) and drive.startswith(CELL_PREFIX) else drive
     time = (Metric("time_ps", "Time", "ps", "Cycles × the register-to-register period from the pinned liberty.")
+            if clocked and latency else
+            Metric("time_ps", "Time", "ps", "The register-to-register period from the pinned liberty, one decision "
+                   "per cycle.")
             if clocked else
             Metric("time_ps", "Delay", "ps", "The critical-path delay of the sky130 netlist (static timing"
                    + (f", inputs driven by a {cell}" if cell else "") + ")."))
+    per_cycle = [Metric("period_ps", "Clock period", "ps", "The register-to-register period."),
+                 Metric("cycles", "Latency", "cycles", "The declared latency at the scoring point.")]
     return [
         Metric("adp", "Score", combined.UNIT, "Area × time, the ranked score: lower is better.", 0),
         Metric("area_um2", "Area", "µm²", "The sky130 cell area of the scored netlist"
                + (", flip-flops included." if clocked else ", repaired by buffering."), 1),
         time,
-        Metric("period_ps", "Clock period", "ps", "The register-to-register period."),
-        Metric("cycles", "Latency", "cycles", "The declared latency at the scoring point."),
+        *(per_cycle if latency else []),
         Metric("ffs", "Flip-flops", "", "Flip-flops in the scored netlist."),
         Metric("energy_fj", "Energy", "fJ/op", "Energy per operation on random inputs, glitches counted."),
         Metric("energy_cycle_fj", "Energy", "fJ/cycle", "Energy per clock cycle, clock tree included."),
@@ -110,7 +116,17 @@ INTEGER = ("depth", "cycles", "ffs", "gates", "proof_lines")   # whole-number me
 
 
 def is_clocked(task):
-    return task.get("kind", "") in ("tx-family", "stream-family")
+    """A clocked task's score: flops included, time = cycles x the period (a reactive task: one cycle)."""
+    return task.get("kind", "") in ("tx-family", "stream-family", "react-family")
+
+
+LATENCY_KINDS = ("tx-family", "stream-family")      # check.py's: a clocked task whose Goal takes a latency
+
+
+def has_latency(task):
+    """Whether the task's score has a latency factor (check.py's LATENCY_KINDS): a combinational task has none
+    to show, a reactive one makes one decision per cycle (cycles = 1, so the time is the period)."""
+    return task.get("kind", "") in LATENCY_KINDS
 
 
 def _params_key(params):

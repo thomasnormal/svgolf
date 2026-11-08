@@ -1,68 +1,149 @@
 {
-  "_comment": "Cold runs of the honest references through check.py (`stages.solution.seconds`: the compile of the reference's Solution.lean, nothing else), the input of score/time_limits.py, which holds every task to the one limit of 120 s (decided 2026-11-02) and flags T above the 60 s target, T = the largest run of the slowest reference of the task. Re-measure after a change of the tactic library, the toolchain or the machine: put the new runs here and run `python3 score/time_limits.py --check`. Not hashed by the checker.",
+  "_comment": "Cold runs of every honest reference through check.py, in CPU SECONDS: `stages.solution.cpu_seconds` (the compile of the reference's Solution.lean, nothing else), with the wall clock of the same run (`stages.solution.seconds`) beside it. The input of score/time_limits.py, which holds every task to the one limit of 300 CPU s (decided 2026-11-02, the value 2026-11-06; it was 120 s of wall clock), names every reference above the 150 CPU s target, and fails when a measurement is not in CPU seconds or a reference task.json lists has none. T = the largest CPU run of the slowest reference of the task. Re-measured 2026-11-06 because the runs recorded before (2026-10-30 to 2026-11-05) were wall-clock seconds, which the CPU limit does not count (they are in this file's history). Re-measure after a change of the tactic library, the toolchain or the machine: put the new runs here and run `python3 score/time_limits.py --check`. Not hashed by the checker.",
+  "unit": "cpu_s",
   "environment": {
-    "date": "2026-10-30",
-    "machine": "Apple M2 Pro, 12 cores, 16 GB, macOS 27.2; a shared development machine: other users' jobs ran throughout (load average 5.0 to 8.8 at the start of the runs), nothing of this package ran concurrently",
-    "build": "COLD per run: a new process and a fresh staging directory (--stage-dir, removed beforehand) for every run, one run at a time through a Lean-slot wrapper (LEAN_NUM_THREADS=2, nice 19); the project build (lake build SvGolf tasks svgolf-eval) was warm and up to date, not timed; the OS file cache was not purged",
+    "date": "2026-11-06 20:03:45 to 2026-11-06 21:41:15 (CET); arbiter, matmul and sorter: 2026-11-07 07:52:26 to 2026-11-07 08:00:32 (CET), after the merge round",
+    "machine": "Apple M2 Pro (8 performance and 4 efficiency cores), 16 GB, macOS 27.2: a laptop-class development machine, shared: other users' jobs ran throughout (1-minute load average 2.8 to 13.2 when the runs started); nothing else of this package ran concurrently; which cores ran a process was not controlled",
+    "build": "COLD per run: a new check.py process and a fresh staging directory (--stage-dir, removed before and after) for every run, the references of one task in sequence inside one acquisition of the Lean slot wrapper (one task per acquisition), 3 sweeps of all tasks one after the other; the project build (svGolf, tasks, LeanModels.Sv) was warm and current, not timed; the OS file cache was not purged",
+    "threads": "LEAN_NUM_THREADS=2 and nice 19 (the slot wrapper); the CPU seconds count both threads",
     "lean_cache": "svGolf and LeanModels.Sv .olean files built and current, the staged Submission/*.olean built from scratch inside each run; lean-toolchain leanprover/lean4:v4.33.0-rc1",
-    "postsynth_mode": "light (check.py's default; the proof limit counts the solution stage only, the mode does not enter it)",
-    "reference_commit": "94c4308ccb6cbd710158669e9aa71a478a95529d + the uncommitted WP-C2/WP-C3 edits of the working tree (check.py, check/postsynth.py)",
-    "measured_with": "check.py TASK reference/<stem>.sv reference/<stem>.lean --stage-dir <fresh> --json; scratch: wpc2/cold_runs.py, plan_cold.json"
+    "postsynth_mode": "none: --no-score (no score, no post-synthesis; neither enters the solution stage)",
+    "reference_commit": "sweep 1: 96459073f; sweep 2: bddf0f84e, 2fc47cb87; sweep 3: 2fc47cb87 (no commit between them changes the references, svGolf, LeanModels or the solution stage); arbiter, matmul and sorter: 5a9c89290, all three sweeps (the merge round that brought the arbiter and the txtask-v2 proofs of matmul_g1 and sorter_ins)",
+    "measured_with": "check.py tasks/<task> tasks/<task>/reference/<stem>.sv tasks/<task>/reference/<stem>.lean --no-score --stage-dir <fresh> --json <out>, default sandbox (auto: on)"
   },
   "tasks": {
-    "add": {
-      "references": {
-        "add_n": [12.11, 9.57, 9.49],
-        "add_n_byhand": [3.0]
-      }
-    },
     "_example": {
       "references": {
-        "band": [2.09, 2.0, 2.1],
-        "band_lp": [2.13, 2.08, 2.11]
-      }
+        "band": {
+          "cpu_s": [1.73, 1.6, 1.6],
+          "wall_s": [2.3, 1.39, 1.34]
+        },
+        "band_lp": {
+          "cpu_s": [1.57, 1.73, 1.59],
+          "wall_s": [1.21, 1.36, 1.35]
+        },
+        "band_tactics": {
+          "cpu_s": [3.26, 3.15, 3.21],
+          "wall_s": [2.47, 2.44, 2.41]
+        }
+      },
+      "why": "band: 3 runs at a 1-minute load average of 10.9, 6.4, 8.3 when each started; comparator 12.2 to 16.0 s, leanchecker 14.3 to 15.4 s of wall clock; band_lp: 3 runs at a 1-minute load average of 7.9, 6.5, 6.7 when each started; comparator 10.4 to 12.2 s, leanchecker 11.9 to 16.8 s of wall clock; band_tactics: 3 runs at a 1-minute load average of 6.7, 6.6, 5.7 when each started; comparator 14.7 to 15.7 s, leanchecker 12.5 to 17.7 s of wall clock"
+    },
+    "add": {
+      "references": {
+        "add_n": {
+          "cpu_s": [5.73, 6.17, 6.01],
+          "wall_s": [3.47, 4.02, 3.93]
+        },
+        "add_proc": {
+          "cpu_s": [8.18, 8.2, 8.42],
+          "wall_s": [5.22, 5.21, 5.45]
+        },
+        "add_proc_m": {
+          "cpu_s": [12.29, 12.37, 11.23],
+          "wall_s": [7.12, 7.23, 6.47]
+        },
+        "add_mux": {
+          "cpu_s": [6.82, 6.95, 6.51],
+          "wall_s": [4.07, 4.14, 3.92]
+        },
+        "add_n_byhand": {
+          "cpu_s": [4.23, 4.68, 4.12],
+          "wall_s": [2.01, 4.6, 1.91]
+        }
+      },
+      "why": "add_n: 3 runs at a 1-minute load average of 6.0, 6.4, 4.9 when each started; comparator 15.7 to 16.3 s, leanchecker 13.9 to 17.2 s of wall clock; add_proc: 3 runs at a 1-minute load average of 5.5, 8.4, 5.8 when each started; comparator 16.6 to 18.2 s, leanchecker 14.9 to 15.6 s of wall clock; add_proc_m: 3 runs at a 1-minute load average of 8.2, 12.4, 5.3 when each started; comparator 17.0 to 18.7 s, leanchecker 13.1 to 16.6 s of wall clock; add_mux: 3 runs at a 1-minute load average of 6.4, 9.1, 3.9 when each started; comparator 14.7 to 18.2 s, leanchecker 13.1 to 23.0 s of wall clock; add_n_byhand: 3 runs at a 1-minute load average of 5.7, 12.4, 4.0 when each started; comparator 10.7 to 15.6 s, leanchecker 11.3 to 16.5 s of wall clock"
     },
     "mul": {
       "references": {
-        "mul_tree_h": [71.31, 69.21, 71.31],
-        "mul_tree": [87.09, 86.76, 99.98],
-        "mul_wallace": [42.16],
-        "mul_n": [37.25],
-        "mul_n_byhand": [12.35]
-      }
-    },
-    "aes_sbox": {
-      "references": {
-        "sbox_bp": [53.73, 51.04, 50.91],
-        "sbox_table": [26.12, 24.98, 24.65]
+        "mul_n": {
+          "cpu_s": [16.36, 16.86, 16.12],
+          "wall_s": [10.16, 12.86, 10.09]
+        },
+        "mul_n_byhand": {
+          "cpu_s": [14.12, 14.55, 13.85],
+          "wall_s": [6.63, 6.92, 6.55]
+        },
+        "mul_tree": {
+          "cpu_s": [37.08, 34.76, 34.92],
+          "wall_s": [28.71, 27.53, 25.7]
+        },
+        "mul_wallace": {
+          "cpu_s": [31.59, 30.05, 28.72],
+          "wall_s": [23.49, 22.62, 16.15]
+        },
+        "mul_tree_h": {
+          "cpu_s": [32.67, 32.31, 33.68],
+          "wall_s": [19.3, 19.65, 20.0]
+        }
       },
-      "why": "WP-P3b, 2026-10-31 06:39 to 06:46: three cold check.py runs of the reference (fresh --stage-dir each, --postsynth full, one run at a time inside one Lean-slot acquisition with nothing else on the slot, LEAN_NUM_THREADS=2, nice 19, the project build warm and the LeanModels.Sv tactic modules of the wpp3b worktree); default (asynchronous) elaboration; the committed reference (sv_structure and sv_equations decide the flat netlist's obligations; solution carries maxHeartbeats 1000000). Whole check.py runs: 136, 127 and 130 s (comparator 19, leanchecker 47 to 50). Replaces WP-A1's 96.04, 95.07 and 90.9 s of the proof that applied comb_acyclic_view by hand. sbox_table (`by sv_exhaustive`, 2026-11-03 20:34 to 20:38): three cold check.py runs (fresh --stage-dir each, --postsynth light, one run at a time inside one Lean-slot acquisition with nothing else on the slot, LEAN_NUM_THREADS=2, nice 19, load average 7.4 to 11.2 from other users' jobs; the sv-exhaustive worktree): whole check.py runs 81, 83 and 80 s (comparator 20 to 22, leanchecker 22 to 24)"
+      "why": "mul_n: 3 runs at a 1-minute load average of 4.8, 8.3, 3.6 when each started; comparator 15.7 to 22.1 s, leanchecker 13.8 to 15.9 s of wall clock; mul_n_byhand: 3 runs at a 1-minute load average of 4.5, 6.8, 2.8 when each started; comparator 11.4 to 12.8 s, leanchecker 12.4 to 13.9 s of wall clock; run 1 integrity: rejected AFTER the solution stage, which finished and is counted (its integrity stage saw score/fourstate.py change: a docstring edit of the same round, made while the run was going); mul_tree: 3 runs at a 1-minute load average of 5.7, 5.3, 2.8 when each started; comparator 20.5 to 25.3 s, leanchecker 18.6 to 19.9 s of wall clock; mul_wallace: 3 runs at a 1-minute load average of 7.7, 5.5, 3.5 when each started; comparator 16.7 to 22.7 s, leanchecker 18.2 to 22.1 s of wall clock; mul_tree_h: 3 runs at a 1-minute load average of 7.6, 7.4, 4.3 when each started; comparator 17.4 to 20.4 s, leanchecker 18.9 to 20.5 s of wall clock"
     },
     "clmul": {
       "references": {
-        "clmul_n": [7.42, 7.66, 7.66]
+        "clmul_n": {
+          "cpu_s": [10.39, 9.9, 9.96],
+          "wall_s": [6.23, 5.9, 5.93]
+        }
       },
-      "why": "WP-T-CLMUL gate 2, 2026-11-01 15:56 to 15:59: three cold check.py runs of the reference (fresh --stage-dir each, --postsynth full, --ppa require, one run at a time inside one Lean-slot acquisition, LEAN_NUM_THREADS=2, nice 19, the project build warm); default (asynchronous) elaboration; whole check.py runs about 55 s each (comparator 14, leanchecker 13 to 14, postsynth 10); a loaded shared machine (load average 6 to 10)"
+      "why": "clmul_n: 3 runs at a 1-minute load average of 6.9, 5.1, 4.4 when each started; comparator 16.2 to 16.6 s, leanchecker 13.9 to 15.6 s of wall clock"
     },
     "fdivp": {
       "references": {
-        "fdivp": [70.26, 64.48, 71.58],
-        "fdivp_newton": [49.92, 48.6, 52.67],
-        "fdivp_srt": [78.58, 73.19, 69.92]
+        "fdivp": {
+          "cpu_s": [82.18, 79.11, 80.38],
+          "wall_s": [30.56, 28.6, 29.76]
+        },
+        "fdivp_newton": {
+          "cpu_s": [120.7, 108.32, 108.42],
+          "wall_s": [47.83, 40.34, 40.04]
+        },
+        "fdivp_srt": {
+          "cpu_s": [181.84, 160.5, 160.17],
+          "wall_s": [77.69, 65.86, 64.41]
+        }
       },
-      "why": "2026-11-03, the self-contained reference (the fold of the former 16-bit task and of fdivp's Dp* proof library into reference/fdivp.lean; only LeanModels.Sv.Lib prebuilt): three cold check.py runs, fresh --stage-dir each, one run at a time, each taking the Lean slot itself (LEAN_NUM_THREADS=2, nice 19), load average 9.5, 6.0, 6.8 at the start; leanchecker 39.4, 35.2, 44.6 s. Replaces WP-H3 gate 2's 31.0, 26.0, 24.8 s (2026-11-02, the proof library prebuilt in the tasks library, load 14, 11, 8). fdivp_newton: 2026-11-04 03:31 to 03:44, the Newton reference (b3fcfd85, self-contained like fdivp.lean), three cold check.py runs (--no-score) the same way, load average 6.1, 4.1, 4.9 when each took the slot; leanchecker 33.9, 34.0, 35.9 s, comparator 21.0, 23.4, 23.5 s. Replaced 2026-11-04 22:54 to 23:05 by three runs the same way after the Newton mathematics moved from the prebuilt LeanModels/Sv/Lib/Newton.lean into the reference (its section NwCore, compiled in the solution stage), load average 6.1, 9.9, 6.6 when each took the slot; leanchecker 39.4, 39.4, 38.5 s, comparator 24.1, 25.9, 22.7 s; one run just before the move, the same way, at load 9.5: 46.87 s. fdivp_srt: 2026-11-05 01:50 to 02:03, the SRT reference (on svgolf-prep 06f2a700: its core in section SrCore, the shared obligations taken from sv_structure), three cold check.py runs (--no-score) the same way, each started only at a 1-minute load average below 8: 7.7, 7.4, 6.7 when each took the slot (10.5, 6.7, 7.4 at the end); leanchecker 49.4, 47.6, 46.1 s, comparator 29.3, 27.6, 29.6 s. Above the 60 s target, under the 120 s limit; at load 10 to 17 the stage measured 92 to 121 s before the merge onto the shared obligations (tests/fdivp/results/srt_S0.md, sections 11 to 13)"
+      "why": "fdivp: 3 runs at a 1-minute load average of 6.0, 4.7, 5.2 when each started; comparator 18.9 to 23.0 s, leanchecker 29.6 to 32.3 s of wall clock; fdivp_newton: 3 runs at a 1-minute load average of 9.0, 4.4, 6.1 when each started; comparator 22.9 to 27.2 s, leanchecker 34.9 to 39.3 s of wall clock; fdivp_srt: 3 runs at a 1-minute load average of 12.9, 4.4, 5.1 when each started; comparator 25.3 to 31.2 s, leanchecker 43.2 to 55.6 s of wall clock"
+    },
+    "aes_sbox": {
+      "references": {
+        "sbox_bp": {
+          "cpu_s": [66.97, 51.87, 50.83],
+          "wall_s": [75.25, 52.04, 50.52]
+        },
+        "sbox_table": {
+          "cpu_s": [26.0, 23.92, 23.32],
+          "wall_s": [26.69, 24.26, 23.4]
+        }
+      },
+      "why": "sbox_bp: 3 runs at a 1-minute load average of 12.9, 5.3, 3.9 when each started; comparator 26.9 to 36.1 s, leanchecker 46.3 to 54.8 s of wall clock; sbox_table: 3 runs at a 1-minute load average of 13.2, 5.1, 4.8 when each started; comparator 19.7 to 24.3 s, leanchecker 24.2 to 27.2 s of wall clock"
     },
     "matmul": {
       "references": {
-        "matmul_g1": [9.56, 8.68, 8.56]
+        "matmul_g1": {
+          "cpu_s": [16.2, 17.46, 17.26],
+          "wall_s": [7.71, 9.61, 11.64]
+        }
       },
-      "why": "PLAN4 Gate 3 step 6, 2026-11-04 01:43 to 02:13 CET: three cold check.py runs of the reference at 1c17536f (fresh --stage-dir each, the default scoring, which for a clocked task is the clocked score, postsynth at (2,4,8) and (4,8,32) and --ppa require; --postsynth full; one run per Lean-slot acquisition, LEAN_NUM_THREADS=2, nice 19, the project build warm), at load 5.3, 5.3 and 5.4; other workflows' Lean jobs held the slot between the runs, never during one. Whole check.py runs 74.8, 66.5 and 67.9 s (comparator 11.8 to 14.1 s, leanchecker 14.4 to 16.4 s, postsynth 16.7 to 17.1 s for both points). The proof imports LeanModels.Sv and SvGolf.Seq (built, not part of the solution stage)"
+      "why": "matmul_g1: 3 runs at a 1-minute load average of 5.9, 5.5, 7.1 when each started; comparator 13.0 to 25.4 s, leanchecker 18.1 to 21.6 s of wall clock; measured 2026-11-07 after the merge round, of the txtask-v2 proof (the runs of 2026-11-06, 15.23, 15.05, 15.12 CPU s, were of the v1 proof, and are in this file's history)"
     },
     "sorter": {
       "references": {
-        "sorter_ins": [7.24, 7.24, 7.59]
+        "sorter_ins": {
+          "cpu_s": [17.37, 17.37, 17.02],
+          "wall_s": [5.09, 5.67, 5.17]
+        }
       },
-      "why": "PLAN4 Gate 5 (the sorter, as Gate 3 step 6), 2026-11-04 10:08 to 10:21 CET: three cold check.py runs of the reference at 039c2162 (fresh --stage-dir each, the default scoring, which for a stream-family task is the clocked score, postsynth at (3,4) and (8,8) and --ppa require; --postsynth full; one run per Lean-slot acquisition, LEAN_NUM_THREADS=2, nice 19, the project build warm), at load 9.7, 9.9 and 6.4 when each took the slot; other workflows' Lean jobs held the slot between the runs, never during one. Whole check.py runs 54, 53 and 67 s (comparator 13.3 to 18.2 s, leanchecker 16.5 to 16.9 s, postsynth 6.8 to 7.2 s for both points). The proof imports LeanModels.Sv and SvGolf.Seq (built, not part of the solution stage)"
+      "why": "sorter_ins: 3 runs at a 1-minute load average of 5.4, 6.4, 5.2 when each started; comparator 13.9 to 21.8 s, leanchecker 15.3 to 18.1 s of wall clock; measured 2026-11-07 after the merge round, of the txtask-v2 proof (the runs of 2026-11-06, 15.96, 15.25, 15.78 CPU s, were of the v1 proof, and are in this file's history)"
+    },
+    "arbiter": {
+      "references": {
+        "rr_mask": {
+          "cpu_s": [12.56, 12.71, 11.18],
+          "wall_s": [9.75, 9.67, 4.12]
+        }
+      },
+      "why": "rr_mask: 3 runs at a 1-minute load average of 4.3, 6.0, 4.8 when each started; comparator 12.2 to 31.6 s, leanchecker 17.4 to 19.0 s of wall clock (two Python checks of this package's docs, a few seconds, ran during the first run); measured 2026-11-07 after the merge round, under the 300 CPU s limit (the runs recorded before, 2026-11-05, were wall-clock seconds against round 7's 120 s limit: 8.25, 11.08, 9.41 s; they are in this file's history)"
     }
   }
 }

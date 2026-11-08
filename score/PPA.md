@@ -14,9 +14,18 @@ drives the inputs: "Would it make sense to just choose one or the other for each
 realistic/interesting?": A0' is `sky130_a0_v3`, every primary input driven by the TASK's input drive (`task.json`
 `input_drive`, default `sky130_fd_sc_hd__buf_8`; "The input drive" below). 11/04, after the STA study against OpenSTA: the
 per-edge pin loads go into `sky130_a0_v3` before it is released, so that the ranked numbers change once ("The per-edge
-loads" below). The text further down describes the flows as
+loads" below). 11/05: the ONE ranked number is area x time, the A0' area times the time (`leaderboard/combined.py`);
+par, the record and "under par" use it, and the Pareto frontier of the two is an exploration view. The text further down describes the flows as
 built in WP-X2..X4; where it says the columns rank nothing or reject nothing, these rulings supersede it. To reproduce a
 recorded number bit for bit: "Reproduce a score" below.
+
+**The banlist, decided 2026-11-05** (a rule of `score/banlist.py`, not of the PPA flow; no number here moves): in a task that
+bans `+` or `-`, a run-time ordering comparison (`< <= > >=`) is banned too, at the Yosys level. Yosys's `alumacc` builds it
+as an `$alu`, Yosys's own adder, so the backstop runs `alumacc` after `proc; opt` and rejects every `$alu`, `$macc`,
+`$macc_v2`, `$lcu` or `$fa` cell it builds, at the comparison's source location; equality and comparisons Yosys folds as
+constants stay allowed. So `add`'s `cmp_carry` (`tests/add/baselines/cmp_carry.sv`, every carry a comparison: the fastest
+add design below, 1,965 ps at N = 16) is a BANNED baseline since then, scored with the banlist lifted like `plus` and
+`yosys_mul` (`designs.json` and `tests/expected.json` `"banned": true`); the tables measured before name it without the mark.
 
 **Two flows, side by side** (decided 2026-11-01, superseded for A0' by the rulings above: neither is declared official,
 nothing is ranked; "it is like doing an algorithm competition but not using -O3"):
@@ -31,8 +40,10 @@ nothing is ranked; "it is like doing an algorithm competition but not using -O3"
 | cost | the repair is Python in `ppa.py`: 0.01 to 0.6 s per netlist, 1.3 s for matmul (two weighings) | one more Yosys process, 0.3 to 1.4 s on the references (3.6 s on the largest idiom), about the cost of the pinned flow |
 
 The fields of the two flows have different names, versions and hashes and are never swapped silently (PLAN2: "A1' never replaces
-A0' under the same name"). Both are exact deterministic functions of the design text, bit-exact across processes, hash seeds,
-parallelism and temp directories (measurements below). A1' is never a reason to reject a submission; A0' is, when the repair
+A0' under the same name"). Both are exact deterministic functions of the design text and the tool build: bit-exact across processes, hash
+seeds, parallelism, temp and working directories, checkouts, locales and file names (measurements below; again
+2026-11-05 on 52 designs). Another build of the same Yosys version can give other numbers (2026-11-05: 3 of 52 designs,
+all fdivp, under the WebAssembly build; "Determinism (measured)" below). A1' is never a reason to reject a submission; A0' is, when the repair
 cannot make its netlist electrically legal (11/04).
 
 ## The repair and the legality check (`sky130_a0_v2`, 11/04)
@@ -79,7 +90,7 @@ load-checked, so 255 constant-0 output bits (2.55 pF on `conb_1` LO, 1.25x its `
 UNFIXABLE REJECTIONS: ABC sees one 10 fF output per distinct net and no input-to-output or flop-to-output wire at all, so an
 input wired to 14 or more output bits, a plain sign extension `{{16{x[15]}}, x}`, a replicated `{24{a & b}}`, a flop's Q to 17
 or 64 output bits and an input into 96 flop D pins were REJECTED, and a golfer could not fix them (the pinned flow removes the
-buffers they write and merges duplicates), contrary to "they can fix things themselves"; (3) AREA NOISE: `upsize` has no delay
+buffers they write and merges duplicates), contrary to "they can fix things themselves"; (3) UNEVEN AREA: `upsize` has no delay
 target, so areas moved +2.4% to +40% unevenly (the proved ripple adder left the add frontier, the array multiplier went from
 2nd to last in area, `sbox_bp` left its frontier). Buffering only repairs exactly the illegal nets: every review probe is now
 legal (`test_ppa.py ReviewProbesTest`), the tie cell is audited and replicated, and a legal netlist keeps its v1 area.
@@ -331,7 +342,7 @@ an output bit) cost exactly one `conb_1` per module and no delay (the proposal o
 | `available` | | | `true`; or the object is exactly `{"available": false, "reason": ...}` for a design the mapping cannot weigh |
 
 Flow **A1'** is `score/ppa_mapped.ys` run in a FRESH Yosys process on the canonical RTLIL that stage 1 of the pinned flow
-(`canon.ys`) wrote, so layout and renaming noise are zero here as in the default score:
+(`canon.ys`) wrote, so layout and names cannot change it, as in the default score:
 
 ```
 read_rtlil canon.il
@@ -437,8 +448,8 @@ measurement only: the ranked board stays at task.json's `scoring.params` and not
   identity and pinned flow.
 * **The site**: the explorer of "Compare the designs" gets a point selector (the scored point labelled ranked, every other
   "measured, not ranked") and a scaling view (any number against the task's parameter, one line per design, log axes, and the
-  score over par's at each point, where a crossing shows a design starting to pay off: on add, `cmp_carry` beats the ripple
-  adder at N = 64). The headline chart, the leaderboard and the tables of the scored point are unchanged.
+  score over par's at each point, where a crossing shows a design starting to pay off: on add, the banned `cmp_carry` beats
+  the ripple adder at N = 64). The headline chart, the leaderboard and the tables of the scored point are unchanged.
 
 ```
 python3.12 score/points.py plan [--records]                          # what would be measured, no tool runs
@@ -451,7 +462,8 @@ python3.12 score/test_points.py
 
 A ranked number is a pure function of: the design's text; the pinned flow (`score/srcgate.py`, `score/canon.ys`,
 `score/svgolf.ys`, `score/ge.json`; for a clocked task `score/svgolf_seq.ys` and `score/ge_seq.json`), run by the pinned
-Yosys and its ABC; `score/ppa.py` and `score/ppa_pins.json`; the pinned liberty; and the task's scoring point and input
+Yosys BUILD and its ABC (the build, not only the version: "Determinism (measured)", and the reference build below);
+`score/ppa.py` and `score/ppa_pins.json`; the pinned liberty; and the task's scoring point and input
 drive. A check result (and so a record) carries the hash of each: `score.yosys_version`, `score.canon_script_sha256`,
 `score.script_sha256`, `score.ge_table_sha256`, `score.rtlil_sha256`, and `ppa.liberty_sha256`, `ppa.ppa_pins_sha256`,
 `ppa.ppa_script_sha256`, `ppa.netlist_sha256`, `ppa.repair.netlist_sha256`, `ppa.setup`.
@@ -462,15 +474,17 @@ the Yosys version or a script hash differs from `tests/expected.json`'s `flow`):
 | what | version or sha256 | role |
 |---|---|---|
 | Python | 3.12 (3.12.8 here), with `pyslang` (11.0.0 here) | `score/*.py`; `pyslang` parses the source for the source gate |
-| Yosys | `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)` | the pinned flow: two processes, below |
-| ABC | the `yosys-abc` beside that Yosys: `UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`; the binary here (Homebrew's `yosys` 0.53, macOS arm64) has sha256 `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653` (another platform's build has another hash; the version line is what a record carries) | run only by Yosys's `synth` and `abc -g` passes; the ranked weighing and its repair are Python (`ppa.py`), no ABC |
+| Yosys | `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)`; the binary of the rating build (Homebrew's `yosys` 0.53, macOS arm64) has sha256 `011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732` | the pinned flow: two processes, below |
+| ABC | the `yosys-abc` beside that Yosys: `UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`; the binary here (Homebrew's `yosys` 0.53, macOS arm64) has sha256 `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653` (another build has another hash and can give other numbers on some designs, measured 2026-11-05; the version line a record carries names the compiler) | run only by Yosys's `synth` and `abc -g` passes; the ranked weighing and its repair are Python (`ppa.py`), no ABC |
 | liberty | `sky130_fd_sc_hd__tt_025C_1v80.lib`, 12,800,135 bytes, `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5` (OpenROAD-flow-scripts `6c6fc7e2`, URL in `ppa_pins.json`) | fetched, never vendored: `python3.12 score/ppa.py --fetch-liberty` (size and sha256 checked) or `SVGOLF_SKY130_LIB=/path/to/copy` |
 | `score/canon.ys` | `bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b` | Yosys process 1 |
 | `score/svgolf.ys` | `ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445` | Yosys process 2 (combinational) |
-| `score/svgolf_seq.ys` | `1bce52a7f206f05b40b075c07bb40c89755f4c1685ada680758984030af90f36` | Yosys process 2 (clocked) |
+| `score/svgolf_seq.ys` | `c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2` | Yosys process 2 (clocked) |
 | `score/ge.json` | `6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea` | the GE prices (the extra GE column) |
 | `score/ge_seq.json` | `0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6` | the GE prices of a clocked task (`ge.json`'s plus the flop's; its `_derivation` names the pins file it was derived under, so it changed with `sky130_a0_v3`'s pins) |
 | `score/ppa_pins.json` | `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8` (`sky130_a0_v3`), recorded in every block as `ppa_pins_sha256` | the gate-to-cell table, the timing setup and input drives, the repair, the tie cells |
+
+**The reference build** (the build ratings use, decided 2026-11-05; README.md, "Scoring", and `score/reference_build.json`): Homebrew's Yosys 0.53 for macOS arm64, compiled by clang++ 17 with -O3, with its `yosys-abc` (both sha256 above); every published number was made with it, the flow is deterministic on it, and another build can give other numbers on some designs ("Determinism (measured)"). It is not pinned to a slower portable build.
 
 **The pinned flow, step by step** (what `score.py` does):
 
@@ -511,8 +525,9 @@ the Yosys version or a script hash differs from `tests/expected.json`'s `flow`):
    inside `synth`, `abc -fast`, `strash; dretime; map`; then the `abc -g` pass, onto a generated gate library of the listed
    gates, `strash; &get -n; &fraig -x; &put; scorr; dc2; dretime; strash; &get -n; &dch -f; &nf; &put`. `netlist.v` is the
    SCORED netlist (the one `postsynth` simulates and `check.py` weighs); GE is the `stat` count priced by `ge.json`, the
-   depth `ltp -noff`. A clocked task runs `score/svgolf_seq.ys` instead: the same with `dfflegalize -cell $_DFF_P_ x` after
-   `synth`, priced by `ge_seq.json`.
+   depth `ltp -noff`. A clocked task runs `score/svgolf_seq.ys` instead: the same with `synth -nofsm` (no FSM re-encoding,
+   decided 2026-11-06), `dfflegalize -cell $_DFF_P_ x` after it and `opt_clean -purge` as the last clean-up (decided
+   2026-11-07: "Known gap" below), priced by `ge_seq.json`.
 4. The ranked weighing, `ppa.py` on `netlist.v` (Python only): each gate becomes ONE `_1` cell (`ppa_pins.json` `gates`:
    NOT `inv_1`, NAND `nand2_1`, NOR `nor2_1`, AND `and2_1`, OR `or2_1`, XOR `xor2_1`, XNOR `xnor2_1`, MUX `mux2_1`, ANDNOT
    `nor2b_1`, ORNOT `nand2b_1`; each checked against the liberty's own function), a flop `dfxtp_1`, cut out of the timing
@@ -594,7 +609,7 @@ depth) of `score.py` against (um^2, ps) of `ppa.py`.
 | add_ripple (ref) | 112.0 | 33 | 460.4 | 2611 | mul_dadda_rc | 1953.6 | 61 | 8230.4 | 5461 |
 | add_sklansky | 127.7 | 28 | 541.8 | 2451 | mul_dadda_ks | 2076.5 | 48 | 8937.3 | 5148 |
 | add_kogge | 149.7 | 24 | 641.9 | 2064 | mul_yosys (`*`) | 2081.2 | 59 | 8826.0 | 6261 |
-| add_cmpcarry | 196.0 | 17 | 857.1 | 1965 | sbox_bp (ref) | 201.0 | 21 | 892.1 | 4297 |
+| add_cmpcarry (`>`) | 196.0 | 17 | 857.1 | 1965 | sbox_bp (ref) | 201.0 | 21 | 892.1 | 4297 |
 | add_yosys (`+`) | 118.0 | 33 | 498.0 | 3143 | sbox_bp_d16 | 216.3 | 18 | 952.2 | 3670 |
 | mul_array (ref) | 1962.6 | 88 | 8290.5 | 10907 | sbox_table | 786.9 | 11 | 3445.8 | 2288 |
 | mul_tree (ref) | 2034.9 | 63 | 8603.3 | 6129 | fdivp (ref) | 2166.1 | 289 | 9675.5 | 37984 |
@@ -643,7 +658,7 @@ the input drive, and the per-edge loads moved only their delays (A1' runs the sa
 | add_ripple (ref) | 112.0 | 33 | 460.4 | 2611 | 440.4 | 6279 | 48 | 16 | 0.957 | 2.405 |
 | add_sklansky | 127.7 | 28 | 541.8 | 2451 | 499.2 | 3359 | 69 | 12 | 0.921 | 1.370 |
 | add_kogge | 149.7 | 24 | 641.9 | 2064 | 568.0 | 2661 | 92 | 10 | 0.885 | 1.289 |
-| add_cmpcarry | 196.0 | 17 | 857.1 | 1965 | 660.6 | 1846 | 105 | 9 | 0.771 | 0.939 |
+| add_cmpcarry (`>`) | 196.0 | 17 | 857.1 | 1965 | 660.6 | 1846 | 105 | 9 | 0.771 | 0.939 |
 | add_yosys (`+`) | 118.0 | 33 | 498.0 | 3143 | 489.2 | 3567 | 74 | 11 | 0.982 | 1.135 |
 | mul_array (ref) | 1962.6 | 88 | 8290.5 | 10907 | 8644.5 | 16391 | 834 | 45 | 1.043 | 1.503 |
 | mul_tree (ref) | 2034.9 | 63 | 8603.3 | 6129 | 7975.1 | 7558 | 1074 | 31 | 0.927 | 1.233 |
@@ -683,7 +698,7 @@ A0' against A1': add +0.95 / +0.95 / +0.80; mul +0.59 / +0.88 / +0.43; aes_sbox 
 (the area tau-b are `sky130_a0_v1`'s again; the ABC-sizing variant had add +0.60 / +1.00 / +0.60, mul +0.43 / +0.33 / +0.71, aes_sbox
 +0.33 / +1.00 / +0.33). **Reading: A1''s disagreements with the default score are the mapper's, and the data are from one mapping
 script.** `sky130.md` section 5.6 measured the same designs under the study's ABC scripts (A0', u, s, l, h, r): the same design's area
-moves a median 12% (max 53%) and its delay a median 49% (max 154%) between them, which is larger than the rewrite noise below.
+moves a median 12% (max 53%) and its delay a median 49% (max 154%) between them, which is larger than the rewrite sensitivity below.
 
 **Determinism (measured).** The 16 designs, the 8 idioms and 5 more references (`add_proc`, `add_mux`, `add_n_byhand`,
 `mul_n_byhand`, the aes_sbox `sbox_table` reference), 29 designs, four times: serially under a random hash seed; serially under
@@ -691,18 +706,35 @@ moves a median 12% (max 53%) and its delay a median 49% (max 154%) between them,
 `PYTHONHASHSEED=0` with a fourth: **every column, every cell histogram and the sha256 of every scored AND mapped netlist identical in
 all four runs** (serial 42 to 48 s, 6-way 13 s). `test_ppa.py` repeats it through the CLI (three hash seeds, two `TMPDIR`s, three
 processes at once, byte-identical JSON), and the mapped numbers are exact integers (`area_e4um2_sky130_mapped_v1`, ps). WP-X1 found ABC's mapper
-single-threaded in this build (no thread option, child CPU time never above wall time). Not tested: another machine, another Yosys/ABC build, Linux
-(the pinned flow already depends on the Yosys build; the golden tests fail loudly under another build).
+single-threaded in this build (no thread option, child CPU time never above wall time).
 
-**Structure noise (measured through the shipped code, `tests/canon/variants.py`).** Seven designs (`add_ripple`, `add_sklansky`,
+Again 2026-11-05, the ranked flow alone (`ppa.py --no-mapped`) on the 52 references, baselines, records and study designs
+of the five ranked tasks, 16 runs each (14 for the three slowest; five serial runs under random, 0, 1, 7 and 4242 hash
+seeds; three `TMPDIR`s, the system default included; three working directories; two checkouts; six runs of one design at
+once; the file named `design.sv`, as `check.py` stages it, and `solution.sv`; `LC_ALL=C` and `de_DE.UTF-8`; the Yosys
+binary through a second path): every area, delay, cell count, canonical RTLIL and scored and repaired netlist
+byte-identical, and equal to every stored number (the 10 records, `score/measured`, `expected_ppa.json`, the built site).
+ANOTHER BUILD: YoWASP's WebAssembly Yosys 0.53 (same git sha1, ABC linked in) gives the same numbers on 49 of the 52
+designs and other ones on `fdivp`, `fdivp_newton` and `fdivp_d2` (area -0.32% to +0.15%, delay -0.79% to +2.85%; no order
+on the fdivp board changes). The canonical RTLIL and the gates handed to ABC are identical in both builds, ABC's input
+files are byte-identical, and the native `yosys-abc` gives the WebAssembly result on all 52 designs once the C library's
+`qsort` is replaced by a stable merge sort: the difference is the tie order of `qsort` inside ABC's `map` (synth's
+`abc -fast`), a property of the build's C library. Linux: not measured (no Linux run of the flow exists; CI runs no
+Yosys). A Linux build is a different C library and may differ the same way.
+
+**Structure sensitivity (deterministic; measured through the shipped code, `tests/canon/variants.py`).** Seven designs (`add_ripple`, `add_sklansky`,
 `add_kogge`, `mul_array`, `mul_tree_h`, `mul_tree`, `sbox_bp`), nine rewrites each (layout, rename, hoisted declarations, reversed and four
 shuffled item orders, all commutative operands swapped) and the original, 70 runs: the 21 layout and rename variants have a
-byte-identical canonical RTLIL and **identical columns in both flows** (no noise by construction); over the others the
+byte-identical canonical RTLIL and **identical columns in both flows** (by construction); over the others the
 largest movement is **A0': area 11.3%, delay 31.8%** (`mul_array`, commuted) and **A1': area 15.5%** (`sbox_bp`, commuted),
 **delay 20.1%** (`mul_tree_h`, commuted); the real mapper erases most of the tree's area signature on the regular designs (at most
 1.9% on all multipliers) but not the S-box's, and its delay is more sensitive than A0''s on some designs. These are the figures of the
-WP-X1 study (sky130.md section 6.2), reproduced here by the shipped `ppa.py`. Proposed tie bands (sky130.md section 6.4, a board
-decision, nothing applied here): 10% in area, 20% in delay.
+WP-X1 study (sky130.md section 6.2), reproduced here by the shipped `ppa.py`. These movements are deterministic (one text,
+one number) and belong to the golfer: the board applies no tie band. Remeasured 2026-11-05 on four
+designs (46 variants): renames, comments, blank lines and whitespace leave the canonical RTLIL byte-identical; reordering
+independent statements moves `sbox_bp`'s delay from -0.6% to +17.7%, and moving the final adder's generate block ahead of
+the leaves moves a proved carry-save multiplier's area +12.6% and delay +40.9%; all 21 changed netlists are equivalent to
+their originals (ABC `cec`).
 
 ## What is NOT claimed
 
@@ -713,9 +745,11 @@ decision, nothing applied here): 10% in area, 20% in delay.
   cell choice but no sizing or buffering pass. The STA equals **OpenSTA** to 1 fs per arc on the same netlist and setup
   (`score/test_ppa_opensta.py`, "The per-edge loads"; an explicit input buffer, not `set_driving_cell`) and is compared with
   ABC's `stime` (above). Equal to OpenSTA is not equal to silicon: the corner, the missing wires and the fixed loads stay.
-* **The noise band.** Differences under about **10% in area and 20% in delay** between similar designs are mapper and
-  rewrite noise (sky130.md section 6: commuting operands moves A0' area up to 11% and T up to 32%; the mapper moves a design's area
-  a median 12% and delay 49%). `ppa.py` reports exact numbers and applies no band; ties and rank intervals are a board decision.
+* **No noise band.** The ranked numbers are exact and deterministic: the same design text through the pinned flow and build
+  gives the same integers on every run, so the board ranks them as they are (area x time) and a difference of any size is
+  real. What looks like noise between similar designs is the flow's deterministic sensitivity to how the circuit is
+  written (operand order, grouping, statement order: up to 11% in area and 32% in delay for commuted operands, 12.6% and
+  41% for one moved generate block), and finding the better form is golf.
 * **A0' versus A1' (decided 2026-11-01: neither official; superseded 11/03: A0' ranks, A1' is research).** A0' prices the
   netlist the default score already ranks, repaired; A1' is a real `abc -liberty` mapping, closer to a fabricated chip and more
   sensitive to the mapper. A contestant who golfs for A1' is optimizing one ABC script on one liberty; the board never compares
@@ -777,7 +811,7 @@ score stage already records, and the stage CHECKS that the file it maps hashes t
 stage maps that RTLIL in one more Yosys process (through the same sandbox as the pinned flow, reading only the RTLIL and the liberty),
 checks the mapped netlist against the scored one and weighs it. `stages.ppa` gains `mapped_seconds` (`seconds` is the total; measured
 0.3 to 1.4 s on the references, 3.6 s for the 760-cell `sbox_logexp`); `--ppa off` maps nothing; the stderr line is
-`ppa: mapped (A1', real abc -liberty): ... um^2, ... ps, ... cells, ... levels (sky130_a1_v1; extra columns, not the board)`.
+`ppa: mapped (A1', real abc -liberty): ... um^2, ... ps, ... cells, ... levels (sky130_a1_v1; extra column)`.
 What can still be `mapped: {"available": false, "reason": ...}`, and what is an infrastructure error instead (the A0' columns and the verdict
 are never touched):
 
@@ -813,7 +847,29 @@ endmodule
 
 The designs of `tests/checker/ppa_wiring/dead_wire_designs/` (a run-time shift, a one-hot decode, a run-time bit select) do pass `postsynth`
 and reach the `ppa` stage with dead wires in their netlists. What to do about the refusal is a decision about the pinned flow and the postsynth
-policy (for example writing the scored netlist without its dead public wires changes `script_sha256`), not made here.
+policy (for example writing the scored netlist without its dead public wires changes `script_sha256`). For the COMBINATIONAL flow it is not
+made here.
+
+**Closed for the clocked flow (decided 2026-11-07).** `score/svgolf_seq.ys` ends with `opt_clean -purge` instead of `opt_clean`: the last
+clean-up also removes internal nets that have a public name (Yosys's `help opt_clean`), the dead techmap wires among them, so the scored netlist
+no longer carries them; it removes wires, never a cell or a port. MEASURED (2026-11-07, Yosys 0.53, the reference build): the correct rotating-priority
+arbiter `tests/arbiter/designs/rotate.sv`, refused at `N = 8` before (`Bits of signal are not driven: '_269_.B'[1]`; `tasks/arbiter/README.md`,
+F6), is lint-clean at `N = 3, 5, 8` with the same gates, GE and depth (310.294 GE, depth 13 at `N = 8`); the reference `rr_mask`'s netlists are
+byte-identical at `N = 3, 5, 8`. Over every clocked `.sv` of the tree (163 designs: tasks/arbiter, matmul, sorter and the tests of
+those, `tests/seq_counter`, `tests/seq_tx`; 247 (design, point) runs at the points the checks use, 20 of them refused by the gate or Yosys under
+both scripts): in the 227 that synthesize, every gate mix, GE, depth and flop count is the same, 185 netlists are byte-identical and 42 differ
+in wire names; the netlist lint passes 13 it refused (12 UNDRIVEN on a dead techmap wire: `rotate.sv` and the attack `a09_rotate_pow2` at
+`N = 8`, the three FSM fixtures of `tests/seq_counter/never_loaded/`, which now pass every stage but the proof, and seven fixtures of
+`tests/seq_counter/xsafe/`; one UNOPTFLAT) and refuses 2 it passed, both UNOPTFLAT, a FALSE combinational loop: the netlist assigns one bit
+of an output vector from another (`assign { q[7:2], q[0] } = { 6'h00, q[1] };`), and Verilator's lint, at vector granularity, calls that
+circular when a lower bit reads a higher one. The two are the wrong `matmul` attack `acc_2w` at `(4, 8, 32)` (its pinned check is at
+`solution`) and the `/` fixture `xsafe/d3_sdiv.sv` (banned anyway); one more fixture, `xsafe/c2_rt_div.sv`, moves from UNDRIVEN to
+UNOPTFLAT. The same false loop meets a CORRECT idiom: two registers each sign-extended into one half of an output (a narrow accumulator
+widened to the port, as a `matmul` golfer may write) passes the lint with plain `opt_clean` and is refused with `-purge` (MEASURED on a
+probe outside the tree; a one-register sign extension passes both). Which bit Yosys keeps as the driver of an aliased group decides it, so
+the UNOPTFLAT over-rejection exists under both scripts (`xsafe/d1_ashr_signed.sv` was refused by it before); it is recorded here, not
+changed: the netlist lint's policy is a separate decision. Of the pinned hashes, only the script hash of the clocked flow changed (the
+table above, `tests/expected.json` `flow_seq`, `score/measured/`); `svgolf.ys` and every combinational hash are unchanged.
 
 **Fields of `ppa`** (`available: true`): the A0' columns of the table above (`ppa.py`'s `columns`), `available`, `mapped` (flow A1', above), and four more:
 

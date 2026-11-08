@@ -794,12 +794,12 @@
      "unit_depth": 10
     }
    },
-   "banned": false,
+   "banned": true,
    "family": "cmp_carry",
    "id": "baseline/cmp_carry",
    "kind": "baseline",
    "name": "cmp_carry",
-   "sha256": "f193eb12fa2c80006c0e533bc03fc2878a3f5436eb45b52974b36d6408359092",
+   "sha256": "8b8d0d15b16b92b6a2c2f7e56a7af1c1dba3a8afe7f07fcb702c9c95460273c9",
    "src": "tests/add/baselines/cmp_carry.sv"
   },
   {

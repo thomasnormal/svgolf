@@ -41,8 +41,8 @@ and its terms. A file that came with a notice keeps it.
 - tests/aes_sbox/negative/reversed_bits.sv
 - tests/aes_sbox/negative/wrong_names.sv
 - tests/aes_sbox/attacks/unique_zero_ge.sv
-- leaderboard/data/aes_sbox/00351cf80ed0226ff2f34dc9c3f8455c545e08aa6a481aa7d5b841c43a8d2b69.sv
-- leaderboard/data/aes_sbox/00351cf80ed0226ff2f34dc9c3f8455c545e08aa6a481aa7d5b841c43a8d2b69.lean
+- leaderboard/data/aes_sbox/baa9fb38c98506e2a068eb66d3d280bb807d94f9117619ff3f662f7d8c86a08f.sv
+- leaderboard/data/aes_sbox/baa9fb38c98506e2a068eb66d3d280bb807d94f9117619ff3f662f7d8c86a08f.lean
     Gate-for-gate translations (the .lean file is generated from the first .sv; the
     record's .sv and .lean are byte-identical copies of sbox_bp.sv and sbox_bp.lean; the
     _mut file, the four negatives and the attack are copies with a deliberate
@@ -72,7 +72,7 @@ and its terms. A file that came with a notice keeps it.
 - tests/fdivp/attacks/srt_qds_tm_d7.sv
 - tests/fdivp/attacks/srt_stages_m1.sv
 - tests/fdivp/attacks/srt_sticky_sign.sv
-- leaderboard/data/fdivp/7ee4818be3b3e44e473823e15a0d62aea5a1f06bda49096b7e260dae0ff5930b.sv
+- leaderboard/data/fdivp/6964007f10249ba54439d3df95df3981505f2e5d545b1690ba8c9965b1619d2a.sv
     The radix-4 SRT core of fdivp_srt.sv (the rest of that design is svGolf's) is
     adapted from CORE-V Wally (https://github.com/openhwgroup/cvw), commit
     c1e386b5d1155e92e21593a7986999274f086729: src/fpu/fdivsqrt/fdivsqrtiter.sv,
@@ -87,6 +87,14 @@ and its terms. A file that came with a notice keeps it.
     copy of fdivp_srt.sv (the LICENSES/ its notice names is that directory). Every file
     keeps the notice and lists the changes made. The selection constants that
     fdivp_srt.lean and tests/fdivp/results/srt_model.py restate are Wally's.
+
+- tests/arbiter/designs/arbiter_ot.sv
+- tests/arbiter/designs/LICENSES/
+    Adapted from lowRISC OpenTitan (https://github.com/lowRISC/opentitan), commit
+    0a6ff6855bd9c6489110df167501e4d5f5c9bdbd: hw/ip/prim/rtl/prim_arbiter_tree.sv.
+    Copyright lowRISC contributors (OpenTitan project). Apache-2.0; the license text is
+    tests/arbiter/designs/LICENSES/Apache-2.0.txt. The file keeps the upstream notice and
+    lists the changes made (a modified version, Apache-2.0 section 4b).
 
 - site/schematics/sky130_skin.svg
 - site/schematics/LICENSE-netlistsvg.txt

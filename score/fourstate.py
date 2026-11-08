@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.12
-"""svGolf 4-state rules: no x or z value can arise in the design that is scored.
+"""svGolf 4-state rules: no x or z value can arise at the parameter points the checker probes.
 
 ls-sv, like IEEE 1800 simulation, computes with 4-state values: an unknown
 bit is `x`, and the language decides what an `x` does at each construct --
@@ -20,8 +20,17 @@ vectors hit the difference, and a player can confine it to a rare region.
 So svGolf refuses every SOURCE of an x or z value, exactly, instead of
 sampling for its consequences. The literal sources (`1'bz`, `'x`, `4'b1?00`
 outside a casez/casex item wildcard) are the source gate's (`srcgate.py`,
-lexical, parameter-independent). This module refuses the rest, at the
-scoring point (the design that is scored; checker stage `fourstate`):
+lexical, parameter-independent). This module refuses the rest, at one
+parameter point (`check`) or at a list of them (`check_points`). The checker
+stage `fourstate` runs it at EVERY point it probes, the scoring point first
+(the design that is scored), then the task's probe and backstop points
+(since 2026-11-06; before, at the scoring point only, while the statement
+covers every parameter value in range: the universal-correctness audit's
+`band_undrv.sv` is undriven only away from N = 16, and the pinned flow's
+N = 8 netlist computes `a | b` where ls-sv computes `a & b`). That NARROWS
+the gap, it does not close it: a point nobody probes is still unchecked, and
+the statement resolves an x the simulator's way (`if (x)` takes the else
+branch) until ls-sv's every-resolution semantics lands. The rules:
 
   (a) PARAMETERS (slang): every parameter and localparam of every instance
       whose elaborated value has an unknown bit (`localparam logic [3:0] K =
@@ -38,15 +47,25 @@ scoring point (the design that is scored; checker stage `fourstate`):
       `EnumValueUnknownBits`, `CaseZWithX`;
   (d) RUN-TIME SELECTS (slang): every bit/element select `v[i]` and indexed
       part select `v[i +: W]` / `v[i -: W]` whose index is not a constant
-      and can, by its type alone (an unsigned w-bit index ranges over
+      (`$bits(v) - 1` and the other type and array queries of a signal are
+      constants, IEEE 1800-2023 §20.6.2, §20.7) and can, by its type alone (an unsigned w-bit index ranges over
       0 .. 2^w - 1, a signed one over negative values too), address outside
       `v`'s declared range. An out-of-range read is x. Declare the range to
       cover every index value (pad an array to a power of two) or narrow the
-      index. A procedural loop counter is a run-time index here (it is an
-      `int`): ls-sv does not load procedural loops today, and a PR that
-      admits them should teach this rule loop bounds;
+      index. One exception, a WRITE: a bit/element select of a packed
+      vector that an assignment writes through, with an UNSIGNED index that
+      can only pass the top of the range, is admitted, because an out-of-range write has
+      no effect (IEEE 1800-2023 §11.5.1), in ls-sv (`resolveLhs2`) and in
+      Yosys (measured, txtask-v2 review fixture 14); a signed write index
+      stays refused (ls-sv reads every index unsigned, the standard a
+      signed one as a negative number), and so does an indexed part select
+      written partly out of range. A procedural loop counter is a run-time
+      index here (it is an `int`): ls-sv does not load procedural loops
+      today, and a PR that admits them should teach this rule loop bounds;
   (e) UNDRIVEN AND CONFLICTING NETS (Yosys): `proc; flatten; check -assert`
-      at the scoring point -- a wire bit that is used but has no driver
+      at each point checked, like rules (a) to (d) (in the checker: the
+      scoring point, then the probe and backstop points; before 2026-11-06
+      the scoring point alone) -- a wire bit that is used but has no driver
       (it reads as x), two or more conflicting drivers, or a combinational
       logic loop; `proc`'s own refusal of an always_comb block that
       reads a variable it does not assign on every path (a latch: x until
@@ -55,13 +74,22 @@ scoring point (the design that is scored; checker stage `fourstate`):
       which is how an `always @*` block or an `always_latch` that assigns a
       variable on some paths only is refused at the original text, whatever
       ls-sv accepts (defense in depth for the always @* lowering's rule R5,
-      docs/sv-proc-lowering.md).
+      docs/sv-proc-lowering.md). The clocked tasks DEPEND on the undriven
+      check (txtask-v2, decided 2026-11-06): rule 2 reads a variable no
+      process writes as a constant power-up value and Yosys as undefined,
+      and a register bit no write reaches gets no flop at all, so check.py's
+      never-loaded rule (the flow's log) never sees it; this check is the
+      one that refuses both (tests/seq_counter/never_loaded/partial.sv).
 
 What it does not cover: an x that a Yosys or ls-sv BUG introduces (that is
 the post-synthesis check's job, `check/postsynth.py`); run-time division or
-remainder by zero (an x in IEEE): every task bans run-time `/` and `%` today
-(`task.json` `banlist`), and a task that admits them needs a rule here
-first; a function-local variable or return value read before it is assigned
+remainder by zero, and `**` with a negative exponent (an x in IEEE from known
+operands): no rule here, because every task bans run-time `/ % **` since
+2026-11-06 (`banlist.py` `ALWAYS_BANNED`, added to every task's list; until
+then `clmul`, `aes_sbox`, `matmul` and `sorter` admitted them, and this
+docstring wrongly said every task banned `/` and `%`), and in the clocked
+tasks txtask-v2's rule 3 (`XSafe`, `SvGolf/TaskSeq.lean`) also refuses, in
+the proof, a divisor that is not a nonzero constant; a function-local variable or return value read before it is assigned
 (x in IEEE, resolved freely by Yosys, which inlines the function; measured
 in `tests/_example/attacks/fn_uninit.sv`): ls-sv has no user function calls
 yet, so such a design cannot be proved (the post-synthesis check fails
@@ -105,6 +133,9 @@ sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True
 import banlist  # noqa: E402  (its run-time root walker, `FrontCheck`)
 
+# The type and array query functions, constant for a fixed-size argument (rule (d)'s constant index).
+QUERY_CALLS = {"$bits", "$size", "$high", "$low", "$left", "$right", "$increment", "$dimensions",
+               "$unpacked_dimensions"}
 # slang diagnostics that mean "this constant is x" (rule c).
 X_DIAGS = {"DivisionByZero", "IndexOOB", "RangeOOB", "RangeWidthOOB", "GenvarUnknownBits",
            "EnumValueUnknownBits", "CaseZWithX"}
@@ -206,11 +237,36 @@ class XCheck(banlist.FrontCheck):
         return v if v else None
 
     def _is_index_const(self, e):
-        return self._is_const(e, [])
+        """Rule (d)'s constant index: one that reads no run-time name (`banlist._is_const`), or one slang evaluates to
+        a known constant whose every run-time name is the argument of a type or array query function (IEEE
+        1800-2023 §20.6.2, §20.7: `$bits` and the array queries of a fixed-size argument are constant, so
+        `sq[$bits(sq) - 1]` is a constant select: the 2026-11-06 adversarial round's finding F3, MEASURED, which
+        this rule refused as a run-time signed index)."""
+        if self._is_const(e, []):
+            return True
+        v = self._const_value(e)
+        if v is None or v.hasUnknown():
+            return False
+        spans = []
+        for n in banlist._visit_all(e, self.ast):
+            k = banlist._kind(n)
+            if k == "Call" and n.isSystemCall and n.subroutineName in QUERY_CALLS:
+                spans.append((n.sourceRange.start.offset, n.sourceRange.end.offset))
+            elif k in ("NamedValue", "HierarchicalValue"):
+                if str(n.symbol.kind).split(".")[-1] in banlist.CONST_SYMBOLS:
+                    continue
+                at = n.sourceRange.start.offset
+                if not any(lo <= at < hi for lo, hi in spans):
+                    return False
+        return True
 
     def _check_root(self, root, roots, done_subs):
         ast = self.ast
         nodes = banlist._visit_all(root, ast)
+        writes = set()
+        for n in nodes:
+            if banlist._kind(n) == "Assignment":
+                self._mark_writes(n.left, writes)
         for n in nodes:
             k = banlist._kind(n)
             if k == "Call" and not n.isSystemCall and not self._is_const(n, []):
@@ -228,7 +284,7 @@ class XCheck(banlist.FrontCheck):
                     continue
             # (d) run-time selects that can leave the declared range
             if k == "ElementSelect":
-                self._check_select(n, n.selector, 1, "up")
+                self._check_select(n, n.selector, 1, "up", write=self._key(n) in writes)
             elif k == "RangeSelect":
                 sk = str(n.selectionKind).split(".")[-1]
                 if sk in ("IndexedUp", "IndexedDown"):
@@ -236,11 +292,27 @@ class XCheck(banlist.FrontCheck):
                     width = int(w.value) if w is not None and not w.hasUnknown() else None
                     self._check_select(n, n.left, width, "up" if sk == "IndexedUp" else "down")
 
+    def _key(self, n):
+        return (self._loc(n), n.sourceRange.end.offset)
+
+    def _mark_writes(self, lhs, writes):
+        """The element selects an assignment target writes through: the target itself and every
+        select on its path (`m[i][j]`, a concatenation's parts), never a select inside an index."""
+        k = banlist._kind(lhs)
+        if k == "ElementSelect":
+            writes.add(self._key(lhs))
+            self._mark_writes(lhs.value, writes)
+        elif k == "Concatenation":
+            for o in lhs.operands:
+                self._mark_writes(o, writes)
+        elif k in ("RangeSelect", "MemberAccess"):
+            self._mark_writes(lhs.value, writes)
+
     def _text(self, n):
         s = n.syntax
         return " ".join(str(s).split())[:60] if s is not None else banlist._kind(n)
 
-    def _check_select(self, n, index, width, direction):
+    def _check_select(self, n, index, width, direction, write=False):
         if self._is_index_const(index):
             return                    # rule (c): slang's IndexOOB / RangeOOB
         try:
@@ -263,10 +335,14 @@ class XCheck(banlist.FrontCheck):
             amin, amax = imin - width + 1, imax
         if lo <= amin and amax <= hi:
             return
+        if write and not signed and lo <= amin and t.isIntegral:
+            return        # an out-of-range write into a vector has no effect (rule (d)'s exception)
+        why = ("a signed write index can be negative, which the standard reads as out of range (no "
+               "effect) and ls-sv as an unsigned number" if write else
+               "an out-of-range read is x, which ls-sv and Yosys give different meanings")
         self.add(n, f"run-time index in `{self._text(n)}`: a {'signed ' if signed else ''}"
                  f"{w}-bit index addresses {amin}..{amax}, outside the declared range "
-                 f"[{hi}:{lo}] (an out-of-range read is x, which ls-sv and Yosys give different "
-                 "meanings); cover every index value in the declaration or narrow the index"
+                 f"[{hi}:{lo}] ({why}); cover every index value in the declaration or narrow the index"
                  + ("; if this is a procedural `for` counter (an `int`), the loop itself is the problem: "
                     "this rule does not know loop bounds yet, so write it as a generate-for with a genvar"
                     if signed and w == 32 else ""))
@@ -347,6 +423,31 @@ def check(sources, top, point, yosys=None):
             "seconds": round(time.time() - t0, 2)}
 
 
+def point_text(point):
+    """`N=8`, `W=5,P=11`, or `defaults` for a parameterless point."""
+    return ",".join(f"{k}={v}" for k, v in dict(point).items()) or "defaults"
+
+
+def check_points(sources, top, points, yosys=None):
+    """Every rule at each of `points` in order (the checker gives the scoring point first, then the probe and backstop
+    points), stopping at the first point that fails: a JSON-able dict with `passed`, `point` (the first point),
+    `points` (each point checked: `point`, `passed`, `seconds`), `failed_point` (the point that failed, or None),
+    `findings` and `diagnostics` (that point's), and the total `seconds`."""
+    t0 = time.time()
+    pts = [dict(p) for p in points] or [{}]
+    rows, failed = [], None
+    for p in pts:
+        r = check(sources, top, p, yosys)
+        rows.append({"point": r["point"], "passed": r["passed"], "seconds": r["seconds"]})
+        if not r["passed"]:
+            failed = r
+            break
+    return {"passed": failed is None, "point": pts[0], "points": rows,
+            "failed_point": failed["point"] if failed else None,
+            "findings": failed["findings"] if failed else [], "diagnostics": failed["diagnostics"] if failed else [],
+            "seconds": round(time.time() - t0, 2)}
+
+
 def task_point(task):
     return {k: int(v) for k, v in task["scoring"]["params"].items()}
 
@@ -365,6 +466,16 @@ SELFTEST = [
     ("oob_partsel.sv", "oob_partsel", ["addresses 0..10, outside the declared range [7:0]",
                                        "addresses -3..3, outside the declared range [7:0]"]),
     ("oob_unpacked.sv", "oob_unpacked", ["addresses 0..7, outside the declared range [5:0]"]),
+    # rule (d)'s write exception (txtask-v2 review, attack round 2's finding 3): an unsigned write
+    # index past the top of the range passes; a signed one, and a read inside a written index, do not
+    ("ok_oob_write.sv", "ok_oob_write", []),
+    ("oob_signed_write.sv", "oob_signed_write",
+     ["`t[i]`: a signed 2-bit index addresses -2..1, outside the declared range [3:0] (a signed "
+      "write index", "`a[j]`: a 3-bit index addresses 0..7, outside the declared range [3:0] "
+      "(an out-of-range read is x"]),
+    # a constant index written with type/array query functions (the 2026-11-06 adversarial round, F3)
+    ("ok_query_index.sv", "ok_query_index", []),
+    ("query_runtime_index.sv", "query_runtime_index", ["run-time index in `v[$bits(v) - 1 - i]`"]),
     ("param_divzero.sv", "param_divzero", ["parameter `K`", "slang DivisionByZero"]),
     ("param_oob.sv", "param_oob", ["parameter `K2`", "slang IndexOOB"]),
     ("const_inline_x.sv", "const_inline_x", ["`(4'd3 / 4'd0)` is the constant",

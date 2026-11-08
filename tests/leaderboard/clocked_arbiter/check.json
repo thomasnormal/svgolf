@@ -1,0 +1,524 @@
+{
+  "_fixture": [
+    "The arbiter's accepted check result: check.py --postsynth full --ppa require on tasks/arbiter/reference/rr_mask.sv and rr_mask.lean (task kind react-family), the third cold run of 2026-11-05, as check.py wrote it, with two changes: the run's temporary directories are /tmp/svgolf-check-stage and /tmp/svgolf-postsynth here, and `dev_hint` (a command line of that machine) is dropped.",
+    "task.json beside it is the task.json of that run, without its `_` notes (the leaderboard reads none of them); rr_mask.sv is the design it checked (sha256 = stages.source.sha256)."
+  ],
+  "accepted": true,
+  "errors": [],
+  "postsynth_dir": "/tmp/svgolf-postsynth",
+  "ppa": {
+    "area_e4um2_sky130": 7694880,
+    "area_um2_sky130": 769.488,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 26,
+      "dfxtp_1": 16,
+      "mux2_1": 1,
+      "nand2_1": 32,
+      "nand2b_1": 6,
+      "nor2_1": 8,
+      "nor2b_1": 12,
+      "or2_1": 2
+    },
+    "cells_sky130": 103,
+    "constants": false,
+    "critical": {
+      "cells": 15,
+      "edge": "f",
+      "output": "D:_009_"
+    },
+    "delay_ps_sky130": 2826,
+    "flops": 16,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.107,
+      "worst_transition_ratio": 0.118
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "netlist_sha256": "e072fb19e91c79f0adcdfa0ef3709731d0c642bc4c38b853cbedd53cc6f85d0e",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 103,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "54e9b0edaecf4e3c51a9b662f32499c955f2ccb7db4f1e9647c3ba25d0050792",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "sequential": true,
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 17
+  },
+  "sandbox": {
+    "active": true,
+    "mechanism": "seatbelt",
+    "mode": "auto"
+  },
+  "score": {
+    "area_ge": 188.979,
+    "area_mge": 188979,
+    "area_um2": 769.488,
+    "cycles": 1,
+    "depth": 17,
+    "ffs": 16,
+    "gates": {
+      "AND": 26,
+      "ANDNOT": 12,
+      "DFF_P": 16,
+      "MUX": 1,
+      "NAND": 32,
+      "NOR": 8,
+      "OR": 2,
+      "ORNOT": 6
+    },
+    "num_gates": 103,
+    "params": {
+      "N": 8
+    },
+    "period_ps": 2826,
+    "ranked": [
+      "area_um2",
+      "time_ps"
+    ],
+    "time_ps": 2826
+  },
+  "stage": "done",
+  "stage_dir": "/tmp/svgolf-check-stage",
+  "stages": {
+    "banlist": {
+      "backstop": [],
+      "diagnostics": [],
+      "front": [],
+      "operators": []
+    },
+    "comparator": {
+      "exit": 0,
+      "result": {
+        "accepted": true,
+        "axioms": [
+          "propext",
+          "Quot.sound",
+          "Classical.choice"
+        ],
+        "bv_decide": {
+          "allowed": false,
+          "verified": []
+        },
+        "errors": [],
+        "goal": "Submission.Goal",
+        "imports": {
+          "Submission.Design": [
+            "Init",
+            "Init",
+            "LeanModels.Sv.Ingest2",
+            "tasks.arbiter.Spec"
+          ],
+          "Submission.Solution": [
+            "Init",
+            "Init",
+            "Submission.Design",
+            "LeanModels.Sv.Gen2",
+            "LeanModels.Sv.Hier2Gen",
+            "LeanModels.Sv.Known2",
+            "LeanModels.Sv.Mono2",
+            "LeanModels.Sv.SeqFamily",
+            "SvGolf.Seq",
+            "SvGolf.React",
+            "SvGolf.RoundRobin"
+          ]
+        },
+        "kernel_accepts": true,
+        "replay": {
+          "closure": 7318,
+          "ms": 3081,
+          "ok": true,
+          "replayed": 2182
+        },
+        "solution": "Submission.solution",
+        "submission_constants_used": 128,
+        "syntactic_match": true,
+        "toolchain_modules": 2322
+      },
+      "seconds": 34.33
+    },
+    "design": {
+      "exit": 0,
+      "seconds": 6.02,
+      "unsupported_free_points": 5
+    },
+    "extract": {
+      "exit": 0,
+      "extractor": "extractors/sv/extract.py",
+      "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+      "lean_surfaces": "566ffd2f9087800e37d1218f5acee5539a0724fd",
+      "parameters": [
+        "N"
+      ],
+      "probe_points": [
+        "N=1",
+        "N=2",
+        "N=3",
+        "N=5",
+        "N=8"
+      ]
+    },
+    "fourstate": {
+      "diagnostics": [],
+      "findings": [],
+      "passed": true,
+      "point": {
+        "N": 8
+      },
+      "seconds": 0.19
+    },
+    "imports": {
+      "imports": [
+        "Submission.Design",
+        "LeanModels.Sv.Gen2",
+        "LeanModels.Sv.Hier2Gen",
+        "LeanModels.Sv.Known2",
+        "LeanModels.Sv.Mono2",
+        "LeanModels.Sv.SeqFamily",
+        "SvGolf.Seq",
+        "SvGolf.React",
+        "SvGolf.RoundRobin"
+      ],
+      "rejected": []
+    },
+    "integrity": {
+      "changed": [],
+      "changed_by_end": [],
+      "files": 42412
+    },
+    "leanchecker": {
+      "exit": 0,
+      "seconds": 21.04
+    },
+    "postsynth": {
+      "netlist_sha256": "e072fb19e91c79f0adcdfa0ef3709731d0c642bc4c38b853cbedd53cc6f85d0e",
+      "points": [
+        {
+          "envelope_sha256": "7983488a042f182dc3ac49f9c8a552f239ec843ff2c6be7c2879f05744a13a0d",
+          "fuel": 100000,
+          "kind": "react-family",
+          "latency": null,
+          "mismatches": 0,
+          "mode": "full",
+          "netlist_sha256": "c5d0e3505f40bc87bbcc8ec0095fa6e2b9859b091702f2da960a9e7a372e23c9",
+          "oracle_sha256": "b03053b18420c03874145addd9e5241f4e8ff4bdfb133432300b3fbfbcc4449c",
+          "point": "N=3",
+          "seconds": 9.7,
+          "seeds": [
+            {
+              "cycles": 70191,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 0,
+              "seed_sha256": "91e7bd9c85d2b7dd8621ea67fadf8fa4a07c450c8144a0e356fb72ae40c578f3",
+              "segments": 24,
+              "t_lssv_s": 1.17,
+              "t_netlist_run_s": 0.497
+            },
+            {
+              "cycles": 70194,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 1,
+              "seed_sha256": "ff4494b3cb580072c53553f2b2400a685ef2785735addb5eb869aafc9f83dbab",
+              "segments": 24,
+              "t_lssv_s": 1.32,
+              "t_netlist_run_s": 0.326
+            },
+            {
+              "cycles": 70134,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 2,
+              "seed_sha256": "6e9e9dab38e7383253b8a5af035918b2b125e1a0798df16ba1e3504ea36a8634",
+              "segments": 24,
+              "t_lssv_s": 1.2,
+              "t_netlist_run_s": 0.331
+            }
+          ],
+          "sveval_sha256": "c2709ec9a906960954f40dcd92ec68c2d26807b99070774e4912a9135219953e",
+          "t_netlist_build_s": 2.89,
+          "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV"
+        },
+        {
+          "envelope_sha256": "7983488a042f182dc3ac49f9c8a552f239ec843ff2c6be7c2879f05744a13a0d",
+          "fuel": 100000,
+          "kind": "react-family",
+          "latency": null,
+          "mismatches": 0,
+          "mode": "full",
+          "netlist_sha256": "2903b644d97e614d8ef4a3b5c75b8fa602a0ff2b311c68ac2a5827390498d156",
+          "oracle_sha256": "b03053b18420c03874145addd9e5241f4e8ff4bdfb133432300b3fbfbcc4449c",
+          "point": "N=5",
+          "seconds": 9.56,
+          "seeds": [
+            {
+              "cycles": 70218,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 0,
+              "seed_sha256": "a2926a835c5a7432587a64e483d892951d2c359259cf40174220a76fcdb919bf",
+              "segments": 24,
+              "t_lssv_s": 1.3,
+              "t_netlist_run_s": 0.482
+            },
+            {
+              "cycles": 70264,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 1,
+              "seed_sha256": "97821ffe52f8bb2feab36f0e8ae0e6619db00a0bd6beca7881198fdbd913af25",
+              "segments": 24,
+              "t_lssv_s": 1.28,
+              "t_netlist_run_s": 0.329
+            },
+            {
+              "cycles": 70201,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 2,
+              "seed_sha256": "1687ae38eb157a0b71d63cbc15dc8cd8cc6225760c14d5814c0523f9d3e4f71c",
+              "segments": 24,
+              "t_lssv_s": 1.52,
+              "t_netlist_run_s": 0.629
+            }
+          ],
+          "sveval_sha256": "c2709ec9a906960954f40dcd92ec68c2d26807b99070774e4912a9135219953e",
+          "t_netlist_build_s": 1.96,
+          "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV"
+        },
+        {
+          "envelope_sha256": "7983488a042f182dc3ac49f9c8a552f239ec843ff2c6be7c2879f05744a13a0d",
+          "fuel": 100000,
+          "kind": "react-family",
+          "latency": null,
+          "mismatches": 0,
+          "mode": "full",
+          "netlist_sha256": "e072fb19e91c79f0adcdfa0ef3709731d0c642bc4c38b853cbedd53cc6f85d0e",
+          "oracle_sha256": "b03053b18420c03874145addd9e5241f4e8ff4bdfb133432300b3fbfbcc4449c",
+          "point": "N=8",
+          "seconds": 10.95,
+          "seeds": [
+            {
+              "cycles": 70507,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 0,
+              "seed_sha256": "ed6b3ddc4f333cf62b91ea5b33840dbb6dde9abd2ad3e1f996b1bd8732e1002e",
+              "segments": 24,
+              "t_lssv_s": 1.81,
+              "t_netlist_run_s": 0.5
+            },
+            {
+              "cycles": 70423,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 1,
+              "seed_sha256": "67b30be23a851dad4ab3fd48b0be8ab498ec8e7d7825f1f614473493f87436ad",
+              "segments": 24,
+              "t_lssv_s": 1.73,
+              "t_netlist_run_s": 0.419
+            },
+            {
+              "cycles": 70597,
+              "longest_segment": 70000,
+              "reset_cycles": 1,
+              "salted": false,
+              "seed": 2,
+              "seed_sha256": "751e5f9acdad1d80a61c0e0377607e5eb207848d5dc0e7fc7530bf3d1600682f",
+              "segments": 24,
+              "t_lssv_s": 1.58,
+              "t_netlist_run_s": 0.389
+            }
+          ],
+          "sveval_sha256": "c2709ec9a906960954f40dcd92ec68c2d26807b99070774e4912a9135219953e",
+          "t_netlist_build_s": 2.43,
+          "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV"
+        }
+      ]
+    },
+    "ppa": {
+      "mode": "require",
+      "seconds": 0.15
+    },
+    "sandbox": {
+      "active": true,
+      "mechanism": "seatbelt",
+      "mode": "auto",
+      "peak_rss_mb": 1511,
+      "profiles": {
+        "extractor": [
+          "891b9bcc84aa53e4"
+        ],
+        "lean: lean --run": [
+          "1c25da5437301012"
+        ],
+        "lean: lean -o": [
+          "1b1d38b5b6e2d178",
+          "9d66ce50d1bda3aa"
+        ],
+        "lean: leanchecker": [
+          "65ebb6dfd053872a"
+        ],
+        "make (C++ build)": [
+          "6b22c608040d3c33",
+          "8c6a1963e416f937",
+          "f4d6c8eceb0f6573"
+        ],
+        "model": [
+          "027df3ffe7ca610d",
+          "13fd2eae0bcf02b2",
+          "2ea51173f2b02efc",
+          "3d9022b3a56b06a0",
+          "57ec12ac26743d92",
+          "5fc30442f41db07b",
+          "7ca393f16368ba68",
+          "87bfb591a91619b9",
+          "e44d505a5ff801aa"
+        ],
+        "svgolf-eval": [
+          "0c1418e9f1e1ea23",
+          "9367cca352404fe0",
+          "cdb6899a9e9b4d45"
+        ],
+        "verilator": [
+          "2a971c52d15cc25a",
+          "6a2c96fbc5fe6231",
+          "bd14125a7f1bdea1"
+        ],
+        "yosys": [
+          "1ba0c9e9639a3250",
+          "226c3bbd99b3cd5d",
+          "3b9b41fb007f89ac",
+          "41964ee2a82c131f",
+          "44e495535dc396b6",
+          "54c8199e01f0a1b3",
+          "a962a90ac14f3fc4",
+          "c0f23c2232f2c6f3",
+          "c8ae67f6af7e75a3"
+        ],
+        "yosys (fourstate)": [
+          "15178ac2bf8ac6f0"
+        ]
+      },
+      "sandboxed": {
+        "extractor": 1,
+        "lean: lean --run": 1,
+        "lean: lean -o": 2,
+        "lean: leanchecker": 1,
+        "make (C++ build)": 3,
+        "model": 9,
+        "svgolf-eval": 9,
+        "verilator": 3,
+        "yosys": 9,
+        "yosys (fourstate)": 1
+      },
+      "self_test": {
+        "ok": true,
+        "seconds": 0.4,
+        "wrong": []
+      },
+      "stray_outputs": [],
+      "unsandboxed": [
+        "lake build (trusted modules only)"
+      ]
+    },
+    "score": {
+      "abc": {
+        "sha256": "769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653",
+        "version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)"
+      },
+      "area_comb_mge": 103651,
+      "area_ff_mge": 85328,
+      "area_ge": 188.979,
+      "area_mge": 188979,
+      "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "depth": 17,
+      "ffs": 16,
+      "flow": "seq",
+      "gated": true,
+      "gates": {
+        "AND": 26,
+        "ANDNOT": 12,
+        "DFF_P": 16,
+        "MUX": 1,
+        "NAND": 32,
+        "NOR": 8,
+        "OR": 2,
+        "ORNOT": 6
+      },
+      "ge_table_sha256": "54b93ca63888009d0671c8978e8ab7bf4fb8ce303bc78d3b4e1f83d946cc3201",
+      "ignored_cells": {},
+      "num_gates": 103,
+      "params": {
+        "N": 8
+      },
+      "period": 17,
+      "reg_overhead_included": false,
+      "reg_overhead_nand2": 4.262,
+      "rtlil_sha256": "a60960b454b2b36f8f70de80cc69bd944808d6b5f553fb2dd66f21c1507c372a",
+      "script_sha256": "1bce52a7f206f05b40b075c07bb40c89755f4c1685ada680758984030af90f36",
+      "seconds": 0.72,
+      "sources": [
+        {
+          "canonical_sha256": "b0bbcf311076bbbb383739ead07fde6ae639ee5deb284c643b1e943ab7d0af67",
+          "path": "/tmp/svgolf-check-stage/design.sv",
+          "sha256": "b0bbcf311076bbbb383739ead07fde6ae639ee5deb284c643b1e943ab7d0af67"
+        }
+      ],
+      "top": "arbiter",
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "solution": {
+      "exit": 0,
+      "messages": "",
+      "seconds": 9.41,
+      "time_limit_s": 120
+    },
+    "source": {
+      "canonical_sha256": "b0bbcf311076bbbb383739ead07fde6ae639ee5deb284c643b1e943ab7d0af67",
+      "findings": [],
+      "sha256": "f8b02272b7f264d935673b0fa5522fbfb877bdf2985b5c1ad27b861b3a5de784"
+    },
+    "task": {
+      "kind": "react-family",
+      "parameters": [
+        "N"
+      ],
+      "statement": "SvGolf.Tasks.Arbiter.Statement",
+      "time_limit_s": 120,
+      "top": "arbiter",
+      "verify_time_limit_s": 900
+    },
+    "trusted": {
+      "exit": 0,
+      "seconds": 4.52
+    }
+  },
+  "task": "arbiter"
+}

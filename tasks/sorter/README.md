@@ -88,7 +88,8 @@ interpretation points 6 and 7); `REVIEW.md` is the statement's review. The text 
 
 ## Rules for this task
 
-* **No banned operators.** Comparisons are the task.
+* **No task-specific banned operators.** Comparisons are the task. Run-time `/ % **` are banned, as in every
+  task (since 2026-11-06; the svGolf README, "Rules").
 * **Clocked source rules**: one clock and one edge (`always_ff @(posedge clk)`); synchronous reset only; no
   `initial`, no initializer on state, no `always_latch`, no `negedge`, no delays or other event controls;
   no blocking assignment in an `always_ff` (a `for` loop index inside one is a blocking assignment too).
@@ -99,8 +100,9 @@ interpretation points 6 and 7); `REVIEW.md` is the statement's review. The text 
 * **Scoring at `(8, 8)`** (C7): area is sky130 A0' µm², flops included; time is `n` × the
   register-to-register period, both on the netlist repaired by buffering only (`sky130_a0_v2`: buffer trees on every
   net over its driver's limits, nothing resized; a netlist the repair cannot make legal is rejected), every input driven
-  by the default `sky130_fd_sc_hd__buf_8` (`sky130_a0_v3`). The leaderboard keeps the Pareto frontier of (area, time);
-  NAND2 gate equivalents and unit depth are extra columns. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score" (`ppa.py --seq` for a clocked task). Eight byte-wide
+  by the default `sky130_fd_sc_hd__buf_8` (`sky130_a0_v3`). The task is an unranked preview; svGolf's one
+  ranked number is area x time (decided 11/05), and the Pareto frontier of (area, time), NAND2 gate equivalents and
+  unit depth are exploration columns. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score" (`ppa.py --seq` for a clocked task). Eight byte-wide
   values: small enough that post-synthesis and ls-sv traces are cheap, large enough that an `O(N)` cell
   array, a sorting network behind serial-parallel buffers, and the latency/area trade between them all show.
 * **Post-synthesis check** (`task.json` `postsynth`, the proposal for the stream kind) at `(3, 4)` and

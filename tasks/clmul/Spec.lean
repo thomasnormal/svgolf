@@ -13,8 +13,10 @@ module clmul_n #(parameter int N = 16) (
 );
 ```
 
-Statement: for every `N ≥ 1`, the design has exactly the ports `a`, `b` (inputs, `N` bits) and `p`
-(output, `2N-1` bits), no process is clocked, every run terminates, and in every cycle whose stimulus
+Statement: for every `N` with `1 ≤ N < 2^30` (so that the widths `2N-1` and `2N-2`, `int` expressions
+of the module, stay below `2^31`, the values an `int` holds), the design has
+exactly the ports `a`, `b` (inputs, `N` bits) and `p` (output, `2N-1` bits), no process is clocked, there
+is no combinational loop, every run terminates, and in every cycle whose stimulus
 drives `a` and `b` with known values the snapshot's `p` is the coefficient vector of the product of the
 two polynomials over GF(2) that `a` and `b` encode (bit `i` of a vector is the coefficient of `x^i`):
 
@@ -49,9 +51,9 @@ def coeff (N : Nat) (a b : BitVec N) (k : Nat) : Bool :=
   (List.range N).foldl (fun acc i =>
     (List.range N).foldl (fun acc j => acc ^^ (decide (i + j = k) && a.getLsbD i && b.getLsbD j)) acc) false
 
-/-- The task: inputs `a b : BitVec N`, output `p = a (x) b` on `2N-1` bits, for `N ≥ 1`. -/
+/-- The task: inputs `a b : BitVec N`, output `p = a (x) b` on `2N-1` bits, for `1 ≤ N < 2^30`. -/
 def task : CombTask where
-  inRange N := 1 ≤ N
+  inRange N := 1 ≤ N ∧ N < 2 ^ 30
   inputs N := [("a", N), ("b", N)]
   outputs N := [("p", 2 * N - 1)]
   fn N := fun (a, b, ()) => (ofBits (2 * N - 1) (coeff N a b), ())
@@ -63,6 +65,13 @@ abbrev Statement : (Nat → LeanModels.Sv.Design2) → Prop := task.Statement
 
 /-- The scoring point `N = 16` (and the reported points 8 and 32) are in range. -/
 example : task.inRange 16 ∧ task.inRange 8 ∧ task.inRange 32 := by simp [task]
+
+/-- The range ends below `2^30`: the output's bound `2*N-2` (the port's `[2*N-2:0]`, evaluated as an
+`int`) and the product `2*N` it is computed from stay below `2^31`, the values an `int` holds. -/
+example : task.inRange (2 ^ 30 - 1) ∧ ¬ task.inRange (2 ^ 30) := by simp [task]
+
+/-- At the top of the range `2*N` is still an `int`. -/
+example : 2 * (2 ^ 30 - 1) < 2 ^ 31 := by decide
 
 /-- The input names are distinct (the non-vacuity theorem `CombTask.SatisfiedAt.exists_run` needs it),
 at every `N`. -/

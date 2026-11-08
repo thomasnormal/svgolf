@@ -1,4 +1,5 @@
 import LeanModels.Sv.Spec2
+import LeanModels.Sv.Comb2Proc
 
 /-!
 # svGolf task statements (TRUSTED)
@@ -8,8 +9,38 @@ is built from the definitions below, so a reader who wants to know what a
 proved submission guarantees has to read this file, the task's own
 `tasks/<name>/Spec.lean`, and the ls-sv semantics it rests on
 (`LeanModels/Sv/Spec2.lean` for `Runs2`/`⊨₂`/`Terminates2`, `Sem2.lean` for
-`run2`). Nothing else is trusted: proof helpers live in `SvGolf/Comb.lean`
-and are kernel-checked like any submission.
+`run2`, `Comb2Base.lean` for `Acyclic` and `Comb2Proc.lean` for
+`Design2.lowerComb`, the two `LoopFree` uses). Proof helpers live in
+`SvGolf/Comb.lean` and are kernel-checked like any submission.
+
+## What the statement covers today
+
+The statement is about ls-sv's semantics of the design, and ls-sv resolves an
+`x` ONE way, by IEEE 1800's simulation rules: an `if` whose condition is `x`
+takes its else branch (§12.4), and a plain `case` compares with `===`
+(§12.5), so a subject with `x` bits matches no item of known bits. svGolf's rule is that an
+`x` is an unknown 0/1 value and a valid design is correct for EVERY resolution
+of it. Until ls-sv's every-resolution semantics lands, the statement does not
+say that: a design in which an `x` (an undriven signal, an out-of-range
+select, a constant with unknown bits) reaches a decision can satisfy it while
+another resolution, and the synthesized netlist, compute something else
+(`tests/_example/attacks/undriven_mux.sv`, `oob_rare.sv`). The checker's
+x-source rules (`score/srcgate.py`, `score/banlist.py`, `score/fourstate.py`)
+refuse such designs, but they are untrusted Python and decide at the
+parameter points `check.py` instantiates, not at every `N` the statement
+covers. A submission's validity by svGolf's rules therefore also rests on those
+stages, until the statement quantifies over every resolution.
+
+`sem N` is ls-sv's instantiation at the parameter value `N`. It evaluates `int`
+constants on ls-sv's unbounded constant tier, where a simulator evaluates them
+in signed 32-bit arithmetic. Every family task bounds its range so that every
+width and every `int` localparam it implies stays below `2^31` (`2N` in `mul`,
+`W + P + 1` in `fdivp`; decided 2026-11-06), where the two agree, so the
+statement covers no parameter value at which an `int` expression of the
+interface wraps. An `int` expression the interface does not imply (an internal
+`N * N`) can still wrap at a value in range: ls-sv's loader refuses that at the
+defaults (`PDesign.int32Agrees`), and the checker at the points it probes only
+(svgolf/README.md, "Checker v0 limits").
 
 ## What a combinational task says
 
@@ -30,10 +61,12 @@ envelope) satisfies, at every `N` with `t.inRange N`, the three conjuncts of
 1. **`Interface`**: the design's input ports, in declaration order with their
    declared widths, are EXACTLY `t.inputs N`, and its output ports are EXACTLY
    `t.outputs N`.
-2. **`Unclocked` and `Terminates2`**: no process of the design is clocked
-   (no `always_ff`, no `always @(posedge …)`, no async-reset block: ls-sv's
-   edge phase is empty), and under every schedule and every stimulus, the run
-   completes (`Spec2.lean`). The two are one conjunct, a pair, so that
+2. **`Unclocked`, `LoopFree` and `Terminates2`**: no process of the design is
+   clocked (no `always_ff`, no `always @(posedge …)`, no async-reset block:
+   ls-sv's edge phase is empty), the design has no combinational loop (it
+   lowers to continuous assigns that are ranked: each reads only what
+   lower-ranked ones write), and under every schedule and every stimulus, the
+   run completes (`Spec2.lean`). The three are one conjunct, so that
    conjuncts 1 and 3 keep their positions (`h.1`, `h.2.2`).
 3. **`Computes`**: in every completed run, under every schedule and every
    stimulus, every cycle whose stimulus entry drives every input port with a
@@ -76,9 +109,27 @@ them, with kernel-checked refutations.
   missing port, a port with another direction, and an `inout` port (it would
   appear in both lists) are all rejected.
 * **Unknown values.** Outputs must hold `LVec.ofBitVec x`, a fully known
-  4-state vector of exactly the output's width. A design that reads an
-  undriven signal (`x`), leaves an output undriven, or drives the output from
-  some other variable and leaves the port itself at `x`, fails conjunct 3.
+  4-state vector of exactly the output's width. A design that leaves an output
+  undriven, drives the output from some other variable and leaves the port
+  itself at `x`, or lets an `x` reach an output bit for some known input (an
+  undriven `z` in `y = a & b & ~z`, `tests/_example/negative/reads_x.sv`),
+  fails conjunct 3. An `x` that reaches only a decision does not: see "What
+  the statement covers today" above.
+* **A combinational loop.** A run starts every variable at `x` (or its
+  initializer) and settles (`initState2`, `run2`), so a loop is read at the
+  one state the settle reaches from `x`, while a circuit powers up in any
+  0/1 state the loop can hold and keeps it
+  (`always_comb u = t; always_comb if (u) t = 1'b1; else t = 1'b0;` settles
+  at `t = 0` and holds `t = 1` as well). The statement does not quantify over
+  those states; `LoopFree` rejects every design with a loop instead, and with
+  it a latch (`if (en) q = d;`: the lowering refuses a body that keeps a
+  value it writes), whose power-up value is the same question. It is the
+  certificate the proof helpers already use (`SvGolf/Comb.lean`). Its rank
+  is on PROCESSES, not bits, so it rejects more than loops: one assign that
+  reads a window it writes, or two processes that read each other's windows,
+  are rejected even when no bit depends on itself (write such bits as
+  separate assigns), and so is an `always_comb` body outside the lowering's
+  profile (`Comb2Proc.lean`, "Gaps").
 * **History.** Conjunct 3 must hold at EVERY cycle of EVERY run, whatever the
   earlier stimulus entries were, so a design whose outputs depend on earlier
   cycles (a register, a toggling mode) fails it.
@@ -159,13 +210,29 @@ a run). -/
 def Unclocked (d : Design2) : Prop :=
   ∀ p ∈ d.processes.toList, p.isEdgePhase = false
 
+/-! ## No combinational loop -/
+
+/-- No combinational loop: `d` LOWERS to continuous assigns
+(`Design2.lowerComb`, `LeanModels/Sv/Comb2Proc.lean`: a continuous assign is
+kept and an `always_comb` body becomes ONE assign by symbolic execution; any
+other process, and a body that reads a window it writes, latches included,
+refuse) and the lowered design is acyclic (`Acyclic`,
+`LeanModels/Sv/Comb2Base.lean`: a rank on its processes such that each
+process reads only windows written by strictly lower-ranked processes). -/
+def LoopFree (d : Design2) : Prop :=
+  ∃ d', d.lowerComb = some d' ∧ Acyclic d'
+
 /-! ## Combinational tasks -/
 
 /-- A combinational svGolf task for a one-parameter design family: the
 parameter range, the interface at each parameter value, and the function the
 outputs must compute. -/
 structure CombTask where
-  /-- The parameter values the statement covers ("for every `N` in range"). -/
+  /-- The parameter values the statement covers ("for every `N` in range"). A
+  family task bounds them so that every width and `int` localparam they imply
+  stays below `2^31`, the values an `int` holds (`int` is 32-bit signed,
+  IEEE 1800 §6.11): `N < 2^31` where the widths are `N`, `N < 2^30` where a
+  width is `2N`. -/
   inRange : Nat → Prop
   /-- The input ports at parameter `N`: (name, width), in port order. -/
   inputs : Nat → List Sig
@@ -192,10 +259,11 @@ def Computes (N : Nat) (d : Design2) : Prop :=
     ∀ (c : Nat) (inputs st : SvState), stim[c]? = some inputs → tr[c]? = some st →
       ∀ v, HoldAll inputs (t.inputs N) v → HoldAll st (t.outputs N) (t.fn N v)
 
-/-- The statement at one parameter value: interface; no clocked process and
-termination; function. Conjunct 2 is the pair `Unclocked d ∧ Terminates2 d`. -/
+/-- The statement at one parameter value: interface; no clocked process, no
+combinational loop and termination; function. Conjunct 2 is the triple
+`Unclocked d ∧ LoopFree d ∧ Terminates2 d`. -/
 def SatisfiedAt (N : Nat) (d : Design2) : Prop :=
-  t.Interface N d ∧ (Unclocked d ∧ Terminates2 d) ∧ t.Computes N d
+  t.Interface N d ∧ (Unclocked d ∧ LoopFree d ∧ Terminates2 d) ∧ t.Computes N d
 
 /-- **The challenge statement** for a one-parameter design family
 `sem : Nat → Design2` (a `load_design_sv2` constant `name.sem`): the design

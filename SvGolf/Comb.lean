@@ -16,9 +16,11 @@ the non-vacuity facts the trusted docstring promises.
 * `HoldAll_nil`, `HoldAll_cons` (simp): unfold `HoldAll` on a concrete port
   list into one `SvState.lookup` equation per port.
 * `inputPorts_map_fst`: the input ports' names are `Design2.inputNames`.
-* `unclocked_of_edgeIndices`: an empty edge phase gives the `Unclocked` half
+* `unclocked_of_edgeIndices`: an empty edge phase gives the `Unclocked` part
   of conjunct 2 (`satisfiedAt_of_comb` uses it; a design outside the
   assign-only comb profile, e.g. with `always_comb`, can too).
+* `lowerComb_of_combDesign` (a comb-profile design lowers to itself) and
+  `loopFree_of_comb`: the `LoopFree` part of conjunct 2 from `Acyclic d`.
 * **`CombTask.satisfiedAt_of_comb`**: the main reduction. For a design in the
   comb profile (`CombDesign`) with an acyclicity certificate (`Acyclic`), the
   whole statement at one parameter value follows from the interface and ONE
@@ -107,6 +109,34 @@ design with a clocked process). -/
 instance (d : Design2) : Decidable (Unclocked d) :=
   inferInstanceAs (Decidable (∀ p ∈ d.processes.toList, p.isEdgePhase = false))
 
+/-! ## No combinational loop -/
+
+/-- A list of continuous assigns lowers to itself. -/
+theorem Design2.lowerProcs_of_assigns (d : Design2) :
+    ∀ ps : List Process2, (∀ p ∈ ps, ∃ t e, p = .assign t e) → d.lowerProcs ps = some ps
+  | [], _ => rfl
+  | p :: ps, h => by
+      obtain ⟨t, e, rfl⟩ := h p (by simp)
+      have ih := Design2.lowerProcs_of_assigns d ps fun q hq => h q (by simp [hq])
+      simp [Design2.lowerProcs, Process2.lowerComb, ih]
+
+/-- A comb-profile design (every process a continuous assign) lowers to itself. -/
+theorem lowerComb_of_combDesign {d : Design2} (hd : CombDesign d) : d.lowerComb = some d := by
+  have hall : ∀ p ∈ d.processes.toList, ∃ t e, p = .assign t e := by
+    intro p hp
+    obtain ⟨i, hi⟩ := List.mem_iff_getElem?.mp hp
+    rw [Array.getElem?_toList] at hi
+    obtain ⟨t, e, -, rfl, -⟩ := hd.assign i p hi
+    exact ⟨t, e, rfl⟩
+  unfold Design2.lowerComb
+  rw [Design2.lowerProcs_of_assigns d _ hall]
+  simp
+
+/-- The `LoopFree` part of conjunct 2 for a comb-profile design: its own
+acyclicity certificate. -/
+theorem loopFree_of_comb {d : Design2} (hd : CombDesign d) (ha : Acyclic d) : LoopFree d :=
+  ⟨d, lowerComb_of_combDesign hd, ha⟩
+
 /-! ## The comb reduction -/
 
 /-- **The statement at one parameter value, for a comb design.** Given the
@@ -120,7 +150,8 @@ theorem CombTask.satisfiedAt_of_comb {t : CombTask} {N : Nat} {d : Design2}
     (hset : ∀ st, CombEqs d st → StateShape d st → ∀ v, HoldAll st (t.inputs N) v →
       HoldAll st (t.outputs N) (t.fn N v)) :
     t.SatisfiedAt N d := by
-  refine ⟨hI, ⟨unclocked_of_edgeIndices hd.edgeIndices_eq, Terminates2.of_acyclic hd ha⟩, ?_⟩
+  refine ⟨hI, ⟨unclocked_of_edgeIndices hd.edgeIndices_eq, loopFree_of_comb hd ha,
+    Terminates2.of_acyclic hd ha⟩, ?_⟩
   apply Models2.of_comb_inputs hd
   intro stim tr h c inputs st hi hc v hv
   obtain ⟨heqs, hs, hin⟩ := h c st hc
@@ -138,7 +169,8 @@ theorem CombTask.satisfiedAt_of_lowered {t : CombTask} {N : Nat} {d d' : Design2
       HoldAll st (t.outputs N) (t.fn N v)) :
     t.SatisfiedAt N d := by
   obtain ⟨hph, -, -⟩ := Design2.lowerComb_phases hl
-  refine ⟨hI, ⟨unclocked_of_edgeIndices hph, Terminates2.of_lowerComb_acyclic hl hd ha hnq⟩, ?_⟩
+  refine ⟨hI, ⟨unclocked_of_edgeIndices hph, ⟨d', hl, ha⟩,
+    Terminates2.of_lowerComb_acyclic hl hd ha hnq⟩, ?_⟩
   apply Models2.of_combProc_inputs hl hd (hnq := hnq)
   intro stim tr h c inputs st hi hc v hv
   obtain ⟨heqs, hs, hin⟩ := h c st hc
@@ -184,7 +216,7 @@ theorem CombTask.SatisfiedAt.exists_run {t : CombTask} {N : Nat} {d : Design2}
     (h : t.SatisfiedAt N d) (hnd : ((t.inputs N).map Prod.fst).Nodup) (σ : ScheduleOracle)
     (v : Vals ((t.inputs N).map Prod.snd)) :
     ∃ st, Runs2 d σ [entryOf (t.inputs N) v] [st] ∧ HoldAll st (t.outputs N) (t.fn N v) := by
-  obtain ⟨tr, hr⟩ := h.2.1.2 σ [entryOf (t.inputs N) v]
+  obtain ⟨tr, hr⟩ := h.2.1.2.2 σ [entryOf (t.inputs N) v]
   have hlen := hr.length
   match tr, hlen with
   | [st], _ =>

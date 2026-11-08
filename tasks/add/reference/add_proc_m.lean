@@ -43,7 +43,8 @@ theorem satisfiedAt_of_lowered {t : CombTask} {N : Nat} {d d' : Design2}
       HoldAll st (t.outputs N) (t.fn N v)) :
     t.SatisfiedAt N d := by
   obtain ⟨hph, -, -⟩ := Design2.lowerComb_phases hl
-  refine ⟨hI, ⟨unclocked_of_edgeIndices hph, Terminates2.of_lowerComb_acyclic hl hd ha hnq⟩, ?_⟩
+  refine ⟨hI, ⟨unclocked_of_edgeIndices hph, ⟨d', hl, ha⟩, Terminates2.of_lowerComb_acyclic hl hd ha hnq⟩,
+    ?_⟩
   apply Models2.of_combProc_inputs hl hd (hnq := hnq)
   intro stim tr h c inputs st hi hc v hv
   obtain ⟨heqs, hs, hin⟩ := h c st hc
@@ -135,7 +136,7 @@ theorem add_final {N : Nat} {st : SvState} {x y : BitVec N} {c0 : Bool}
 
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨d', hl, hc, ha⟩ := add_struct N hN'
   refine satisfiedAt_of_lowered (add_interface N hN' hl) hl hc ha (NoQ.sem_noQ (by decide) _) ?_
   intro st heqs hs v hv

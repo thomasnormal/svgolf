@@ -24,8 +24,12 @@
     "constant": "SvGolf.Tasks.AesSbox.Statement"
   },
   "banlist": {
-    "operators": [],
-    "_comment": "No operator is banned (decided 10/30): a lookup table, + - * and everything else are legal and simply score what they score. An empty list also switches the Yosys backstop ($alu/$macc/$mul/...) off."
+    "operators": [
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "No task-specific banlist (10/30): a lookup table, + - * and everything else are legal and simply score what they score. Run-time / % ** are banned in every task (since 2026-11-06, under the 2026-11-05 ruling that svGolf disallows a construct where Yosys departs from the standard): a zero divisor or a negative exponent makes an x from known operands, which ls-sv carries into decisions and Yosys builds as a defined value (score/banlist.py ALWAYS_BANNED). The backstop therefore runs for this task too, with only those cells banned ($div $divfloor $mod $modfloor $pow)."
   },
   "probe_points": [],
   "scoring": {
@@ -41,7 +45,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "postsynth": {
     "random": 0,
     "corners": {

@@ -265,7 +265,7 @@ class BvDecideFlag(Base):
         for keys in ({}, {"allow_bv_decide": False}):
             res, comp = self.go(self.task_dir(**keys))
             self.assertEqual(res["stage"], "comparator", res["errors"])          # past the solution stage
-            self.assertEqual(FakeLean.compile_kw["Solution.lean"], {"bv_solver": False})
+            self.assertEqual(FakeLean.compile_kw["Solution.lean"], {"bv_solver": False, "progress": True, "cpu_limit": 300})
             self.assertEqual(FakeLean.compile_kw["Design.lean"], {})
             (cargs,) = comp
             self.assertNotIn("--bv-decide", cargs)
@@ -288,11 +288,11 @@ class BvDecideFlag(Base):
         for keys in ({}, {"allow_bv_decide": True}):
             res, comp = self.go(self.task_dir(**keys))
             self.assertEqual(res["stage"], "comparator", res["errors"])
-            self.assertEqual(FakeLean.compile_kw["Solution.lean"], {"bv_solver": True})
+            self.assertEqual(FakeLean.compile_kw["Solution.lean"], {"bv_solver": True, "progress": True, "cpu_limit": 300})
             self.assertEqual(FakeLean.compile_kw["Design.lean"], {})              # no other compile gets the solver
             self.assertIn("--bv-decide", comp[0])
         res, comp = self.go(self.task_dir(allow_bv_decide=False))
-        self.assertEqual(FakeLean.compile_kw["Solution.lean"], {"bv_solver": False})
+        self.assertEqual(FakeLean.compile_kw["Solution.lean"], {"bv_solver": False, "progress": True, "cpu_limit": 300})
         self.assertNotIn("--bv-decide", comp[0])
 
     # ---- the hint at the `solution` stage (sandbox on: the solver cannot start, the message is opaque)

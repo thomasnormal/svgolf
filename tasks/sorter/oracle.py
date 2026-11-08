@@ -12,7 +12,7 @@ that a design shares with ls-sv is still caught. Reviewed with the spec (REVIEW.
 - `good(params, txn, result)`: True iff `result["out"]`, the emitted values in order, is
   `sorted(txn["xs"])`: ascending, duplicates kept, nothing missing or extra.
 - `mismatch(params, txn, result)`: None, or what is wrong in words, for reports.
-- `txns(params, seed, count=24)`: a deterministic list of transactions (below).
+- `txns(params, seed, count=24, rng=None)`: a deterministic list of transactions (below); `rng`: the checker's random source for the seed (check/postsynth.py `seed_draw`: derived from $SVGOLF_POSTSYNTH_SALT, F5, 2026-11-07); None: the deterministic one of (seed, params), for this file's self-test and the simulations.
 - `oracle(params, inputs)`: the comb tasks' loader shape: {"out": sorted} for {"xs": ..}.
 
 A transaction is a dict:
@@ -94,10 +94,11 @@ def _below(rng, m):
             return r
 
 
-def txns(params, seed, count=24):
+def txns(params, seed, count=24, rng=None):
     n, w = _point(params)
     big = 1000003
-    rng = random.Random((seed * big + n) * big + w)
+    if rng is None:
+        rng = random.Random((seed * big + n) * big + w)
     top = (1 << w) - 1
     extremes = sorted({0, 1, max(top - 1, 0), top})
     mid = top // 2 + (rng.getrandbits(w) % 2 if w > 1 else 0)

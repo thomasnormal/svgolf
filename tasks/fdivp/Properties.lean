@@ -14,9 +14,11 @@ namespace SvGolf.Tasks.FdivP.Properties
 
 open SvGolf LeanModels.Sv
 
-/-- The formats the statement covers: every exponent width `W ≥ 2` and precision `P ≥ 2`. -/
+/-- The formats the statement covers: every exponent width `W ≥ 2` and precision `P ≥ 2` with
+`W + P + 1 < 2^31` (so that the widths `W + P` and `W + P + 1`, `int` expressions of the module, stay
+below `2^31`, the values an `int` holds). -/
 def ParamsInRange (W P : Nat) : Prop :=
-  2 ≤ W ∧ 2 ≤ P
+  2 ≤ W ∧ 2 ≤ P ∧ W + P + 1 < 2 ^ 31
 
 /-- Exactly these ports, in this order, with these widths. -/
 def Interface (W P : Nat) (d : Design2) : Prop :=
@@ -25,6 +27,11 @@ def Interface (W P : Nat) (d : Design2) : Prop :=
 /-- No process runs at a clock edge (no `always_ff`, no `always @(posedge …)`). -/
 def Unclocked (d : Design2) : Prop :=
   ∀ p ∈ d.processes.toList, p.isEdgePhase = false
+
+/-- No combinational loop: the design lowers to continuous assigns (`Design2.lowerComb`) that are
+ranked (`Acyclic`): each reads only what lower-ranked ones write. -/
+def LoopFree (d : Design2) : Prop :=
+  ∃ d', d.lowerComb = some d' ∧ Acyclic d'
 
 /-- Under every schedule and every stimulus, the run completes. -/
 def Terminates (d : Design2) : Prop :=
@@ -43,17 +50,17 @@ def ComputesQuotient (W P : Nat) (d : Design2) : Prop :=
 /-- **The statement is exactly the properties.** -/
 theorem statement_iff_properties (sem : Nat → Nat → Design2) :
     Statement sem ↔ ∀ W P, ParamsInRange W P →
-      Interface W P (sem W P) ∧ Unclocked (sem W P) ∧ Terminates (sem W P) ∧
+      Interface W P (sem W P) ∧ Unclocked (sem W P) ∧ LoopFree (sem W P) ∧ Terminates (sem W P) ∧
         ComputesQuotient W P (sem W P) := by
   constructor
   · intro h W P hWP
-    obtain ⟨hi, ⟨hu, ht⟩, hc⟩ := h W P hWP
-    refine ⟨hi, hu, ht, ?_⟩
+    obtain ⟨hi, ⟨hu, hl, ht⟩, hc⟩ := h W P hWP
+    refine ⟨hi, hu, hl, ht, ?_⟩
     intro σ stim tr hr c inputs st hs hst a b hv
     exact hc σ stim tr hr c inputs st hs hst (a, b, ()) hv
   · intro h W P hWP
-    obtain ⟨hi, hu, ht, hc⟩ := h W P hWP
-    refine ⟨hi, ⟨hu, ht⟩, ?_⟩
+    obtain ⟨hi, hu, hl, ht, hc⟩ := h W P hWP
+    refine ⟨hi, ⟨hu, hl, ht⟩, ?_⟩
     intro σ stim tr hr c inputs st hs hst v hv
     obtain ⟨a, b, ⟨⟩⟩ := v
     exact hc σ stim tr hr c inputs st hs hst a b hv

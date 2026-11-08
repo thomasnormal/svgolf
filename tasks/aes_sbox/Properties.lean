@@ -22,6 +22,11 @@ def Interface (d : Design2) : Prop :=
 def Unclocked (d : Design2) : Prop :=
   ∀ p ∈ d.processes.toList, p.isEdgePhase = false
 
+/-- No combinational loop: the design lowers to continuous assigns (`Design2.lowerComb`) that are
+ranked (`Acyclic`): each reads only what lower-ranked ones write. -/
+def LoopFree (d : Design2) : Prop :=
+  ∃ d', d.lowerComb = some d' ∧ Acyclic d'
+
 /-- Under every schedule and every stimulus, the run completes. -/
 def Terminates (d : Design2) : Prop :=
   ∀ (σ : ScheduleOracle) (stim : List SvState), ∃ tr, Runs2 d σ stim tr
@@ -37,16 +42,16 @@ def ComputesSbox (d : Design2) : Prop :=
 
 /-- **The statement is exactly the properties.** -/
 theorem statement_iff_properties (d : Design2) :
-    Statement d ↔ Interface d ∧ Unclocked d ∧ Terminates d ∧ ComputesSbox d := by
+    Statement d ↔ Interface d ∧ Unclocked d ∧ LoopFree d ∧ Terminates d ∧ ComputesSbox d := by
   constructor
   · intro h
-    obtain ⟨hi, ⟨hu, ht⟩, hc⟩ := h
-    refine ⟨hi, hu, ht, ?_⟩
+    obtain ⟨hi, ⟨hu, hl, ht⟩, hc⟩ := h
+    refine ⟨hi, hu, hl, ht, ?_⟩
     intro σ stim tr hr c inputs st hs hst x hv
     exact hc σ stim tr hr c inputs st hs hst (x, ()) hv
   · intro h
-    obtain ⟨hi, hu, ht, hc⟩ := h
-    refine ⟨hi, ⟨hu, ht⟩, ?_⟩
+    obtain ⟨hi, hu, hl, ht, hc⟩ := h
+    refine ⟨hi, ⟨hu, hl, ht⟩, ?_⟩
     intro σ stim tr hr c inputs st hs hst v hv
     obtain ⟨x, ⟨⟩⟩ := v
     exact hc σ stim tr hr c inputs st hs hst x hv

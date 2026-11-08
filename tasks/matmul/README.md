@@ -104,7 +104,8 @@ never an edit.
 
 ## Rules for this task
 
-* **No banned operators** (C6, ruled 11/03). `*` is allowed: the score prices it.
+* **No task-specific banned operators** (C6, ruled 11/03). `*` is allowed: the score prices it.
+  Run-time `/ % **` are banned, as in every task (since 2026-11-06; the svGolf README, "Rules").
 * **Clocked source rules** (PLAN4.md Gate 2 step 2): exactly one clock and one edge
   (`always_ff @(posedge clk)`); synchronous reset only; no `initial`, no initializer on state, no
   `always_latch`, no `negedge`, no delays, waits, forks or other event controls; no blocking assignment in
@@ -114,7 +115,7 @@ never an edit.
 * **Probe points**: the extractor cross-checks the design at `(N, W, AccW)` = `(1, 1, 1)`, `(2, 3, 5)`,
   `(3, 4, 8)` and the scoring point `(4, 8, 32)`. Mind `N = 1`, and `W = 1`, where an entry is 0 or -1.
 * Axioms: `propext`, `Classical.choice`, `Quot.sound` only (`allow_bv_decide: false`). No `native_decide`,
-  no `sorry`. Proof time limit: 120 s, the one limit of every task.
+  no `sorry`. Proof time limit: 300 CPU s, the one limit of every task (the reference: 15.2, 15.1 and 15.1 CPU s, three cold runs, 2026-11-06).
 * **Scoring at `(4, 8, 32)`** (C7, sky130 ruling of 11/03): area is sky130 A0' µm², flops (`dfxtp_1`)
   included. Time is `n` × the register-to-register period in ps from the pinned liberty, which already
   includes the flop's clock-to-Q and setup. Both are taken on the netlist REPAIRED by buffering only (a buffer
@@ -126,14 +127,15 @@ never an edit.
   `buf_12`; `tests/expected.json`). Before the per-edge loads it was 10,705 ps and 42,820 ps under v2's `buf_1` and
   v3's `buf_8` alike (5 buffers, the third control net 1 x `buf_8`, the same area); the unrepaired v1 netlist read
   48,079 ps from extrapolated tables, and duplicating one control flop was then a 4.4× time shortcut that loses
-  under v2: 43,560 ps). The leaderboard keeps the Pareto frontier of (area, time). On a
+  under v2: 43,560 ps). The task is an unranked preview; svGolf's one ranked number is area x
+  time (decided 11/05), and the Pareto frontier of (area, time) is an exploration view. On a
   tie in both, the earlier record stands. NAND2 gate equivalents and unit depth are extra columns. One
   submission declares one latency: the same design with another `n` is a separate record. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score"
   (`ppa.py --seq` for a clocked task).
 * **Special cases are legal but do not pay.** A design may treat `N = 4` specially, but it must still be
   correct, and proved, for every `N`.
-* **Post-synthesis check** (`task.json` `postsynth`) at `(2, 4, 8)` and `(4, 8, 32)`. For each of 3 seeds:
-  a random initial state, one reset cycle, then `oracle.py`'s 24 transactions. The netlist must agree with
+* **Post-synthesis check** (`task.json` `postsynth`) at `(2, 4, 8)` and `(4, 8, 32)`. For each of 8 seeds
+  (3 before 2026-11-07, F5): a random initial state, one reset cycle, then `oracle.py`'s 24 transactions. The netlist must agree with
   ls-sv cycle by cycle, on `done` everywhere and on `C` wherever `done` = 1. Its `C` must also be `good`
   for the oracle, so a bug shared by the design and ls-sv is still caught. `done` must first rise within
   `n`. An x or z on `done` after the release, or on `C` while `done` = 1, rejects.

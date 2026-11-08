@@ -23,9 +23,19 @@
       "text": "Each check weighs the scored netlist with a real standard-cell library, the open SkyWater sky130 cells: the cell area in µm² and the critical-path delay in ps (a clocked task: the cycles times the clock period), every input driven by the task's input drive. The leaderboard ranks those two; area in gate equivalents and depth are extra columns. [Reproduce a score](site:reproduce.html) lists the pinned tools and files and the commands that give a recorded number again."
     },
     {
+      "status": "done",
+      "title": "Comparisons in the arithmetic tasks",
+      "text": "Decided 2026-11-05: in a task that bans `+` or `-` (`add`, `mul`, `clmul`, the toy `_example`), a run-time ordering comparison `< <= > >=` is banned too, at the Yosys level. Yosys builds it as its own adder (an `$alu`, the carry logic of `+`), so the banlist rejects every `$alu` that Yosys's `alumacc` builds. Equality, comparisons over parameters, and a comparator built from gates stay allowed."
+    },
+    {
+      "status": "done",
+      "title": "A first clocked task: the arbiter",
+      "text": "[`arbiter`](site:tasks/arbiter/index.html), a fair N-client arbiter: a statement that holds on every cycle of every input trace and from every power-up state (one grant at most, only to a requester, someone whenever anyone asks, and a requester that asks `N` cycles in a row granted within them), a checker for clocked designs (one clock, a synchronous reset, registered outputs, no construct that can create an unknown value, and a post-synthesis check that runs the netlist from random power-up states), the clocked scoring flow (the area with the flip-flops, times the register-to-register clock period), and a reference proved for every `N`."
+    },
+    {
       "status": "in-progress",
-      "title": "Clocked designs",
-      "text": "Two clocked tasks have a statement, a checker and a proved reference: `matmul` (a start/done handshake) and `sorter` (a stream). They are previews: the statement is being revised to cover the outputs on the wire and unknown values at reset, and their submissions are not ranked until then."
+      "title": "More clocked tasks",
+      "text": "Two clocked tasks with a latency (a transaction answered within a declared number of cycles) have a statement, a checker and a proved reference: `matmul` (a start/done handshake) and `sorter` (a stream). They are previews: their statements are drafts under review, being revised to cover the outputs on the wire and unknown values at reset, and their submissions are not ranked until the statements are final."
     },
     {
       "status": "in-progress",
@@ -48,9 +58,9 @@
       "text": "Many refusals are marked `later`: each names what has to exist first (for example a 4-state rule, or more of the language in ls-sv). See the [refusals](site:refusals.html)."
     },
     {
-      "status": "open",
-      "title": "Comparisons in the arithmetic tasks",
-      "text": "Run-time comparisons are allowed in `add` and `mul`, and a carry written as a comparison is Yosys's own carry logic. Whether they should stay allowed is an open policy question."
+      "status": "done",
+      "title": "Records for every task",
+      "text": "Every task's par design has a record, so the bar to beat is re-checked like any entry (`leaderboard.py verify --full`)."
     },
     {
       "status": "open",

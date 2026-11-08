@@ -39,16 +39,21 @@ README.md or PLAN2.md unless stated.
 
 | task | status | kind | banned operators | proof time limit | proved references |
 |---|---|---|---|---|---|
-| `_example` | ready | every `N` | `+ - * / % **` | 120 s | `band`, `band_lp` |
-| `add` | ready | every `N` | `+ - * / % **` | 120 s | `add_n`, `add_proc`, `add_proc_m`, `add_mux`, `add_n_byhand` |
-| `mul` | ready | every `N` | `+ - * / % **` | 400 s | five (`mul_n` .. `mul_tree_h`) |
-| `aes_sbox` | ready | fixed size, 8 bit | none | 215 s | `sbox_bp` (113 gates) |
-| `clmul` | ready | every `N` | `+ - *` | 120 s | `clmul_n` (the array without carries) |
-| `fdivp` | ready | every `W, P` (two parameters; binary16 is `(5, 11)`) | `/ % **` | 120 s | `fdivp` (a word-level netlist of 34 sites) |
+| `_example` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `band`, `band_lp` |
+| `add` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `add_n`, `add_proc`, `add_proc_m`, `add_mux`, `add_n_byhand` |
+| `mul` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | five (`mul_n` .. `mul_tree_h`) |
+| `aes_sbox` | ready | fixed size, 8 bit | `/ % **` (every task bans them) | 300 CPU s | `sbox_bp` (113 gates) |
+| `clmul` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `clmul_n` (the array without carries) |
+| `fdivp` | ready | every `W, P` (two parameters; binary16 is `(5, 11)`) | `/ % **` | 300 CPU s | `fdivp` (a word-level netlist of 34 sites) |
+| `arbiter` | ready | clocked, reactive: every `N` (`N*N < 2^31`) | `/ % **` | 300 CPU s | `rr_mask` (a registered mask round-robin) |
 
-(from each `tasks/<name>/task.json`.) Start with `_example`, then `add`: a one-line function, a complete
+(from each `tasks/<name>/task.json`; a task that bans `+` or `-` also bans the run-time ordering comparisons
+`< <= > >=`, decided 2026-11-05: Yosys builds each as its own adder, an `$alu`; equality and comparisons over
+parameters stay allowed.) Start with `_example`, then `add`: a one-line function, a complete
 for-every-width proof to start from, and an (area, delay) frontier to golf. `fdivp` is a far goalpost (proved for every format, but a hard
-first task).
+first task). `arbiter` is the first clocked task: a controller whose statement holds on every cycle of every input
+trace, not a function. Its README's "Start a new design" and PROVING.md section 20 are the route; its score is the
+area, flip-flops included, times the register-to-register clock period, one decision per cycle.
 
 Read, in this order: `tasks/<name>/README.md` (the module header you must implement, the statement in words, the
 banned operators, the scoring point); `tasks/<name>/Spec.lean` (the TRUSTED statement; the README is a gloss of it);
@@ -62,15 +67,15 @@ Run from the repository's root. The module header, port names, order and widths 
 
 | command | what it does | cost |
 |---|---|---|
-| `python3.12 check.py tasks/add my_adder.sv --unproved` | every stage that needs no proof (source gate, extraction, banlist, 4-state rules, the generated `Submission.Design`, score, post-synthesis); stops at the pseudo-stage `unproved`; never accepts | about 15 s |
+| `python3.12 check.py tasks/add solution.sv --unproved` | every stage that needs no proof (source gate, extraction, banlist, 4-state rules, the generated `Submission.Design`, score, post-synthesis); stops at the pseudo-stage `unproved`; never accepts | about 15 s |
 | `... --unproved --tactics` | also asks the `sv_comb` tactics whether they can read the design (`tactics.in_fragment`, with the refusal message); advisory | +2 s, one Lean job |
 | `... --unproved --stage-dir DIR` | keeps the staged design, so you can compile probe files against it (`sv_structure?`, `sv_equations?`) | |
-| `python3.12 check.py tasks/add my_adder.sv MyAdder.lean` | the whole check, post-synthesis in `light` mode | about a minute |
+| `python3.12 check.py tasks/add solution.sv Solution.lean` | the whole check, post-synthesis in `light` mode | about a minute |
 | `... --postsynth full` (or `SVGOLF_POSTSYNTH=full`) | the post-synthesis stage on the task's whole vector budget: what verification and the leaderboard run | longer, per task |
 | `... --keep` / `--stage-dir DIR` | the result's `dev_hint` is the command that recompiles only your `Solution.lean`: the fast inner loop for the proof | |
-| `python3.12 score/ppa.py my_adder.sv --task tasks/add` | the ranked score alone (sky130 um^2 and ps, with the GE columns; Yosys, no Lean; needs the pinned liberty, `--fetch-liberty`) | seconds |
-| `python3.12 score/score.py my_adder.sv --task tasks/add` | the GE columns alone (Yosys, no Lean) | seconds |
-| `python3.12 check/postsynth.py --task tasks/add my_adder.sv` | the post-synthesis check alone, at any `--point N=32` | needs `svgolf-eval` built |
+| `python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped [--path]` | the golfing inner loop: the ranked numbers alone (sky130 um^2 and ps, whose product is ranked, with the GE columns; `--path` the critical path; the source gate and Yosys, no banlist, no ls-sv, no Lean; needs the pinned liberty, `--fetch-liberty`) | about 2 s |
+| `python3.12 score/score.py solution.sv --task tasks/add` | the GE columns alone (Yosys, no Lean) | seconds |
+| `python3.12 check/postsynth.py --task tasks/add solution.sv` | the post-synthesis check alone, at any `--point N=32` | needs `svgolf-eval` built |
 
 `check.py` prints JSON: `accepted`, the failing `stage` and `errors`, `stages`, `score`, and the advisory
 `warnings` (a functional mismatch against the task's oracle, with the first failing input), `dev_hint`, `tactics`.
@@ -103,8 +108,8 @@ theorem add_interface (N : Nat) (hN : 1 ≤ N) (hc : CombDesign (design.sem N)) 
     SvGolf.Tasks.Add.task.Interface N (design.sem N) := by sv_interface
 theorem solution : Goal := by
   intro N hN
-  obtain ⟨hc, ha⟩ := add_struct N hN
-  refine CombTask.satisfiedAt_of_comb (add_interface N hN hc) hc ha ?_
+  obtain ⟨hc, ha⟩ := add_struct N hN.1
+  refine CombTask.satisfiedAt_of_comb (add_interface N hN.1 hc) hc ha ?_
   intro st heqs hs v hv                              -- a settled state with known inputs
   ...                                                -- unpack the inputs from hv
   sv_equations                                       -- eq_c_1 .. eq_cout_1, known_*, then obligations
@@ -155,8 +160,10 @@ be the three standard ones: end the file with the `#print axioms` check the refe
   Mathlib with the packages it imports (`Mathlib`, `Batteries`, `Aesop`, `Qq`, `ProofWidgets`, `Plausible`,
   `ImportGraph`, `LeanSearchClient`; README.md, "Mathlib in submissions"); nothing else (no `Examples.*`, no
   `LeanModels.Python.*`). One `.sv` and one `.lean` file.
-* **The proof time limit** is 120 s for every task, a ceiling that does not follow the references. A reference over it
-  is a defect of that proof or of the scaffolding, and that is what gets fixed; the target is at most 60 s.
+* **The proof time limit** is 300 s of CPU time for every task (the Lean process's user + system seconds, decided
+  2026-11-05, the value 2026-11-06: CPU seconds count every elaboration thread; a wall-clock backstop of 5 times it stops a proof that waits), a ceiling that does not follow the
+  references. A reference over it
+  is a defect of that proof or of the scaffolding, and that is what gets fixed; the target is at most 150 CPU s.
   `python3.12 score/time_limits.py` prints the table. A design much heavier than the references can overrun and is
   rejected at `solution`.
 * **Banned operators are per task** (the operator that IS the task, and whatever Yosys turns into the same cell).
@@ -193,10 +200,11 @@ be the three standard ones: end the file with the `#print axioms` check the refe
 ## 6. The leaderboard and the record file
 
 ```bash
-python3.12 leaderboard/leaderboard.py add --task add --player alice --assisted-by "Claude (Anthropic)" \
-    --sv my_adder.sv --lean MyAdder.lean --data-dir ./my-records      # runs check.py in FULL mode
-python3.12 leaderboard/leaderboard.py pareto --task add --data-dir ./my-records
-python3.12 leaderboard/leaderboard.py board  --task add            # ranked table (md or json)
+python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
+    --sv solution.sv --lean Solution.lean      # runs check.py in FULL mode; writes leaderboard/data/add/
+                                               # (what a pull request adds); --data-dir DIR: a private trial
+python3.12 leaderboard/leaderboard.py board  --task add            # the table by area x time (md or json)
+python3.12 leaderboard/leaderboard.py pareto --task add            # the (area, time) frontier, for exploring
 python3.12 leaderboard/leaderboard.py verify --offline            # hashes and area arithmetic, milliseconds
 python3.12 leaderboard/leaderboard.py verify                      # also rescores (seconds, no Lean)
 python3.12 leaderboard/leaderboard.py verify --full               # re-runs check.py on every stored pair
@@ -222,8 +230,10 @@ A record is one JSON file, `data/<task>/<record_hash>.json`, with your `.sv` and
 | `postsynth` | point, vectors, mode (`full`, or `light` for a marked local record), seed |
 | `record_hash` | sha256 of the canonical JSON of the rest; it is the file name |
 
-The ranking is the Pareto frontier of the sky130 A0' area and time (decided 11/03), both lower is better, ties kept
-(on a tie in both, the earlier record stands); the GE area and depth are extra columns; no depth budget unless a task
+The ranked number is area x time, the sky130 A0' area times the time (A0' decided 11/03, the product 11/05), lower is
+better; `leaderboard.py board` and `export` list the records by it (decided 2026-11-05; `#` is the rank, equal products
+share one, listed as the site lists them), with the Pareto layer of the two factors, the GE area and depth as extra
+columns (`pareto` prints the frontier, an exploration view, ties kept); no depth budget unless a task
 sets one. Records are append-only and tamper-evident, not tamper-proof. A record made under another version of the
 pinned flow, the sky130 pins or the task's input drive, or one without sky130 columns, is listed as "not ranked". To
 reproduce a recorded number bit for bit: `score/PPA.md`, "Reproduce a score".

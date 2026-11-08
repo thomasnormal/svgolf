@@ -26,9 +26,14 @@
       "backstop": [],
       "diagnostics": [],
       "front": [],
-      "operators": []
+      "operators": [
+        "/",
+        "%",
+        "**"
+      ]
     },
     "comparator": {
+      "cpu_seconds": "<volatile>",
       "exit": 0,
       "result": {
         "accepted": true,
@@ -66,7 +71,10 @@
         "syntactic_match": true,
         "toolchain_modules": "<volatile>"
       },
-      "seconds": "<volatile>"
+      "seconds": "<volatile>",
+      "time_limit_counts": "cpu",
+      "time_limit_s": 900,
+      "wall_limit_s": 4500
     },
     "design": {
       "exit": 0,
@@ -79,13 +87,24 @@
       "extractor_sha256": "<volatile>",
       "lean_surfaces": "<volatile>",
       "parameters": [],
+      "ports_checked": [
+        "the defaults"
+      ],
       "probe_points": []
     },
     "fourstate": {
       "diagnostics": [],
+      "failed_point": null,
       "findings": [],
       "passed": true,
       "point": {},
+      "points": [
+        {
+          "passed": true,
+          "point": {},
+          "seconds": "<volatile>"
+        }
+      ],
       "seconds": "<volatile>"
     },
     "imports": {
@@ -103,8 +122,12 @@
       "files": "<volatile>"
     },
     "leanchecker": {
+      "cpu_seconds": "<volatile>",
       "exit": 0,
-      "seconds": "<volatile>"
+      "seconds": "<volatile>",
+      "time_limit_counts": "cpu",
+      "time_limit_s": 900,
+      "wall_limit_s": 4500
     },
     "postsynth": {
       "envelope_sha256": "<volatile>",
@@ -178,10 +201,13 @@
       "yosys_version": "<volatile>"
     },
     "solution": {
+      "cpu_seconds": "<volatile>",
       "exit": 0,
       "messages": "",
       "seconds": "<volatile>",
-      "time_limit_s": 120
+      "time_limit_counts": "cpu",
+      "time_limit_s": 300,
+      "wall_limit_s": 1500
     },
     "source": {
       "canonical_sha256": "e91f6f266276d4cf9f66901e7ab02693aef4f8ae08482da6a924790e139a0ddf",
@@ -191,7 +217,7 @@
     "task": {
       "parameters": [],
       "statement": "SvGolf.Tasks.AesSbox.Statement",
-      "time_limit_s": 120,
+      "time_limit_s": 300,
       "top": "aes_sbox",
       "verify_time_limit_s": 900
     }

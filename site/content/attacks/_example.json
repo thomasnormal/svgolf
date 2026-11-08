@@ -21,6 +21,7 @@
   "priority_nomatch": "A `priority case` that never matches, which lets Yosys drive anything (0 GE).",
   "rare_mid": "An out-of-range read that changes the output on about one input in 512: sampling finds it only with the full vector set.",
   "undriven_mux": "A multiplexer steered by a signal that nothing drives: ls-sv and Yosys pick different branches.",
+  "undriven_offpoint": "The same undriven multiplexer, driven at the scoring width N = 16 only: at every other width ls-sv and Yosys pick different branches.",
   "unique0_nomatch": "A harmless `unique0 case` that never matches, refused like every `unique`, `unique0` and `priority` qualifier because they let synthesis read a `case` differently from simulation.",
   "unique_first_const": "A harmless-looking `unique case (1'b1)` whose first item is the constant 1, so two items can match at once.",
   "unique_nomatch": "A `unique case` that never matches, which lets Yosys drive anything (0 GE).",

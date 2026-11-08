@@ -3,14 +3,16 @@
 Designs that are scored but never accepted: none of them has a proof, so
 none is an svGolf entry. Their scores at `N = 16, 32, 64` (gate mix included)
 are in `tests/expected.json` and re-measured by `tests/run.py`, which also
-checks that the banlist passes them; `tasks/add/README.md`, "Scores", has the
+checks that the banlist passes them (rejects `cmp_carry.sv`); `tasks/add/README.md`, "Scores", has the
 table and the (area, depth) frontier.
 
 * `add_n_sklansky.sv`: a Sklansky parallel-prefix adder (127.658 GE, depth 28
   at `N = 16`);
 * `add_n_kogge_stone.sv`: a Kogge-Stone parallel-prefix adder (149.652 GE,
   depth 24);
-* `cmp_carry.sv`: a policy probe, every carry a run-time comparison
+* `cmp_carry.sv`: every carry a run-time comparison, i.e. Yosys's own
+  adder (`alumacc` builds each comparison as an `$alu`), so the banlist
+  rejects it since 2026-11-05 and it is scored with the banlist lifted
   (195.975 GE, depth 17; `tests/add/validate/README.md` explains why it is
   here).
 

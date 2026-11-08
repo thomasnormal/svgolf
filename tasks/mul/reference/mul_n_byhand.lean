@@ -1795,7 +1795,7 @@ theorem mul_interface (N : Nat) (hN : 1 ≤ N) :
 /-- **The reference solution**: the `mul` statement, for every `N ≥ 1`. -/
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   refine CombTask.satisfiedAt_of_comb (mul_interface N hN') (mul_comb hN') (mul_acyclic hN') ?_
   intro st heqs hs v hv
   obtain ⟨x, y, ⟨⟩⟩ := v

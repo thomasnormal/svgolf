@@ -6,6 +6,12 @@ concrete run, or a port mismatch, into `¬ Statement`, whose hypothesis is check
 interpreter running ls-sv), and `tests/expected.json` (the task's `negatives`) names the `check.py` stage each
 is rejected at when submitted with the task's first reference (`tests/run.py` runs them).
 
+**Waits for the int32 port round.** The pinned ls-sv's loader refuses `only_n16.sv` (`PDesign.int32Agrees`:
+at the defaults an INT-class constant expression leaves the 32-bit range), so `Refute.lean` does not build at
+the pin. It is unchanged and not in the default `lake build` (`tests.lean` does not import it); `tests/run.py`'s
+`negatives` step builds it alone and checks that it fails with that refusal (`PENDING_REFUTES`; the svGolf
+README, "Building"). The `check.py` rejections in the table do not depend on it.
+
 | design | bug | evidence | rejected at |
 |---|---|---|---|
 | `top_shift.sv` | **wrong bit**: the top `N-1` output bits are read one position too low, `r[N-1][m]` instead of `r[N-1][m+1]` | `#guard` on the `run2` counterexample at `N = 2`, `a = b = 3`: `p = 3'b001`, not `3'b101`; `topShift_refuted` | `solution` |

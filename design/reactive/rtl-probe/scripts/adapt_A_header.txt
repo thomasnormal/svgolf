@@ -1,0 +1,44 @@
+// svGolf reactive-controller probe: a round-robin arbitration tree adapted from a real-world design.
+//
+// PROVENANCE. pulp-platform common_cells, https://github.com/pulp-platform/common_cells, commit
+// e73baaec2ca665cd80c3c384e9258e35242b829c, files src/cc_rr_arb_tree.sv (sha256 cea96e04...6c79),
+// src/cc_lzc.sv (sha256 62119065...f51e), and the enum lzc_mode_e of src/cc_pkg.sv, Solderpad
+// Hardware License v0.51 (SHL-0.51, which permits treating the work under Apache-2.0); Copyright
+// 2018-2025 ETH Zurich and University of Bologna (the upstream notices are kept below). The two
+// modules are concatenated in dependency order (cc_lzc, cc_rr_arb_tree). Kept verbatim: the
+// module names, the parameters (except the type parameters, A3), every generate branch (ExtPrio,
+// LockIn, FairArb, AxiVldRdy), the arbitration tree, the two cc_lzc instances, every equation.
+// CHANGES (built by scripts/adapt_A.py from the pinned files; each replacement is counted):
+//  A1. The `include`s and every `ifndef COMMON_CELLS_ASSERTS_OFF ... `endif` block (ASSERT,
+//      ASSUME, ASSERT_INIT, and the assertion-only `req_tmp`) are removed: the source gate refuses
+//      directives and macros; the extractor marks the assertions Unsupported. Verification-only.
+//  A2. The three `FFARNC(q, d, clr_i, '0, clk_i, rst_ni)` registers are written out as
+//      `always_ff @(posedge clk_i)` with the reset SYNCHRONOUS and active high (port rst_ni ->
+//      rst_i), clear second, as the macro orders them: C1, the clocked rules, the pinned seq flow.
+//      (The macro also emitted a `/* synopsys sync_set_reset */` pragma comment, which the gate
+//      would refuse after expansion.)
+//  A3. The type parameters `data_t` and `idx_t` are replaced by the packed types they default to
+//      (`logic [DataWidth-1:0]`, `logic [IdxWidth-1:0]`): the extractor refuses type parameters.
+//  A4. Every cast is removed (`unsigned'(x)`, `idx_t'(x)`, `data_t'(x)`, `(NumLevels)'(x)`): the
+//      extractor refuses explicit casts (ConversionExpression). Each removal keeps the value: the
+//      casts are applied to non-negative genvars and constants below 2^IdxWidth, in comparisons with
+//      an unsigned operand, or in assignments whose implicit width conversion is the same
+//      zero-extension / truncation the cast did.
+//  A5. `cc_pkg::idx_width(Width)` (a package function call in a parameter) is replaced by its body,
+//      `(Width > 32'd1) ? $clog2(Width) : 32'd1`: the extractor refuses the call.
+//  A6. cc_lzc's `parameter int unsigned Width` and the iterator `for (int unsigned i ...)` become
+//      `int`: the gate's procedural-loop rule (item 7) admits only `int` iterators and bounds.
+//  A7. `localparam NumLevels` moves from the generate block (gen_arbiter / gen_lzc) to the module's
+//      parameter list (same value where it is used): the extractor leaves a generate-block
+//      localparam used in a declaration's range unresolved (Syntax:Identifier:unresolved).
+//  A8. The packed 2-D arrays (index_nodes, data_nodes; index_lut, index_nodes in cc_lzc) are
+//      declared at module scope instead of in the generate block: the pinned Yosys 0.53 cannot
+//      read an element access of a packed 2-D array declared in a generate block.
+//  A9. cc_lzc's enum-typed `parameter lzc_mode_e Mode` (from cc_pkg) becomes `parameter bit Mode`
+//      with the enum's own encoding (1'b1 leading, 1'b0 trailing); the two instances pass 1'b0 for
+//      cc_pkg::LZC_TRAILING_ZERO_CNT, and cc_pkg is dropped. Reasons: the extractor's probe-point
+//      re-compilation of the instance cannot express an enum override (InvalidExpression, then an
+//      invalid compilation), and the rest of cc_pkg trips the source gate (an `ifndef SYNTHESIS`
+//      in ceil_div; initialized function locals under the clocked rules).
+// Nothing else changed.
+//

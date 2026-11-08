@@ -14,10 +14,8 @@
   * the site generator (site/build.py) reads `svgolf/...` repository paths from svGolf's tree
     and the rest from lean-surfaces', links them by layout, and shows the right clone commands.
 """
-import html
 import importlib.util
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -138,14 +136,11 @@ class Site(unittest.TestCase):
             self.assertIsNone(build.repo_link(None, "svgolf/README.md"))
 
     def test_clone_commands(self):
-        t = build.Task.__new__(build.Task)
-        t.name = "add"
         url = "https://example.org/o/svgolf"
-        text = lambda h: html.unescape(re.sub(r"<[^>]+>", "", h))     # noqa: E731  (the highlighted code as text)
         with mock.patch.object(build, "LAYOUT", "inside"):
-            self.assertIn("cd svgolf/svgolf\n", text(build.submit_html(t, url)))
+            self.assertIn("cd svgolf/svgolf\n", build.clone_commands(url))
         with mock.patch.object(build, "LAYOUT", "standalone"):
-            out = text(build.submit_html(t, url))
+            out = build.clone_commands(url)
             self.assertIn("git clone " + url, out)
             self.assertNotIn("cd svgolf/svgolf", out)
             self.assertIn("cd svgolf\n", out)

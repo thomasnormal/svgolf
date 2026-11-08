@@ -4,10 +4,22 @@
 A task bans the operator that IS the task (and whatever Yosys turns into the
 same cell): the adder and multiplier tasks ban run-time `+ - * / % **` (Yosys's
 `alumacc` merges `+` chains into the `$macc` cell that `*` becomes), the divider
-bans `/ %`. Constant (elaboration-time) arithmetic stays allowed: parameter and
-localparam expressions, genvar loops (`i = i + 1`), index arithmetic over
-parameters and genvars (`a[i+1]`), procedural `for` loop counters (`k++`), and
-constant functions evaluated at elaboration.
+bans `/ %`. EVERY task bans run-time `/ % **` (`ALWAYS_BANNED`, since
+2026-11-06, under the 2026-11-05 ruling that svGolf disallows a construct where
+Yosys departs from the standard): a zero divisor (or `0 ** -1`) makes an x from
+KNOWN operands (IEEE 1800 11.4.2), which ls-sv carries into a decision (`if (x)`
+takes the else branch) while Yosys builds a defined value there, and with a
+2-state destination IEEE itself defines the value (0) and Yosys builds another,
+so the scored circuit can differ from the proved one on the one input that
+divides by zero (the universal-correctness audit: `tests/clmul/attacks/
+div_zero_x.sv`, 2^-32 of the inputs, which the post-synthesis vectors miss).
+`task_banlist` adds them to every task's list; a task.json lists them too, so
+that every reader of the file sees the rule. A task that bans `+` or `-` also bans what `alumacc` builds from a
+run-time ordering comparison (`< <= > >=`): Yosys's adder, `$alu` (decided
+2026-11-05; the backstop below). Constant (elaboration-time) arithmetic stays
+allowed: parameter and localparam expressions, genvar loops (`i = i + 1`),
+index arithmetic over parameters and genvars (`a[i+1]`), procedural `for` loop
+counters (`k++`), and constant functions evaluated at elaboration.
 
 Two independent checks, both driven by the task's `banlist.operators`:
 
@@ -27,17 +39,32 @@ Two independent checks, both driven by the task's `banlist.operators`:
     variable only, by declaration location). Reports `file:line:col`.
 
 (b) BACKSTOP (Yosys, `backstop_check`): `proc; opt` at each given parameter
-    point, BEFORE `alumacc` (so comparisons, `$lt` and friends, stay allowed),
-    and rejects every cell of the banned operators' cell types (`$add $sub $neg
-    $mul $div $mod $divfloor $modfloor $pow`, plus the post-`alumacc` and
-    arithmetic-primitive types `$alu $macc $macc_v2 $lcu $fa`, which only appear
-    this early when instantiated directly). Constant arithmetic is folded by
-    Yosys before `proc` and leaves no cell. Reports the cell's `src` location.
+    point, and rejects every cell of the banned operators' cell types (`$add
+    $sub $neg $mul $div $mod $divfloor $modfloor $pow`, plus the post-`alumacc`
+    and arithmetic-primitive types `$alu $macc $macc_v2 $lcu $fa`, which only
+    appear this early when instantiated directly). Constant arithmetic is
+    folded by Yosys before `proc` and leaves no cell. Then, in a task whose
+    banlist includes `+` or `-` (decided 2026-11-05), it runs `alumacc` on the
+    same design and rejects every `$alu $macc $macc_v2 $lcu $fa` cell that
+    `alumacc` BUILT (one that was not there before it): a run-time ordering
+    comparison (`$lt $le $gt $ge`) becomes Yosys's adder (`$alu`, its own carry
+    logic) in tasks that ban `+` and `-`, so `a > ~b`, the carry out of `a + b`,
+    would otherwise smuggle the banned adder in. Equality (`== != === !==`,
+    `$eq $ne $eqx $nex`) stays allowed: `alumacc` builds no `$alu` for it (it
+    only merges it into an `$alu` that something else built), and comparisons
+    Yosys folds as constants (over parameters and genvars) leave no cell. A
+    comparator built from `& | ^ ~` stays allowed too. A task that bans
+    neither `+` nor `-` (the divider) does not run `alumacc`, so its
+    comparisons stay allowed. Reports the cell's `src` location (for a
+    lowered comparison, the comparison's own: `alumacc` keeps `src`).
 
 A design passes the banlist iff both checks pass. The backstop is the ground
 truth for what synthesis builds; the front check gives source locations and
 also covers code that the scoring point does not elaborate (a generate branch
-taken only at other parameter values).
+taken only at other parameter values). The front check does not look at
+comparisons: the ordering-comparison rule is the backstop's alone (it is about
+the cell Yosys builds, and Yosys removes a comparison whose result nothing
+reads before `alumacc` sees it).
 
 Both checks read the source gate's canonical text (`srcgate.py`: no
 preprocessor directives, attributes or synthesis pragmas; comments
@@ -51,7 +78,9 @@ that the loop body itself writes (`k = a[0];` inside the loop) is never
 constant. The system
 functions Yosys builds from `$add` chains (`$countones`, `$countbits`,
 `$onehot`, `$onehot0`, `$isunknown`) are banned with `+` when their argument
-is a run-time value.
+is a run-time value. The size queries `$bits(q)` and `$size(q)` of a signal
+`q` are constants (decided 2026-11-07: the argument is not read, IEEE
+1800-2023 §20.6.2, §20.7), so `$bits(q) / $bits(q)` is constant arithmetic.
 
 Usage:
   python3.12 score/banlist.py SOLUTION.sv --top T --ban + - '*' [--point N=16 ...]
@@ -90,6 +119,21 @@ OP_CELLS = {
 # (`\$alu u(...)`); banned whenever any of + - * is.
 ARITH_PRIMITIVES = ["$alu", "$macc", "$macc_v2", "$lcu", "$fa"]
 ALL_OPS = list(OP_CELLS)
+# Banned in EVERY task (since 2026-11-06; module docstring): a zero divisor or a negative exponent makes an x from
+# known operands, which ls-sv and Yosys resolve differently. `task_banlist` adds them to a task's own list.
+ALWAYS_BANNED = ["/", "%", "**"]
+ALWAYS_BANNED_WHY = ("every task bans run-time / % **: a zero divisor or a negative exponent makes an x from known "
+                     "operands, which ls-sv carries into decisions and Yosys builds as a defined value (README "
+                     "\"Rules\")")
+# the cells of the operators every task bans
+ALWAYS_BANNED_CELLS = sorted(c for op in ALWAYS_BANNED for c in OP_CELLS[op])
+# The run-time ordering comparisons, which `alumacc` lowers to an `$alu`
+# (Yosys's adder: measured with Yosys 0.53, 1-bit operands and a constant
+# operand included). Banned, through the cells `alumacc` builds, in a task
+# that bans `+` or `-` (decided 2026-11-05).
+ORDER_CMP_CELLS = ["$lt", "$le", "$gt", "$ge"]
+ORDER_CMP_WHY = ("a run-time ordering comparison becomes Yosys's adder ($alu) in tasks that ban "
+                 "+ and -")
 
 
 def banned_cells(ops):
@@ -99,6 +143,12 @@ def banned_cells(ops):
     if set(ops) & {"+", "-", "*"}:
         cells.update(ARITH_PRIMITIVES)
     return sorted(cells)
+
+
+def bans_order_comparisons(ops):
+    """Whether the backstop also runs `alumacc` and rejects the arithmetic
+    cells it builds: in a task that bans `+` or `-` (decided 2026-11-05)."""
+    return bool(set(ops) & {"+", "-"})
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +198,13 @@ ARITH_SYSCALLS = {"$countones": "+", "$countbits": "+", "$onehot": "+", "$onehot
 # `.or()`, `.xor()` are bitwise and stay allowed. Yosys 0.53 cannot read any
 # of them, but slang can, and a later Yosys may.
 ARRAY_METHODS = {"sum": "+", "product": "*"}
+# The size queries of a SIGNAL that are constants (decided 2026-11-07): `$bits(q)` and `$size(q)` of a fixed-size
+# signal are elaboration-time constants whose argument is not evaluated (IEEE 1800-2023 §20.6.2, §20.7), and ls-sv
+# folds them to literals (`Param.lean` `evalInt`; check/clocked_rules.py `CONST_SYSCALLS`), so the name inside is no
+# run-time read: `q + ($bits(q) / $bits(q))` divides two constants (tests/seq_counter/xsafe/t2_bits_div.sv, the
+# 2026-11-06 adversarial round's finding F3). Only a bare signal name as the first argument; any other argument
+# (`$bits(q[i])`, an expression) is still read as usual.
+CONST_QUERIES = ("$bits", "$size")
 
 
 class FrontCheck:
@@ -317,14 +374,25 @@ class FrontCheck:
 
     def _is_const(self, node, loopvars):
         """Every name read under `node` is elaboration-time; every call is a system
-        call or a user call whose arguments are themselves constant."""
-        for n in _visit_all(node, self.ast):
+        call or a user call whose arguments are themselves constant. The signal a
+        size query names (CONST_QUERIES: `$bits(q)`, `$size(q)`) is not read."""
+        nodes = _visit_all(node, self.ast)
+        queried = set()          # (buffer, offset) of the bare signal names CONST_QUERIES name
+        for n in nodes:
+            if _kind(n) == "Call" and n.isSystemCall and n.subroutineName in CONST_QUERIES and len(n.arguments) >= 1 \
+                    and _kind(n.arguments[0]) in ("NamedValue", "HierarchicalValue"):
+                start = n.arguments[0].sourceRange.start
+                queried.add((start.buffer.id, start.offset))
+        for n in nodes:
             k = _kind(n)
             if k in ("NamedValue", "HierarchicalValue"):
                 sk = str(n.symbol.kind).split(".")[-1]
                 if sk in CONST_SYMBOLS:
                     continue
                 if self._is_loop_var(n, loopvars):
+                    continue
+                start = n.sourceRange.start
+                if (start.buffer.id, start.offset) in queried:
                     continue
                 return False
             if k == "Call" and not n.isSystemCall:
@@ -416,7 +484,8 @@ class FrontCheck:
             f, line, col = self._loc(n)
             what = {"BinaryOp": f"binary `{op}`", "UnaryOp": "unary/inc-dec operator",
                     "Assignment": f"compound assignment `{op}=`"}[k]
-            self.findings[(f, line, col, op)] = f"{f}:{line}:{col}: banned run-time {what}"
+            self.findings[(f, line, col, op)] = (f"{f}:{line}:{col}: banned run-time {what}"
+                                                 + (f" ({ALWAYS_BANNED_WHY})" if op in ALWAYS_BANNED else ""))
 
 
 def front_check(sources, top, ops, points=()):
@@ -429,7 +498,7 @@ def front_check(sources, top, ops, points=()):
 
 
 # ---------------------------------------------------------------------------
-# (b) backstop: Yosys, after `proc; opt`, before `alumacc`
+# (b) backstop: Yosys, after `proc; opt`, and (a task banning + or -) after `alumacc`
 # ---------------------------------------------------------------------------
 
 BACKSTOP_SCRIPT = """\
@@ -439,21 +508,67 @@ proc
 opt
 write_json "{out}"
 """
+# appended in a task that bans + or -: the same design, one pass further
+BACKSTOP_ALUMACC = """\
+alumacc
+write_json "{out}"
+"""
+
+
+def _cells_by_module(net):
+    return {m: mod.get("cells", {}) for m, mod in net.get("modules", {}).items()}
+
+
+def alumacc_findings(pre, post, point, earlier=()):
+    """The cells `alumacc` BUILT, from the netlists before (`pre`) and after
+    (`post`) it: every `$alu $macc $macc_v2 $lcu $fa` cell of `post` whose
+    name is not a cell of the same module in `pre`. Reported as the run-time
+    ordering comparisons it lowered (the `$lt $le $gt $ge` cells of `pre` that
+    are gone from `post`), each at its own `src`; a built cell with no
+    lowered comparison behind it and no `earlier` finding (a banned cell
+    before `alumacc`, which is what it was built from) is reported itself, so
+    every built cell rejects."""
+    where = dict(point) or "defaults"
+    before, after = _cells_by_module(pre), _cells_by_module(post)
+    findings = []
+    for mname, cells in sorted(after.items()):
+        old = before.get(mname, {})
+        built = sorted(c for c, cell in cells.items()
+                       if cell.get("type") in ARITH_PRIMITIVES and c not in old)
+        if not built:
+            continue
+        lowered = sorted(c for c, cell in old.items()
+                         if cell.get("type") in ORDER_CMP_CELLS and c not in cells)
+        for c in lowered:
+            cell = old[c]
+            src = cell.get("attributes", {}).get("src", "?")
+            findings.append(f"{src}: banned run-time ordering comparison {cell['type']} (module "
+                            f"{mname}, at {where}): {ORDER_CMP_WHY}")
+        if not lowered and not earlier:
+            for c in built:
+                cell = cells[c]
+                src = cell.get("attributes", {}).get("src", "?")
+                findings.append(f"{src}: banned cell {cell['type']} built by alumacc (module {mname}, "
+                                f"at {where}): Yosys's arithmetic is banned in tasks that ban + and -")
+    return findings
 
 
 def backstop_check(sources, top, ops, points=(), yosys=None):
-    """Banned cells (list of str) after `proc; opt` at each point."""
+    """Banned cells (list of str) after `proc; opt` at each point, and, in a
+    task that bans `+` or `-`, the cells `alumacc` builds after it."""
     yosys = yosys or os.environ.get("SVGOLF_YOSYS") or "yosys"
     cells = set(banned_cells(ops))
+    order = bans_order_comparisons(ops)
     findings = []
     for point in (points or [{}]):
         workdir = tempfile.mkdtemp(prefix="svgolf-backstop-")
         try:
             out = os.path.join(workdir, "netlist.json")
+            out2 = os.path.join(workdir, "alumacc.json")
             script = BACKSTOP_SCRIPT.format(
                 reads="\n".join(f'read_verilog -sv "{os.path.abspath(s)}"' for s in sources),
                 top=top, chparam="".join(f" -chparam {k} {v}" for k, v in dict(point).items()),
-                out=out)
+                out=out) + (BACKSTOP_ALUMACC.format(out=out2) if order else "")
             with open(os.path.join(workdir, "b.ys"), "w") as fh:
                 fh.write(script)
             exe = shutil.which(yosys) or yosys
@@ -468,12 +583,18 @@ def backstop_check(sources, top, ops, points=(), yosys=None):
                 continue
             with open(out) as fh:
                 net = json.load(fh)
+            here = []
             for mname, mod in net.get("modules", {}).items():
                 for cname, cell in mod.get("cells", {}).items():
                     if cell.get("type") in cells:
                         src = cell.get("attributes", {}).get("src", "?")
-                        findings.append(f"{src}: banned cell {cell['type']} "
-                                        f"(module {mname}, at {dict(point) or 'defaults'})")
+                        here.append(f"{src}: banned cell {cell['type']} "
+                                    f"(module {mname}, at {dict(point) or 'defaults'})"
+                                    + (f": {ALWAYS_BANNED_WHY}" if cell["type"] in ALWAYS_BANNED_CELLS else ""))
+            if order:
+                with open(out2) as fh:
+                    here += alumacc_findings(net, json.load(fh), point, earlier=here)
+            findings += here
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
     return sorted(set(findings))
@@ -528,11 +649,14 @@ def check(sources, top, ops, points=(), yosys=None, gate=True):
 
 
 def task_banlist(task):
+    """(operators, backstop points) of a task: its `banlist.operators` plus ALWAYS_BANNED (every task bans run-time
+    / % **), in the task's order, then the ones it does not list."""
     b = task.get("banlist", {})
-    ops = b.get("operators", [])
+    ops = list(b.get("operators", []))
     for op in ops:
         if op not in OP_CELLS:
             raise SystemExit(f"task banlist: unknown operator {op!r} (known: {ALL_OPS})")
+    ops += [op for op in ALWAYS_BANNED if op not in ops]
     pts = task.get("backstop_points") or [task["scoring"]["params"]]
     return ops, [{k: int(v) for k, v in p.items()} for p in pts]
 
@@ -561,6 +685,10 @@ def selftest():
         # A counter the loop body writes is run-time (front check); Yosys
         # ignores the write and folds the loop, so the backstop passes it.
         ("bad_counter_written.sv", "bad_counter_written", False, True),
+        # The size queries of a signal are constants (CONST_QUERIES, 2026-11-07); a run-time operand beside one
+        # is not (a / 16 is a shift for Yosys: only the front check sees it).
+        ("ok_size_query.sv", "ok_size_query", True, True),
+        ("bad_size_query.sv", "bad_size_query", False, True),
     ]
     pts = [{"N": 16}]
     failures = 0
@@ -573,6 +701,27 @@ def selftest():
         print(f"[{'ok' if ok else 'FAIL'}] {f}: front {'pass' if not front else 'FLAG'}"
               f" {front[:2]}{' diags ' + str(diags) if diags else ''}; backstop"
               f" {'pass' if not back else 'FLAG'} {back[:2]}")
+    # Every task bans run-time / % ** (ALWAYS_BANNED): an empty task banlist gets them, a task's own list keeps its
+    # order, and a run-time division is flagged by both checks with the rule's reason.
+    ops0, _ = task_banlist({"banlist": {"operators": []}, "scoring": {"params": {}}})
+    ops1, _ = task_banlist({"banlist": {"operators": ["+", "-", "*"]}, "scoring": {"params": {}}})
+    src = [os.path.join(tests, "bad_div_any_task.sv")]
+    front, diags = front_check(src, "bad_div_any_task", ops0, pts)
+    back = backstop_check(src, "bad_div_any_task", ops0, pts)
+    ok = (ops0 == ["/", "%", "**"] and ops1 == ["+", "-", "*", "/", "%", "**"] and not diags
+          and len(front) == 1 and ALWAYS_BANNED_WHY in front[0] and back and ALWAYS_BANNED_WHY in back[0])
+    failures += not ok
+    print(f"[{'ok' if ok else 'FAIL'}] bad_div_any_task.sv (a task that bans nothing): ops {ops0}; front "
+          f"{front[:1]}; backstop {back[:1]}")
+    # The real fixture of the size-query rule (CONST_QUERIES): the counter plus `$bits(q) / $bits(q)` passes the
+    # operators every task bans (ALWAYS_BANNED), at N = 1 and 8.
+    src = [os.path.join(os.path.dirname(HERE), "tests", "seq_counter", "xsafe", "t2_bits_div.sv")]
+    front, diags = front_check(src, "cnt", ALWAYS_BANNED, [{"N": 1}, {"N": 8}])
+    back = backstop_check(src, "cnt", ALWAYS_BANNED, [{"N": 1}, {"N": 8}])
+    ok = not front and not diags and not back
+    failures += not ok
+    print(f"[{'ok' if ok else 'FAIL'}] tests/seq_counter/xsafe/t2_bits_div.sv (ban / % **): front {front} {diags}; "
+          f"backstop {back}")
     # The divider banlist (/ %) on a constant function that divides: allowed.
     src = [os.path.join(tests, "ok_constfn.sv")]
     front, diags = front_check(src, "ok_constfn", ["/", "%"], pts)
@@ -641,6 +790,49 @@ def selftest():
         ok = bool(back)
         failures += not ok
         print(f"[{'ok' if ok else 'FAIL'}] backstop alone flags {f}: {back[:1]}")
+    # Run-time ORDERING comparisons (decided 2026-11-05): in a task that bans + or -,
+    # the backstop runs `alumacc` and rejects the $alu it builds for each one, at the
+    # comparison's own source line; the front check does not look at comparisons.
+    # (file, top, ops, want: the source lines the backstop names, sorted; [] = it passes)
+    cmp_cases = (
+        ("bad_cmp_gt.sv", "bad_cmp_gt", arith, [9, 10]),               # multi-bit, and against 5
+        ("bad_cmp_1bit.sv", "bad_cmp_1bit", arith, [7]),               # 1-bit operands
+        ("bad_cmp_gt.sv", "bad_cmp_gt", ["+"], [9, 10]),               # + alone triggers it
+        ("bad_cmp_gt.sv", "bad_cmp_gt", ["-"], [9, 10]),               # - alone too
+        ("bad_cmp_gt.sv", "bad_cmp_gt", ["+", "-", "*"], [9, 10]),     # clmul's banlist
+        ("ok_cmp_eq.sv", "ok_cmp_eq", arith, []),                      # == != === !== stay
+        ("ok_cmp_const.sv", "ok_cmp_const", arith, []),                # folded as constants
+        ("bad_cmp_gt.sv", "bad_cmp_gt", ["/", "%", "**"], []),         # fdivp's: no + nor -
+        ("bad_cmp_gt.sv", "bad_cmp_gt", ["*"], []),                    # * alone: no alumacc
+    )
+    for f, top, ops, want in cmp_cases:
+        src = [os.path.join(tests, f)]
+        front, diags = front_check(src, top, ops, pts)
+        back = backstop_check(src, top, ops, pts)
+        lines = sorted(int(b.split(":")[1].split(".")[0]) for b in back)
+        ok = (not front and not diags and lines == want
+              and all(ORDER_CMP_WHY in b and f"{f}:" in b for b in back))
+        failures += not ok
+        print(f"[{'ok' if ok else 'FAIL'}] {f} (ban {' '.join(ops)}): front {front} {diags}; "
+              f"backstop lines {lines} (want {want}) {back[:1]}")
+    # A banned `-` merged with a comparison on the same operands into one $alu: the
+    # $sub is flagged before alumacc, the comparison after it, at its own line.
+    back = backstop_check([os.path.join(tests, "bad_cmp_merged.sv")], "bad_cmp_merged", arith, pts)
+    ok = (len(back) == 2 and any("banned cell $sub" in b and ".sv:9." in b for b in back)
+          and any(ORDER_CMP_WHY in b and "$lt" in b and ".sv:10." in b for b in back))
+    failures += not ok
+    print(f"[{'ok' if ok else 'FAIL'}] bad_cmp_merged.sv: backstop {back}")
+    # The adder whose every carry is a comparison (tests/add/baselines/cmp_carry.sv) at
+    # add's scoring point: rejected through check(), at its comparison's line.
+    probe = os.path.join(os.path.dirname(HERE), "tests", "add", "baselines", "cmp_carry.sv")
+    with open(probe) as fh:
+        line = next(k for k, ln in enumerate(fh, 1) if "assign c[i] = (a[i-1:0] > ~b[i-1:0])" in ln)
+    res = check([probe], "add_n", arith, pts)
+    ok = (not res["passed"] and not res["front"] and bool(res["backstop"])
+          and all(ORDER_CMP_WHY in b and b.startswith(f"{probe}:{line}.") for b in res["backstop"]))
+    failures += not ok
+    print(f"[{'ok' if ok else 'FAIL'}] cmp_carry.sv (add's banlist, N = 16): {len(res['backstop'])} "
+          f"findings, front {res['front']}: {res['backstop'][:1]}")
     # `check()` gates the source first: an `ifdef SYNTHESIS` design is
     # rejected before either check runs (pyslang and Yosys would read
     # different programs).

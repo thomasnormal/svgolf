@@ -250,7 +250,7 @@
 /* A pixel frame: a ring of four shadows one --px wide that leaves the corner pixels out, and a lip
    of three more under it (the box seen from a little above). --pl and --ps colour them. No border,
    no radius; the shadows take no room, so a framed box keeps its margins clear of them. */
-.pixel, .card, .task-card, .loop > li, .mcard, .props, .hero, .hero-stats, .btn, .site-nav,
+.pixel, .card, .task-card, .loop > li, .mcard, .props, .hero, .btn, .site-nav,
 .chart-tip, ul.roadmap > li, .empty {
   border: 0;
   border-radius: 0;
@@ -852,22 +852,33 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
   content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 4px;
   background: repeating-linear-gradient(90deg, var(--px-grass) 0 8px, transparent 8px 20px, var(--px-grass) 20px 24px, transparent 24px 32px);
 }
-/* the numbers: a white pixel panel, an icon beside each */
-.hero-stats {
-  --px: 3px; --pl: var(--px-ink); --ps: var(--px-grass-lo);
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0 auto; max-width: 60rem;
-  padding: var(--sp-3) 0;
-  /* two dashed dividers between the three numbers */
-  background:
-    repeating-linear-gradient(var(--border-strong) 0 6px, transparent 6px 12px) 33.4% 50% / 3px 70% no-repeat,
-    repeating-linear-gradient(var(--border-strong) 0 6px, transparent 6px 12px) 66.6% 50% / 3px 70% no-repeat,
-    var(--surface);
+/* the home page: the hero compact (the title on one line, the buttons under the lead, the drawing small, no grass
+   strip); the note on par and record under the task cards; after them (decided 2026-11-06), the steps on the adder
+   in two columns (step 1, the design, on the left; the proof and the check on the right) */
+.hero-compact { margin-bottom: var(--sp-4); }
+.hero-compact .hero-sky { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); padding-top: var(--sp-4); }
+.hero-compact .hero-text { padding-bottom: var(--sp-4); }
+.hero-compact h1 { font-size: clamp(1.7rem, 2.6vw, 2.2rem); margin-bottom: var(--sp-2); }
+.hero-compact h1 .accent { display: inline; }
+.hero-compact .hero-lead { max-width: 52rem; font-size: var(--fs-base); }
+.hero-compact .btn-row { margin-top: var(--sp-4); }
+.hero-compact .hero-art .px { width: 260px; }
+.how { margin: 0 var(--px) var(--sp-5); }
+.how > h2 { font-size: var(--fs-lg); margin: var(--sp-6) 0 var(--sp-4); }
+.how-steps { list-style: none; counter-reset: how; padding: 0; margin: 0; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; gap: var(--sp-2) var(--sp-5); }
+.how-steps > li { counter-increment: how; font-size: var(--fs-sm); min-width: 0; margin: 0; }
+.how-steps > li:first-child { grid-row: span 2; }
+.how-steps > li > p:first-child::before { content: counter(how) ". "; font-weight: 800; }
+.how-steps > li p { margin: 0 0 var(--sp-1); }
+.how pre.code { font-size: 12px; line-height: 1.3; margin: 0 0 var(--sp-2); white-space: pre-wrap; }
+.how > p { font-size: var(--fs-sm); margin: var(--sp-2) 0 0; }
+@media (max-width: 56rem) {
+  .hero-compact .hero-sky { grid-template-columns: minmax(0, 1fr); padding-right: var(--sp-4); }
+  .hero-compact .hero-art { display: none; }
+  .how-steps { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .how-steps > li:first-child { grid-row: auto; }
 }
-.hero-stats .stat { position: relative; justify-self: center; display: flex; flex-direction: column-reverse; justify-content: center; text-align: left;
-  min-height: 3.6rem; padding: 0 var(--sp-2) 0 calc(36px + var(--sp-3)); }
-.hero-stats .stat dt { font: 700 var(--fs-sm)/1.3 var(--font-display); letter-spacing: 0; text-transform: none; color: var(--text-2); }
-.hero-stats .stat dd { font: 800 var(--fs-stat)/1.1 var(--font-display); }
-.hero-stats .ico { position: absolute; left: 0; top: 50%; width: 36px; height: 36px; margin-top: -18px; }
 
 /* the art's colours (pixelart.INKS): the theme's tokens */
 .px-k { fill: var(--px-ink); }
@@ -913,7 +924,7 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 .course > .section-head { margin-top: 0; }
 .course > .section-head h2 { font-size: var(--fs-xl); }
 .course > .section-head > div { flex: 0 0 auto; }
-.course > .section-head > p { flex: 1 1 24rem; }
+.course-note { margin: var(--sp-5) var(--px) 0; color: var(--text-2); font-size: var(--fs-sm); max-width: 60rem; }
 
 .task-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: calc(var(--sp-4) + 6px) var(--sp-4); }
 .task-card { margin: 0 var(--px); position: relative; display: flex; flex-direction: column; gap: var(--sp-3); background: var(--surface); padding: var(--sp-5); transition: transform 0.12s; }
@@ -1180,11 +1191,6 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   /* the drawing cut to its right side (pixelart.scene's slice): the chip, the ball, the flag */
   .hero-art .px { width: 100%; aspect-ratio: 94 / 66; }
   .hero-ground { padding: var(--sp-4) var(--sp-3); }
-  .hero-stats { padding: var(--sp-2) 0; }
-  .hero-stats .stat { justify-self: stretch; padding: 30px var(--sp-1) 0; min-height: 0; text-align: center; align-items: center; }
-  .hero-stats .stat dt { font-size: var(--fs-xs); }
-  .hero-stats .stat dd { font-size: 1.4rem; }
-  .hero-stats .ico { left: 50%; top: 0; margin: 0 0 0 -12px; width: 24px; height: 24px; }
   .course { padding: var(--sp-4) var(--sp-3) calc(var(--sp-5) + 18px); border-width: 2px; }
   .course > .section-head h2 { font-size: var(--fs-lg); }
   .task-card { padding: var(--sp-4); }
@@ -1230,7 +1236,7 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   .m-baseline, .m-reference-ring, .m-banned, .frontier { stroke: CanvasText; }
   .badge::before, .bar > span { background: CanvasText; }
   /* the pixel frames are shadows, which forced colours drop: a plain border instead */
-  .card, .task-card, .loop > li, .mcard, .props, .hero, .hero-stats, .btn, .site-nav, .chart-tip, ul.roadmap > li,
+  .card, .task-card, .loop > li, .mcard, .props, .hero, .btn, .site-nav, .chart-tip, ul.roadmap > li,
   .empty, .badge, .seg, .toc a, .page-head > .stats, .page-head > #numbers > .stats { border: 2px solid CanvasText; }
   .page-head { border-bottom: 3px solid CanvasText; }
   .site-nav a[aria-current="page"], .seg > [aria-pressed="true"], .seg > .on {

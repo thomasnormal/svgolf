@@ -5,15 +5,23 @@ hardware. For each task you:
 
 1. write a circuit in SystemVerilog;
 2. prove in Lean that it meets the task's **trusted statement**, under the
-   ls-sv semantics of [lean-surfaces](https://github.com/thomasnormal/lean-surfaces/tree/01945ccf28bb1f95347ebabe9704adbd32e4e045) (the sv-0.2 tier: `load_design_sv2`,
+   ls-sv semantics of [lean-surfaces](https://github.com/thomasnormal/lean-surfaces/tree/bb5e58e00a6373562e7e31aed059b30befeca461) (the sv-0.2 tier: `load_design_sv2`,
    `run2`, the `⊨₂` judgment and `Terminates2`);
 3. get scored by a pinned synthesis flow, weighed on the sky130 standard
-   cells (flow A0'): **area** in um^2 and **time** in ps (the critical-path
-   delay; on a clocked task, cycles x the clock period). Smaller is better
-   on both; the leaderboard keeps their Pareto frontier
-   ([Leaderboard](#leaderboard)). Area in NAND2 gate equivalents and depth
-   in gates are extra columns. Every number can be reproduced bit for bit
-   ("Reproduce a score" under [Scoring](#scoring)).
+   cells (flow A0'). The one ranked number is **area x time**: the cell area
+   in um^2 times the critical-path delay (on a clocked task, cycles x the
+   clock period), in um2*ns, lower is better (decided 11/05; [Scoring](#scoring)).
+   Par, the record and "under par" use it; to beat par is to be accepted
+   with a smaller area x time than the task's best proved reference. The
+   Pareto frontier of area and time, area in NAND2 gate equivalents, depth
+   in gates and the other flows are exploration columns. Every number can
+   be reproduced bit for bit ("Reproduce a score" under [Scoring](#scoring)).
+
+**Read these, in this order:** a task's `tasks/<name>/README.md` (`tasks/_example/` is the tutorial,
+`tasks/add/` the first real task: the statement, what is banned, par); [Quick start](#quick-start)
+(Step 0, the inner loop, the three commands); [Submitting](#submitting) (the two files and the Lean
+contract); [PROVING.md](PROVING.md) sections 0 to 2 (the loop, the shape of a proof, the adder); then
+the rest of this file as you need it.
 
 A proof that a circuit is correct is worth nothing if the statement can be
 met without computing anything, so the statements, the checker and the
@@ -27,24 +35,77 @@ which never will be: [REFUSALS.md](REFUSALS.md) (generated from
 
 ## Quick start
 
+**Step 0, once per machine.** Install [elan](https://github.com/leanprover/elan) (it installs the Lean
+toolchain that `lean-toolchain` pins, `leanprover/lean4:v4.33.0-rc1`, on first use), Yosys 0.53 with its
+`yosys-abc` (the pinned flow), Verilator 5 and Python 3.12. Then:
+
+```bash
+python3.12 -m pip install -r requirements.txt   # pyslang 11.0.0, the extractor's SystemVerilog frontend
+lake build                                      # the trusted Lean and the checker's evaluator ("Building")
+python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty (12.8 MB, checked by its hash)
+```
+
+The first `lake build` of a clone of the public repository takes about 6 minutes and 1 GB: Lake clones
+lean-surfaces and its packages from github.com (it needs network access there) and builds the
+`LeanModels.Sv` modules svGolf uses; Mathlib is cloned, never built. Before it, `check.py` stops with an
+infrastructure error that names the missing extractor.
+
+**The three commands.** A submission is `solution.sv` and `Solution.lean` (any names and paths;
+"Submitting" says what the Lean file must contain):
+
 ```bash
 # in a clone of this repository, from its root
-# 1. is the design admissible, and what does it score? (15 s, no proof needed, never accepts)
-python3.12 check.py tasks/add my_adder.sv --unproved
+# 1. is the design admissible, and is it right on the task's oracle? (15 s, no proof needed, never accepts;
+#    exits 0 when every stage passed, and its last line on stderr is the ranked area x time with par)
+python3.12 check.py tasks/add solution.sv --unproved
 # 2. prove it: PROVING.md (the loop, the tactics, two worked references) -- then the real check (about a minute;
 #    its post-synthesis stage runs LIGHT by default, a few seconds: local feedback, see "Checking")
-python3.12 check.py tasks/add my_adder.sv MyAdder.lean
-# 3. record it on YOUR machine (re-runs the check IN FULL MODE: the leaderboard's artifacts are never light;
-#    see "Leaderboard" for what the record is, and for what it is not yet)
-python3 leaderboard/leaderboard.py add --task add --player alice --sv my_adder.sv --lean MyAdder.lean \
-    --data-dir ./my-records
+python3.12 check.py tasks/add solution.sv Solution.lean
+# 3. record it (re-runs the check IN FULL MODE, in the OS sandbox: the leaderboard's artifacts are never light).
+#    It writes leaderboard/data/add/, the directory a pull request adds; add --data-dir DIR for a private trial
+python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
+    --sv solution.sv --lean Solution.lean
 ```
+
+**The golfing inner loop** needs no Lean and takes about 2 seconds:
+
+```bash
+python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped          # the ranked area and delay
+python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped --path   # ... and the critical path, net by net
+```
+
+It runs the source gate and the pinned flow and prints `ppa.area_um2_sky130` and `ppa.delay_ps_sky130`, whose
+product is the ranked number (`--no-mapped` leaves out the extra flow A1'). It does not check the banlist,
+the 4-state rules, whether ls-sv can read the design, the post-synthesis simulation or the task's function,
+and it needs no proof: run `--unproved` before you prove.
 
 Start from a task's own `tasks/<name>/README.md`: it states the task, what is banned, and links the
 reference design and its proof. If your Lean wrapper is not the default (a shared machine), set
-`SVGOLF_LEAN_WRAP` once; `check.py` and `leaderboard.py` both read it.
+`SVGOLF_LEAN_WRAP` once; `check.py` and `leaderboard.py` both read it, and `SVGOLF_LEAN_WRAP_ONCE=1`
+makes `check.py` take the wrapper once for the whole run instead of once per `lake`/`lean` call.
 
 ## Rules
+
+**Universal task correctness** (decided 2026-11-05). A candidate implementation is
+valid if, for every admissible initial state, external input sequence, and
+nondeterministic choice permitted by its execution semantics, the resulting
+observable behaviour satisfies the task specification.
+
+* The specification may permit several outputs or execution traces, including
+  approximate results.
+* Nondeterministic choices need not produce identical outcomes; each must only
+  produce a permitted one.
+* The proof must account for every admissible choice (an unknown value's 0/1
+  resolution, the order of simultaneous events, how independent clocks
+  interleave, how a synchronizer's metastable bit resolves) and preserve the
+  correlations and timing constraints the semantics fixes (one power-up value
+  per register, inputs stable around their own clock edge).
+* A failed or incomplete proof does not establish validity: a timeout, a
+  refusal or an unsupported construct is a rejection, never a pass.
+
+So whatever value or order the synthesizer, the silicon or the environment
+picks is one of the cases already proved, and the real behaviour refines the
+proof.
 
 * **Proofs are symbolic and parametric.** When a task is n-bit, the
   statement covers every `N` in the task's range, and so must the proof:
@@ -53,6 +114,11 @@ reference design and its proof. If your Lean wrapper is not the default (a share
   the checker declines to sandbox (decided 2026-11-01; "`bv_decide`" below).
   Use `decide +kernel`, `omega`, `simp` or a symbolic argument. `native_decide`
   is banned. `sorry` and `admit` never pass (the axiom check rejects `sorryAx`).
+* **Proof time limit.** 300 s of CPU time of the Lean process for every task
+  (decided 2026-11-06), with a wall-clock backstop of 5 times it, 1500 s. It is
+  300 because CPU seconds count every elaboration thread: the limit was 120
+  wall-clock seconds, and an honest proof uses about 2.3 CPU seconds per
+  wall-clock second ("Proof effort").
 * **Axioms.** Only the task's `allowed_axioms` (normally `propext`,
   `Classical.choice`, `Quot.sound`). No new axioms, no `extern` or
   `implemented_by`: an `axiom` of your own, the axioms `native_decide` and
@@ -60,12 +126,29 @@ reference design and its proof. If your Lean wrapper is not the default (a share
 * **Banned operators, per task.** A task bans the run-time operator that IS
   the task, and anything Yosys turns into the same cell: the adder and
   multiplier tasks ban `+ - * / % **` (Yosys's `alumacc` merges `+` chains
-  into the same `$macc` cell as `*`); the divider bans `/ %`. Constant
+  into the same `$macc` cell as `*`); the divider bans `/ %`. **Every task
+  bans run-time `/ % **`** (since 2026-11-06, under the 2026-11-05 ruling
+  below that svGolf disallows a construct where Yosys departs from the
+  standard): a zero divisor, or `0 ** -1`, makes an x from KNOWN operands,
+  which ls-sv carries into a decision (the else branch of `if (x)`) while
+  Yosys builds a defined value there, and with a 2-state destination IEEE
+  itself defines the value (0) and Yosys builds another
+  (`tests/clmul/attacks/div_zero_x.sv`: the right product everywhere in
+  ls-sv, p[0] flipped in the netlist on one input pair in 2^32, which the
+  post-synthesis vectors miss); `score/banlist.py` adds them to every task's
+  list (`ALWAYS_BANNED`) and says why in its message. A task that
+  bans `+` or `-` also bans run-time ordering comparisons `< <= > >=`
+  (decided 2026-11-05): Yosys builds each as its own adder, an `$alu`, so
+  the banlist rejects every `$alu` that `alumacc` builds; equality and
+  comparisons over parameters stay allowed. Constant
   arithmetic stays allowed: parameter expressions, genvar loops (the step
   may be `i++`, `i--`, `i = i + 1`, `i += 1`, `i = 1 + i`, `i = i - 1` or `i -= 1`;
   any other step such as `i += 2` or `i = i + K` is refused at the `design`
-  stage), index arithmetic over parameters and genvars (`a[i+1]`),
-  procedural `for` counters (`k++`), constant functions.
+  stage; `i = i + 1` reaches the `sv_comb` tactics as `i++`, measured:
+  PROVING.md, section 4), index arithmetic over parameters and genvars (`a[i+1]`),
+  procedural `for` counters (`k++`), constant functions, and the size queries
+  `$bits(q)` and `$size(q)` of a signal, which do not read it (since 2026-11-07:
+  `$bits(q) / $bits(q)` is constant).
 * **One program for both tools (the source gate).** The proof is about the
   design the extractor reads (through slang); the score is about the design
   Yosys reads. The checker makes them ONE text: it refuses preprocessor
@@ -126,12 +209,19 @@ reference design and its proof. If your Lean wrapper is not the default (a share
   `2'b1z` on `{a[0], cin}` match no input in ls-sv and EVERY input in
   Yosys, so the default arm ls-sv runs is dead logic in the netlist, and the
   scored arms can differ from it on one input pair in 2^32). Every SOURCE
-  of an x or z is therefore refused, exactly:
+  of an x or z the checker knows is therefore refused statically, at the
+  parameter points it probes (the scoring point and the task's probe and
+  backstop points; what that leaves open is in "Checker v0 limits", "The x
+  rules are decided at the probed points"):
   * the source gate refuses every `x`, `z` or `?` digit in a literal
     (`1'bz`, `4'b10x0`, `'x`, `'z`), except the wildcard digits of a `casez`
     item (`z`, `?`) and of a `casex` item (`x`, `z`, `?`), where both tools
     agree they match anything. No `'x` don't-care assignments either;
-  * the `fourstate` stage (`score/fourstate.py`, at the scoring point)
+  * the `fourstate` stage (`score/fourstate.py`, at every point the checker
+    probes: the scoring point, then the task's probe and backstop points,
+    since 2026-11-06; before, at the scoring point only, while the statement
+    covers every `N` in range: the audit's `tests/_example/attacks/
+    undriven_offpoint.sv` is undriven only away from `N = 16`)
     refuses a parameter or constant expression with unknown bits (`1 / 0`
     is not banned as constant arithmetic, but it is x), a constant index or
     range outside the declared range, a run-time index whose type lets it
@@ -148,8 +238,11 @@ reference design and its proof. If your Lean wrapper is not the default (a share
     port, an `always` without timing control. The verdict uses the slang
     driver's own severities and cannot be downgraded by a pragma
     (`tests/add/attacks/slang_*.sv`).
-  Three x sources have no rule yet because nothing can reach them today:
-  run-time `/` and `%` (x on a zero divisor) are banned by every task; a
+  Three x sources have no rule here because nothing can reach them today:
+  run-time `/`, `%` and `**` (x on a zero divisor or a negative exponent) are
+  banned by every task, through the banlist, since 2026-11-06 (before, `clmul`,
+  `aes_sbox`, `matmul` and `sorter` admitted them, and no rule refused the x a
+  zero divisor makes: the universal-correctness audit); a
   function-local variable or return value read before it is assigned
   needs user function calls, which ls-sv does not have (such a design loads
   with an Unsupported node and is rejected at the `design` stage:
@@ -159,9 +252,53 @@ reference design and its proof. If your Lean wrapper is not the default (a share
   of `score/fourstate.py` (`proc` inferred a latch; `latch_never.sv`,
   `latch_star.sv`, rejected at the `fourstate` stage). A task that admits the first, or
   an ls-sv PR that adds a latch construct, needs its own rule first.
+* **A reactive task (`kind` `react-family`: the `arbiter`) is clocked**, and these
+  rules come with it (the statement `ReactTask`, `SvGolf/TaskReact.lean`; the
+  task's README gives the reasons):
+  * one clock, the task's `clock`, on its rising edge, and a synchronous reset,
+    the task's `reset` port. The source gate refuses an asynchronous reset, a
+    `negedge` clock and an `iff` guard, which the loader would drop;
+  * Moore outputs (`MooreOut`): no combinational path from an input port, the
+    reset included, to an output port, so register every output. What a
+    snapshot shows is on the wire for the whole next clock period;
+  * every power-up state: the claims hold from every 0/1 power-up value of every
+    register and variable, 2-state ones included, the first reset edge
+    included, so a register that is never reset may only hold a value that does
+    not matter. A register that is never loaded (`u <= u`), which the pinned
+    flow removes while reads of it remain, is refused at the `score` stage;
+  * no construct that can create an `x` from known operands (`XSafe`): the
+    `clocked_rules` stage checks it before the proof (`check/clocked_rules.py`);
+  * no latency: one decision per cycle, and a `-- svgolf-latency:` line is
+    refused. The time is the register-to-register period of the clocked flow
+    (`score/svgolf_seq.ys`, `score/ppa.py --seq`), the area includes the
+    flip-flops ("Scoring");
+  * the post-synthesis check is reactive: at each of the task's post-synthesis
+    points the scored netlist runs from power-up states through the task
+    oracle's segments, each a reset entry and then entries with `rst` = 0, the
+    last one 70000 entries long without a reset. It rejects unless the netlist
+    equals ls-sv from the all-zeros start, every grant meets the guarantee on
+    the netlist at every seed, and the outputs sampled before each rising edge
+    equal the previous snapshot (the Moore sample).
 * **No other restrictions.** Any SystemVerilog that passes these rules and
   that ls-sv and Yosys accept is fair game. Where ls-sv and Yosys disagree on
   what the same text means, that is a bug report we want, not an exploit.
+* **IEEE 1800 is the final arbiter for defined values** (decided 2026-11-05).
+  ls-sv follows the standard, never a tool. Where the pinned flow (Yosys and
+  ABC) reads a construct differently from the standard, ls-sv does not change:
+  svGolf disallows that construct in submissions instead (the source gate, the
+  banlist or the `fourstate` rules, as with the latch and x/z cases above).
+  An unknown is not a third value: an x stands for a bit whose 0/1 value is
+  not known (IEEE 1800 §6.3.1), so a proof must hold for every resolution of
+  it, as formal tools treat x; a simulator's resolution (the else branch of
+  `if (x)`) is not the semantics. That is the rule; the trusted statement
+  does not state it yet. It is stated over ls-sv's `run2`, which resolves an
+  x the way a simulator does (`if (x)` takes the else branch, an x `case`
+  subject matches nothing), so a design in which an x reaches a decision can
+  satisfy the statement (`tests/_example/attacks/undriven_mux.sv` and
+  `oob_rare.sv` do). Until ls-sv's every-resolution semantics lands (planned,
+  not built), validity therefore rests also on the Python x-source rules (the
+  source gate, the banlist and the `fourstate` stage), which are part of the
+  trusted base, not only defence in depth.
 * **The post-synthesis check backs this up** (the checker's `postsynth`
   stage, `check/postsynth.py`). The proof is about ls-sv's reading of the
   design, the score about the netlist Yosys built from the same text. After
@@ -213,9 +350,11 @@ reference design and its proof. If your Lean wrapper is not the default (a share
 
   It is sampling, not proof: a difference confined to a rare input region
   that no constant comparison selects slips through (see "Checker v0
-  limits"). That is why the known disagreements are refused statically, and
-  exactly, before any proof is tried (the source gate's `unique`/`priority`
-  and x/z-literal refusals, the 4-state rules); the post-synthesis check is
+  limits"). That is why the known disagreements are refused statically
+  before any proof is tried (the source gate's `unique`/`priority` and
+  x/z-literal refusals, which are lexical and hold at every `N`; the banlist's
+  run-time `/ % **`; the 4-state rules, at the points the checker probes);
+  the post-synthesis check is
   the backstop for the ones nobody has found yet (a Yosys or ls-sv bug).
   Measured on `tests/<task>/attacks/` with the static rules bypassed
   (`postsynth_alone` in `tests/expected.json`): it rejects a `1'bz`/`1'bx`
@@ -233,18 +372,26 @@ reference design and its proof. If your Lean wrapper is not the default (a share
   stood between them and a 0 GE entry). For competition runs, set a secret
   `SVGOLF_POSTSYNTH_SALT` so that a player cannot predict the random
   vectors (the seed is recorded either way, so a run stays reproducible
-  afterwards).
+  afterwards). A clocked task's check (F5, decided 2026-11-07) runs 8 seeds
+  per point and derives EVERYTHING random in a seed's run from the salt and
+  records it: the stimulus or transaction source, Verilator's `randSeed` (the
+  netlist's random power-up) and ls-sv's power-up `seed:<k>`.
 * **Scoring** is `score/score.py` with the pinned two-stage flow
   (`score/canon.ys`, then `score/svgolf.ys` in a fresh Yosys process) and the
-  pinned table `score/ge.json`, at the task's scoring point (e.g. `N = 16`).
-  The score depends on the circuit's expression structure, not on its
-  layout or names. Reordering module items has not moved a score in the
-  adder, multiplier and divider references, but it does for a flat netlist
-  of many assigns (`aes_sbox`: 198.986 to 209.321 GE across statement orders
-  of one circuit; `tasks/aes_sbox/README.md`, Findings), so it is not
-  guaranteed not to (the canonical RTLIL is numbered differently), and swapping the operands of a commutative operator
-  does change it. This is accepted (decided 2026-10-31): the score is a function of the file as submitted, and a golfer
-  searches statement orders with the pinned flow before submitting. Not every structural choice survives synthesis, though:
+  pinned table `score/ge.json`, at the task's scoring point (e.g. `N = 16`),
+  and `score/ppa.py` weighs that netlist for the ranked numbers ("Scoring").
+  The score is a deterministic function of the file as submitted: names,
+  comments, blank lines, whitespace and the file name never change it (stage
+  1 erases them), while the order of an operator's operands, how a chain of
+  gates is grouped, gate forms and the order of independent statements do,
+  always the same way (measured 2026-11-05: reordering the 113 assigns of
+  `aes_sbox`'s reference moved its delay by up to 17.7%, and moving one
+  generate block of a proved multiplier ahead of another moved its area 12.6%
+  and its delay 41%), because ABC's choices follow the order of the gates it
+  reads. None of these changes what the circuit computes, which IEEE 1800
+  decides (above); they change only the netlist the pinned flow builds.
+  Trying them is golf (decided 2026-10-31 and 2026-11-05): a golfer searches
+  gate forms and statement orders with the pinned flow before submitting. Not every structural choice survives synthesis, though:
   ABC re-derives the logic, and some RTL carry-structure choices (a final
   adder that steps two bits at a time instead of one, in the dry run) score
   identically to the milli-GE. Score a block standalone with `score/score.py`
@@ -278,7 +425,7 @@ svgolf/
                                     stages) and score/ge.json are pinned
   score/srcgate.py                  the source gate (one program for slang and Yosys)
   score/banlist.py                  the operator banlist (pyslang + Yosys backstop)
-  score/fourstate.py                the 4-state rules (no x or z value can arise)
+  score/fourstate.py                the 4-state rules (no x or z value can arise at the probed points)
   score/ppa.py, score/ppa_pins.json  the EXTRA sky130 columns (area um^2, delay ps) of the scored
   score/ppa_mapped.ys,              netlist (flow A0') and of its real `abc -liberty` mapping
   score/ppa_mapped_pins.json        (flow A1', the pinned Yosys script and its pins), recorded by
@@ -406,13 +553,13 @@ README, gate mix included, which baselines the banlist rejects) are in
 | `banlist` | `{operators}`: banned run-time operators, from `+ - * / % **` |
 | `probe_points` | parameter points for the extractor's multi-point cross-check (`--probe-points`), also used by the banlist front check; the checker always adds the scoring point and the backstop points |
 | `scoring` | `{params, depth_budget}`: the scoring point, and a depth budget (`null` = none; a depth over budget rejects) |
-| `leaderboard` | optional, `{depth_budget}`: a depth budget for the leaderboard only (positive integer, `null` or absent = none). The board then also ranks the best area under it and flags the entries over it; nothing is rejected (that is `scoring.depth_budget`). See "Leaderboard" |
+| `leaderboard` | optional, `{depth_budget}`: a depth budget for the leaderboard only (positive integer, `null` or absent = none). The board then also ranks the best area x time under it and flags the entries over it; nothing is rejected (that is `scoring.depth_budget`). See "Leaderboard" |
 | `backstop_points` | parameter points for the Yosys banlist backstop (default: the scoring point) |
 | `allowed_axioms`, `allow_bv_decide` | the axiom policy: the axioms a proof may use, and `bv_decide`'s switch. `bv_decide` is not supported (see "`bv_decide`"): absent or `false` forbids it, `true` is an infrastructure error ("the checker does not support external SAT solvers"), and so is a non-boolean. The shipped tasks say `false` |
 | `postsynth` | the post-synthesis check's budget (optional; defaults in brackets): `random` [1000] seeded random vectors, `corners` [{}] `{input: [values]}` whose cartesian product is checked (an input without values: 0 and all-1), `harvest_pairs` [2000] compatible pairs of harvested comparison constants, `light_vectors` [256] the most vectors the LIGHT mode runs (set from the reference's ls-sv cost per vector: `mul` has 40), `fuel` [100000] `run2`'s fuel per run, `time_limit_s` [900] a fail-closed cap on the ls-sv evaluation. Counts, not a time budget, decide what is checked, so a result does not depend on the machine |
 | `oracle` | optional, `"oracle.py"`: a Python ORACLE of the task's function in the task directory, `def oracle(params: dict, inputs: dict) -> dict` (`params`: the point the `postsynth` stage evaluates at, e.g. `{"N": 16}`, `{}` for a fixed-size task; `inputs`: input port name to int; result: output port name to int, already masked to the output's width). With one, the `postsynth` stage also compares ls-sv's outputs on every vector it already uses with the oracle's and reports `functional` and, on a mismatch, one `warnings` line (see "Checking"); it never changes a verdict. The oracle is a contestant convenience and NOT part of the trusted statement (`Spec.lean`, `SvGolf/Task.lean` and `fdivp`'s `IEEE754.lean` are): every task has one today (`fdivp`'s is exact `Fraction` arithmetic for every format, written separately from the spec's own validation oracle `spec_validate/oracle.py`); a task without one is simply not checked |
-| `time_limit_s` | wall-clock limit for compiling the proof (120 s for every task, the rule in "Proof effort"; `score/time_limits.py` checks it) |
-| `verify_time_limit_s` | wall-clock limit for each of the comparator and `leanchecker` (default 900) |
+| `time_limit_s` | the limit for compiling the proof, in CPU seconds of the Lean process (300 s for every task, the rule in "Proof effort"; `score/time_limits.py` checks it); the compile also has a wall-clock backstop of 5 times it |
+| `verify_time_limit_s` | the limit for each of the comparator and `leanchecker`, in CPU seconds of the Lean process (default 900; since 2026-11-06, before then wall-clock seconds), with a wall-clock backstop of 5 times it, as for `time_limit_s` |
 | `references` | `[{sv, lean, note?}]`: the proved reference solutions, each a pair `reference/<stem>.sv` + `reference/<stem>.lean` that `check.py` accepts (`tests/run.py` checks it, and the score). Several pairs may be listed; the first is the one `tests/run.py` submits the negative designs with. `add` and `mul` list two: `<stem>` (proved with the sv_comb tactics) and `<stem>_byhand` (the same design, a byte-identical `.sv`, proved with no tactic: the measured baseline of the proof effort); `tests/expected.json` marks the second `same_design_as` the first, and `tests/run.py` checks the bytes |
 | `draft_reference` | draft tasks only, `{sv, lean, note?}`: the goalpost design `reference/<stem>.sv` and its partial, unproved Lean file `reference/<stem>.partial.lean` |
 
@@ -427,22 +574,30 @@ adding `import tasks.<name>.Spec` to `tasks.lean` (and
 `SvGolf/Task.lean` (read its docstring) defines a combinational task as an
 interface (input and output ports with widths that are functions of `N`) and a
 function on `BitVec`s, and the statement `CombTask.Statement t sem` as: for
-every `N` in range,
+every `N` in range (every family task bounds it so that every width and `int`
+localparam it implies stays below `2^31`, the values an `int` holds: `N < 2^31`
+in `_example` and `add`, `N < 2^30` in `mul` and `clmul`, whose output is `2N`
+bits wide, `W + P + 1 < 2^31` in `fdivp`; decided 2026-11-06),
 
 1. the design's input ports and output ports are EXACTLY the task's (names,
    order and widths);
-2. `Unclocked` and `Terminates2`: no process is clocked (no `always_ff`, no
-   `always @(posedge …)`: ls-sv runs those once per cycle whatever their
-   clock holds, so a register on a clock nothing drives would hold the right
-   value in ls-sv and `x` in every simulator, and score 0 GE), and every run
-   completes, under every schedule and stimulus;
+2. `Unclocked`, `LoopFree` and `Terminates2`: no process is clocked (no
+   `always_ff`, no `always @(posedge …)`: ls-sv runs those once per cycle
+   whatever their clock holds, so a register on a clock nothing drives would
+   hold the right value in ls-sv and `x` in every simulator, and score 0 GE);
+   there is no combinational loop and no latch (the design lowers to
+   continuous assigns that can be ranked, each reading only what lower-ranked
+   ones write: ls-sv starts every signal at `x` and settles, so it would read
+   a loop at one state, while a circuit powers up in any state the loop can
+   hold); and every run completes, under every schedule and stimulus;
 3. in every completed run, every cycle whose stimulus entry drives every
    input with a known value ends with the outputs holding exactly the
    function's value.
 
 The docstring goes through the ways a weaker statement could be met
 vacuously (a design that never settles, hypotheses that never hold, stimulus
-width and name conventions, extra or missing ports, `x` values, history) and
+width and name conventions, extra or missing ports, `x` values, combinational
+loops, history) and
 how each conjunct rules them out. Each task's `tests/<name>/negative/Refute.lean` checks a
 few of them in Lean.
 
@@ -468,6 +623,16 @@ points come from its task), the extractor and the extraction scripts
 (`lakefile.toml`), so changing a design re-elaborates the refutations, as
 lean-surfaces' own `lakefile.toml` does for its envelopes. `lake build SvGolf
 tasks svgolf-eval` (what the checker builds) needs no Python.
+
+**Three refutations wait for the int32 port round.** `tests/add`, `tests/mul` and
+`tests/clmul` each have a `negative/Refute.lean` that loads an `only_n16.sv`, and
+the pinned ls-sv's loader refuses that design (`PDesign.int32Agrees`: at the
+defaults an INT-class constant expression leaves the 32-bit range), so the three
+modules do not build at the pin. `tests.lean` does not import them, so the default
+`lake build` stays green. They are unchanged: `tests/run.py`'s `negatives` step
+builds each one alone (`lake build tests.add.negative.Refute`) and checks that it
+fails with that refusal (`PENDING_REFUTES`); one that builds fails the step until
+it is imported again. The int32 port round brings them back into `tests.lean`.
 
 `svgolf-eval` (`check/SvEval.lean`, a `lean_exe`) is compiled to native code:
 building it compiles the C of the `LeanModels.Sv` modules it imports into the
@@ -508,15 +673,38 @@ end Submission
 theorem Submission.solution : Submission.Goal
 ```
 
+Written inside `namespace Submission`, as every reference does, that is `theorem solution : Goal`.
+`Goal` unfolds to the task's statement of your design: `SvGolf.Tasks.Add.Statement Submission.design.sem`
+for `add` (`task.json`'s `statement.constant`). The file names and paths are free (`solution.sv` and
+`Solution.lean` throughout these docs); the module name `Submission`, the `import Submission.Design`
+header and the theorem are fixed. A skeleton:
+
+```lean
+import Submission.Design
+import SvGolf.Comb
+import LeanModels.Sv.CombEqTactic   -- sv_structure, sv_equations, sv_cover, sv_bridge
+import LeanModels.Sv.CombLib        -- the plain-Lean library: ripple rows, AddView, ...
+
+namespace Submission
+open LeanModels.Sv LeanModels.Sv.CombView LeanModels.Sv.CombLib LeanModels.Sv.CombEq SvGolf
+
+theorem solution : Goal := by
+  -- your proof: tasks/add/reference/add_n.lean is a complete one
+
+end Submission
+```
+
 It may import `Init`, `Std`, `Lean`, `LeanModels.Sv.*`, `SvGolf.*`,
 and `tasks.*`, and Mathlib with the packages it imports (`Mathlib.*`,
 `Batteries.*`, `Aesop.*`, `Qq.*`, `ProofWidgets.*`, `Plausible.*`, `ImportGraph.*`,
 `LeanSearchClient.*`; "Mathlib in submissions" below), nothing else (no
 `Examples.*`, no `LeanModels.Python.*`, no other submission). It is one
-file in v0. `tasks/_example/reference/band.lean` is a complete example: a
-for-all-`N` proof that walks the design's instantiation symbolically, proves
-the comb profile and acyclicity, and reduces the rest to one settled-state
-lemma.
+file in v0. `tasks/_example/reference/band_tactics.lean` is a complete example
+in 38 code lines: a for-all-`N` proof through `sv_structure`, `sv_interface` and
+`sv_equations`, the route of every tactic proof. `tasks/_example/reference/band.lean`
+proves the same without tactics: it walks the design's instantiation
+symbolically, proves the comb profile and acyclicity, and reduces the rest to
+one settled-state lemma.
 
 `LeanModels.Sv.*` includes lean-surfaces' `sv_comb` tactic library
 (`sv_structure`, `sv_equations`, `sv_cover`, `sv_bridge` and the plain-Lean library
@@ -548,7 +736,11 @@ against it with `LEAN_PATH=DIR/build lake env lean Probe.lean`
 Before writing a proof, `python3.12 check.py tasks/<name> DESIGN.sv
 --unproved` runs every stage that needs no proof (source, extract, banlist,
 fourstate, design, score, postsynth) and stops at the pseudo-stage `unproved`, with the
-score: is the design admissible, and what does it score? It never accepts.
+score: is the design admissible, and what does it score? It never accepts (`"accepted": false`); when
+every stage passed it exits 0 with `"unproved_ok": true` and its success sentence under `notes`, and a
+failed stage exits 1 as in a full check. It also compares the design's outputs on the post-synthesis
+vectors with the task's function (`task.json` `oracle`; every task has one) and prints a `functional:`
+warning naming the first failing input: advisory, but a wrong design has no proof (PROVING.md, section 0).
 `python3.12 check/postsynth.py --task tasks/<name> DESIGN.sv [--point N=32]
 [--keep DIR]` runs the post-synthesis check alone, at any point, and keeps
 the netlist, the vectors and every simulator's output.
@@ -704,13 +896,19 @@ is part of that compile: a Mathlib import comes out of the player's budget (a se
 warm for the narrow imports, up to ten seconds for `Mathlib.Tactic` the first time the files
 are read, and that cold cost comes back whenever the OS has dropped the files, for instance
 on a shared host). The limit does not move for a Mathlib import, so a Mathlib submission gets no
-extra margin. The limit is WALL CLOCK, which a Mathlib import makes more sensitive to the
-host's load than a core-Lean file: measured by the review round, the `add_n` proof with
-`Mathlib.Tactic` took 8.9 s on a quiet machine and 82 to 94 s (23.7 s of CPU) while other jobs
-had the machine swapping, against 10.6 and 13.2 s for the unchanged reference at the same
-time, with a 120 s limit. So: do not run Mathlib submissions concurrently with other jobs or
-under memory pressure (a graded run holds the Lean slot alone), and budget the memory below.
-The comparator and `leanchecker` keep their `verify_time_limit_s`.
+extra margin. The limit counts CPU seconds (decided 2026-11-05; "Proof effort"), so the host's
+load does not push a proof over it, but the wall-clock BACKSTOP (5 times the limit, 1500 s) does
+see it, and a Mathlib import makes the wall clock more sensitive to the load than a core-Lean
+file: measured by the review round, the `add_n` proof with `Mathlib.Tactic` took 8.9 s on a quiet
+machine and 82 to 94 s of wall clock (23.7 s of CPU) while other jobs had the machine swapping,
+against 10.6 and 13.2 s for the unchanged reference at the same time. That worst ratio of wall
+clock to CPU time, about 4, is why the backstop is 5 times the limit. So: do not run Mathlib
+submissions concurrently with other jobs or under memory pressure (a graded run holds the Lean
+slot alone), and budget the memory below.
+The comparator and `leanchecker` keep their own limit, `verify_time_limit_s` (900 s each), which counts CPU seconds
+too since 2026-11-06, with the same wall-clock backstop of 5 times it (4500 s): as a wall-clock limit it let a
+loaded machine reject an honest submission. Their records carry `cpu_seconds`,
+`time_limit_counts: "cpu"`, `wall_limit_s` and, when one stopped them, `stopped_by`.
 
 **A module or package missing from the machine is an infrastructure error, not a rejection.**
 For a solution that imports a package, the `trusted` stage ends with a probe
@@ -756,19 +954,23 @@ python3.12 check.py tasks/_example tasks/_example/reference/band.sv \
 
 prints a JSON result: `accepted`, the failing `stage` and `errors`, per-stage
 details, `score`, and (unless `--ppa off`) `ppa`, the sky130 columns of the scored
-netlist, which the board ranks (see "Scoring"; `score` holds the extra GE columns). The stages, in order:
+netlist, which the board ranks (see "Scoring"; `score` holds the extra GE columns). An accepted result also
+says whether the check was COMPLETE (`complete`, and `incomplete` with the reasons when it was not): a run
+with `--no-score`, a light post-synthesis check, `--no-trusted-build` or a `--time-limit` other than the
+task's left part of the check out, so it establishes nothing a board may rank, and `leaderboard.py add`
+refuses it (decided 2026-11-06; "Leaderboard"). The stages, in order:
 
 | stage | what |
 |---|---|
 | `imports` | the Lean file's imports are on the allowlist (`IMPORT_ALLOW` in `check.py`: `Init`, `Std`, `Lean`, `LeanModels.Sv.*`, which includes the whole sv_comb tactic library, `SvGolf.*`, `tasks.*`, `Submission.Design`, and the eight module roots of Mathlib's package closure, `PACKAGE_ROOTS`; tested by `tests/imports/test_allowlist.py`, which recomputes that closure from the package sources) and include `Submission.Design`; comments are whitespace, so a comment between two imports on one line does not hide the second. For a solution that imports one of the packages, the `trusted` stage ends with a PROBE (`stages.packages`, with the revisions of the package checkouts): the generated `Submission.ImportProbe`, the package imports and nothing else, compiled alone. A module the player named that no package has a source for (a stale name) is rejected here; a package or module missing from the machine (not built, on no search-path entry, a checkout not at the revision the manifest pins) is an infrastructure error (exit 2), never a rejection ("Mathlib in submissions"). Checked AGAIN after the comparator against the imports Lean recorded in the compiled solution: a header the checker read differently from Lean is rejected here |
 | `source` | `score/srcgate.py` (see "Rules"): no directives, attributes, pragma comments, `unique`/`priority`, x/z literal digits outside a casez/casex item wildcard, or host access (`$readmemh`, `$fopen`, `$system`, `$value$plusargs`, `$dumpfile`, DPI, ...); every later stage reads the gate's comment-free canonical text, never the submitted file |
-| `extract` | the pinned lean-surfaces extractor (`extractors/sv/extract.py --top <top> --probe-points ...`, run through `check/envelope.py`, the one extraction path `load_sv` uses too) writes the envelope and the multi-point cross-check sidecar; a player's `.json` is never read. The probe points always include the scoring point (an extractor without `--probe-points` is an infrastructure error, not a skipped check). The top must have exactly the task's (non-local) parameters, by name. |
+| `extract` | the pinned lean-surfaces extractor (`extractors/sv/extract.py --top <top> --probe-points ...`, run through `check/envelope.py`, the one extraction path `load_sv` uses too) writes the envelope and the multi-point cross-check sidecar; a player's `.json` is never read. The probe points always include the scoring point (an extractor without `--probe-points` is an infrastructure error, not a skipped check). The top must have exactly the task's (non-local) parameters, by name, and (since 2026-11-07, every kind) exactly the task's ports at every probe point (at the defaults when the task has none): the input ports in declaration order with their widths are task.json's `ports.inputs`, the output ports its `ports.outputs`, and no port has another direction (`port_problems`: the statement's `Interface` at those points, before any proof; a port the extractor cannot read is left to `design`). |
 | `banlist` | `score/banlist.py`: pyslang front check (which also reads the errors of slang's analysis pass, `score/slangdriver.py`) and Yosys backstop |
-| `fourstate` | `score/fourstate.py` at the scoring point (see "Rules"): no parameter or constant expression with unknown bits, no constant or run-time select that can leave its declared range, no undriven or conflicting net or logic loop (Yosys `check -assert` after `proc; flatten`), and no error of slang's analysis pass (`score/slangdriver.py`). Measured (standalone, 2026-10-29): 0.03 to 0.06 s for the `_example` and `add` designs and those of the former 16-bit divider task, 0.55 s for the `mul` reference at `N = 16`, about 1 s for the 32-bit Dadda trees |
+| `fourstate` | `score/fourstate.py` at every point the checker probes, the scoring point first, then the task's probe and backstop points (see "Rules"; at the scoring point only before 2026-11-06), stopping at the first point that fails: no parameter or constant expression with unknown bits, no constant or run-time select that can leave its declared range, no undriven or conflicting net or logic loop (Yosys `check -assert` after `proc; flatten`), and no error of slang's analysis pass (`score/slangdriver.py`). `stages.fourstate.points` has each point's verdict and time, `failed_point` the one that failed. A point nobody probes is not checked: this narrows, and does not close, the gap to a statement over every `N` ("Checker v0 limits"). Measured (standalone, all points, 2026-11-06, the proved references): `_example` 0.08 s (4 points), `add` 0.22 s (6), `clmul` 1.2 s (8), `fdivp` 0.5 to 1.0 s (8), `aes_sbox` 0.04 s (1), `mul` 3.3 to 15.0 s (7; `mul_tree` the most, 2.6 s of it at the scoring point), `matmul` 0.18 s (4), `sorter` 0.23 s (8); at the scoring point alone they were 0.02 to 2.6 s |
 | `trusted` | `lake build SvGolf tasks svgolf-eval` (not timed) |
 | `design` | compile the generated `Submission.Design`; ls-sv's loader refusals (the Lean-vs-slang cross-checks, the one-driver rule) reject here. So does a design that LOADS but that ls-sv cannot run (WP-C3): the generated module ends with an `#eval` that tests `Design2.hasUnsupported` of `design.sem` at the scoring point and at the other points of the extractor's cross-check that are not larger than it (the larger ones cost interpreter time, 25 s at `mul_tree`'s `N = 32`, and a design loud only there has no proof of its for-all-`N` statement anyway) and, on the first loud node, rejects with its kind and text and the point (`tests/_example/attacks/func_call.sv`: a correct `a & b` written through a user function; ls-sv has no function calls). No proof, score or leaderboard work happens before it; `stages.design.unsupported_free_points` counts the points checked |
-| `solution` | compile `Solution.lean`, under the task's wall-clock limit |
-| `integrity` | nothing outside the solution's own `.olean` changed during that build: the whole staging tree and the trusted scripts by content (the `svgolf-eval` binary, Yosys's `simcells.v`, and `score/ppa.py` with `score/ppa_pins.json`, `score/ppa_mapped.ys` and `score/ppa_mapped_pins.json` included), the svGolf and `LeanModels.Sv` builds, the Lean SEARCH PATH (`lake env printenv LEAN_PATH`) for every solution, imports or not: the `.olean*` files of the package builds on it (Mathlib and friends: about 33,000 files, 0.3 s), every entry's top-level names, and the entries that do not exist, recorded as absent (a `Mathlib/` created in `Cli`'s unbuilt build directory, which `lake env` puts ahead of Mathlib's, would shadow it), the `lake-manifest.json` that pins the packages, the Lean toolchain, Yosys, Verilator (its scripts and binaries and its whole `VERILATOR_ROOT`, the runtime every model is compiled against), the C++ compiler, `make` and elan's settings by metadata (size, mtime, ctime, inode); checked again after the postsynth stage, and `check/sandbox/**` is in the fingerprinted trusted base. A tripwire, not a sandbox: it detects after the fact; the sandbox (below) makes the writes it watches for impossible, and the tripwire stays as the layer behind it. |
+| `solution` | compile `Solution.lean` under the task's time limit, which counts the CPU seconds of the Lean process (user + system, every thread), with a wall-clock backstop of 5 times it for a proof that waits; `stages.solution` has `cpu_seconds` and the wall clock's `seconds` apart, and on a timeout `stopped_by` (`cpu` or `wall`); the rejection names the limit, both readings, and the last declaration the kernel finished and when ("When a proof hits the limit", under "Proof effort") |
+| `integrity` | nothing outside the solution's own `.olean` changed during that build: the whole staging tree and the trusted scripts by content (the `svgolf-eval` binary, Yosys's `simcells.v`, `score/ppa.py` with `score/ppa_pins.json`, `score/ppa_mapped.ys` and `score/ppa_mapped_pins.json`, and, since 2026-11-07, the clocked kinds' `score/svgolf_seq.ys`, `score/ge_seq.json` and `check/clocked_rules.py` included), the svGolf and `LeanModels.Sv` builds, the Lean SEARCH PATH (`lake env printenv LEAN_PATH`) for every solution, imports or not: the `.olean*` files of the package builds on it (Mathlib and friends: about 33,000 files, 0.3 s), every entry's top-level names, and the entries that do not exist, recorded as absent (a `Mathlib/` created in `Cli`'s unbuilt build directory, which `lake env` puts ahead of Mathlib's, would shadow it), the `lake-manifest.json` that pins the packages, the Lean toolchain, Yosys, Verilator (its scripts and binaries and its whole `VERILATOR_ROOT`, the runtime every model is compiled against), the C++ compiler, `make` and elan's settings by metadata (size, mtime, ctime, inode); checked again after the postsynth stage, and `check/sandbox/**` is in the fingerprinted trusted base. A tripwire, not a sandbox: it detects after the fact; the sandbox (below) makes the writes it watches for impossible, and the tripwire stays as the layer behind it. |
 | `comparator` | `check/Comparator.lean`, which imports the compiled modules WITHOUT running their initializers: the kernel (with `leanchecker`'s limits) accepts `theorem _ : Submission.Goal := Submission.solution`, and the same with the solution's own proof term; every axiom in the solution's dependency closure (walked through kernel values, not the `#print axioms` cache) is allowed; no `extern`/`implemented_by` in `Submission.*`; every `Init`/`Std`/`Lean`/`Lake` module resolves into the toolchain; and the dependency closure of the solution and the goal, minus the toolchain and `Submission.*`, is REPLAYED through the kernel (a package olean with a declaration added without kernel checking is rejected). It reports the imports Lean recorded for each module. Under `verify_time_limit_s`. |
 | `leanchecker` | `leanchecker` replays the submission's modules through the kernel (catches declarations added without kernel checking). Under `verify_time_limit_s`. |
 | `score` | `score/score.py` at the task's scoring point (the two-stage canonical flow), keeping the scored gate netlist; a depth over the task's budget rejects |
@@ -842,7 +1044,14 @@ goes on, a mapped netlist that is not the scored circuit is an infrastructure er
 
 Set `SVGOLF_LEAN_WRAP` (or `--lean-wrap`) to prefix every `lake`/`lean`
 call, e.g. with a slot-limiting wrapper; the time limit counts only the proof
-compilation itself, not waiting for the wrapper. `python3.12` is required
+compilation itself, not waiting for the wrapper (each Lean stage's record
+says how long it waited, `waited`, apart from its `seconds`).
+On a shared machine whose wrapper is a queue, add `SVGOLF_LEAN_WRAP_ONCE=1`:
+`check.py` then takes the wrapper ONCE, around the whole run (it re-runs
+itself behind the wrapper, and that run calls `lake` and `lean` directly), so
+one check waits in the queue once instead of once per call (six or more in a
+full check); the result says `lean_wrap: {"once": true, "waited": <s>}`. Without
+it, the wrapper goes in front of each call, as before. `python3.12` is required
 (pyslang and the extractor). The `postsynth` stage and the validation
 scripts also need Verilator 5 (the measurements here are 5.042, recorded in
 every postsynth result as `verilator`), a C++ compiler (`$CXX`, default
@@ -1084,7 +1293,8 @@ environment variable, option or task key reads the constant (a test pins that).
   the same text DIFFERENT meanings are refused statically where the
   difference is known and its source can be named exactly (the
   `unique`/`unique0`/`priority` qualifiers and x/z literal digits in the
-  gate, every other source of an x in the `fourstate` stage), and caught by
+  gate, every other source of an x it knows in the `fourstate` stage, at the
+  points the checker probes), and caught by
   the `postsynth` stage where its vectors reach it otherwise (an unknown
   Yosys or ls-sv bug). "The tools split" means the PIPELINE tools (slang and
   ls-sv, Yosys, Verilator, Xcelium): a difference that only Icarus shows is a
@@ -1134,6 +1344,28 @@ environment variable, option or task key reads the constant (a test pins that).
   bigger budgets. `svgolf-eval` is compiled code (no `implemented_by`,
   `extern` or `csimp` in the `LeanModels.Sv` closure it imports); its gap to
   the kernel's `design.sem` is `toExpr` faithfulness and the compiler.
+* **The x rules are decided at the probed points, over ls-sv's one resolution** (the universal-correctness
+  audit, 2026-11-06; what is open, until ls-sv's every-resolution semantics lands and the statement quantifies
+  over every resolution of every x). The statement covers every parameter value in range and resolves an x the
+  simulator's way ("Rules"), so the Python rules carry the rest, and they decide it at the points the checker
+  probes: the `fourstate` stage runs at the scoring point and the task's probe and backstop points (since
+  2026-11-06; `undriven_offpoint.sv`, undriven only away from `N = 16`, is refused at `N = 1`), and a design
+  whose x source exists only at a value nobody probes (`N = 5` for `add`, say) still passes. The same holds for
+  the loader's own guards that run beside `sem` at the probed points only: 32-bit agreement of `int`
+  constants (an `int` localparam that wraps at an unprobed `N` builds another design there) and the
+  generate-guard evaluation. The family tasks bound their range so that every width and `int` localparam
+  the interface implies stays below `2^31`, the values an `int` holds (decided 2026-11-06), so the port
+  widths of `sem N` agree with a real elaboration at every `N` in range; an `int` expression the interface
+  does not imply (an internal `N * N`) is checked at the probed points only. The
+  statement leaves one choice to the simulator's resolution: the update order of a copy of a variable an
+  `always_comb` block writes (ls-sv's alias guard refuses a continuous copy, at the probed points only,
+  and admits a separate `always_comb` copy at every point). The power-up value of a combinational loop
+  was a second one until 2026-11-06; the statement's `LoopFree` conjunct now refuses every loop and every
+  latch, at every `N`. For the CLOCKED kinds (draft
+  statements), the power-up state of an unreset register is not covered: ls-sv starts a 2-state register at
+  IEEE's 0 and a 4-state one at x, and turns that x into a known value at a 2-state target, at `===` and at a
+  write with an x index, where the silicon has one arbitrary power-up value per register. Run-time `/ % **`
+  are no longer a gap: every task bans them ("Rules").
 * **The parameter's declared type is not pinned.** The statement covers
   `sem N` for every `N` in range, in ls-sv's unbounded constant tier; a
   parameter declared narrower than `int` (`parameter bit [3:0] N`) would make
@@ -1202,41 +1434,102 @@ with the standard three axioms; `tests/run.py` re-checks both.
   `extern`/`implemented_by` in `Submission.*`) and the `leanchecker` replay
   accept both tactic proofs.
 
-**The proof time limit** (`time_limit_s` of `task.json`) is **120 s, the same for every task**
-(decided 2026-11-02; it replaces the 10/30 rule `max(120, ceil(4 x T))`). All proofs should be
+**The proof time limit** (`time_limit_s` of `task.json`) is **300 s, the same for every task**
+(decided 2026-11-02, the value 2026-11-06; it replaces the 10/30 rule `max(120, ceil(4 x T))`). It was
+120 wall-clock seconds; it is 300 CPU seconds because CPU seconds count every elaboration thread
+(Lean elaborates in parallel: the references use up to 3.5 CPU seconds per wall-clock second,
+`fdivp_srt` 181.8 CPU s in 77.7 s; measured 2026-11-06, below). All proofs should be
 checkable quickly, so the limit is a ceiling and does not follow how slow a reference happens to
 be. If an honest proof needs longer, either that proof or our scaffolding is bad, and that is
 what gets fixed.
 
-T is the LARGEST of the controlled COLD runs of the slowest reference of a task: `check.py`'s
-`stages.solution.seconds`, the compile of that reference's `Solution.lean` and nothing else (not
-the stages around it, not waiting for the slot wrapper). The target is T at most 60 s, a 2x margin
-for a slower or busier machine. The recorded runs and what was controlled are in
-`score/time_limits.json`; `python3 score/time_limits.py` prints the table, and `tests/run.py`
-(step `layout`) fails when a `time_limit_s` is not 120 or a T is over it.
+**The limit counts CPU seconds, not wall-clock seconds** (decided 2026-11-05). It is the user
+plus system time of the Lean process tree of the `solution` compile, every thread included, read
+by the supervisor (`check/sandbox/supervisor.py --cpu-limit-s`: the process group polled while it
+runs, every 0.1 s inside the sandbox, and at its end the resource usage of every process it waited
+for) and never the time spent waiting for a Lean slot wrapper in front of it. So a loaded machine
+does not push a proof over the limit, and a proof that uses two threads counts both. A proof that
+WAITS instead of computing (a `sleep`, a blocked read) uses no CPU: for it the compile has a
+**wall-clock backstop of 5 times the limit**, 1500 s (`check.py`'s `SOLUTION_WALL_FACTOR`). Why 5:
+an honest proof's wall clock runs past its CPU time only while it waits for the machine, and the
+worst ratio measured is about 4 (the `add_n` proof with `Mathlib.Tactic`, 82 to 94 s of wall
+clock for 23.7 s of CPU while the machine swapped: "Mathlib in submissions"), so the backstop
+stops a proof that sleeps or blocks within 25 minutes and leaves an honest one room on a loaded
+machine. The result records both readings (`stages.solution.cpu_seconds` and the wall clock's
+`seconds`, with `time_limit_counts: "cpu"` and `wall_limit_s`), the stderr line says
+`Lean used 37.2 CPU s of the task's 300 s CPU limit (12%), in 29.5 s of wall clock`, and the
+warning past half of the limit reads the CPU seconds. `tests/run.py`'s attacks `cpu_proof` (a
+step that computes: stopped by the CPU limit) and `slow_proof` (a step that sleeps: stopped by
+the backstop, with its CPU seconds under the limit) pin both ends.
 
-| task | slowest reference (cold runs, s) | T | `time_limit_s` | was |
+T is the LARGEST of the controlled COLD runs of the slowest reference of a task, in CPU SECONDS:
+`check.py`'s `stages.solution.cpu_seconds`, the compile of that reference's `Solution.lean` and nothing else (not the
+stages around it, not waiting for the slot wrapper); the wall clock of the same runs (`stages.solution.seconds`) is
+recorded beside it and only informs. The target is T at most 150 CPU s, a 2x margin for a slower machine. The runs
+below were measured on 2026-11-06, three cold runs of every reference (`check.py --no-score`), because the runs recorded
+before were wall-clock seconds, made before the limit counted CPU (they are in the history of
+`score/time_limits.json`); those of `arbiter`, `matmul` and `sorter` on 2026-11-07, after the merge that brought the
+arbiter and the txtask-v2 proofs of `matmul_g1` and `sorter_ins`. CPU seconds do not follow the machine's load as the
+wall clock does, but they are not independent of it either: in the sweep that started at a 1-minute load average of
+about 13 the same proof took 13 to 32% more CPU seconds than in the sweeps below 6 (`fdivp_srt` 181.8 against 160.2
+CPU s, `sbox_bp` 67.0 against 50.8), which the 2x margin covers. The recorded runs and what was controlled are in
+`score/time_limits.json`; `python3.12 score/time_limits.py` prints the table, and `tests/run.py` (step `layout`)
+fails when a `time_limit_s` is not 300, a T is over it, a run is not in CPU seconds or a reference that a task.json
+lists has no runs, and it names every reference over the target, which does not fail.
+
+| task | slowest reference: cold runs, CPU s (wall clock, s) | T (CPU s) | `time_limit_s` | before 2026-11-02 |
 |---|---|--:|--:|--:|
-| `_example` | `band_lp.lean` (2.13, 2.08, 2.11) | 2.1 | **120** | 120 |
-| `clmul` | `clmul_n.lean` (7.42, 7.66, 7.66) | 7.7 | **120** | 120 |
-| `add` | `add_n.lean`, tactics (12.11, 9.57, 9.49) | 12.1 | **120** | 120 |
-| `fdivp` | `fdivp_srt.lean`, its SRT core in the reference (78.58, 73.19, 69.92); `fdivp.lean`, self-contained (70.26, 64.48, 71.58; 31.0, 26.0, 24.8 with the proof library prebuilt, before 2026-11-03); `fdivp_newton.lean`, its Newton core in the reference since 2026-11-04 (49.92, 48.6, 52.67) | 78.6 | **120** | new |
-| `aes_sbox` | `sbox_bp.lean` (53.73, 51.04, 50.91) | 53.7 | **120** | 215 |
-| `mul` | `mul_tree.lean` (87.09, 86.76, 99.98); `mul_tree_h.lean` (71.31, 69.21, 71.31) | 100.0 | **120** | 400 |
+| `_example` | `band_tactics.lean` (3.3, 3.1, 3.2; 2.5, 2.4, 2.4); then `band` 1.7, `band_lp` 1.7 | 3.3 | **300** | 120 |
+| `clmul` | `clmul_n.lean` (10.4, 9.9, 10.0; 6.2, 5.9, 5.9) | 10.4 | **300** | 120 |
+| `add` | `add_proc_m.lean` (12.3, 12.4, 11.2; 7.1, 7.2, 6.5); then `add_proc` 8.4, `add_mux` 7.0, `add_n` 6.2, `add_n_byhand` 4.7 | 12.4 | **300** | 120 |
+| `arbiter` | `rr_mask.lean` (12.6, 12.7, 11.2; 9.8, 9.7, 4.1) | 12.7 | **300** | new |
+| `sorter` | `sorter_ins.lean` (17.4, 17.4, 17.0; 5.1, 5.7, 5.2) | 17.4 | **300** | new |
+| `matmul` | `matmul_g1.lean` (16.2, 17.5, 17.3; 7.7, 9.6, 11.6) | 17.5 | **300** | new |
+| `mul` | `mul_tree.lean` (37.1, 34.8, 34.9; 28.7, 27.5, 25.7); then `mul_tree_h` 33.7, `mul_wallace` 31.6, `mul_n` 16.9, `mul_n_byhand` 14.6 | 37.1 | **300** | 400 |
+| `aes_sbox` | `sbox_bp.lean` (67.0, 51.9, 50.8; 75.2, 52.0, 50.5); then `sbox_table` 26.0 | 67.0 | **300** | 215 |
+| `fdivp` | `fdivp_srt.lean` (181.8, 160.5, 160.2; 77.7, 65.9, 64.4); then `fdivp_newton` 120.7, `fdivp` 82.2 | 181.8 | **300** | new |
 
-`mul_tree`, `mul_tree_h` and `fdivp` are over the 60 s target: those are the proofs to improve, or to drop
-as references (`fdivp`'s proof compiles its whole library in the solution stage since 2026-11-03: no task
-ships a prebuilt proof library). Loaded-machine runs can exceed these numbers (the flat binary16 reference of the
-former 16-bit task took 150 s once under load, against its 130 s limit then), so a timeout on a busy machine is re-run alone before it
-counts. These runs predate WP-LIN for `add`, `mul` and `aes_sbox`.
+Over the 150 CPU s target: `fdivp_srt` 181.8 CPU s (160.2 and 160.5 in the two quieter sweeps), the proof to improve,
+or to drop as a reference; the fdivp references compile their whole proof library in the solution stage (since
+2026-11-03 no task ships a prebuilt one). In wall-clock seconds, which the former 120 s limit counted, `mul_tree`,
+`mul_tree_h` and `fdivp` were over its 60 s target. A timeout on a busy machine is re-run alone before it counts.
 
-What was controlled for the 10/30 runs: an Apple M2 Pro, 12 cores, 16 GB, macOS 27.2, a shared
-development machine on which other users' jobs ran throughout (load average 5.0 to 8.8 when each
-run started); COLD per run means a new process and a fresh staging directory for every run, one
-run at a time through the Lean slot wrapper (`LEAN_NUM_THREADS=2`, `nice 19`), with the project
-build (`lake build SvGolf tasks svgolf-eval`) warm and current and the OS file cache not purged;
-Lean `v4.33.0-rc1`; `check.py`'s default light post-synthesis mode (it does not enter the proof
-time). Later entries state their own conditions in `score/time_limits.json`.
+**When a proof hits the limit**, `check.py` says where the time went: the declaration the kernel finished last and how
+far into the run, so that the time after it went to what follows it in the file, and the longest waits between
+finished declarations (on stderr, in the `solution` rejection, and as `stages.solution.progress`):
+
+```
+solution: did not finish within the 20 s limit: Lean ran 20.0 s and was stopped
+solution: where the time went: 63 declarations finished (and 5 auxiliary ones), the last `Submission.band_interface` 4.0 s into the run; the 16.0 s after it went to what follows it in the file, which had not finished
+```
+
+(measured 2026-11-05 with `check.py --time-limit 20` on the file of `tests/run.py`'s attack `slow_proof`: `band.lean`
+with a step that sleeps before `solution`; on the same file the checker before this report said only `did not finish
+within the 20 s limit`, and its result had no line of Lean's output). Since the limit counts CPU seconds the first line
+names the limit that stopped the compile and gives both readings (measured 2026-11-06, `tests/run.py --attack
+slow_proof,cpu_proof`, `--time-limit 10`): `did not finish within the 10 s CPU limit: Lean used 10.2 CPU s in 12.8 s of
+wall clock and was stopped` for a step that computes (`cpu_proof`), `did not finish within the 50 s wall-clock backstop:
+Lean used 1.9 CPU s of its 10 s CPU limit in 50.0 s and was stopped, so it waited (a `sleep`, blocked I/O, a machine too
+loaded to run it)` for one that sleeps (`slow_proof`); the times of the second line are wall clock since the compile
+started. An auxiliary
+declaration (a tactic's temporary definition, an abstracted proof) is counted with the declaration it serves, and the
+first declaration's wait includes the imports.
+
+For this the solution is compiled with Lean's trace class `Kernel` on (`-Dtrace.Kernel=true`: one line per declaration
+as the kernel finishes it, in file order), and Lean's stdout is a pseudo-terminal (the supervisor's `--pty`). Through a
+pipe Lean buffers its output, and a compile stopped at the limit loses every line it printed (measured 2026-11-05).
+The trace lines are removed from the messages the result keeps. A `#guard_msgs` around a declaration would see the
+trace as one message more: a compile that fails with the trace showing anywhere but in its own lines is compiled once
+more without it, and that verdict stands (`stages.solution.progress_retried`). A proof that uses over half of the CPU
+limit gets the same longest waits in its warning.
+
+What was controlled for the 2026-11-06 runs: an Apple M2 Pro (8 performance and 4 efficiency
+cores), 16 GB, macOS 27.2, a shared laptop-class development machine on which other users' jobs ran throughout (load
+average 2.8 to 13.2 when each run started; which cores ran a process was not controlled);
+COLD per run means a new `check.py` process and a fresh staging directory for every run, the references of one task in
+sequence inside one acquisition of the Lean slot wrapper (`LEAN_NUM_THREADS=2`, `nice 19`), three sweeps of all
+tasks one after the other, with the project build warm and current and the OS file cache not purged; Lean
+`v4.33.0-rc1`; `check.py --no-score` (no score and no post-synthesis, neither of which enters the proof time).
 
 ## Scoring
 
@@ -1244,10 +1537,37 @@ time). Later entries state their own conditions in `score/time_limits.json`.
 cell, repaired by buffering only and weighed with the pinned `sky130_fd_sc_hd` liberty (`score/ppa.py`). Its two
 numbers are the cell area in um^2 (`area_um2_sky130`, exact as `area_e4um2_sky130` in 1e-4 um^2) and the time in ps:
 the critical-path delay (`delay_ps_sky130`) of a combinational design, `cycles` x the register-to-register period of a
-clocked one (`check.py`'s clocked `time_ps`). Lower is better on both, and the leaderboard ranks their Pareto frontier
-("Leaderboard"). Area in NAND2 gate equivalents (`area_mge`) and depth (`ltp -noff`) are EXTRA columns of the same
-run: shown beside the score, ranked by nothing. "Reproduce a score" (the end of this section, and
+clocked one (`check.py`'s clocked `time_ps`; a reactive task makes one decision per cycle, so `cycles` = 1 and its time
+is the period). **The one ranked number is their product, area x time** in um2*ns
+(decided 11/05; `leaderboard/combined.py` defines it, exactly, in 1e-4 um^2 x ps), lower is better: par, the record
+and "under par" use it, and the site's leaderboard orders by it. The Pareto frontier of the two ("Leaderboard"), area
+in NAND2 gate equivalents (`area_mge`), depth (`ltp -noff`) and flow A1' are EXTRA columns for exploring: shown beside
+the score, ranked by nothing. "Reproduce a score" (the end of this section, and
 [score/PPA.md](score/PPA.md)'s section of that name) gives every ranked number again, bit for bit.
+
+**The build ratings use** (decided 2026-11-05). Every ranked number, on the boards and on the site, is made by one
+build of the tools, and it is not a slower portable one:
+
+* **Yosys 0.53** (git sha1 `53c22ab7c0ced80861c7536c5dae682c30fb5834`), the Homebrew build for macOS arm64, compiled
+  by clang++ 17 with -O3 (version line `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++
+  17.0.0 -fPIC -O3)`; the `yosys` binary's sha256 `011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732`);
+* its **`yosys-abc`**, ABC 1.01 of 6 May 2025 (`UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`; sha256
+  `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653`);
+* the liberty `sky130_fd_sc_hd__tt_025C_1v80.lib` (sha256
+  `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5`), `score/ppa.py` (sha256
+  `912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe`) and `score/ppa_pins.json` (`sky130_a0_v3`,
+  sha256 `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8`), with the scripts `score/canon.ys`
+  (`bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b`) and `score/svgolf.ys`
+  (`ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445`).
+
+The flow is deterministic on that build: the same design text gives the same area, time and netlist on every run
+(measured 2026-11-05 on 52 designs, 826 runs). Another build of the same Yosys version can break ABC's ties differently
+(ABC's mapper sorts with the C library's `qsort`, which is not stable): measured, under YoWASP's WebAssembly Yosys 0.53
+(the same git sha1) three `fdivp` designs moved, by up to 2.9% in delay and 0.3% in area, and the other 49 were
+identical. So a number you make on another platform may differ slightly from the board's; the same build gives it bit
+for bit, and you can get as close to it as you like. The binaries and these measurements are data
+(`score/reference_build.json`), which the site's rules page and every task's score card read;
+`tests/site/test_rating_build.py` checks that this paragraph states them.
 
 ```bash
 python3.12 score/ppa.py SOLUTION.sv --task tasks/<name>        # the ranked score (sky130 um^2, ps) and the GE columns
@@ -1298,8 +1618,8 @@ hashes agree. Scoring is deterministic: `--repeat 2` synthesizes twice and
 fails unless the results are identical. `--netlist OUT` and `--rtlil OUT`
 keep the scored netlist and the canonical RTLIL.
 
-**Canonical layout: the score is a function of the circuit, not of the
-text.** With one Yosys process, the same circuit scored differently under a
+**Canonical layout: names, comments and layout never reach the score.**
+With one Yosys process, the same circuit scored differently under a
 different layout: the former 16-bit divider's goalpost gave 2079.747 GE / depth 297 as
 committed and 2095.076 / 295 with its comments deleted (Yosys's results
 depend on process-global state, its table of interned names, which the
@@ -1316,8 +1636,12 @@ references, the Sklansky, Kogge-Stone and comparison-carry adders), the
   the score cannot change. So does renaming a submodule (flattening in
   stage 1 removes module names);
 * ORDER (declarations hoisted, the other module items reversed or shuffled)
-  changes the numbering inside the canonical RTLIL but, measured, not the
-  score (not guaranteed by construction: the regression battery watches it);
+  changes the numbering inside the canonical RTLIL, and with it the order of
+  the gates ABC reads, so it can move the score: not the GE columns of the
+  designs in `tests/expected.json`'s `canonical_layout` (the `canon` step
+  checks them), but a flat netlist's and a proved multiplier's, by up to
+  17.7% and 41% in sky130 delay (measured 2026-11-05; `tasks/aes_sbox/README.md`,
+  Findings). Like commutation below, it is deterministic and the golfer's;
 * COMMUTATION is scored: swapping the operands of every `& | ^ ^~ == != &&
   ||` is the same function but a different expression tree, and ABC starts
   from the tree it is given (`mul_n` 1962.576 → 2087.118 GE, the former
@@ -1355,15 +1679,26 @@ and on the four proved multipliers it puts the array multiplier last in area whe
 (decided 11/03); A1' is an unranked research column; their fields are never swapped silently; the measured tables are in
 [score/PPA.md](score/PPA.md). The liberty is fetched, not vendored: `python3.12 score/ppa.py --fetch-liberty`. What they do
 NOT claim: a fabricated chip's picoseconds (one library, one corner, no wires, a repair rather than timing closure, a 130 nm
-process; the board ranks the exact integers of this model), or a difference smaller than the noise: between similar designs about **10% in area and 20% in delay** is mapper and
-rewrite noise (commuting operands alone moves A0' area up to 11% and delay up to 32%, A1' area up to 15.5% and delay up to 20%;
-between ABC scripts the same design's area moves a median 12% and delay 49%; both flows are bit-exact run to run, across hash
-seeds, parallelism and temp directories, and A1' is ONE ABC script, so "mapped" is not "the" mapped result), and a golfer who wants a good PPA row runs ABC and the flow
-themselves and submits the best one. A clocked task's design is weighed through the clocked flow (`--seq`: its
+process; the board ranks the exact integers of this model). **The numbers are not noisy.** The pinned flow is a
+deterministic function of the design's text: the same file gives the same area, time and netlist on every run (measured
+2026-11-05 on all 52 references, baselines, records and study designs of the ranked tasks, 14 to 16 runs each: serial and six
+at once, a dozen hash seeds, other temporary and working directories, two checkouts, two locales, other file names, two
+install paths; every number and every netlist byte equal), so anyone who runs the pinned tools gets the board's number, and
+there is no tie band and no best-of-k. The pinned tools include the Yosys and ABC BUILD ("The build ratings use", above):
+another build of Yosys 0.53 can give other numbers on some designs (measured 2026-11-05: three fdivp designs, up to 2.9% in
+delay), because ABC's mapper breaks ties in the order the C library's sort leaves them. What moves a
+score is how the circuit is written, and that is the golf: names, comments, blank lines, whitespace and the file name never
+change it (stage 1 erases them), while the order of an operator's operands, how a chain of XORs or ANDs is grouped and the
+order of independent statements do, always the same way (commuting operands moved A0' area by up to 11% and delay by up to
+32%; moving one generate block of a proved multiplier moved its area 12.6% and its delay 41%), because ABC's choices follow
+the order of the gates it reads. None of it changes what the circuit computes (IEEE 1800 decides that: "Rules"). Trying gate
+forms and orders against the pinned flow is legitimate golf. A1' is ONE ABC script, so "mapped" is not "the" mapped result
+(between ABC scripts the same design's area moves a median 12% and delay 49%; commuting operands moves A1' area up to 15.5%
+and delay up to 20%). A clocked task's design is weighed through the clocked flow (`--seq`: its
 register-to-register period); every combinational idiom tried weighs once it reaches the stage, including run-time selects and shifts, `case` muxes and constant
 tables, dividers (`score/tests/ppa/idioms.json`). Some designs do not reach it: the `postsynth` stage refuses a netlist whose dead
 public-named wires are partly undriven or carry an x literal (a known gap of that stage, not of the columns: `score/PPA.md`, "Known gap").
-`leaderboard.py pareto` ranks the A0' area and time; `pareto --axes area_mge,depth` (or `area_um2_sky130_mapped_v1,mapped_delay_sky130_v1`)
+`leaderboard.py pareto` lists the frontier of the A0' area and time (an exploration view: the ranked number is their product); `pareto --axes area_mge,depth` (or `area_um2_sky130_mapped_v1,mapped_delay_sky130_v1`)
 prints the Pareto frontier over other columns (opt-in; see "Leaderboard").
 
 **sky130 A0' is repaired, and an illegal netlist is rejected (`sky130_a0_v2`; decided 11/03: sky130 A0' is the ranked
@@ -1414,14 +1749,15 @@ every area unchanged, delays -0.30% to +1.32%, no delay order, area x time order
 period 10,705 to 10,696 ps (one of its five trees is now 2 x `buf_4`, 6 buffers, the same area), the sorter's 2,510 to
 2,523. score/PPA.md, "The per-edge loads".
 
-**Reproduce a score.** The ranked numbers (A0' area and time) are a pure function of the design text, the pinned flow, the
-pins and the task's scoring point and input drive, and each is reproduced bit for bit by one command from the repository's root (Python 3.12 with `pyslang`, `Yosys 0.53 (git sha1
+**Reproduce a score.** The ranked numbers (A0' area and time) are a pure function of the design text, the pinned flow and
+tool build, the pins and the task's scoring point and input drive, and each is reproduced bit for bit by one command from the repository's root (Python 3.12 with `pyslang`, `Yosys 0.53 (git sha1
 53c22ab7c0ce…)` and the `yosys-abc` beside it on `PATH`):
 
 ```
 python3.12 score/ppa.py --fetch-liberty                     # once: the pinned liberty (sha256 ef34f999…5d23d5) into score/lib/
 python3.12 score/ppa.py SOLUTION.sv --task tasks/<name> --no-mapped --json out.json --netlist scored.v --repaired-netlist repaired.v
 python3.12 score/ppa.py SOLUTION.sv --task tasks/matmul --seq   # a clocked task
+python3.12 score/ppa.py SOLUTION.sv --task tasks/arbiter --seq  # a clocked task, reactive (one decision per cycle)
 ```
 
 That is the source gate (`score/srcgate.py`: the canonical text), Yosys process 1 (`score/canon.ys`: read, `hierarchy
@@ -1438,7 +1774,8 @@ literally in a scratch copy on the `add` and `aes_sbox` references, bit for bit 
 ## The banlist
 
 `score/banlist.py` runs two independent checks, both driven by the task's
-`banlist.operators`, on the source gate's canonical text:
+`banlist.operators` plus the run-time `/ % **` that every task bans
+(`ALWAYS_BANNED`, since 2026-11-06: "Rules"), on the source gate's canonical text:
 
 * the **front check** (pyslang) elaborates the design at the defaults and at
   the task's probe and backstop points, walks every run-time root
@@ -1461,11 +1798,20 @@ literally in a scratch copy on the `add` and `aes_sbox` references, bit for bit 
   the array reduction methods `.sum()` and `.product()` with `+` and `*`
   (`.and()`, `.or()`, `.xor()` are bitwise and allowed). It reports
   `file:line:col`.
-* the **backstop** (Yosys) runs `proc; opt` at the backstop points, BEFORE
-  `alumacc` (so comparison cells stay allowed), and rejects every cell of the
-  banned operators' types (`$add $sub $neg $mul $div $divfloor $mod $modfloor
-  $pow`, plus `$alu $macc $macc_v2 $lcu $fa` when any of `+ - *` is banned).
-  It reports the cell's source location.
+* the **backstop** (Yosys) runs `proc; opt` at the backstop points and
+  rejects every cell of the banned operators' types (`$add $sub $neg $mul
+  $div $divfloor $mod $modfloor $pow`, plus `$alu $macc $macc_v2 $lcu $fa`
+  when any of `+ - *` is banned). Then, in a task that bans `+` or `-`
+  (decided 2026-11-05), it runs `alumacc` on the same design and rejects
+  every `$alu $macc $macc_v2 $lcu $fa` cell that `alumacc` built: a run-time
+  ordering comparison (`$lt $le $gt $ge`) becomes Yosys's adder (`$alu`) in
+  tasks that ban `+` and `-` (`a > ~b` IS the carry out of `a + b`;
+  `tests/add/baselines/cmp_carry.sv` builds a whole adder that way). Equality
+  (`$eq $ne $eqx $nex`: `alumacc` builds no `$alu` for it), comparisons Yosys
+  folds as constants (over parameters and genvars) and a comparator built
+  from `& | ^ ~` stay allowed; a task that bans neither `+` nor `-` (the
+  divider) keeps every comparison. It reports the cell's source location (a
+  lowered comparison's own). The front check does not look at comparisons.
 
 Note that run-time index arithmetic is arithmetic: `a[j + 1]` with a signal
 `j`, `v[sel -: 4]` and `x[sel*W +: W]` build `$add`/`$sub`/`$mul` cells and
@@ -1476,28 +1822,34 @@ are rejected under an arithmetic banlist.
 `leaderboard/leaderboard.py` (documented in full in
 [leaderboard/README.md](leaderboard/README.md); Python 3, standard library
 only) turns an accepted submission into a **record** and ranks the records
-on the sky130 A0' score: the area in um^2 and the time in ps (decided 11/03;
-"Scoring"). Area in GE and depth are extra columns.
+on the sky130 A0' score: the area in um^2 and the time in ps, whose product, area x time, is the one
+ranked number (decided 2026-11-05; "Scoring"). `board` and `export` list the records by it, lowest first
+(`#` is the rank, as on the site); the Pareto layer of the two factors is an exploration column beside the
+GE area and depth, and `pareto` lists their frontier, also for exploring.
 
 ```bash
-# record locally: runs check.py on the pair and writes the record only if it is ACCEPTED.
-# --data-dir keeps YOUR records out of the repository's own (leaderboard/data holds the
-# reference records and, today, is the only board there is)
-python3 leaderboard/leaderboard.py add --task add --player alice \
-    --assisted-by "Claude (Anthropic)" --sv my_adder.sv --lean MyAdder.lean --data-dir ./my-records
-python3 leaderboard/leaderboard.py pareto --task add --data-dir ./my-records  # the (sky130 area, time) frontier
-python3 leaderboard/leaderboard.py pareto --task add --axes area_mge,depth      # opt-in: the frontier over other columns (here GE)
-python3 leaderboard/leaderboard.py pareto --task add --axes area_um2_sky130_mapped_v1,mapped_delay_sky130_v1   # ... over flow A1''s columns
-python3 leaderboard/leaderboard.py board  --task add       # ranked table (--format json too)
-python3 leaderboard/leaderboard.py verify                  # re-verify every stored record
-python3 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks, Markdown
+# record it: runs check.py on the pair and writes the record only if it is ACCEPTED, into
+# leaderboard/data/add/, the directory a pull request adds (--data-dir DIR: a private trial elsewhere)
+python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
+    --sv solution.sv --lean Solution.lean
+python3.12 leaderboard/leaderboard.py pareto --task add        # the (sky130 area, time) frontier (exploration)
+python3.12 leaderboard/leaderboard.py pareto --task add --axes area_mge,depth      # opt-in: the frontier over other columns (here GE)
+python3.12 leaderboard/leaderboard.py pareto --task add --axes area_um2_sky130_mapped_v1,mapped_delay_sky130_v1   # ... over flow A1''s columns
+python3.12 leaderboard/leaderboard.py board  --task add       # the table by area x time (--format json too)
+python3.12 leaderboard/leaderboard.py verify                  # re-verify every stored record
+python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks, Markdown
 ```
 
 * **There is no submission server yet.** `add` writes a record on your machine and nothing is
   sent anywhere. A record is self-verifying (`verify --full` re-runs the whole check), so a
   pull request carrying the record directory is a possible hand-off, but how records reach a public
   board is an open decision (PLAN.md, "Open questions for the maintainers"); until it is taken, the board
-  is the maintainers' `leaderboard/data`, and running `add` without `--data-dir` writes into it.
+  is the maintainers' `leaderboard/data`, and running `add` without `--data-dir` writes into it:
+  `leaderboard/data/<task>/` is where the records of a pull request go, and `--data-dir DIR` keeps a
+  private trial out of it. **That directory takes only a record whose check the board ran itself**
+  (decided 2026-11-06, the universal-correctness audit): `add` refuses `--from-check` (a stored result,
+  never re-run) and `--sandbox off` there, and a check that did not run in the OS sandbox
+  (`sandbox.active`); both options stay for a `--data-dir` trial.
 * **A record** is one JSON file per accepted submission,
   `leaderboard/data/<task>/<record_hash>.json`, with the submitted `.sv` and
   `.lean` copied next to it. It holds the player handle, `assisted_by`, the
@@ -1511,7 +1863,16 @@ python3 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks, Ma
   not ranked until it is backfilled, and a
   `leaderboard.py` from before the `ppa` key treats a record that has one as corrupt: update every reader first; one
   from before `mapped` accepts it) and `record_hash`, the sha256 of the record's canonical
-  JSON. `add` refuses anything `check.py` does not accept at every stage.
+  JSON. A clocked task's record (since 2026-11-07; the `arbiter`'s) names the clocked flow (`checker.flow`
+  `"seq"`: `score/svgolf_seq.ys` and `score/ge_seq.json`, whose GE table prices the flip-flop), and its
+  `postsynth` holds every post-synthesis point with every seed's cycles, power-ups and draw
+  (leaderboard/README.md). `add` refuses anything `check.py` does not accept at every stage, a result `check.py` marks
+  INCOMPLETE (`complete: false`, with the reasons in `incomplete`: `--no-score`, a light post-synthesis
+  check, `--no-trusted-build`, a `--time-limit` other than the task's), a result without
+  `stages.trusted` (the run did not build the trusted modules, so its comparator checked the goal
+  against whatever statement was on disk) and a solution stage that did not run under the task's own
+  CPU limit, or was stopped at a limit. A failed, timed-out or incomplete check establishes nothing
+  ("Rules").
 * **How a record is verified.** `verify --offline` re-hashes the record and
   the stored files and rechecks the area arithmetic (milliseconds); plain
   `verify` also rescores the stored design with `score.py` (the source gate
@@ -1534,35 +1895,42 @@ python3 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks, Ma
   marks (`postsynth.mode: "light"`, with `vectors` and `full_vectors`), `add` says in
   its output, and the boards show (`light` after the record hash, and a footnote). A
   record without `postsynth.mode` was made before the modes existed and reads as
-  full. Whether a public board accepts light records is the hand-off policy
-  (undecided; the default is that it takes full records only); a light record is a
-  legitimate local one.
+  full. **A light record never ranks** (decided 2026-11-06): its check was incomplete,
+  so the boards list it under "Not ranked" with that reason, whatever its score; it
+  is a legitimate local record, and not on a separate board.
 * **`assisted_by`** is the list of tools and AI systems that helped write the
   design or the proof, as free text (`["Claude (Anthropic)", "a proof assistant"]`);
   empty means unassisted. It is the submitter's word, shown next to every
   entry, and `--unassisted` ranks only the entries with an empty list. It does
   not change the ranking otherwise.
-* **The boards rank the sky130 score** (decided 11/03). `pareto`, `board` and `export` rank the A0' area
+* **The boards weigh the sky130 score** (decided 11/03; its product, area x time, is the ranked number since
+  2026-11-05). `board` and `export` rank the records by the product of the A0' area
   (`ppa.area_e4um2_sky130`, exact in 1e-4 um^2) and time (`ppa.delay_ps_sky130`; a clocked record's `score.time_ps`,
-  cycles x period) and show the GE area and depth as extra columns. A record is ranked only if it carries the columns and
+  cycles x period) and show the Pareto layer of the two, the GE area and depth as extra columns; `pareto` lists the
+  frontier of the two. A record is ranked only if it carries the columns and
   they are comparable: weighed under the current `ppa_version`, liberty and pins file, and under the task's input drive
   now. The others are listed as "Not ranked" with the reason; a record without sky130 columns (made before them, or with
   `--ppa off`) is not ranked until it is backfilled (checked again under `--ppa require`). `pareto --axes` (any of
   `area_mge`, `depth`, `area_um2_sky130`, `time_ps`, `delay_ps_sky130`, `unit_depth`, `cells_sky130`, and flow A1''s
   `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, `mapped_cells_sky130_v1`, `mapped_levels_sky130_v1`) is the
-  opt-in n-dimensional frontier over other columns (`--axes area_um2_sky130,time_ps` is the board's; ties kept, areas
+  opt-in n-dimensional frontier over other columns (`--axes area_um2_sky130,time_ps` is `pareto`'s; ties kept, areas
   compared as exact integers); records without them, or computed under another `ppa_version`/liberty/pins (or, for the
   mapped axes, another `ppa_mapped_version`/script/pins), are listed as "not shown" with the reason. The boards print no
-  confidence band: that 10% / 20% noise is a ranking decision, not a column.
-* **Policy: the Pareto frontier, no budget by default.** A record is on the
+  confidence band and need none: the ranked numbers are exact integers and deterministic (the same design text gives
+  the same numbers on every run of the pinned flow), so equal products tie and every other difference ranks.
+* **Policy: area x time ranks; the Pareto frontier is for exploring; no budget
+  by default.** The ranked number is a record's area x time (decided 2026-11-05:
+  par, the record, "under par" and the board's order use it). The board lists the
+  records by it, lowest first; equal products share a rank (1, 1, 3) and are
+  listed as the site lists them (the smaller GE area, then the smaller depth,
+  then the earlier date, then the record hash), so the order is the same on
+  every machine. Each row names its Pareto layer of the two factors, an
+  exploration column (`pareto` prints layer 1): a record is on the
   frontier iff no other record is at least as good on both sky130 area and
-  time and strictly better on one; ties are kept; listings are in one
-  deterministic order (area, time, earlier date, player, hash: on a tie in
-  both, the earlier record stands). The board lists the frontier first, then
-  the dominated records by layer. A task author may add a depth budget
+  time and strictly better on one; ties are kept. A task author may add a depth budget
   (`leaderboard.depth_budget` in `task.json`, ranking only; or the checker's
   own `scoring.depth_budget`, which rejects; on the unit depth): the board
-  then also ranks the best sky130 area under it and flags the entries over
+  then also ranks the best area x time under it and flags the entries over
   it. No task has one today. Scores are comparable exactly when the pinned
   flow, the scoring point, the sky130 pins and the task's input drive agree,
   so the board ranks only records checked under the current ones and lists
@@ -1577,7 +1945,7 @@ time from `score/tests/ppa/expected_ppa.json`, the extra GE area and depth from
 |---|---|---|---|
 | `add` | Sklansky prefix adder (simulation only) | 541.7696, 2451 | 127.658, 28 |
 | `add` | Kogge-Stone prefix adder (simulation only) | 641.8656, 2064 | 149.652, 24 |
-| `add` | comparison-carry adder (policy probe, simulation only) | 857.072, 1965 | 195.975, 17 |
+| `add` | comparison-carry adder, Yosys's `$alu` through run-time comparisons (banned since 2026-11-05, banlist lifted) | 857.072, 1965 | 195.975, 17 |
 | `add` | Yosys's own `{cout, s} = a + b + cin` (banned `+`, banlist lifted) | 497.9776, 3143 | 117.994, 33 |
 | `mul` | Dadda tree + ripple final adder (simulation only) | 8230.3936, 5461 | 1953.585, 61 |
 | `mul` | Dadda tree + Kogge-Stone final adder (simulation only) | 8937.3216, 5148 | 2076.51, 48 |
@@ -1588,7 +1956,10 @@ The proved references are the first records (`svgolf-reference`,
 `assisted_by` `["Claude (Anthropic)"]`, notes `reference solution`;
 `leaderboard.py seed-references` records them again; the records of
 `leaderboard/data` were re-seeded under `sky130_a0_v3` on 11/04, with the
-same design and proof files, so they carry the ranked columns).
+same design and proof files, so they carry the ranked columns, again on
+2026-11-05 after the checker's own files changed, with the same files and numbers,
+and on 2026-11-06 after the statement change, from the proofs updated for the
+parameter range, with the same designs and numbers).
 
 ## Tests
 
@@ -1610,7 +1981,8 @@ summary table (step, checks, failures, time):
   and the Dadda baselines reproducible from `gen_dadda.py`;
 * `build`: `lake build` (SvGolf, tasks, tests), so every refutation of a
   negative design is re-checked by the kernel, its design re-extracted by
-  `load_sv` when anything it depends on changed;
+  `load_sv` when anything it depends on changed (but the three that wait for
+  the int32 port round, "Building", which `negatives` builds);
 * `unit`: `score/test_score.py`, `score/test_srcgate.py`,
   `score/banlist.py --selftest`, `score/fourstate.py --selftest`, and
   `tests/checker/test_advisories.py` (the oracles against independent arithmetic, the
@@ -1706,7 +2078,8 @@ summary table (step, checks, failures, time):
   reference proof, rejected at its expected stage (`banlist` for the banned
   operators, `fourstate` for the two that read an undriven net, `solution`
   for the rest; every refutation is in the `tests` library), and its quoted
-  scores;
+  scores; and each refutation that waits for the int32 port round, built alone,
+  failing with its pinned refusal;
 * `baselines`: every baseline scored (`score.py` applies no banlist, so a
   banned-operator baseline is scored "with the banlist lifted"), the
   banlist's verdict as expected, token identity where claimed, the 4-state
@@ -1843,13 +2216,14 @@ outside `nightly/`.
 
 ## Tasks
 
-| task | statement | reference | score at N = 16: sky130 A0' um^2, ps (ranked); GE, depth (extra) |
+| task | statement | reference | score at the scoring point: sky130 A0' um^2, ps (their product, area x time, is the ranked number); GE, depth (extra) |
 |---|---|---|---|
 | `_example` | N-bit bitwise AND (toy) | `assign y = a & b;`, for-all-`N` proof | 100.096 um^2, 280 ps; 21.328 GE, depth 1 |
 | `add` | N-bit adder with carry, `{cout, s} = a + b + cin`; bans `+ - * / % **` | ripple carry from gates, for-all-`N` proof (with the sv_comb tactics, and by hand as `add_n_byhand`); Sklansky and Kogge-Stone prefix adders by simulation (`tests/add/baselines`) | ripple 460.4416 um^2, 2611 ps; 112.0 GE, depth 33. Sklansky 541.7696, 2451; 127.658, 28. Kogge-Stone 641.8656, 2064; 149.652, 24 (Yosys's own `+`: 497.9776, 3143; 117.994, 33) |
-| `mul` | N-bit unsigned multiplier, `p = a * b` on `2N` bits; bans `+ - * / % **` | array multiplier (AND partial products, ripple-carry rows of full adders), for-all-`N` proof (with the sv_comb tactics, and by hand as `mul_n_byhand`); Dadda trees by simulation (`tests/mul/baselines`) | array 8290.4512 um^2, 10907 ps; 1962.576 GE, depth 88. Dadda + ripple 8230.3936, 5461; 1953.585, 61. Dadda + Kogge-Stone 8937.3216, 5148; 2076.51, 48 (Yosys's own `*`: 8825.9648, 6261; 2081.227, 59) |
-| `fdivp` | IEEE 754 division PARAMETRIC in the format, `fdiv #(W, P)` on `W + P` bits for every `W >= 2`, `P >= 2`, round to nearest even, canonical NaN, subnormals (`SvGolf.IEEE754.divide`); bans `/ % **` | a word-level netlist of 34 sites (linear normalizer and `P + 2` restoring steps as generate families), Verilator-validated on all 66 formats with `W + P <= 14` and both 2^32-pair formats and **proved for every format** (`tasks/fdivp/README.md`; one self-contained proof over `LeanModels.Sv.Lib`: the spec's facts, the certificate, the math layer, the glue `Glue.chain`, `OutN_fdivBits`); binary16 is the instance `(5, 11)` (the former 16-bit task, removed 2026-11-03, is folded in); the natural form D1 and the fragment-friendly D2 are baselines (`tests/fdivp/baselines`); a second proved reference, a Newton-Raphson divider (a logarithmic number of Newton steps over the run-time `*`), is not competitive; a third, a radix-4 SRT divider adapted from CORE-V Wally (carry-save remainder, digit selection by table constants, on-the-fly conversion), is the fastest | 9675.5296 um^2, 37984 ps; 2166.076 GE, depth 289 at `(5, 11)` (Newton 33824.9408, 40031; 7892.452, 252; SRT 12356.8512, 27592; 2787.652, 189; D1 1911.446 GE, 300, not weighed) |
+| `mul` | N-bit unsigned multiplier, `p = a * b` on `2N` bits; bans `+ - * / % **` | array multiplier (AND partial products, ripple-carry rows of full adders), for-all-`N` proof (with the sv_comb tactics, and by hand as `mul_n_byhand`); Dadda trees by simulation (`tests/mul/baselines`) | array 8290.4512 um^2, 10907 ps; 1962.576 GE, depth 88. Par, the proved tree `mul_tree_h`: 8563.2128, 5992; 2025.905, 62. Dadda + ripple 8230.3936, 5461; 1953.585, 61. Dadda + Kogge-Stone 8937.3216, 5148; 2076.51, 48 (Yosys's own `*`: 8825.9648, 6261; 2081.227, 59) |
+| `fdivp` | IEEE 754 division PARAMETRIC in the format, `fdiv #(W, P)` on `W + P` bits for every `W >= 2`, `P >= 2`, round to nearest even, canonical NaN, subnormals (`SvGolf.IEEE754.divide`); bans `/ % **` | a word-level netlist of 34 sites (linear normalizer and `P + 2` restoring steps as generate families), Verilator-validated on all 66 formats with `W + P <= 14` and both 2^32-pair formats and **proved for every format** (`tasks/fdivp/README.md`; one self-contained proof over `LeanModels.Sv.Lib`: the spec's facts, the certificate, the math layer, the glue `Glue.chain`, `OutN_fdivBits`); binary16 is the instance `(5, 11)` (the former 16-bit task, removed 2026-11-03, is folded in); the natural form D1 and the fragment-friendly D2 are baselines (`tests/fdivp/baselines`); a second proved reference, a Newton-Raphson divider (a logarithmic number of Newton steps over the run-time `*`), is not competitive; a third, a radix-4 SRT divider adapted from CORE-V Wally (carry-save remainder, digit selection by table constants, on-the-fly conversion), is the fastest | 9675.5296 um^2, 37984 ps; 2166.076 GE, depth 289 at `(5, 11)` (Newton 33824.9408, 40031; 7892.452, 252; SRT, par: 12356.8512, 27592; 2787.652, 189; D1 1911.446 GE, 300, not weighed) |
 | `aes_sbox` | the AES S-box (FIPS 197 Section 5.1.1), `y = S(x)` on 8 bits, defined algebraically (inverse in GF(2^8), then the affine map), fixed size; NO operator banned; the post-synthesis check is exhaustive (all 256 inputs) | Boyar-Peralta 113-gate circuit, validated (Verilator, all 256 inputs; gate for gate against the authors' netlist file), scored and **proved** (113 plain sites: `sv_structure` and `sv_equations` decide the obligations of a flat netlist instead of normalising them, `PROVING.md` section 12); a 256-entry `case` table and the depth-16 Boyar-Peralta circuit by simulation (`tests/aes_sbox/baselines`) | 892.1056 um^2, 4297 ps; 200.986 GE, depth 21 (fixed size). `case` table 3445.8048, 2288; 786.894, 11. Depth-16 circuit 952.1632, 3670; 216.322, 18 |
 | `clmul` | N-bit carry-less multiplier (product of polynomials over GF(2)), `p = a (x) b` on `2N-1` bits; bans run-time `+ - *` | the N x N AND/XOR array (`mul_n`'s shape without carries), validated (Verilator, exhaustive to `N = 8`; the Lean spec equals the oracle on every pair to `N = 7`), scored and **proved** for every `N` (`sv_structure`/`sv_equations`/`sv_cover`/`sv_bridge`, 206 code lines, `solution` stage 7.7 s); schoolbook and Karatsuba baselines by simulation (`tests/clmul/baselines`); 18 real-world styles under `tests/clmul/attacks` (`tasks/clmul/README.md`, "How people write clmul") | 3429.5392 um^2, 1114 ps; 772.267 GE, depth 6 at `N = 16`; Karatsuba (4-bit base, generated) 2756.4, 1807; 621.959, 8 |
+| `arbiter` | a fair N-client arbiter, CLOCKED and REACTIVE (`ReactTask`, kind `react-family`): per cycle at most one grant, only to a requester, someone whenever anyone requests (G1 to G3), no grant out of reset (G0), and a client that requests `N` cycles in a row granted within them (G4, `K = N - 1`, tight), from every power-up state, Moore outputs, no environment assumption; every `N >= 1` with `N*N < 2^31`; bans `/ % **` | a registered mask round-robin (own code), **proved** for every `N` through `ReactTask.satisfiedAt_of_rank` (an invariant and a rank: `PROVING.md` section 20); the adapted OpenTitan `prim_arbiter_tree` behind an output register and a rotating priority by simulation (`tests/arbiter/designs`); 17 attacks (`tests/arbiter/attacks`); listed and ranked, par the reference's record (`tasks/arbiter/README.md`) | 769.488 um^2, 2826 ps (the register-to-register period, one decision per cycle; 16 flops); 188.979 GE, depth 17 at `N = 8`. OpenTitan tree 668.1 um^2, 1454 ps (an earlier flow version, not proved) |
 | `matmul` | **Preview, not ranked yet: the statement is being revised to cover the outputs on the wire and unknown values at reset; submissions are not ranked until then.** N x N signed matrix multiplication, clocked, `C = A * B` wrapping at `AccW` bits behind a start/done handshake (`tasks/matmul/README.md`) | N x N parallel multiply-accumulate units and a step counter, latency N, proved for every `N, W, AccW` | not ranked (a preview) |
 | `sorter` | **Preview, not ranked yet: the statement is being revised to cover the outputs on the wire and unknown values at reset; submissions are not ranked until then.** A streaming sorter of N unsigned W-bit values, clocked, one value per cycle in and out (`tasks/sorter/README.md`) | an insertion-cell array adapted from andrewpeck/cell-sort (MIT), latency 2N, proved for every `N, W` | not ranked (a preview) |

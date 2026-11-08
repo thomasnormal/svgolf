@@ -1,17 +1,18 @@
 """The counter fixture's own evaluator (task.json `oracle`; the clocked post-synthesis check, PLAN4
 Gate 2 step 4, binding check (ii)), independent of ls-sv: Python integers only.
 
-- `txns(params, seed, count)`: the stimulus entries after the checker's reset entries, each a dict
+- `txns(params, seed, count, rng=None)`: the stimulus entries after the checker's reset entries, each a dict
   of the inputs but the clock ({"rst", "en"}): `en` = 1 seven times in eight (so N = 8 wraps), and
-  one entry in 32 a reset.
+  one entry in 32 a reset; `rng`: the checker's random source for the seed (check/postsynth.py `seed_draw`: derived from $SVGOLF_POSTSYNTH_SALT, F5, 2026-11-07); None: the deterministic one of (seed, params), for this file's self-test and the simulations.
 - `expect(params, entries)`: per entry, the outputs SeqTask claims in its snapshot ({"q": q}), or
   None before the first reset entry: a reset restarts q at 0, any other entry adds `en` mod 2^N.
 """
 import random
 
 
-def txns(params, seed, count=24):
-    rng = random.Random(seed * 1000003 + int(params["N"]))
+def txns(params, seed, count=24, rng=None):
+    if rng is None:
+        rng = random.Random(seed * 1000003 + int(params["N"]))
     return [{"rst": int(rng.getrandbits(5) == 0), "en": int(rng.getrandbits(3) != 0)}
             for _ in range(max(count, 320))]
 

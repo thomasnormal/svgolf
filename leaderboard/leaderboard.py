@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""svGolf leaderboard: records, verification, Pareto frontier and boards.
+"""svGolf leaderboard: records, verification, the ranked boards and the Pareto frontier.
 
-Records of accepted submissions, their verification, the Pareto frontier of
-the ranked score (the sky130 A0' area in um^2 and time in ps: the critical-path
-delay, or cycles x the clock period of a clocked task) and the ranked boards.
-Area in GE and depth are extra columns.
+Records of accepted submissions, their verification and the ranked boards: ranked
+by area x time (decided 2026-11-05: the sky130 A0' area in um^2 times the time in
+ps, the critical-path delay or cycles x the clock period of a clocked task;
+`combined.py` defines it once), the one ranked number, lower is better. The
+Pareto frontier of the two factors (`pareto`, the board's `layer` column) is an
+exploration view, like the extra columns area in GE and depth: it ranks nothing.
 
-    leaderboard.py add --task T --player P [--assisted-by X ...] --sv F.sv --lean F.lean
+    leaderboard.py add --task T --player P [--assisted-by X ...] --sv solution.sv --lean Solution.lean
                        [--notes TEXT] [--from-check RESULT.json] [--date YYYY-MM-DD]
                        [--postsynth full|light]
     leaderboard.py verify [--task T] [--offline | --full]
@@ -18,8 +20,8 @@ Area in GE and depth are extra columns.
 One record per ACCEPTED submission, written to
 `leaderboard/data/<task>/<record_hash>.json` next to copies of the two
 submitted files (`<record_hash>.sv`, `<record_hash>.lean`), so an entry can be
-re-verified. The record format, the policies (Pareto frontier, optional depth
-budget, staleness) and the verification levels are documented in
+re-verified. The record format, the policies (the ranked number, the Pareto
+frontier, optional depth budget, staleness) and the verification levels are documented in
 `leaderboard/README.md`; svgolf/README.md has the short version.
 
 Everything that decides anything is a PURE function of its arguments (record
@@ -40,6 +42,7 @@ import argparse
 import copy
 import datetime
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -50,6 +53,18 @@ import tempfile
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_combined():
+    """leaderboard/combined.py (the area x time product, defined once), by path: this file is also loaded by path
+    (site/build.py, check.py, the tests), with its directory not on sys.path."""
+    spec = importlib.util.spec_from_file_location("svgolf_combined", os.path.join(HERE, "combined.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+combined = _load_combined()
 SVGOLF = os.path.dirname(HERE)
 DEFAULT_DATA = os.path.join(HERE, "data")
 DEFAULT_TASKS = os.path.join(SVGOLF, "tasks")
@@ -79,13 +94,39 @@ DEFAULT_POSTSYNTH_MODE = "full"
 # but is NOT RANKED until it is backfilled: checked again, which gives a record with the columns).
 PPA_KEY = "ppa"
 # Flow A1' (WP-X4): a real `abc -liberty` mapping of the same run's canonical RTLIL, recorded as the optional SUB-object
-# `ppa.mapped` (an unranked research column set beside A0''s, with its own field names, version and hashes; neither flow is
-# official). A record without it, every record made before WP-X4, stays valid and verifies as it did.
+# `ppa.mapped` (an unranked research column set beside A0''s, with its own field names, version and hashes: A0' is the
+# ranked flow, A1' an extra column). A record without it, every record made before WP-X4, stays valid and verifies as it did.
 PPA_MAPPED_KEY = "mapped"
+# The player whose records are the proved references (`seed-references`): PAR, the bar to beat (site/config.json's
+# `reference_player` names the same player).
+REFERENCE_PLAYER = "svgolf-reference"
 OFFICIAL_PPA_MODE = "require"
 # Every check an official artifact comes from runs its untrusted processes in the OS sandbox (WP-S): the
 # mechanism missing, or failing its self-test, is an infrastructure error, never a record made without it.
 OFFICIAL_SANDBOX_MODE = "require"
+
+# THE CLOCKED RECORD FORMAT (decided 2026-11-07). A task whose kind is one of CLOCKED_KINDS is scored by the clocked
+# flow and checked after synthesis at EVERY point of its task.json `postsynth.points` (check.py `score_clocked`), so:
+# acceptance requires `stages.postsynth.points` (every point of the task, in full mode, every seed run, 0 mismatches);
+# the record's `postsynth` keeps those points (`clocked_postsynth_record`); the record carries the flow of its kind
+# (`checker.flow: "seq"`, and the hashes of svgolf_seq.ys and ge_seq.json); and the board, the rescore (`score.py
+# --seq`) and the site's flow pin compare a record only with the current flow of its own kind (`task_flow`,
+# `current_flow(svgolf, flow)`). A combinational record is unchanged: no `checker.flow` (it reads as "comb"), the
+# vectors form of `postsynth`, the hashes of svgolf.ys and ge.json. check.py, check/postsynth.py and score/points.py
+# name the same kinds; the tests hold the classification of every kind check.py knows to check.py's. `react-family` is
+# the arbiter's kind (tasks/arbiter).
+CLOCKED_KINDS = ("seq-family", "tx-family", "stream-family", "react-family")
+COMB_FLOW, SEQ_FLOW = "comb", "seq"
+# The scoring flows by name: the files whose sha256 are a record's `checker.script_sha256` and `checker.ge_table_sha256`
+# (score/score.py `FLOWS`; canon.ys and the Yosys build are shared). Relative to score/.
+FLOW_FILES = {COMB_FLOW: ("svgolf.ys", "ge.json"), SEQ_FLOW: ("svgolf_seq.ys", "ge_seq.json")}
+# The seeds per point of the clocked post-synthesis check when task.json `postsynth.seeds` names none
+# (check/postsynth.py `CLOCKED_DEFAULTS["seeds"]`; the tests compare the two)
+CLOCKED_SEEDS_DEFAULT = 8
+# What one seed of the clocked check counts besides its cycles, per kind (check/postsynth.py `clocked_seed`): the
+# transactions of a tx-family or stream-family run, the segments of a react-family one; a seq-family run counts only
+# its cycles
+CLOCKED_SEED_UNIT = {"tx-family": "transactions", "stream-family": "transactions", "react-family": "segments"}
 
 # The files whose content is the checker (and the pinned flow): their sha256
 # go into every record (`checker.files`), so "which checker accepted this" is
@@ -97,7 +138,18 @@ CHECKER_FILES = (
     "score/fourstate.py", "score/canon.ys", "score/svgolf.ys", "score/ge.json",
     "score/ppa.py", "score/ppa_pins.json", "score/ppa_mapped.ys", "score/ppa_mapped_pins.json",
     "lean-toolchain", "lakefile.toml",
+    # the clocked kinds' (2026-11-07): the clocked flow, its GE table, the clocked source rules (check.py
+    # CLOCKED_TRUSTED, fingerprinted by its integrity tripwire too)
+    "score/svgolf_seq.ys", "score/ge_seq.json", "check/clocked_rules.py",
 )
+# THE STATEMENT A RECORD WAS CHECKED UNDER (decided 2026-11-07, round 7b review M1). A record's `checker.statement`
+# maps each trusted statement file it was checked under to its sha256: the task's statement module
+# (task.json `statement.module`, e.g. tasks/add/Spec.lean) and every module of svgolf/ it imports, transitively
+# (`statement_files`): SvGolf/Task.lean for every task, SvGolf/TaskSeq.lean and SvGolf/TaskReact.lean for the clocked
+# kinds that rest on them, a task's own helper (tasks/fdivp/IEEE754.lean). A module outside svgolf/ (ls-sv's
+# LeanModels, Mathlib) is not in it: the ls-sv revision is `lean_surfaces_revision`. The board, the site and `verify`
+# compare a record only with the task's statement as it is now (`current_statement`): a record checked under
+# another statement, or made before records named theirs, is stale and not ranked, whatever its score.
 # The paths whose uncommitted changes mark a revision `+dirty` (the trusted
 # base; the leaderboard's own files and the player material are not it).
 DIRTY_PATHSPEC = ("check.py", "check", "score", "SvGolf", "lakefile.toml",
@@ -324,6 +376,42 @@ def effective_depth_budget(task):
     return min(vals) if vals else None
 
 
+def is_clocked_task(task):
+    """Whether `task` (a task.json) is of a CLOCKED_KINDS kind."""
+    return isinstance(task, dict) and task.get("kind") in CLOCKED_KINDS
+
+
+def task_flow(task):
+    """The scoring flow of `task`'s kind (FLOW_FILES): "seq" for a clocked kind, else "comb"."""
+    return SEQ_FLOW if is_clocked_task(task) else COMB_FLOW
+
+
+def record_flow(rec):
+    """The flow a record says it was scored under: its `checker.flow`, "comb" when it names none (every
+    combinational record, and every record made before the clocked format)."""
+    c = rec.get("checker") if isinstance(rec, dict) else None
+    return c.get("flow", COMB_FLOW) if isinstance(c, dict) else COMB_FLOW
+
+
+def point_text(params):
+    """A point as check.py names it ({"N": 3} -> "N=3"; check/envelope.py `point_str`), "default" for a
+    parameterless top (the clocked check's name for it, check/postsynth.py `run_clocked`)."""
+    return ",".join(f"{k}={v}" for k, v in params.items()) or "default"
+
+
+def clocked_points(task):
+    """The points of a clocked task's post-synthesis check, in check.py's order (`score_clocked`): the scoring point
+    first unless the task's `postsynth.points` lists it, then those points; each {param: int}."""
+    sp = scoring_point(task)
+    pts = [{k: int(v) for k, v in p.items()} for p in ((task.get("postsynth") or {}).get("points") or [])]
+    return ([] if sp in pts else [sp]) + pts
+
+
+def clocked_seeds(task):
+    """The seeds the clocked check runs per point: task.json `postsynth.seeds`, else the checker's default."""
+    return (task.get("postsynth") or {}).get("seeds", CLOCKED_SEEDS_DEFAULT)
+
+
 def task_leaderboard_problems(task):
     """Schema problems of the optional `leaderboard` field of a task.json."""
     lb = task.get("leaderboard")
@@ -366,10 +454,16 @@ def acceptance_problems(res, task, sv_sha256, postsynth="full"):
     .sv has sha256 `sv_sha256` to a record for `task`. Empty list: it does.
     `postsynth` is the mode the record was asked for: a result whose
     post-synthesis check ran LIGHT is acceptable only for "light" (an official
-    record needs the full check)."""
+    record needs the full check). Besides the verdict of every stage: the run
+    built the trusted modules itself (`stages.trusted`), the solution stage ran
+    under the task's own CPU limit and was not stopped, and check.py does not
+    report the check INCOMPLETE (`incomplete`)."""
     if not isinstance(res, dict):
         return ["the check result is not a JSON object"]
     p = []
+    if res.get("unproved_ok") or res.get("stage") == "unproved":
+        p.append("this is the result of a `check.py --unproved` run: it checked no proof (its exit status 0 says "
+                 "the design is admissible), and only a run with the Lean file can be recorded")
     if res.get("accepted") is not True:
         p.append(f"check.py did not accept the submission (accepted={res.get('accepted')!r}, "
                  f"stage {res.get('stage')!r})")
@@ -399,9 +493,15 @@ def acceptance_problems(res, task, sv_sha256, postsynth="full"):
             p.append(f"depth {sc['depth']} exceeds the task's depth budget {budget}")
     if _get(res, "stages", "score", "gated") is not True:
         p.append("the score is not gated (an ungated score is not an svGolf score)")
+    if not is_clocked_task(task) and (_get(res, "stages", "score", "flow", default=COMB_FLOW) != COMB_FLOW
+                                      or (isinstance(sc, dict) and any(k in sc for k in CLOCKED_SCORE_KEYS))):
+        p.append("the result carries the clocked flow's score, and a combinational task is scored by the "
+                 "combinational flow (score/svgolf.ys, ge.json)")
     ps = _get(res, "stages", "postsynth")
-    if not (isinstance(ps, dict) and isinstance(ps.get("vectors"), int)
-            and ps["vectors"] > 0 and ps.get("mismatches") == 0):
+    if is_clocked_task(task):
+        p += clocked_acceptance_problems(res, task, postsynth)
+    elif not (isinstance(ps, dict) and isinstance(ps.get("vectors"), int)
+              and ps["vectors"] > 0 and ps.get("mismatches") == 0):
         p.append("the post-synthesis check did not pass (no `stages.postsynth` record with "
                  "mismatches 0: a result of an older checker, or a run without scoring)")
     elif record_mode(ps) not in POSTSYNTH_MODES:
@@ -422,6 +522,33 @@ def acceptance_problems(res, task, sv_sha256, postsynth="full"):
             p.append(f"axioms outside the task's allowed set: {extra}")
     if _get(res, "stages", "solution", "exit") != 0:
         p.append("the solution stage did not succeed")
+    # the board's own kernel check: the run built the trusted modules itself (else the comparator checked the goal
+    # against whatever statement module was on disk), and the solution stage's own verdict is the task's limit's
+    trusted = _get(res, "stages", "trusted")
+    if not (isinstance(trusted, dict) and trusted.get("exit") == 0):
+        p.append("the result has no `stages.trusted` with exit 0: the check did not build the trusted modules "
+                 "(`check.py --no-trusted-build`), so its comparator checked the goal against whatever statement "
+                 "module was on disk")
+    sol = _get(res, "stages", "solution")
+    if isinstance(sol, dict):
+        limit = task.get("time_limit_s", 600)
+        if sol.get("time_limit_s") != limit:
+            p.append(f"the proof was checked under a time limit of {sol.get('time_limit_s')!r} s, not the task's "
+                     f"{limit} CPU s (`check.py --time-limit`, or a checker from before the limit was recorded)")
+        if sol.get("time_limit_counts") not in (None, "cpu"):
+            p.append(f"the solution stage's limit counted {sol.get('time_limit_counts')!r}, not CPU seconds")
+        cpu = sol.get("cpu_seconds")
+        if isinstance(cpu, (int, float)) and isinstance(limit, (int, float)) and cpu > limit:
+            p.append(f"the solution stage used {cpu} CPU s, over the task's {limit} s limit")
+        if sol.get("stopped_by"):
+            p.append(f"the solution stage was stopped at its {sol['stopped_by']} limit")
+    # check.py's own completeness verdict (`incomplete_reasons`): a light check is acceptable only for a light record
+    for why in res.get("incomplete") or []:
+        if postsynth == "light" and str(why).startswith("the post-synthesis check ran LIGHT"):
+            continue
+        p.append("check.py reports the check INCOMPLETE: " + str(why)[:300])
+    if res.get("complete") is False and not res.get("incomplete"):
+        p.append("check.py reports the check INCOMPLETE")
     integ = _get(res, "stages", "integrity")
     if not isinstance(integ, dict) or integ.get("changed") or integ.get("changed_by_end"):
         p.append("the integrity stage is missing or reports changed files")
@@ -451,6 +578,121 @@ def ppa_acceptance_problems(res):
                 "`python3.12 score/ppa.py --fetch-liberty`); a record WITHOUT the columns comes "
                 "from a result made with `--ppa off`"]
     return []
+
+
+def _isint(v, least=0):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= least
+
+
+def _zero(v):
+    """`v` is the integer 0 (not False, not 0.0)."""
+    return _isint(v) and v == 0
+
+
+def clocked_acceptance_problems(res, task, postsynth="full"):
+    """Why the clocked half of `res` does not entitle a submission to a record for `task`, a task of a CLOCKED_KINDS
+    kind (the clocked record format, decided 2026-11-07); [] when it does. The clocked flow scored it
+    (`stages.score.flow` "seq") with the clocked score (check.py `score_clocked`: CLOCKED_SCORE_KEYS), and
+    `stages.postsynth.points` holds EVERY point of the task (`clocked_points`) once, each of the task's kind, in full
+    mode (light only for a light record), with every seed of the task (`clocked_seeds`: seeds 0 to S-1, each with its
+    cycles and the count its kind's check makes, CLOCKED_SEED_UNIT), 0 mismatches, its netlist's sha256 and the
+    declared latency; the stage's `netlist_sha256` is the scoring point's, the netlist the `ppa` block weighed."""
+    p = []
+    sc = res.get("score") if isinstance(res.get("score"), dict) else {}
+    if _get(res, "stages", "score", "flow") != SEQ_FLOW:
+        p.append(f"a {task.get('kind')} task is scored by the clocked flow (score/svgolf_seq.ys, ge_seq.json): the "
+                 f"result's stages.score.flow is {_get(res, 'stages', 'score', 'flow')!r}, not 'seq'")
+    if sc and not all(k in sc for k in CLOCKED_SCORE_KEYS):
+        p.append(f"a {task.get('kind')} task's score is the clocked one (check.py `score_clocked`): the result's score "
+                 f"lacks {[k for k in CLOCKED_SCORE_KEYS if k not in sc]}")
+    ps = _get(res, "stages", "postsynth")
+    pts = ps.get("points") if isinstance(ps, dict) else None
+    if not (isinstance(pts, list) and pts and all(isinstance(x, dict) for x in pts)):
+        return p + ["the clocked post-synthesis check did not pass: the result has no `stages.postsynth.points` (a "
+                    "result of an older checker, or a run without scoring)"]
+    want = [point_text(q) for q in clocked_points(task)]
+    got = [x.get("point") for x in pts]
+    missing = [w for w in want if w not in got]
+    if missing:
+        p.append(f"the clocked post-synthesis check did not run at every point of the task: {missing} missing (the "
+                 f"task's points are {want})")
+    extra = sorted({str(g) for g in got if g not in want})
+    if extra:
+        p.append(f"the clocked post-synthesis check ran at points the task does not list: {extra}")
+    twice = sorted({str(g) for g in got if got.count(g) > 1})
+    if twice:
+        p.append(f"the clocked post-synthesis check lists the points {twice} more than once")
+    seeds, unit = clocked_seeds(task), CLOCKED_SEED_UNIT.get(task.get("kind"))
+    latency = res.get("latency")
+    for x in pts:
+        at = f"stages.postsynth.points[{x.get('point')!r}]"
+        if x.get("kind") != task.get("kind"):
+            p.append(f"{at} is a check of the kind {x.get('kind')!r}, not the task's {task.get('kind')!r}")
+        if not _zero(x.get("mismatches")) or x.get("report"):
+            p.append(f"{at} did not pass: mismatches {x.get('mismatches')!r}")
+        if x.get("mode") not in POSTSYNTH_MODES:
+            p.append(f"{at}.mode {x.get('mode')!r} is neither 'light' nor 'full'")
+        elif x["mode"] == "light" and postsynth != "light":
+            p.append(f"{at} ran in LIGHT mode (local feedback): an official record needs the full check at every "
+                     "point. Rerun check.py with --postsynth full, or record it as a light record with `add "
+                     "--postsynth light`")
+        if not SHA_RE.fullmatch(str(x.get("netlist_sha256", ""))):
+            p.append(f"{at} has no netlist sha256")
+        if x.get("latency") != latency:
+            p.append(f"{at} checked the latency {x.get('latency')!r}, not the declared {latency!r}")
+        ss = x.get("seeds")
+        ran = ([s.get("seed") for s in ss] if isinstance(ss, list) and all(isinstance(s, dict) for s in ss)
+               else None)
+        if ran != list(range(seeds)):
+            p.append(f"{at} did not run every seed of the task: seeds {ran if ran is not None else ss!r}, not the "
+                     f"task's 0 to {seeds - 1}")
+            continue
+        for s in ss:
+            if not _isint(s.get("cycles"), 1):
+                p.append(f"{at} seed {s.get('seed')} does not record its cycles")
+            if unit is not None and unit not in s:
+                p.append(f"{at} seed {s.get('seed')} does not record its {unit}")
+    if p:
+        return p
+    first = pts[got.index(point_text(scoring_point(task)))]       # the scoring point's check
+    if ps.get("netlist_sha256") != first["netlist_sha256"]:
+        p.append("stages.postsynth.netlist_sha256 is not the netlist checked at the scoring point")
+    pb = res.get("ppa")
+    if isinstance(pb, dict) and pb.get("available") is True and pb.get("netlist_sha256") != ps.get("netlist_sha256"):
+        p.append("the `ppa` block weighed another netlist (ppa.netlist_sha256) than the one checked at the scoring "
+                 "point (stages.postsynth.netlist_sha256)")
+    if _isint(sc.get("cycles"), 1) and sc["cycles"] != (latency or 1):
+        p.append(f"score.cycles {sc['cycles']} is not the declared latency {latency!r} (1 when none is declared)")
+    return p
+
+
+def clocked_postsynth_record(task, ps):
+    """The `postsynth` of a clocked record, from the result's `stages.postsynth` (`clocked_acceptance_problems` passed
+    it): `mode` ("light" if one point ran light, else "full"), `mismatches` (0), `netlist_sha256` (the scored netlist,
+    the scoring point's) and `points`, in `clocked_points` order: each with `point` (check.py's name), `params`,
+    `mode`, `mismatches`, `netlist_sha256`, `latency` and `seeds`, each seed's `seed` and `cycles`, its `segments`
+    (react-family) or `transactions` (tx-family, stream-family) as a count (CLOCKED_SEED_UNIT; a seq-family seed counts
+    neither), and `reset_cycles`, `salted`, `seed_sha256` and, since F5 (2026-11-07), the power-ups' draws
+    `netlist_randseed` (Verilator's randSeed) and `lssv_start` (`zeros` or ls-sv's `seed:<k>`) where the check
+    recorded them. Timings are not kept (they are not a fact about the design)."""
+    order = {point_text(q): (k, q) for k, q in enumerate(clocked_points(task))}
+    points = []
+    for x in sorted(ps["points"], key=lambda x: order[x["point"]][0]):
+        seeds = []
+        for s in x["seeds"]:
+            e = {"seed": s["seed"], "cycles": s["cycles"]}
+            for k in ("reset_cycles", "salted", "seed_sha256", "netlist_randseed", "lssv_start"):
+                if k in s:
+                    e[k] = s[k]
+            for k in ("segments", "transactions"):
+                if k in s:
+                    e[k] = len(s[k]) if isinstance(s[k], list) else s[k]
+            seeds.append(e)
+        points.append({"point": x["point"], "params": dict(order[x["point"]][1]), "mode": x["mode"],
+                       "mismatches": x["mismatches"], "netlist_sha256": x["netlist_sha256"],
+                       "latency": x.get("latency"), "seeds": seeds})
+    return {"mode": "light" if any(q["mode"] == "light" for q in points) else "full", "mismatches": 0,
+            "netlist_sha256": ps["netlist_sha256"], "points": points}
 
 
 def build_record(task, res, *, player, assisted_by, notes, submitted_at, sv_name, sv_bytes,
@@ -495,6 +737,13 @@ def build_record(task, res, *, player, assisted_by, notes, submitted_at, sv_name
     if not isinstance(imports, list):
         imports = lean_imports(lean_text)
     ps, comp = st["postsynth"], st["comparator"]["result"]
+    clocked = is_clocked_task(task)
+    if clocked:
+        # the Verilator of the clocked check: the scoring point's
+        first = point_text(scoring_point(task))
+        verilator = next(x.get("verilator") for x in ps["points"] if x["point"] == first)
+    else:
+        verilator = ps.get("verilator")
     rec = {
         "schema": SCHEMA,
         "task": task["name"],
@@ -519,7 +768,7 @@ def build_record(task, res, *, player, assisted_by, notes, submitted_at, sv_name
             "lean_surfaces_revision": _get(st, "extract", "lean_surfaces"),
             "lean_toolchain": environment.get("lean_toolchain"),
             "yosys": _get(st, "score", "yosys_version"),
-            "verilator": ps.get("verilator"),
+            "verilator": verilator,
             "extractor_sha256": _get(st, "extract", "extractor_sha256"),
             "canon_script_sha256": _get(st, "score", "canon_script_sha256"),
             "script_sha256": _get(st, "score", "script_sha256"),
@@ -535,17 +784,22 @@ def build_record(task, res, *, player, assisted_by, notes, submitted_at, sv_name
             "uses_comb_view": any(m.startswith("LeanModels.Sv.CombView") for m in imports),
             "uses_comb_eq": any(m.startswith("LeanModels.Sv.CombEq") for m in imports),
         },
-        "postsynth": {"point": ps.get("point"), "vectors": ps["vectors"],
-                      "mismatches": ps["mismatches"], "salted": bool(ps.get("salted")),
-                      "seed": ps.get("seed"), "mode": record_mode(ps),
-                      "full_vectors": ps.get("full_vectors", ps["vectors"])},
+        "postsynth": (clocked_postsynth_record(task, ps) if clocked else
+                      {"point": ps.get("point"), "vectors": ps["vectors"],
+                       "mismatches": ps["mismatches"], "salted": bool(ps.get("salted")),
+                       "seed": ps.get("seed"), "mode": record_mode(ps),
+                       "full_vectors": ps.get("full_vectors", ps["vectors"])}),
         "notes": notes,
     }
     if res.get("ppa") is not None:
         rec[PPA_KEY] = copy.deepcopy(res["ppa"])
-    if any(k in sc for k in CLOCKED_SCORE_KEYS):
-        # a clocked result's ranked score (check.py `score_clocked`): validate_record holds it to the `ppa` block
+    if clocked:
+        # a clocked result's ranked score (check.py `score_clocked`): validate_record holds it to the `ppa` block; and
+        # the record names the flow of its kind (a combinational record names none: it stays as it was)
         rec["score"].update({k: sc[k] for k in CLOCKED_SCORE_KEYS + ("ffs",) if k in sc})
+        rec["checker"]["flow"] = SEQ_FLOW
+    if isinstance(environment.get("statement"), dict) and environment["statement"]:
+        rec["checker"]["statement"] = dict(sorted(environment["statement"].items()))
     rec["record_hash"] = compute_record_hash(rec)
     bad = validate_record(rec)
     if bad:
@@ -764,8 +1018,17 @@ def validate_record(rec):
                  f"checker.{k} must be a sha256 hex digest")
         need(isinstance(c.get("yosys"), str) and c["yosys"], "checker.yosys must be a string")
         need(isinstance(c.get("files"), dict), "checker.files must be an object")
+        need(c.get("flow", SEQ_FLOW) == SEQ_FLOW,
+             "checker.flow must be 'seq' (a clocked record) or absent (a combinational one)")
+        st = c.get("statement")
+        need(st is None or (isinstance(st, dict) and st and all(
+            isinstance(f, str) and f.endswith(".lean") and isinstance(h, str) and SHA_RE.fullmatch(h)
+            for f, h in st.items())),
+             "checker.statement must map the trusted statement files (svgolf/-relative .lean paths) to their sha256, "
+             "or be absent (a record made before 2026-11-07)")
     else:
         p.append("checker must be an object")
+    clocked = record_flow(rec) == SEQ_FLOW
     pr = rec["proof"]
     if isinstance(pr, dict):
         need(isinstance(pr.get("axioms"), list) and pr["axioms"] == sorted(pr["axioms"]),
@@ -779,21 +1042,129 @@ def validate_record(rec):
     else:
         p.append("proof must be an object")
     ps = rec["postsynth"]
-    need(isinstance(ps, dict) and ps.get("mismatches") == 0 and isinstance(ps.get("vectors"), int),
-         "postsynth must record vectors and mismatches 0")
-    if isinstance(ps, dict):
+    if clocked:
+        p += clocked_postsynth_problems(rec)
+    else:
+        need(isinstance(ps, dict) and ps.get("mismatches") == 0 and isinstance(ps.get("vectors"), int),
+             "postsynth must record vectors and mismatches 0")
+    if isinstance(ps, dict) and not clocked:
         need(record_mode(ps) in POSTSYNTH_MODES, "postsynth.mode must be 'light' or 'full'")
         need(ps.get("full_vectors") is None or (isinstance(ps["full_vectors"], int)
                                                 and not isinstance(ps["full_vectors"], bool)
                                                 and ps["full_vectors"] >= 0),
              "postsynth.full_vectors must be a non-negative integer")
+        need("points" not in ps, "postsynth.points is the post-synthesis check of a clocked record (checker.flow "
+             "'seq')")
     if PPA_KEY in rec:
         bad = validate_ppa(rec[PPA_KEY])
         p += bad
         if not bad:
             p += ppa_score_problems(rec)
-    if isinstance(s, dict) and any(k in s for k in CLOCKED_SCORE_KEYS):
+    if clocked or (isinstance(s, dict) and any(k in s for k in CLOCKED_SCORE_KEYS)):
         p += clocked_score_problems(rec)
+        need(clocked, "a clocked score (score.time_ps = cycles x period_ps) is the score of a record of the clocked "
+             "flow (checker.flow 'seq')")
+    return p
+
+
+_CLOCKED_PS_KEYS = {"mode", "mismatches", "netlist_sha256", "points"}
+_CLOCKED_POINT_KEYS = {"point", "params", "mode", "mismatches", "netlist_sha256", "latency", "seeds"}
+_CLOCKED_SEED_KEYS = {"seed", "cycles", "reset_cycles", "salted", "seed_sha256", "segments", "transactions",
+                      "netlist_randseed", "lssv_start"}
+LSSV_START_RE = re.compile(r"zeros|seed:\d{1,20}")
+
+
+def clocked_postsynth_problems(rec):
+    """Structural problems of a clocked record's `postsynth` (`clocked_postsynth_record`'s shape), and its agreement
+    with the record's own score and `ppa` block: the points are distinct, each named after its params, passed (0
+    mismatches) with its seeds 0 to n-1; the top-level mode is "light" exactly when a point ran light; one point is the
+    scoring point, and its netlist is `postsynth.netlist_sha256`, the netlist the `ppa` block weighed; every point
+    used the latency `score.cycles` counts (1 when none is declared). Whether the points and seeds are the TASK's is
+    acceptance (`clocked_acceptance_problems`), which needs the task.json. [] when well-formed."""
+    ps = rec.get("postsynth")
+    if not isinstance(ps, dict):
+        return ["postsynth must be an object"]
+    p = []
+    extra = sorted(set(ps) - _CLOCKED_PS_KEYS)
+    if extra:
+        p.append(f"a clocked record's postsynth has the unknown keys {extra}")
+    if not _zero(ps.get("mismatches")):
+        p.append("postsynth.mismatches must be 0")
+    if ps.get("mode") not in POSTSYNTH_MODES:
+        p.append("postsynth.mode must be 'light' or 'full'")
+    if not SHA_RE.fullmatch(str(ps.get("netlist_sha256", ""))):
+        p.append("postsynth.netlist_sha256 must be a sha256 hex digest")
+    pts = ps.get("points")
+    if not (isinstance(pts, list) and pts and all(isinstance(x, dict) for x in pts)):
+        return p + ["a clocked record's postsynth.points must be a non-empty list of points"]
+    for k, x in enumerate(pts):
+        at = f"postsynth.points[{k}]"
+        if set(x) != _CLOCKED_POINT_KEYS:
+            p.append(f"{at} must have exactly the keys {sorted(_CLOCKED_POINT_KEYS)}")
+            continue
+        params = x["params"]
+        if not (isinstance(params, dict) and all(isinstance(n, str) and isinstance(v, int) and not isinstance(v, bool)
+                                                 for n, v in params.items())):
+            p.append(f"{at}.params must map parameter names to integers")
+            continue
+        if x["point"] != point_text(params):
+            p.append(f"{at}.point {x['point']!r} is not the name of its params {params}")
+        if x["mode"] not in POSTSYNTH_MODES:
+            p.append(f"{at}.mode must be 'light' or 'full'")
+        if not _zero(x["mismatches"]):
+            p.append(f"{at}.mismatches must be 0")
+        if not SHA_RE.fullmatch(str(x["netlist_sha256"])):
+            p.append(f"{at}.netlist_sha256 must be a sha256 hex digest")
+        if not (x["latency"] is None or _isint(x["latency"], 1)):
+            p.append(f"{at}.latency must be a positive integer or null")
+        seeds = x["seeds"]
+        if not (isinstance(seeds, list) and seeds and all(isinstance(s, dict) for s in seeds)):
+            p.append(f"{at}.seeds must be a non-empty list of seeds")
+            continue
+        if [s.get("seed") for s in seeds] != list(range(len(seeds))):
+            p.append(f"{at}.seeds must be the seeds 0 to {len(seeds) - 1}, in order")
+        for s in seeds:
+            sat = f"{at}.seeds[{s.get('seed')!r}]"
+            extra = sorted(set(s) - _CLOCKED_SEED_KEYS)
+            if extra:
+                p.append(f"{sat} has the unknown keys {extra}")
+            if not _isint(s.get("cycles"), 1):
+                p.append(f"{sat}.cycles must be a positive integer")
+            counts = [c for c in ("segments", "transactions") if c in s]
+            if len(counts) > 1 or (counts and not _isint(s[counts[0]])):
+                p.append(f"{sat} counts at most one of segments, transactions (a non-negative integer)")
+            if "reset_cycles" in s and not _isint(s["reset_cycles"]):
+                p.append(f"{sat}.reset_cycles must be a non-negative integer")
+            if "salted" in s and not isinstance(s["salted"], bool):
+                p.append(f"{sat}.salted must be a boolean")
+            if "seed_sha256" in s and not SHA_RE.fullmatch(str(s["seed_sha256"])):
+                p.append(f"{sat}.seed_sha256 must be a sha256 hex digest")
+            if "netlist_randseed" in s and not (_isint(s["netlist_randseed"], 1) and s["netlist_randseed"] < 2 ** 31):
+                p.append(f"{sat}.netlist_randseed must be an integer in 1 .. 2^31 - 1 (Verilator's randSeed)")
+            if "lssv_start" in s and not (isinstance(s["lssv_start"], str) and LSSV_START_RE.fullmatch(s["lssv_start"])):
+                p.append(f"{sat}.lssv_start must be `zeros` or `seed:<k>` (ls-sv's power-up)")
+    if p:
+        return p
+    names = [x["point"] for x in pts]
+    if len(set(names)) != len(names):
+        p.append(f"postsynth.points lists a point twice: {names}")
+    if ps["mode"] != ("light" if any(x["mode"] == "light" for x in pts) else "full"):
+        p.append("postsynth.mode must be 'light' exactly when one of its points ran light")
+    sc = rec.get("score") if isinstance(rec.get("score"), dict) else {}
+    at_sp = [x for x in pts if x["params"] == sc.get("scoring_point")]
+    if not at_sp:
+        p.append("postsynth.points has no check at the scoring point (score.scoring_point)")
+    elif at_sp[0]["netlist_sha256"] != ps["netlist_sha256"]:
+        p.append("postsynth.netlist_sha256 is not the netlist checked at the scoring point")
+    b = rec.get(PPA_KEY)
+    if isinstance(b, dict) and b.get("available") is True and b.get("netlist_sha256") != ps["netlist_sha256"]:
+        p.append("ppa.netlist_sha256 is not postsynth.netlist_sha256: the sky130 columns weighed another netlist than "
+                 "the one checked at the scoring point")
+    if _isint(sc.get("cycles"), 1):
+        off = [x["point"] for x in pts if (x["latency"] or 1) != sc["cycles"]]
+        if off:
+            p.append(f"score.cycles {sc['cycles']} is not the latency the check used at {off} (1 when none is "
+                     "declared)")
     return p
 
 
@@ -828,15 +1199,18 @@ def clocked_score_problems(rec):
 
 
 # ---------------------------------------------------------------------------
-# ranking: the Pareto frontier, layers, the board (pure)
+# ranking: area x time, the board; the Pareto frontier and layers (pure)
 # ---------------------------------------------------------------------------
 
-# The ranked axes (decided 11/03: sky130 A0' is the ranked metric). Both "lower is better", both exact
-# integers: the A0' area in 1e-4 um^2 (`ppa.area_e4um2_sky130`) and the time in ps, which is the
-# critical-path delay of a combinational design (`ppa.delay_ps_sky130`) and cycles x the
-# register-to-register period of a clocked one (`score.time_ps`, check.py's clocked score). Area in GE
-# (`score.area_mge`) and depth (`score.depth`) are extra columns; they rank nothing.
+# The ranked axes (decided 11/03: sky130 A0' is the ranked metric), the two factors of the ONE ranked number,
+# area x time (decided 2026-11-05; `combined.py`): the board orders by their product (`score_key`), and their
+# Pareto frontier and layers are an exploration view. Both "lower is better", both exact integers: the A0'
+# area in 1e-4 um^2 (`ppa.area_e4um2_sky130`) and the time in ps, which is the critical-path delay of a
+# combinational design (`ppa.delay_ps_sky130`) and cycles x the register-to-register period of a clocked
+# one (`score.time_ps`, check.py's clocked score). Area in GE (`score.area_mge`) and depth (`score.depth`)
+# are extra columns; they rank nothing.
 RANKED_AXES = ("area_um2_sky130", "time_ps")
+RANKED_BY = "area_x_time"
 
 
 def ranked_columns(rec):
@@ -855,13 +1229,17 @@ def ranked_columns(rec):
 
 
 def row_of(rec):
-    """The flat row the ranking works on: the ranked pair (`area_e4um2`, `time_ps`; None without sky130
-    columns) and the extra columns (`area_mge`, `depth`, ...)."""
-    cols = ranked_columns(rec) or {"area_e4um2": None, "time_ps": None, "cycles": None, "period_ps": None}
+    """The flat row the ranking works on: the ranked number (`exact`, area x time in 1e-4 um^2 x ps, and
+    `um2ns`, the same in the display unit um^2 x ns; `combined.of_record`), its two factors (`area_e4um2`,
+    `time_ps`), all None without sky130 columns, and the extra columns (`area_mge`, `depth`, ...)."""
+    ranked = ranked_columns(rec)
+    cols = ranked or {"area_e4um2": None, "time_ps": None, "cycles": None, "period_ps": None}
+    exact = combined.of_record(rec) if ranked else None
     return {"record_hash": rec["record_hash"], "task": rec["task"], "player": rec["player"],
-            "assisted_by": list(rec["assisted_by"]), **cols, "area_mge": rec["score"]["area_mge"],
-            "depth": rec["score"]["depth"], "proof_lines": rec["proof"]["lines"],
-            "submitted_at": rec["submitted_at"], "postsynth": record_mode(rec["postsynth"])}
+            "assisted_by": list(rec["assisted_by"]), "exact": exact, "um2ns": combined.um2ns(exact), **cols,
+            "area_mge": rec["score"]["area_mge"], "depth": rec["score"]["depth"],
+            "proof_lines": rec["proof"]["lines"], "submitted_at": rec["submitted_at"],
+            "postsynth": record_mode(rec["postsynth"])}
 
 
 def has_ranked_columns(r):
@@ -869,9 +1247,17 @@ def has_ranked_columns(r):
     return all(isinstance(r.get(k), int) and not isinstance(r.get(k), bool) for k in ("area_e4um2", "time_ps"))
 
 
+def score_key(r):
+    """The board's order (decided 2026-11-05: area x time is the one ranked number), the site's
+    (site/build.py `score_key`): area x time (`exact`), then area in GE, then depth, then the earlier
+    date first, then record hash, so equal scores are ordered the same way on every machine and on the
+    site. A row without the ranked number sorts after every row with it."""
+    return (r["exact"] is None, r["exact"] or 0, r["area_mge"], r["depth"], r["submitted_at"], r["record_hash"])
+
+
 def row_key(r):
-    """The total order every listing uses: sky130 area, then time, then the earlier
-    date first (on a tie in both the earlier record stands), then player, then
+    """The order of the Pareto views (exploration; the board orders by `score_key`): sky130 area, then
+    time, then the earlier date first (on a tie in both the earlier record stands), then player, then
     record hash (so equal scores are ordered the same way on every machine). A row
     without the sky130 columns sorts after every row with them, by area in GE then
     depth."""
@@ -888,8 +1274,8 @@ def dominates(a, b):
 
 
 def pareto_layers(rows):
-    """Non-dominated sorting: layer 1 is the Pareto frontier, layer 2 the
-    frontier of the rest, and so on. Each layer is in `row_key` order. Every
+    """Non-dominated sorting (exploration: the board ranks by area x time): layer 1 is the Pareto
+    frontier, layer 2 the frontier of the rest, and so on. Each layer is in `row_key` order. Every
     row carries the ranked columns (`has_ranked_columns`)."""
     remaining, layers = sorted(rows, key=row_key), []
     while remaining:
@@ -909,9 +1295,21 @@ def pareto(rows):
 
 
 def flow_of(rec):
+    """The flow a record was scored under: the flow's name (`record_flow`: "comb" or "seq"), Yosys's version line
+    and the hashes of canon.ys and of the flow's script and GE table (FLOW_FILES)."""
     c = rec["checker"]
-    return {"yosys": c.get("yosys"), "canon_script_sha256": c.get("canon_script_sha256"),
+    return {"flow": record_flow(rec), "yosys": c.get("yosys"), "canon_script_sha256": c.get("canon_script_sha256"),
             "script_sha256": c.get("script_sha256"), "ge_table_sha256": c.get("ge_table_sha256")}
+
+
+def kind_flow_mismatch(rec, task):
+    """Why `rec` is not of the flow of `task`'s kind (a combinational record on a clocked task's board, or the
+    reverse: a task whose kind changed), or None. A record is compared only with the current flow of its own kind."""
+    want, got = task_flow(task), record_flow(rec)
+    if got == want:
+        return None
+    return (f"scored under the {got} flow, and a {task.get('kind') or 'combinational'} task is scored under the "
+            f"{want} flow ({', '.join(FLOW_FILES[want])})")
 
 
 def flow_mismatch(rec_flow, flow):
@@ -921,25 +1319,35 @@ def flow_mismatch(rec_flow, flow):
 
 
 def _competition_ranks(rows):
-    """Rank by (sky130 area, time) with ties sharing a rank (1, 1, 3, ...)."""
+    """The ranks of `rows` (in `score_key` order) by area x time, equal scores sharing a rank (1, 1, 3, ...),
+    as on the site."""
     ranks, prev, rank = [], None, 0
     for i, r in enumerate(rows):
-        k = (r["area_e4um2"], r["time_ps"])
-        if k != prev:
-            rank, prev = i + 1, k
+        if r["exact"] != prev:
+            rank, prev = i + 1, r["exact"]
         ranks.append(rank)
     return ranks
 
 
-def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None):
+def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, statement=None):
     """Why `rec` is not ranked on `task`'s board, or None if it is. Pure. In order: scored at another
-    point; checked under another flow (`flow` given); no sky130 columns (a record made before them: not
+    point; a LIGHT post-synthesis check (incomplete: never ranked); scored under another flow than the one of the
+    task's kind (`kind_flow_mismatch`); checked under another flow than `flow` (given: the current flow of the task's
+    kind, `current_flow(svgolf, task_flow(task))`); no sky130 columns (a record made before them: not
     ranked until it is backfilled, i.e. checked again) or columns that were not computed; columns of
     another `ppa_version`/liberty/pins than `identity` (given); weighed under another input drive than
-    the task's `input_drive` (given)."""
+    the task's `input_drive` (given); checked under another trusted statement than `statement` (given: the task's
+    `current_statement`), or before records named theirs (`statement_mismatch`)."""
     point = scoring_point(task)
     if rec["score"]["scoring_point"] != point:
         return f"scored at {rec['score']['scoring_point']}, not at {point}"
+    if statement is not None and statement_mismatch(rec, statement):
+        return statement_mismatch(rec, statement)
+    if record_mode(rec.get("postsynth")) == "light":
+        return ("its post-synthesis check ran LIGHT (a subset of the vectors): an incomplete check, which never "
+                "ranks (a light record is for local use)")
+    if kind_flow_mismatch(rec, task):
+        return kind_flow_mismatch(rec, task)
     if flow is not None and flow_mismatch(flow_of(rec), flow):
         return "checked under another flow (" + ", ".join(flow_mismatch(flow_of(rec), flow)) + " differ)"
     b = rec.get(PPA_KEY)
@@ -948,7 +1356,8 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None):
                 "(checked again, which records them)")
     if not (isinstance(b, dict) and b.get("available") is True):
         return "the sky130 columns were not computed: " + str((b or {}).get("reason", "?"))[:120]
-    if not has_ranked_columns(row_of(rec)):
+    row = row_of(rec)
+    if not has_ranked_columns(row) or row["exact"] is None:
         return "the sky130 columns lack a ranked number"
     if identity is not None and any(b.get(k) != identity.get(k) for k in PPA_IDENTITY):
         return ("sky130 columns computed under another version ("
@@ -956,45 +1365,94 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None):
     return ppa_drive_mismatch(b, input_drive)
 
 
-def build_board(task, records, *, flow=None, unassisted=False, identity=None, input_drive=None):
-    """The board of one task, ranked on the sky130 A0' area and time (RANKED_AXES). `records` are
-    its records (others are ignored); `flow`, if given, is the current pinned flow {yosys,
-    canon_script_sha256, script_sha256, ge_table_sha256}; `identity` (`ppa_identity()`) and
+def build_board(task, records, *, flow=None, unassisted=False, identity=None, input_drive=None, statement=None):
+    """The board of one task, ranked by area x time (decided 2026-11-05: the one ranked number,
+    `combined.py`; the product of RANKED_AXES, the sky130 A0' area and time). `records` are
+    its records (others are ignored); `flow`, if given, is the current pinned flow OF THE TASK'S KIND
+    (`current_flow(svgolf, task_flow(task))`: {flow, yosys, canon_script_sha256, script_sha256,
+    ge_table_sha256}; a key it lacks is not compared); `identity` (`ppa_identity()`) and
     `input_drive` (`ppa_setup_now(task)["input_drive"]`), if given, are what the sky130 columns must
     have been computed under. A record that is not comparable (`unranked_reason`: another point, flow,
     PPA identity or input drive, or no sky130 columns) is listed as `unranked` with the reason instead
-    of ranked. With `unassisted`, only records with an empty `assisted_by` are considered."""
+    of ranked. With `unassisted`, only records with an empty `assisted_by` are considered.
+
+    `ranking` is the board: the ranked rows in `score_key` order, each with its `rank` (equal area x
+    time shares a rank: 1, 1, 3, as on the site) and its `layer`, the Pareto layer of (area, time) it is
+    on (exploration: layer 1 is the frontier, 2 the frontier of the rest, ...). `frontier` and
+    `dominated` are the same rows by layer (layer 1, then the rest by layer; `row_key` order within one),
+    the exploration view `pareto` prints."""
     point = scoring_point(task)
     budget = effective_depth_budget(task)
     ranked, unranked = [], []
     for rec in sorted((r for r in records if r["task"] == task["name"]),
-                      key=lambda r: row_key(row_of(r))):
+                      key=lambda r: score_key(row_of(r))):
         if unassisted and rec["assisted_by"]:
             continue
         row = row_of(rec)
-        why = unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive)
+        why = unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement)
         if why:
             unranked.append(dict(row, reason=why))
         else:
             ranked.append(row)
     layers = pareto_layers(ranked)
-    for r in ranked:
+    for k, layer in enumerate(layers, 1):
+        for r in layer:
+            r["layer"] = k
+    ranking = sorted(ranked, key=score_key)
+    for r, k in zip(ranking, _competition_ranks(ranking)):
+        r["rank"] = k
         r["over_budget"] = budget is not None and r["depth"] > budget
-    frontier = layers[0] if layers else []
-    dominated = [dict(r, layer=k + 2) for k, layer in enumerate(layers[1:]) for r in layer]
     board = {"task": task["name"], "title": task.get("title", ""), "scoring_point": point,
-             "ranked_axes": list(RANKED_AXES), "depth_budget": budget, "flow_checked": flow is not None,
-             "ppa_identity": identity, "input_drive": input_drive,
-             "frontier": [dict(r, layer=1) for r in frontier], "dominated": dominated,
+             "ranked_by": RANKED_BY, "ranked_axes": list(RANKED_AXES), "unit": combined.UNIT_ASCII,
+             "depth_budget": budget, "flow_checked": flow is not None,
+             "ppa_identity": identity, "input_drive": input_drive, "statement_checked": statement is not None,
+             "ranking": [dict(r) for r in ranking],
+             "frontier": [dict(r) for r in (layers[0] if layers else [])],
+             "dominated": [dict(r) for layer in layers[1:] for r in layer],
              "budget_ranking": None, "unranked": unranked,
              "unassisted_only": bool(unassisted)}
     if budget is not None:
-        within = sorted((r for r in ranked if not r["over_budget"]), key=row_key)
-        over = sorted((r for r in ranked if r["over_budget"]), key=row_key)
+        within = [r for r in ranking if not r["over_budget"]]
+        over = [r for r in ranking if r["over_budget"]]
         board["budget_ranking"] = (
             [dict(r, rank=k) for r, k in zip(within, _competition_ranks(within))]
             + [dict(r, rank=None) for r in over])
     return board
+
+
+def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=None,
+           reference_player=REFERENCE_PLAYER, statement=None):
+    """PAR of `task`, the bar to beat: among the reference player's records (the proved references,
+    `seed-references`) that rank under `flow`, `identity` and `input_drive` (`unranked_reason`, as on the
+    board), the one with the best area x time (leaderboard/combined.py: the ONE ranked number); None when
+    there is none. Pure. A tie of the exact product goes to the design listed first among task.json's
+    references (`names`: design sha256 -> (index, stem), `reference_names`; a design not listed comes after
+    them), then to `row_key`. Returns the record's row plus `name` (the reference's stem, else the stored
+    .sv's name without `.sv`), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit)."""
+    names = names or {}
+    best = None
+    for rec in records:
+        if rec.get("task") != task["name"] or rec.get("player") != reference_player:
+            continue
+        if unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement):
+            continue
+        exact = combined.of_record(rec)
+        if exact is None:
+            continue
+        row = row_of(rec)
+        idx, stem = names.get(rec["files"]["sv"]["sha256"], (float("inf"), None))
+        key = (exact, idx, row_key(row))
+        if best is None or key < best[0]:
+            name = stem or os.path.splitext(rec["files"]["sv"]["name"])[0]
+            best = (key, dict(row, name=name, exact=exact, um2ns=combined.um2ns(exact)))
+    return best[1] if best else None
+
+
+def fmt_par(par):
+    """A par row as one line of text: '`mul_tree_h`: 8563.2000 um^2 x 5992 ps = 51311.23 um2*ns (record
+    `0123456789ab`)'."""
+    return (f"`{par['name']}`: {fmt_um2(par['area_e4um2'])} um^2 x {fmt_time(par)} ps = {par['um2ns']:.2f} "
+            f"{combined.UNIT_ASCII} (record `{par['record_hash'][:12]}`)")
 
 
 # ---------------------------------------------------------------------------
@@ -1016,7 +1474,8 @@ def md_escape(s):
 
 
 LIGHT_NOTE = ("Rows marked `light` were checked with the light post-synthesis check (a subset "
-              "of the vectors, local feedback); the others with the full check.")
+              "of the vectors, local feedback): an incomplete check, which never ranks; the others with the "
+              "full check.")
 
 
 def _record_cell(row):
@@ -1026,8 +1485,7 @@ def _record_cell(row):
 
 
 def _has_light(board):
-    rows = (board["frontier"] + board["dominated"] + (board["budget_ranking"] or [])
-            + board["unranked"])
+    rows = board["ranking"] + (board["budget_ranking"] or []) + board["unranked"]
     return any(r.get("postsynth") == "light" for r in rows)
 
 
@@ -1057,6 +1515,18 @@ def fmt_time(r):
     return str(r["time_ps"])
 
 
+def fmt_adp(r):
+    """A row's ranked number, area x time in um^2 x ns, as text ('12022.21', as `fmt_par` and check.py's
+    headline print it); '-' without it."""
+    return "-" if r.get("exact") is None else f"{combined.um2ns(r['exact']):.2f}"
+
+
+ADP_HEAD = f"area x time ({combined.UNIT_ASCII})"
+LAYER_NOTE = ("`layer` is the entry's Pareto layer of (area, time), an exploration column like area in GE and "
+              "depth: layer 1 is the frontier (no other entry is at least as good on both and better on one), "
+              "layer 2 the frontier of the rest, and so on. It ranks nothing.")
+
+
 def render_markdown(board, level=2):
     """The board of one task as Markdown (headings at `level`)."""
     h = "#" * level
@@ -1069,34 +1539,36 @@ def render_markdown(board, level=2):
                  + (f". Input drive: `{board['input_drive']}`" if board.get("input_drive") else "")
                  + (". Unassisted entries only" if board["unassisted_only"] else "") + ".")
     lines.append("")
-    n = len(board["frontier"]) + len(board["dominated"])
-    if n == 0:
+    if "par" in board:          # (`_boards` sets it; a board built by `build_board` alone has no par line)
+        lines += [par_line(board["par"]), ""]
+    if not board["ranking"]:
         lines += ["No ranked records.", ""]
     else:
-        header = ["#", "layer", "player", "assisted by", "area (um^2)", "time (ps)", "area (GE)", "depth",
-                  "proof lines", "date", "record"]
-        aligns = ["r", "r", "l", "l", "r", "r", "r", "r", "r", "l", "l"]
+        header = ["#", "player", "assisted by", ADP_HEAD, "area (um^2)", "time (ps)", "layer", "area (GE)",
+                  "depth", "proof lines", "date", "record"]
+        aligns = ["r", "l", "l", "r", "r", "r", "r", "r", "r", "r", "l", "l"]
         if budget is not None:
-            header.insert(8, "budget")
-            aligns.insert(8, "l")
+            header.insert(9, "budget")
+            aligns.insert(9, "l")
         trs = []
-        for i, r in enumerate(board["frontier"] + board["dominated"], 1):
-            cells = [str(i), str(r["layer"]), md_escape(r["player"]), _assist_cell(r),
-                     fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]), str(r["depth"]),
-                     str(r["proof_lines"]), r["submitted_at"], _record_cell(r)]
+        for r in board["ranking"]:
+            cells = [str(r["rank"]), md_escape(r["player"]), _assist_cell(r), fmt_adp(r),
+                     fmt_um2(r["area_e4um2"]), fmt_time(r), str(r["layer"]), fmt_ge(r["area_mge"]),
+                     str(r["depth"]), str(r["proof_lines"]), r["submitted_at"], _record_cell(r)]
             if budget is not None:
-                cells.insert(8, "over" if r["over_budget"] else "ok")
+                cells.insert(9, "over" if r["over_budget"] else "ok")
             trs.append(cells)
-        lines += [f"{h}# Pareto frontier first (layer 1), then dominated entries by layer", ""]
-        lines += _md_table(header, aligns, trs) + [""]
+        lines += [f"{h}# Ranked by area x time (lower is better; equal scores share a rank)", ""]
+        lines += _md_table(header, aligns, trs) + ["", LAYER_NOTE, ""]
     if board["budget_ranking"] is not None:
-        lines += [f"{h}# Best area under the depth budget (depth <= {budget})", ""]
+        lines += [f"{h}# Best area x time under the depth budget (depth <= {budget})", ""]
         trs = [[("-" if r["rank"] is None else str(r["rank"])), md_escape(r["player"]),
-                _assist_cell(r), fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]),
+                _assist_cell(r), fmt_adp(r), fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]),
                 str(r["depth"]), "over budget" if r["rank"] is None else "ok", r["submitted_at"],
                 _record_cell(r)] for r in board["budget_ranking"]]
-        lines += _md_table(["rank", "player", "assisted by", "area (um^2)", "time (ps)", "area (GE)", "depth",
-                            "budget", "date", "record"], ["r", "l", "l", "r", "r", "r", "r", "l", "l", "l"], trs)
+        lines += _md_table(["rank", "player", "assisted by", ADP_HEAD, "area (um^2)", "time (ps)", "area (GE)",
+                            "depth", "budget", "date", "record"],
+                           ["r", "l", "l", "r", "r", "r", "r", "r", "l", "l", "l"], trs)
         lines.append("")
     if board["unranked"]:
         lines += [f"{h}# Not ranked", ""]
@@ -1113,28 +1585,43 @@ def render_export(boards):
     """All tasks' boards as one Markdown document."""
     parts = ["# svGolf leaderboard", "",
              "Generated by `leaderboard/leaderboard.py export` from the records under "
-             "`leaderboard/data/`. Ranked on sky130 A0' (`score/ppa.py`): the area in um^2 and the "
-             "time in ps (the critical-path delay; on a clocked task, cycles x the clock period). Lower "
-             "is better on both; layer 1 is their Pareto frontier. Area in GE and depth are extra "
-             "columns. A record without sky130 columns is not ranked until it is backfilled.", ""]
+             "`leaderboard/data/`. Ranked by area x time (`leaderboard/combined.py`), lower is better: "
+             "the sky130 A0' area in um^2 (`score/ppa.py`) times the time (the critical-path delay; on a "
+             "clocked task, cycles x the clock period), in um^2 x ns. The Pareto layer of the two factors, "
+             "area in GE and depth are extra columns; they rank nothing. A record without sky130 columns "
+             "is not ranked until it is backfilled.", ""]
     parts += [render_markdown(b, 2) for b in boards]
     return "\n".join(parts).rstrip("\n") + "\n"
+
+
+def par_line(par):
+    """The board's par line (`par`: `par_of`'s row, or None)."""
+    if par is None:
+        return (f"Par: none recorded (no record of `{REFERENCE_PLAYER}` ranks here; `leaderboard.py seed-references "
+                "--task <task>` records the proved references).")
+    return ("Par, the best proved reference by area x time (the ranked number; lower is better): "
+            + fmt_par(par) + ".")
+
+
+PARETO_EXPLORATION = "exploration: the board ranks area x time; # is the entry's rank there"
+ADP_TEXT_HEAD = f"area x time {combined.UNIT_ASCII}"
 
 
 def render_pareto_text(board):
     lines = []
     point = ", ".join(f"{k}={v}" for k, v in board["scoring_point"].items()) or "fixed size"
     lines.append(f"{board['task']}: Pareto frontier of (sky130 area, time) at {point} "
-                 f"({len(board['frontier'])} of {len(board['frontier']) + len(board['dominated'])}"
-                 " ranked records)")
+                 f"({len(board['frontier'])} of {len(board['ranking'])} ranked records), {PARETO_EXPLORATION}")
+    if "par" in board:
+        lines.append("  " + par_line(board["par"]))
     if not board["frontier"]:
         lines.append("  (no ranked records)")
     else:
-        rows = [(fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]), str(r["depth"]), r)
-                for r in board["frontier"]]
-        w = [max(len(head), *(len(x[k]) for x in rows))
-             for k, head in enumerate(("area um^2", "time ps", "area GE", "depth"))]
-        lines.append("  " + " ".join(f"{head:>{n}}" for head, n in zip(("area um^2", "time ps", "area GE", "depth"), w))
+        heads = ("#", ADP_TEXT_HEAD, "area um^2", "time ps", "area GE", "depth")
+        rows = [(str(r["rank"]), fmt_adp(r), fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]),
+                 str(r["depth"]), r) for r in board["frontier"]]
+        w = [max(len(head), *(len(x[k]) for x in rows)) for k, head in enumerate(heads)]
+        lines.append("  " + " ".join(f"{head:>{n}}" for head, n in zip(heads, w))
                      + f"  {'player':<20} {'record':<12}  assisted by")
         for *cells, r in rows:
             lines.append("  " + " ".join(f"{c:>{n}}" for c, n in zip(cells, w))
@@ -1153,13 +1640,13 @@ def render_pareto_text(board):
 # the n-dimensional Pareto view over chosen axes (opt-in: `pareto --axes ...`)
 # ---------------------------------------------------------------------------
 #
-# The default board is RANKED_AXES (sky130 A0' area, time) and nothing here changes it: `pareto`
-# without `--axes` prints the default. With `--axes` the frontier is taken over the named axes only,
-# for the records that carry all of them (`--axes area_um2_sky130,time_ps` is the default board's
-# frontier). Every axis is "lower is better" and an exact integer (areas in um^2 are compared as
-# integers in 1e-4 um^2, the unit the columns are exact in); a record is on the frontier iff no other
-# record is at least as good on every axis and strictly better on one (ties are kept, as on the
-# default board).
+# Exploration, like the default `pareto` (the board ranks area x time, `score_key`, and nothing here changes
+# it): `pareto` without `--axes` prints the frontier of RANKED_AXES (sky130 A0' area, time). With `--axes`
+# the frontier is taken over the named axes only, for the records that carry all of them
+# (`--axes area_um2_sky130,time_ps` is the default `pareto` frontier). Every axis is "lower is better"
+# and an exact integer (areas in um^2 are compared as integers in 1e-4 um^2, the unit the columns are
+# exact in); a record is on the frontier iff no other record is at least as good on every axis and
+# strictly better on one (ties are kept, as in the default `pareto`).
 
 def _fmt_e4(v):
     """1e-4 um^2 as exact decimal text: 4604416 -> '460.4416'."""
@@ -1308,7 +1795,7 @@ def ppa_mapped_identity(pins_path=PPA_MAPPED_PINS, script_path=PPA_MAPPED_SCRIPT
 
 
 def build_axes_view(task, records, axes, *, flow=None, identity=None, mapped_identity=None, unassisted=False,
-                    input_drive=None):
+                    input_drive=None, statement=None):
     """The Pareto view of one task over `axes` (names of AXES). `records` are its records. Records
     scored at another point, or under another flow (when `flow` is given), or whose PPA columns
     were computed under another `ppa_version`/liberty/pins than `identity` (when given, and an axis
@@ -1329,6 +1816,10 @@ def build_axes_view(task, records, axes, *, flow=None, identity=None, mapped_ide
         why = None
         if rec["score"]["scoring_point"] != point:
             why = f"scored at {rec['score']['scoring_point']}, not at {point}"
+        elif statement is not None and statement_mismatch(rec, statement):
+            why = statement_mismatch(rec, statement)
+        elif kind_flow_mismatch(rec, task):
+            why = kind_flow_mismatch(rec, task)
         elif flow is not None and flow_mismatch(flow_of(rec), flow):
             why = "checked under another flow (" + ", ".join(flow_mismatch(flow_of(rec), flow)) + " differ)"
         elif vals is None:
@@ -1378,7 +1869,8 @@ def render_axes_text(view):
     point = ", ".join(f"{k}={v}" for k, v in view["scoring_point"].items()) or "fixed size"
     n = len(view["frontier"]) + len(view["dominated"])
     lines = [f"{view['task']}: Pareto frontier over ({', '.join(axes)}) at {point} "
-             f"({len(view['frontier'])} of {n} records that carry the axes)"]
+             f"({len(view['frontier'])} of {n} records that carry the axes), exploration: the board ranks "
+             "area x time"]
     if not view["frontier"]:
         lines.append("  (no record carries all the axes)")
     else:
@@ -1480,13 +1972,14 @@ class VerifyResult:
 
 
 def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescore=None,
-                  recheck=None, ppa_identity=None, ppa_setup=None):
+                  recheck=None, ppa_identity=None, ppa_setup=None, statement=None):
     """Verify one stored record at `path` (a `.json` next to its two files).
 
     Always: the record is well-formed, its `record_hash` is the hash of its
     canonical JSON and the file's name, the two stored files exist and have the
     recorded sha256, the score arithmetic is consistent (area = sum of the gate
-    weights of `score/ge.json` when that table is the recorded one), the axioms
+    weights of the GE table of the record's flow, `score/ge.json` or, for a clocked
+    record, `score/ge_seq.json`, when that table is the recorded one), the axioms
     are within the task's allowed set.
 
     `rescore(sv_path)` (optional): returns score.py's result for the stored
@@ -1495,7 +1988,9 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
     `recheck(sv_path, lean_path)` (optional): returns check.py's full result;
     it must accept, with the same canonical hash, axioms and (same flow) score.
 
-    A record checked under another flow than the current `flow` is `stale`
+    A record checked under another flow than the current `flow` (the current flow
+    of the task's kind, `current_flow(svgolf, task_flow(task))`), or of another
+    flow than its task's kind is scored under (`kind_flow_mismatch`), is `stale`
     (not a failure): its score can no longer be reproduced or compared.
 
     `ppa_identity` (`ppa_identity()`) and `ppa_setup` (`ppa_setup_now(task)`, optional): a record
@@ -1531,7 +2026,8 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
         res.notes.append("postsynth: this record's check ran in LIGHT mode (a local record; "
                          "`verify --full` rechecks it in full mode)")
     sc, ck = rec["score"], rec["checker"]
-    ge_path = os.path.join(SVGOLF, "score", "ge.json")
+    ge_name = FLOW_FILES[record_flow(rec)][1]       # the GE table of the record's own flow
+    ge_path = os.path.join(SVGOLF, "score", ge_name)
     if os.path.isfile(ge_path) and sha256_file(ge_path) == ck["ge_table_sha256"]:
         with open(ge_path, encoding="utf-8") as fh:
             ge = {k: round(v * 1000) for k, v in json.load(fh).items() if not k.startswith("_")}
@@ -1539,7 +2035,7 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
         if unknown:
             res.fails.append(f"gate types the GE table does not price: {unknown}")
         elif sum(ge[g] * n for g, n in sc["gates"].items()) != sc["area_mge"]:
-            res.fails.append("score.area_mge is not the sum of the gate weights in score/ge.json")
+            res.fails.append(f"score.area_mge is not the sum of the gate weights in score/{ge_name}")
     else:
         res.notes.append("GE table differs from the recorded one: area arithmetic not rechecked")
     if task is not None:
@@ -1551,12 +2047,17 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
             res.stale.append(f"scored at {sc['scoring_point']}, the task's scoring point is now "
                              f"{scoring_point(task)}")
     same_flow = True
+    if task is not None and kind_flow_mismatch(rec, task):
+        same_flow = False
+        res.stale.append(kind_flow_mismatch(rec, task) + ": the score is not comparable with the task's")
     if flow is not None:
         diff = flow_mismatch(flow_of(rec), flow)
         if diff:
             same_flow = False
             res.stale.append("checked under another flow (" + ", ".join(diff)
                              + " differ): the score is no longer reproducible or comparable")
+    if statement is not None and statement_mismatch(rec, statement):
+        res.stale.append(statement_mismatch(rec, statement) + ": not ranked")
     if current_files is not None:
         changed = sorted(k for k, v in ck["files"].items() if current_files.get(k) != v)
         if changed:
@@ -1735,6 +2236,56 @@ def git_revision(path):
         return None
 
 
+def statement_files(task, svgolf=SVGOLF):
+    """The trusted statement files of `task` (above), relative to `svgolf`, in import order: the module task.json
+    `statement.module` names and every svgolf/ module it imports, transitively (read from each file's header,
+    `lean_imports`). Raises Refused if the statement module is not a file of `svgolf`."""
+    mod = _get(task, "statement", "module")
+    if not isinstance(mod, str) or not mod:
+        raise Refused([f"task {task.get('name')!r} names no statement module (task.json `statement.module`)"])
+    out, todo = [], [mod]
+    while todo:
+        m = todo.pop(0)
+        rel = m.replace(".", "/") + ".lean"
+        path = os.path.join(svgolf, rel)
+        if rel in out or not os.path.isfile(path):
+            if m == mod:
+                raise Refused([f"the statement module {mod} is not a file of svgolf/ ({rel})"])
+            continue        # outside svgolf/: ls-sv's LeanModels, a package
+        out.append(rel)
+        with open(path, encoding="utf-8") as fh:
+            todo += lean_imports(fh.read())
+    return out
+
+
+def current_statement(task, svgolf=SVGOLF):
+    """{file: sha256} of `task`'s trusted statement files as they are now (`statement_files`): what a record's
+    `checker.statement` is compared with."""
+    return {rel: sha256_file(os.path.join(svgolf, rel)) for rel in statement_files(task, svgolf)}
+
+
+def current_statement_or_none(task, svgolf=SVGOLF):
+    """`current_statement` of `task`, or None (not compared) for no task or a task without a statement module (a
+    test's toy task)."""
+    if task is None:
+        return None
+    try:
+        return current_statement(task, svgolf)
+    except Refused:
+        return None
+
+
+def statement_mismatch(rec, statement):
+    """Why `rec` was not checked under `statement` (`current_statement` of its task), or None."""
+    got = _get(rec, "checker", "statement")
+    if not isinstance(got, dict):
+        return "checked before records named the statement they were checked under (2026-11-07)"
+    diff = sorted(k for k in set(got) | set(statement) if got.get(k) != statement.get(k))
+    if diff:
+        return "checked under another statement (" + ", ".join(diff) + " differ)"
+    return None
+
+
 def checker_file_hashes(svgolf=SVGOLF):
     out = {}
     for rel in CHECKER_FILES:
@@ -1744,20 +2295,28 @@ def checker_file_hashes(svgolf=SVGOLF):
     return out
 
 
-def collect_environment(svgolf=SVGOLF):
+def collect_environment(svgolf=SVGOLF, task=None):
     tc = os.path.join(svgolf, "lean-toolchain")
     toolchain = None
     if os.path.isfile(tc):
         with open(tc, encoding="utf-8") as fh:
             toolchain = fh.read().strip() or None
-    return {"svgolf_revision": git_revision(svgolf), "lean_toolchain": toolchain,
-            "files": checker_file_hashes(svgolf)}
+    env = {"svgolf_revision": git_revision(svgolf), "lean_toolchain": toolchain,
+           "files": checker_file_hashes(svgolf)}
+    if task is not None:
+        try:
+            env["statement"] = current_statement(task, svgolf)
+        except Refused:
+            env["statement"] = None        # a task without a statement module (a test's toy task): none recorded
+    return env
 
 
-def current_flow(svgolf=SVGOLF):
-    """The pinned flow as it is now: the sha256 of the two scripts and the GE
-    table, and Yosys's version line (None if Yosys cannot be run)."""
+def current_flow(svgolf=SVGOLF, flow=COMB_FLOW):
+    """The pinned flow `flow` ("comb" or "seq", FLOW_FILES) as it is now: its name, the sha256 of canon.ys and of
+    the flow's script and GE table (svgolf.ys and ge.json, or svgolf_seq.ys and ge_seq.json), and Yosys's version
+    line (None if Yosys cannot be run). A record is compared with the flow of its task's kind (`task_flow`)."""
     sc = os.path.join(svgolf, "score")
+    script, table = FLOW_FILES[flow]
     yosys = os.environ.get("SVGOLF_YOSYS") or "yosys"
     try:
         ver = subprocess.run([yosys, "-V"], capture_output=True, text=True,
@@ -1769,8 +2328,13 @@ def current_flow(svgolf=SVGOLF):
         p = os.path.join(sc, name)
         return sha256_file(p) if os.path.isfile(p) else None
 
-    return {"yosys": ver, "canon_script_sha256": sha("canon.ys"),
-            "script_sha256": sha("svgolf.ys"), "ge_table_sha256": sha("ge.json")}
+    return {"flow": flow, "yosys": ver, "canon_script_sha256": sha("canon.ys"),
+            "script_sha256": sha(script), "ge_table_sha256": sha(table)}
+
+
+def current_flows(svgolf=SVGOLF):
+    """{flow name: `current_flow(svgolf, name)`} for every flow of FLOW_FILES."""
+    return {name: current_flow(svgolf, name) for name in FLOW_FILES}
 
 
 def run_check(task_dir, sv, lean, *, check_py=CHECK_PY, lean_wrap=None,
@@ -1796,16 +2360,20 @@ def run_check(task_dir, sv, lean, *, check_py=CHECK_PY, lean_wrap=None,
                            + (proc.stdout + proc.stderr)[-1500:])
 
 
-def run_rescore(sv, task_dir, *, score_py=SCORE_PY, timeout=3600, ppa_py=None, mapped=True):
+def run_rescore(sv, task_dir, *, score_py=SCORE_PY, timeout=3600, ppa_py=None, mapped=True, seq=False):
     """score.py on the stored design at the task's scoring point. With `ppa_py` (score/ppa.py,
     for a record that carries PPA columns) the same pinned flow runs ONCE through ppa.py, whose
     `score` is score.py's result unchanged, and the result carries the weighed columns as
     `ppa`; if ppa.py cannot weigh (the pinned liberty is absent here, say), score.py runs
     alone and `ppa` is `{"available": false, "reason": ...}`: the rescore itself never
     depends on the liberty. `mapped` False passes `--no-mapped` (no flow A1' mapping, for a
-    record that has no mapped columns to reproduce)."""
+    record that has no mapped columns to reproduce). `seq` (a clocked record, `checker.flow`
+    "seq") passes `--seq` to both: the clocked flow, svgolf_seq.ys and ge_seq.json (ppa.py maps
+    nothing then)."""
+    flow_arg = ["--seq"] if seq else []
     if ppa_py:
-        proc = subprocess.run([checker_python(), ppa_py, sv, "--task", task_dir] + ([] if mapped else ["--no-mapped"]),
+        proc = subprocess.run([checker_python(), ppa_py, sv, "--task", task_dir] + flow_arg
+                              + ([] if mapped and not seq else ["--no-mapped"]),
                               capture_output=True, text=True, timeout=timeout)
         try:
             out = json.loads(proc.stdout)
@@ -1814,9 +2382,9 @@ def run_rescore(sv, task_dir, *, score_py=SCORE_PY, timeout=3600, ppa_py=None, m
         if proc.returncode == 0 and "score" in out and "ppa" in out:
             return dict(out["score"], ppa=dict(out["ppa"], available=True))
         why = " ".join(str(out.get("error", proc.stderr[-300:] or proc.returncode)).split())
-        return dict(run_rescore(sv, task_dir, score_py=score_py, timeout=timeout),
+        return dict(run_rescore(sv, task_dir, score_py=score_py, timeout=timeout, seq=seq),
                     ppa={"available": False, "reason": why[:400]})
-    proc = subprocess.run([checker_python(), score_py, sv, "--task", task_dir],
+    proc = subprocess.run([checker_python(), score_py, sv, "--task", task_dir] + flow_arg,
                           capture_output=True, text=True, timeout=timeout)
     try:
         out = json.loads(proc.stdout)
@@ -1858,6 +2426,16 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
     RuntimeError (infrastructure)."""
     task = load_task(args.tasks_dir, args.task)
     mode = getattr(args, "postsynth", None) or DEFAULT_POSTSYNTH_MODE
+    # The board's own data directory takes only a record whose kernel check `add` ran itself, in the sandbox: a
+    # stored result (`--from-check`) and an unsandboxed run (`--sandbox off`) are for a `--data-dir` trial
+    official = is_official_data_dir(args.data_dir)
+    if official and from_check:
+        raise Refused(["--from-check records a stored check.py result without running the check: the board's own "
+                       "data directory (leaderboard/data) takes only a record whose check `add` runs itself (use "
+                       "--data-dir DIR for a trial with a stored result)"])
+    if official and getattr(args, "sandbox", OFFICIAL_SANDBOX_MODE) == "off":
+        raise Refused(["--sandbox off: the board's own data directory (leaderboard/data) takes only a record whose "
+                       "check ran in the OS sandbox (use --data-dir DIR for an unsandboxed trial)"])
     with open(sv, "rb") as fh:
         sv_bytes = fh.read()
     with open(lean, "rb") as fh:
@@ -1879,7 +2457,7 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
                 and _get(other, "files", "lean", "sha256") == sha256_bytes(lean_bytes)):
             raise Refused([f"already recorded: {other.get('record_hash')} (same player, same "
                            "files)"])
-    env_before = collect_environment()    # read BEFORE the check: the checker as it ran
+    env_before = collect_environment(task=task)    # read BEFORE the check: the checker and the statement as it ran
     if from_check:
         with open(from_check, encoding="utf-8") as fh:
             res = json.load(fh)
@@ -1897,11 +2475,17 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
         if rc == 2 or res.get("stage") == "infrastructure":
             raise RuntimeError("check.py reports an infrastructure error (not a verdict on the "
                                "submission): " + str((res.get("errors") or ["?"])[0])[:600])
-        changed = sorted(k for k, v in collect_environment()["files"].items()
-                         if env_before["files"].get(k) != v)
+        env_after = collect_environment(task=task)
+        changed = sorted(k for k, v in env_after["files"].items() if env_before["files"].get(k) != v)
+        changed += sorted(k for k, v in (env_after.get("statement") or {}).items()
+                          if (env_before.get("statement") or {}).get(k) != v)
         if changed:
-            raise Refused([f"checker files changed while the check ran ({', '.join(changed)}): "
+            raise Refused([f"checker or statement files changed while the check ran ({', '.join(changed)}): "
                            "the result cannot be attributed to one checker; run it again"])
+        if official and (res.get("sandbox") or {}).get("active") is not True:
+            raise Refused(["the check did not run in the OS sandbox (`sandbox.active` is not true; `--sandbox auto` "
+                           "on a machine without a working mechanism): the board's own data directory "
+                           "(leaderboard/data) takes only a sandboxed check (use --data-dir DIR for a trial)"])
     rec = build_record(task, res, player=player, assisted_by=assisted_by, notes=notes,
                        submitted_at=date, sv_name=sv, sv_bytes=sv_bytes, lean_name=lean,
                        lean_bytes=lean_bytes, environment=env_before, postsynth=mode)
@@ -1912,6 +2496,11 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
             raise Refused([f"--require-clean: {dirty} unknown or dirty in "
                            f"{ {k: rec['checker'][k] for k in dirty} }"])
     return store_record(args.data_dir, rec, sv_bytes, lean_bytes)
+
+
+def is_official_data_dir(data_dir):
+    """Whether `data_dir` is the board's own data directory, `leaderboard/data` (DEFAULT_DATA), by real path."""
+    return os.path.realpath(data_dir) == os.path.realpath(DEFAULT_DATA)
 
 
 def cmd_add(args):
@@ -1932,7 +2521,14 @@ def cmd_add(args):
     print(f"added {args.task}/{rec['record_hash'][:12]}: {rec['player']}, {score_text(rec)}, "
           f"{rec['proof']['lines']} proof lines -> {os.path.relpath(path)}")
     ps = rec["postsynth"]
-    if record_mode(ps) == "light":
+    if record_flow(rec) == SEQ_FLOW:
+        pts = ps["points"]
+        print(f"  post-synthesis check (clocked): {record_mode(ps)} mode at {len(pts)} point(s), "
+              + ", ".join(f"{q['point']} ({len(q['seeds'])} seeds, {sum(s['cycles'] for s in q['seeds'])} cycles)"
+                          for q in pts) + ", 0 mismatches"
+              + ("; a LIGHT record, marked so on the board, for local use: an official record needs `add` without "
+                 "`--postsynth light` (the full check)" if record_mode(ps) == "light" else ""))
+    elif record_mode(ps) == "light":
         print(f"  NOTE: the post-synthesis check ran in LIGHT mode ({ps['vectors']} of "
               f"{ps.get('full_vectors', ps['vectors'])} vectors): this is a light record, marked "
               "so on the board, for local use; an official record needs `add` without "
@@ -1942,8 +2538,11 @@ def cmd_add(args):
     pb = rec.get(PPA_KEY)
     if isinstance(pb, dict) and pb.get("available") is True:
         cols = ranked_columns(rec)
+        exact = combined.of_record(rec)
         print(f"  the ranked sky130 score (A0', {pb['ppa_version']}): {pb['area_um2_sky130']} um^2, "
-              f"{fmt_time(cols)} ps; input drive {ppa_input_drive(pb) or '(none named)'}")
+              f"{fmt_time(cols)} ps" + (f" (area x time {combined.um2ns(exact):.2f} {combined.UNIT_ASCII})"
+                                        if exact is not None else "")
+              + f"; input drive {ppa_input_drive(pb) or '(none named)'}")
         mb = pb.get(PPA_MAPPED_KEY)
         if isinstance(mb, dict) and mb.get("available") is True:
             print(f"  sky130 mapped columns (A1', real abc -liberty; extra and unranked): "
@@ -1991,7 +2590,7 @@ def cmd_seed_references(args):
             lean = os.path.join(args.tasks_dir, name, ref["lean"])
             args.task = name
             try:
-                path = add_submission(args, sv=sv, lean=lean, player="svgolf-reference",
+                path = add_submission(args, sv=sv, lean=lean, player=REFERENCE_PLAYER,
                                       assisted_by=["Claude (Anthropic)"],
                                       notes="reference solution", date=args.date or today_utc())
                 print(f"seeded {name}: {ref['sv']} -> {os.path.relpath(path)}")
@@ -2016,7 +2615,7 @@ def cmd_verify(args):
     if not loaded:
         print("no records")
         return 0
-    flow = current_flow()
+    flows = current_flows()
     files = checker_file_hashes()
     identity = ppa_identity()
     failed = stale = 0
@@ -2036,9 +2635,13 @@ def cmd_verify(args):
         # flow A1' maps once more: only a record that HAS mapped columns to reproduce pays for it
         has_mapped = has_ppa and isinstance(rec[PPA_KEY].get(PPA_MAPPED_KEY), dict) \
             and rec[PPA_KEY][PPA_MAPPED_KEY].get("available") is True
+        # compared with the current flow of the task's kind (the record's own when the task cannot be read); the
+        # rescore runs the record's own flow (`score.py --seq` for a clocked record)
+        flow = flows[task_flow(task) if task is not None else record_flow(rec)]
+        seq = record_flow(rec) == SEQ_FLOW
         rescore = (None if args.offline or args.full or task is None
-                   else (lambda sv, td=task_dir, w=has_ppa, m=has_mapped: run_rescore(
-                       sv, td, score_py=args.score_py, ppa_py=args.ppa_py if w else None, mapped=m)))
+                   else (lambda sv, td=task_dir, w=has_ppa, m=has_mapped, q=seq: run_rescore(
+                       sv, td, score_py=args.score_py, ppa_py=args.ppa_py if w else None, mapped=m, seq=q)))
         # a record WITH columns is rechecked under `--ppa require` (the official mode: the columns must
         # reproduce); a record made before them is rechecked as it always was, without needing the liberty
         recheck = (None if not args.full or task is None else
@@ -2047,7 +2650,8 @@ def cmd_verify(args):
                        postsynth="full", ppa=OFFICIAL_PPA_MODE if w else "off", sandbox=args.sandbox)[1]))
         r = verify_record(path, rec, task, flow=flow, current_files=files, rescore=rescore,
                           recheck=recheck, ppa_identity=identity,
-                          ppa_setup=ppa_setup_now(task) if task is not None else None)
+                          ppa_setup=ppa_setup_now(task) if task is not None else None,
+                          statement=current_statement_or_none(task))
         who = f"{rec.get('player')} {score_text(rec)}" if not validate_record(rec) else "malformed"
         detail = "; ".join(r.fails + r.stale + r.notes)
         task_name, _, stem = label[:-len(".json")].partition(os.sep)
@@ -2062,16 +2666,48 @@ def cmd_verify(args):
 def _boards(args, names, unassisted=False):
     """The boards of `names`, ranked under the current flow and sky130 identity and each task's input drive
     (`--all-flows`: none of them checked; a record without sky130 columns is never ranked)."""
-    flow = None if args.all_flows else current_flow()
+    flows = None if args.all_flows else current_flows()
     identity = None if args.all_flows else ppa_identity()
     records = good_records(load_records(args.data_dir), warn=lambda m: print(m, file=sys.stderr))
     out = []
     for n in names:
         task = load_task(args.tasks_dir, n)
-        out.append(build_board(task, [r for r in records if r["task"] == n], flow=flow, unassisted=unassisted,
-                               identity=identity,
-                               input_drive=None if args.all_flows else ppa_setup_now(task).get("input_drive")))
+        flow = None if flows is None else flows[task_flow(task)]      # the current flow of the task's kind
+        mine = [r for r in records if r["task"] == n]
+        drive = None if args.all_flows else ppa_setup_now(task).get("input_drive")
+        statement = None if args.all_flows else current_statement_or_none(task)
+        board = build_board(task, mine, flow=flow, unassisted=unassisted, identity=identity, input_drive=drive,
+                            statement=statement)
+        # par: the best of the reference player's records that rank here (whatever `unassisted` says: par is the
+        # bar, not an entry)
+        board["par"] = par_of(task, mine, flow=flow, identity=identity, input_drive=drive,
+                              names=reference_names(args.tasks_dir, task), statement=statement)
+        out.append(board)
     return out
+
+
+def reference_names(tasks_dir, task):
+    """design sha256 -> (index, stem) of the proved references task.json lists, the first one for a design
+    that two references share (a second proof of one design, `add_n_byhand`); a file that cannot be read is
+    left out."""
+    out = {}
+    for i, ref in enumerate(task.get("references") or []):
+        try:
+            sha = sha256_file(os.path.join(tasks_dir, task["name"], ref["sv"]))
+        except (OSError, KeyError, TypeError):
+            continue
+        out.setdefault(sha, (i, os.path.splitext(os.path.basename(ref["sv"]))[0]))
+    return out
+
+
+def par_now(task_name, data_dir=DEFAULT_DATA, tasks_dir=DEFAULT_TASKS):
+    """PAR of a task as its board shows it now (`par_of` over the records of `data_dir`, under the current
+    flow, sky130 identity and the task's input drive), or None. What check.py's ranked headline names."""
+    task = load_task(tasks_dir, task_name)
+    records = good_records(load_records(data_dir, task_name))
+    return par_of(task, records, flow=current_flow(SVGOLF, task_flow(task)), identity=ppa_identity(),
+                  input_drive=ppa_setup_now(task).get("input_drive"), names=reference_names(tasks_dir, task),
+                  statement=current_statement_or_none(task))
 
 
 def cmd_pareto_axes(args):
@@ -2087,11 +2723,12 @@ def cmd_pareto_axes(args):
         return 2
     records = [r for r in good_records(load_records(args.data_dir, args.task),
                                        warn=lambda m: print(m, file=sys.stderr))]
-    view = build_axes_view(task, records, axes, flow=None if args.all_flows else current_flow(),
+    view = build_axes_view(task, records, axes, flow=None if args.all_flows else current_flow(SVGOLF, task_flow(task)),
                            identity=None if args.all_flows else ppa_identity(),
                            mapped_identity=None if args.all_flows else ppa_mapped_identity(),
                            unassisted=args.unassisted,
-                           input_drive=None if args.all_flows else ppa_setup_now(task).get("input_drive"))
+                           input_drive=None if args.all_flows else ppa_setup_now(task).get("input_drive"),
+                           statement=None if args.all_flows else current_statement_or_none(task))
     print(json.dumps(view, indent=2, sort_keys=True) if args.format == "json"
           else render_axes_text(view))
     return 0
@@ -2106,8 +2743,9 @@ def cmd_pareto(args):
         print(f"error: {e}", file=sys.stderr)
         return 2
     if args.format == "json":
-        print(json.dumps({"task": board["task"], "frontier": board["frontier"]}, indent=2,
-                         sort_keys=True))
+        # exploration: each frontier row carries its board `rank` and its ranked number (`exact`, `um2ns`)
+        print(json.dumps({"task": board["task"], "view": "exploration", "ranked_by": board["ranked_by"],
+                          "frontier": board["frontier"]}, indent=2, sort_keys=True))
     else:
         print(render_pareto_text(board))
     return 0
@@ -2133,7 +2771,7 @@ def cmd_export(args):
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write(render_export(boards))
     print(f"wrote {args.out}: {len(boards)} tasks, "
-          f"{sum(len(b['frontier']) + len(b['dominated']) for b in boards)} ranked records")
+          f"{sum(len(b['ranking']) for b in boards)} ranked records")
     return 0
 
 
@@ -2148,7 +2786,8 @@ def make_parser():
     common.add_argument("--ppa-py", default=PPA_PY, help=argparse.SUPPRESS)
     common.add_argument("--sandbox", choices=("off", "auto", "require"), default=OFFICIAL_SANDBOX_MODE,
                         help="check.py's --sandbox for the checks `add` and `verify --full` run (default "
-                        "`require`: an official record is made with the OS sandbox or not at all)")
+                        "`require`: an official record is made with the OS sandbox or not at all; `off` is refused "
+                        "for the board's own data directory, leaderboard/data)")
     common.add_argument("--lean-wrap", default=None,
                         help="command prefix for every lake/lean call (default: "
                         "$SVGOLF_LEAN_WRAP, which check.py reads itself)")
@@ -2164,7 +2803,8 @@ def make_parser():
     a.add_argument("--lean", required=True)
     a.add_argument("--notes", default="")
     a.add_argument("--from-check", metavar="RESULT.json",
-                   help="use this check.py result instead of running check.py")
+                   help="use this check.py result instead of running check.py (a --data-dir trial only: the "
+                   "board's own data directory, leaderboard/data, takes only a check `add` runs itself)")
     a.add_argument("--date", help="submission date YYYY-MM-DD (default: today, UTC)")
     a.add_argument("--require-clean", action="store_true",
                    help="refuse if the svgolf or lean-surfaces revision is unknown or +dirty")
@@ -2193,8 +2833,9 @@ def make_parser():
                    "with --postsynth full")
     v.set_defaults(fn=cmd_verify)
 
-    for name, fn, h in (("pareto", cmd_pareto, "the (sky130 area, time) Pareto frontier of a task"),
-                        ("board", cmd_board, "the ranked board of a task")):
+    for name, fn, h in (("pareto", cmd_pareto, "the (sky130 area, time) Pareto frontier of a task (exploration: "
+                                               "the board ranks area x time)"),
+                        ("board", cmd_board, "the ranked board of a task, by area x time")):
         b = sub.add_parser(name, parents=[common], help=h)
         b.add_argument("--task", required=True)
         b.add_argument("--format", choices=("md", "json") if name == "board" else ("text", "json"),
@@ -2207,8 +2848,8 @@ def make_parser():
             b.add_argument("--axes", metavar="A,B,...",
                            help="opt-in: the n-dimensional Pareto frontier over these axes, for the "
                            "records that carry them (known: " + ", ".join(AXES) + "), e.g. "
-                           "--axes area_mge,depth (the GE columns). Without --axes: the ranked board, "
-                           "(area_um2_sky130, time_ps)")
+                           "--axes area_mge,depth (the GE columns). Without --axes: the frontier of the "
+                           "ranked number's two factors (area_um2_sky130, time_ps)")
         b.set_defaults(fn=fn)
 
     e = sub.add_parser("export", parents=[common], help="all tasks' boards as one Markdown file")

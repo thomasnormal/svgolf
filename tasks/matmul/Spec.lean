@@ -37,6 +37,14 @@ The declared latency `lat` is the submission's; the checker pins its value at th
 are `int`, and every width and index expression of the interface (`N*N*W-1`, `(i*N+k)*W`) must stay in
 the 32-bit range, where a real elaboration and ls-sv's unbounded constant tier agree
 (`PDesign.int32Agrees`; Task v2 decision 1, the `clmul` precedent).
+
+**txtask-v2 (DRAFT, 2026-11-05).** `Statement` is the v2
+statement `TxTask.StatementV2`: txtask-v1's interface, clock discipline and latency bound; its claims
+and termination from EVERY power-up state on every known stimulus (rule 2: an unreset register is an
+unknown 0/1 value, not ls-sv's `x` start); Moore outputs (`MooreOutDep`, rule 1, with `rst` exempt: no
+combinational path from `start`, `A` or `B` to `done` or `C`); and no construct that creates an `x`
+from known operands (`XSafe`, rule 3). `SvGolf/TaskSeq.lean`, last section, and
+`design/soundness/TXTASK-V2-REVIEW.md`.
 -/
 
 namespace SvGolf.Tasks.Matmul
@@ -79,7 +87,7 @@ latency function `lat N W AccW`. The checker's goal is `Statement design.sem lat
 with the latency `lat` the proof file defines and the declared number `n` (C3). -/
 abbrev Statement (sem : Nat → Nat → Nat → LeanModels.Sv.Design2) (lat : Nat → Nat → Nat → Nat) :
     Prop :=
-  task.Statement (fun p => sem p.1 p.2.1 p.2.2) (fun p => lat p.1 p.2.1 p.2.2)
+  task.StatementV2 (fun p => sem p.1 p.2.1 p.2.2) (fun p => lat p.1 p.2.1 p.2.2)
 
 /-! ## Sanity checks on the statement's data (proved; they add nothing to the trusted base) -/
 

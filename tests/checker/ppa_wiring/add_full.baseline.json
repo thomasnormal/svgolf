@@ -31,6 +31,7 @@
       ]
     },
     "comparator": {
+      "cpu_seconds": "<volatile>",
       "exit": 0,
       "result": {
         "accepted": true,
@@ -68,7 +69,10 @@
         "syntactic_match": true,
         "toolchain_modules": "<volatile>"
       },
-      "seconds": "<volatile>"
+      "seconds": "<volatile>",
+      "time_limit_counts": "cpu",
+      "time_limit_s": 900,
+      "wall_limit_s": 4500
     },
     "design": {
       "exit": 0,
@@ -83,6 +87,14 @@
       "parameters": [
         "N"
       ],
+      "ports_checked": [
+        "N=1",
+        "N=2",
+        "N=3",
+        "N=16",
+        "N=32",
+        "N=64"
+      ],
       "probe_points": [
         "N=1",
         "N=2",
@@ -94,11 +106,56 @@
     },
     "fourstate": {
       "diagnostics": [],
+      "failed_point": null,
       "findings": [],
       "passed": true,
       "point": {
         "N": 16
       },
+      "points": [
+        {
+          "passed": true,
+          "point": {
+            "N": 16
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 1
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 2
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 3
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 32
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 64
+          },
+          "seconds": "<volatile>"
+        }
+      ],
       "seconds": "<volatile>"
     },
     "imports": {
@@ -116,8 +173,12 @@
       "files": "<volatile>"
     },
     "leanchecker": {
+      "cpu_seconds": "<volatile>",
       "exit": 0,
-      "seconds": "<volatile>"
+      "seconds": "<volatile>",
+      "time_limit_counts": "cpu",
+      "time_limit_s": 900,
+      "wall_limit_s": 4500
     },
     "postsynth": {
       "envelope_sha256": "<volatile>",
@@ -187,10 +248,13 @@
       "yosys_version": "<volatile>"
     },
     "solution": {
+      "cpu_seconds": "<volatile>",
       "exit": 0,
       "messages": "",
       "seconds": "<volatile>",
-      "time_limit_s": 120
+      "time_limit_counts": "cpu",
+      "time_limit_s": 300,
+      "wall_limit_s": 1500
     },
     "source": {
       "canonical_sha256": "e0e932a3ae8a04ac79f407e839b2394287dc32d493b7f699d3001872b580dde0",
@@ -202,7 +266,7 @@
         "N"
       ],
       "statement": "SvGolf.Tasks.Add.Statement",
-      "time_limit_s": 120,
+      "time_limit_s": 300,
       "top": "add_n",
       "verify_time_limit_s": 900
     }

@@ -1,0 +1,116 @@
+{
+  "name": "arbiter",
+  "title": "Fair N-client arbiter, clocked and reactive: at most one grant, only to a requester, someone whenever anyone requests, and a client that requests N cycles in a row is granted within them",
+  "status": "ready",
+  "_status": [
+    "The reactive kind (decided 2026-11-05: ReactTask, SvGolf/TaskReact.lean, with the study's defaults: Moore observation, safety + bounded response with K = N - 1, no environment assumption beyond reset and known inputs, scored at N = 8).",
+    "trusted statement: final, decided 2026-11-07 (txtask-v2's rules 2 and 3 since 2026-11-06: the claims from every power-up state, no x-creating construct)    run2 proof: complete (reference/rr_mask.lean, every N with 1 <= N, N*N < 2^31, through SvGolf.ReactTask.satisfiedAt_of_rank)",
+    "checker: react-family (check.py ACCEPTS the reference, --postsynth full)    post-synthesis: react-family (the oracle's segments, a long reset-free run, the guarantee on the netlist, a Moore sample; 8 seeds per point)",
+    "Listing decided 2026-11-07 (listed directly, no preview; README.md (k), (n)): the leaderboard records a clocked result (README.md F9, closed), and the reference's record f45a50745d61 (leaderboard.py seed-references --task arbiter) is par."
+  ],
+  "kind": "react-family",
+  "_kind_comment": "check.py's kind for a ReactTask statement: `Statement design.sem`, no latency (one decision per cycle; the score's time is the clock period). Clocked: the source gate's clocked rules apply (one clock, posedge, synchronous reset; the loader drops an asynchronous reset, a negedge clock and an iff guard, which the gate refuses).",
+  "top": "arbiter",
+  "parameters": [
+    {
+      "name": "N",
+      "range": "1 <= N, N*N < 2^31"
+    }
+  ],
+  "_range_comment": "The range string states the bounds of Spec.lean's `task.inRange` (1 <= N, N*N < 2^31): a matrix (LRU) arbiter declares N*N bits, and every such width stays in the 32-bit int range, where a real elaboration and ls-sv agree.",
+  "ports": {
+    "inputs": [
+      {
+        "name": "clk",
+        "width": "1"
+      },
+      {
+        "name": "rst",
+        "width": "1"
+      },
+      {
+        "name": "req",
+        "width": "N"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "gnt",
+        "width": "N"
+      }
+    ]
+  },
+  "clock": "clk",
+  "reset": {
+    "port": "rst",
+    "level": 1
+  },
+  "_clock_comment": "The one clock (rising edge; the source gate's clocked rules) and the synchronous, active-high reset. Every reset entry followed by a release is claimed: its snapshot shows gnt = 0 (G0).",
+  "protocol": {
+    "contract": "ReactTask",
+    "bound": "N - 1",
+    "_comment": "Informative copy of Spec.lean's `task` (SvGolf/TaskReact.lean): from every power-up state (every register and variable, 2-state ones included, at some 0/1 value) on every known stimulus, at every reset release, for every list of request vectors, the reset snapshot shows gnt = 0 (G0); per cycle gnt is 0 iff req is 0, else one bit of req (G1 mutual exclusion, G2 no spurious grant, G3 work conservation); a client that requests at the N entries j..j+N-1 is granted in one of those snapshots (G4, K = N - 1, tight: tests/arbiter/negative/Refute.lean `bound_tight`). The grant of snapshot c answers the request of entry c and is on the wire for the whole next period (MooreOut). No construct may create an x from known operands (XSafe). No environment assumption."
+  },
+  "statement": {
+    "module": "tasks.arbiter.Spec",
+    "constant": "SvGolf.Tasks.Arbiter.Statement",
+    "_comment": "Of type (Nat -> Design2) -> Prop: the design family sem N. The checker's goal is `Statement design.sem`."
+  },
+  "banlist": {
+    "operators": [
+      "/",
+      "%",
+      "**"
+    ],
+    "_comment": "No task-specific banlist: comparisons, additions and shifts are the arbiter's own tools, and nothing else would build one for free; the score prices the policy and its state. Run-time / % ** are banned, the rule every task follows since 2026-11-06 (svGolf disallows a construct where Yosys departs from the standard, decided 2026-11-05): a zero divisor or a negative exponent makes an x from known operands, which ls-sv carries into decisions and Yosys builds as a defined value. The backstop therefore runs for this task too, with only those cells banned ($div $divfloor $mod $modfloor $pow)."
+  },
+  "probe_points": [
+    "N=1",
+    "N=2",
+    "N=3",
+    "N=5",
+    "N=8"
+  ],
+  "_probe_comment": "N = 1 (K = 0: the grant is the registered request), 2, 3 and 5 (not powers of two: a rotating priority whose counter wraps at 2^ceil(log2 N) passes at 1, 2, 4 and 8 only, attack A09), 8 (the scoring point).",
+  "scoring": {
+    "params": {
+      "N": 8
+    },
+    "depth_budget": null,
+    "_comment": "The usual clocked score (C7): area = sky130 A0' um^2 including the flops; time = the register-to-register period in ps (one decision per cycle, cycles = 1; K = N - 1 is fixed, so it is not a column). N = 8: eight clients, small enough for long post-synthesis runs and a fast ls-sv trace, large enough that the policy and its state encoding (a mask, a pointer, a tree, a matrix) show in area and period."
+  },
+  "allowed_axioms": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "allow_bv_decide": false,
+  "time_limit_s": 300,
+  "postsynth": {
+    "points": [
+      {
+        "N": 3
+      },
+      {
+        "N": 5
+      },
+      {
+        "N": 8
+      }
+    ],
+    "seeds": 8,
+    "reset_cycles": 1,
+    "segments": 24,
+    "long": 70000,
+    "time_limit_s": 900,
+    "_comment": "The reactive post-synthesis check (check/postsynth.py, THE REACTIVE CHECK) at N = 3, 5 (not powers of two) and 8 (the scored netlist): per seed (8, F5) a power-up state (seed 0 all zeros, the others random; ls-sv from the same kind of start), then oracle.py's 24 segments, each a reset entry and then entries with rst = 0, the last 70000 entries long (more than 2^16: a counter or a time bomb is driven past its wrap; the review's attack A17 changes after 4095 cycles), the stimulus seeded by sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed). Binding: (i) at every snapshot from the last entry of the first reset on, ls-sv's gnt is known and sigma_src = sigma_rev; where both runs start from the same state (seed 0, all zeros, check/postsynth.py `zero_starts_agree`) the netlist's gnt equals ls-sv's bit for bit, and from different power-ups ls-sv's grants meet G0 to G4 instead (a correct design may grant differently from another power-up: txtask-v2 review section 12, F4); (ii) G0 to G4 on the netlist's grants, segment by segment (oracle.py `violations`); (iii) the Moore sample: gnt before every rising edge equals the previous snapshot. F5 (decided 2026-11-07): 8 seeds per point; everything random in a seed's run (the stimulus source, Verilator's randSeed, ls-sv's power-up seed:k) is derived from sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed) and recorded in the seed's record (check/postsynth.py `seed_draw`)."
+  },
+  "oracle": "oracle.py",
+  "references": [
+    {
+      "sv": "reference/rr_mask.sv",
+      "lean": "reference/rr_mask.lean",
+      "note": "A registered mask round-robin (own code): the lowest requester of req & mask wins, else the lowest requester; the mask is the thermometer above the last grant. Proved for every N >= 1 (reference/rr_mask.lean: the agreement design.sem N = rrD N, the comb settle and the clock step in closed form, the rank model with the cyclic distance from the mask's edge as the rank). The real-world candidate, OpenTitan prim_arbiter_tree behind an output register (tests/arbiter/designs/arbiter_ot.sv, Apache-2.0), is the next reference once ls-sv instantiates generate-local declarations (README.md (l))."
+    }
+  ]
+}

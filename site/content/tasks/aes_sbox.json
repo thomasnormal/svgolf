@@ -2,7 +2,7 @@
  "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `banlist_note` replaces task.json's banlist comment; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
  "title": "AES S-box",
  "subtitle": "The byte substitution of AES (FIPS 197): 8 bits in, 8 bits out.",
- "banlist_note": "No operator is banned: a lookup table, `+ - *` and everything else are legal and simply score what they score.",
+ "banlist_note": "No task-specific ban: a lookup table, `+ - *` and everything else are legal and simply score what they score. Run-time `/ % **` are banned here as in every task: a zero divisor makes an unknown value from known inputs, which the proof and the synthesized circuit resolve differently.",
  "references": {
   "sbox_bp": "The Boyar-Peralta 113-gate circuit, translated gate for gate from the authors' netlist.",
   "sbox_table": "The 256-entry table of FIPS 197 as one `case` statement."

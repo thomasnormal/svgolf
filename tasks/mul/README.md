@@ -2,7 +2,126 @@
 
 The main svGolf challenge: build an `N × N → 2N` unsigned multiplier out of
 bitwise logic, prove it correct for EVERY width `N ≥ 1`, and make it small
-(and shallow) at `N = 16`.
+and fast at `N = 16`.
+
+**Par** is the proved two-row-leaf tree `mul_tree_h`: **8563.2128 um^2 x 5992 ps =
+51 310.8 um2*ns**. The one ranked number is area x time, the sky130 A0' cell area
+in um^2 times the critical-path delay (decided 11/05; the svGolf README,
+"Scoring"); to beat par is to be accepted with a smaller product. The Pareto
+frontier of area and time, the GE area and the depth are extra columns, for
+exploring.
+
+## Start a new design
+
+A new multiplier is your own `solution.sv` (the header below; `+ - * / % **` are banned at run time) and a
+`Solution.lean` that proves it for every `N ≥ 1`. Find the design without Lean, then check it once
+without a proof:
+
+```bash
+python3.12 score/ppa.py solution.sv --task tasks/mul --no-mapped     # area and delay, about two seconds
+python3.12 check.py tasks/mul solution.sv --unproved --tactics --stage-dir stage
+```
+
+The second command runs every stage that needs no proof, the task's oracle included (a wrong circuit is
+named there, not deep in a proof), says whether the proof tactics read the design (`tactics.in_fragment`)
+and leaves it staged in `stage/` for probe files ([PROVING.md, section 0](../../PROVING.md#0-the-loop)).
+
+**The route: the `sv_comb` tactics, then the arithmetic of your rows** ([PROVING.md, sections
+1 to 3](../../PROVING.md#1-the-shape-of-a-proof); complete proofs: `reference/mul_n.lean`, the array, 70 code
+lines; `reference/mul_wallace.lean`, a Wallace tree as a tape of rows, 264; `reference/mul_tree_h.lean`, par):
+
+1. `sv_structure (lexRank := key N)`: one driver per bit and no combinational loop (`CombDesign ∧ Acyclic`),
+   ordered by your key, a lexicographic triple per site (`mulKey` in `mul_n.lean`: row, column, phase).
+2. `sv_interface`: the ports, one line.
+3. `sv_equations`: each assign as an equation over `Bool` and every driven bit known; 2-D signals are read
+   as `st.cell "T" W r c`, and each field of your arithmetic lemma is one `sv_bridge eq_…` line.
+4. The arithmetic, in plain Lean: the rows give `p = a * b`. An array is `CombLib.MulNetlistView` and
+   `ideal_mul_view`; a tree proves the value of its leaf rows and that its reduction keeps the sum. A
+   radix-4 Booth multiplier (accepted 2026-11-05) proved each Booth row's value, the recoding identity by
+   induction on the rows, and reused the Wallace tape of `mul_wallace.lean` for the reduction.
+
+**Lay the design out so the tactics take it** (what they refuse, with the messages: [PROVING.md, section
+4](../../PROVING.md#4-what-the-tactics-accept-and-what-they-refuse)):
+
+* continuous `assign`s of gates (`& | ^ ~`, `?:` and the other operators section 4 lists) in at most two
+  nested `generate for` loops, every index and loop bound affine in `N` and the genvars;
+* rows as the rows of 2-D arrays, `T[r][c]`; `sv_cover` finds the assign that writes a read by solving one
+  unknown per index equation, so a read whose writer needs `r = i / W` and `c = i % W` is not covered;
+* counts derived from `N` as integer localparams (`mul_tree_h.sv`'s `localparam integer H = (N + 1) / 2;`; a
+  2-state `int` with `/` or `%` is refused);
+* every declared bit driven at `N = 16`; a constant row gets a literal;
+* a read of a zero-padded copy of an input keeps every index affine where a row starts at a moving column
+  (the tree references' `ae`, read as `ae[c + 2*N - 1 - j] & b[j]`).
+
+**What `sv_equations` prints**, the shapes the arithmetic lemma is written against (`sv_equations?` in a
+probe file lists them for your design):
+
+* a part select `bb[N:1] = b` as `bb (Int.toNat 1 + k) = b k`; a cell of row 0, `T[0][c]`, as the flat cell
+  `T c` (`sv_bridge` matches it);
+* a family that writes a constant row in a column loop leaves a `True ∧ …` that `omega` refuses after
+  `sv_rowmajor`: close the structure goals with `first | omega | (simp only [true_and, and_true] at *; omega)`;
+* write `T 0 c = (x || y)` with the parentheses: `=` binds tighter than `||`, and Lean accepts the
+  unparenthesized hypothesis silently (as a `decide`), which `sv_bridge` then reports as different shapes.
+
+**The skeleton** (`reference/mul_n.lean` is it, filled in for the array):
+
+```lean
+import Submission.Design
+import SvGolf.Comb
+import LeanModels.Sv.CombEqTactic
+import LeanModels.Sv.CombLib
+
+namespace Submission
+open LeanModels.Sv LeanModels.Sv.CombView LeanModels.Sv.CombLib LeanModels.Sv.CombEq SvGolf
+
+set_option maxHeartbeats 400000 in
+theorem my_struct (N : Nat) (hN : 1 ≤ N) :
+    CombDesign (design.sem N) ∧ Acyclic (design.sem N) ∧ SharedObl design.pdesign [N] := by
+  sv_structure (lexRank := myKey N)           -- your key, a `def` above (mul_n.lean's `mulKey`)
+  all_goals (intros; sv_rowmajor; omega)
+
+theorem my_interface (N : Nat) (hN : 1 ≤ N) (hc : CombDesign (design.sem N)) :
+    SvGolf.Tasks.Mul.task.Interface N (design.sem N) := by
+  sv_interface
+
+-- your arithmetic: the rows' equations in, the product out (a structure of fields, as `MulNetlistView`)
+
+set_option maxHeartbeats 400000 in
+theorem solution : Goal := by
+  intro N hN
+  have hN' : 1 ≤ N := hN.1
+  obtain ⟨hc, ha, hso⟩ := my_struct N hN'
+  refine CombTask.satisfiedAt_of_comb (my_interface N hN' hc) hc ha ?_
+  intro st heqs hs v hv
+  obtain ⟨x, y, ⟨⟩⟩ := v
+  simp only [SvGolf.Tasks.Mul.task, HoldAll_cons, HoldAll_nil, and_true] at hv ⊢
+  obtain ⟨hA, hB⟩ := hv
+  sv_equations
+  · -- the main goal: your arithmetic lemma, one `sv_bridge eq_…` per field (mul_n.lean)
+  case inputsKnown_1 => exact inKnown_ofBitVec hA (by omega)
+  case inputsKnown_2 => exact inKnown_ofBitVec hB (by omega)
+  all_goals first | (intros; omega) | sv_cover
+
+end Submission
+```
+
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-tips-the-library)):
+
+* `LeanModels.Sv.CombLib`: `MulNetlistView`, `ideal_mul` and `ideal_mul_view` (the array's equations give the
+  product), the bit-function value `bfVal` and its lemmas, `fullAdder_arith`, `ripple_row` (a final ripple
+  adder), `sum_split`, `bitvec_eq_ofNat_of_val`, `rowMajor_inj`, `lexLt`;
+* `LeanModels.Sv.Lib.XFVal`: `val_csa` (a carry-save row: sum plus twice the carry is the three inputs) and
+  the value of windows, concatenations, extensions and constants;
+* `SvState.cell`, `sv_bridge` and `sv_rowmajor`; `rmN` and `Key` (`LeanModels/Sv/CombViewArith.lean`) and
+  `LeanModels.Sv.Lib.RowMajor`; the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`,
+  `inKnown_ofBitVec`;
+* the reductions are proved inside the references (a task ships no library: copy them): `mul_wallace.lean`'s
+  `csa_row`, `csum` and `tape_mul`; `mul_tree_h.lean`'s `node_sum`, `lane_val` (a row read from the padded
+  copy) and `heap_mul`.
+
+Planned, not in the library yet: the Booth multiplier's generic carry-save tape theorem (any leaf rows on a
+Wallace tape sum to the leaves modulo `2^W`) and its `bfVal` lemmas for rows built from windows and single
+bits.
 
 ## The circuit
 
@@ -24,7 +143,7 @@ of two `N`-bit numbers fits.
 
 ```lean
 def task : CombTask where
-  inRange N := 1 ≤ N
+  inRange N := 1 ≤ N ∧ N < 2 ^ 30
   inputs N := [("a", N), ("b", N)]
   outputs N := [("p", 2 * N)]
   fn N := fun (a, b, ()) => (BitVec.ofNat (2 * N) (a.toNat * b.toNat), ())
@@ -32,14 +151,19 @@ def task : CombTask where
 abbrev Statement : (Nat → LeanModels.Sv.Design2) → Prop := task.Statement
 ```
 
-For every `N ≥ 1`: the design's ports are exactly `a`, `b` (inputs, `N`
+For every `N` with `1 ≤ N < 2^30`: the design's ports are exactly `a`, `b` (inputs, `N`
 bits) and `p` (output, `2N` bits); no process is clocked (`Unclocked`) and
-every run terminates under every schedule and stimulus; and every cycle whose stimulus drives `a` and `b` with known
+there is no combinational loop; every run terminates under every schedule and stimulus; and every cycle whose stimulus drives `a` and `b` with known
 values ends with `p` holding the natural-number product `a * b` as a
 `2N`-bit vector. `Spec.lean` also proves that this really is the untruncated
 product (`fn_toNat`) and that it equals `BitVec` multiplication at double
 width (`fn_eq_mul`). `SvGolf/Task.lean` defines `CombTask` and explains
 why the statement cannot be met vacuously.
+
+The range ends below `2^30`, not `2^31` (decided 2026-11-06): the port widths are `int` expressions of
+`N` (`[2*N-1:0]`), and an `int` holds no value of `2^31` or more, so at `N ≥ 2^30` the elaborated
+`2*N` wraps and the output port is not `2N` bits wide. Every task's range keeps every width it implies
+below `2^31`.
 
 ## Rules for this task
 
@@ -49,8 +173,13 @@ why the statement cannot be met vacuously.
   merges `+` chains into the same `$macc` cell as `*`, so all arithmetic is
   banned, not just `*`. The check is `score/banlist.py`: a pyslang
   front check on the source and a Yosys backstop (`$add $sub $neg $mul $macc
-  $alu ...` cells after `proc; opt`, before `alumacc`; comparisons stay
-  allowed) at `N = 1, 2, 8, 16`.
+  $alu ...` cells after `proc; opt`) at `N = 1, 2, 8, 16`.
+* **Run-time ordering comparisons (`< <= > >=`) are banned too** (decided
+  2026-11-05): Yosys's `alumacc` builds each one as an `$alu`, its own adder,
+  so after `proc; opt` the backstop also runs `alumacc` and rejects every
+  `$alu`/`$macc` cell it builds, at the comparison's source line. Equality
+  (`== != === !==`), comparisons over parameters and genvars (folded as
+  constants) and a comparator built from `& | ^ ~` stay allowed.
 * **Constant arithmetic is fine**: parameter expressions (`2*N-1`),
   localparams, genvar index arithmetic (`s[i-1][j+1]`), constant functions.
   Run-time index arithmetic is not (`x[sel+1]` with a signal `sel` builds an
@@ -62,9 +191,13 @@ why the statement cannot be met vacuously.
   external SAT solver, which the checker does not support: `svgolf/README.md`,
   "`bv_decide`"; fixed-size subgoals can use `decide +kernel`), no `native_decide`,
   no `sorry`.
-* Proof time limit: 120 s (`task.json`), the one limit of every task (svGolf `README.md`,
+* Proof time limit: 300 CPU s (`task.json`), the one limit of every task (svGolf `README.md`,
   "Proof effort"; `score/time_limits.py` checks it against `score/time_limits.json`).
-  `mul_tree` is the slowest reference of any task and is over the 60 s target.
+  Measured 2026-11-06 in CPU seconds, three cold runs each (`score/time_limits.json`): `mul_tree`
+  37.1, 34.8 and 34.9, `mul_tree_h` 32.7, 32.3 and 33.7, `mul_wallace` 31.6, 30.1 and 28.7,
+  `mul_n` 16.4, 16.9 and 16.1, `mul_n_byhand` 14.1, 14.6 and 13.8 CPU s, all under the 150 CPU s target.
+  Before, in wall-clock seconds: `mul_tree` was the slowest reference of any task in these wall-clock runs, over the
+  60 s target of the former 120 s limit.
   Measured 2026-10-30, three cold runs each (`check.py`'s `solution` stage, on a shared
   machine under `LEAN_NUM_THREADS=2`): the single-row tree reference (`mul_tree.lean`, 594 code
   lines) 87.1, 86.8 and 100.0 s; the two-row-leaf tree
@@ -73,15 +206,22 @@ why the statement cannot be met vacuously.
   lines) 37.3 s; the by-hand one (`mul_n_byhand.lean`, 1385 code lines) 12.4 s
   (`tests/mul/results/check.json` is an older record of the by-hand one: 8.4 s). The limit was
   900 s (ten times the slowest, 83.6 s then); it will be re-set after the proof-speed package.
-* **Scoring at `N = 16`**, no depth budget. The ranked score is sky130 A0'
-  (decided 11/03; svGolf `README.md`, "Scoring"): the cell area in um^2 and
-  the critical-path delay in ps of the scored netlist of the pinned
-  two-stage Yosys + ABC flow, weighed by `score/ppa.py` (`sky130_a0_v3`);
-  the leaderboard keeps their Pareto frontier (the array reference
-  8290.4512 um^2 at 10907 ps, `score/tests/ppa/expected_ppa.json`). Area in
-  NAND2 gate equivalents and depth in gates are extra columns. The score
-  depends on the circuit's expression structure, not on its layout or
-  names. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score". `N = 8` and `N = 32` are reported alongside (not scored).
+* **Scoring at `N = 16`**, no depth budget. The ranked number is area x time
+  on sky130 A0' (A0' decided 11/03, the product 11/05; svGolf `README.md`,
+  "Scoring"): the cell area in um^2 times the critical-path delay of the
+  scored netlist of the pinned two-stage Yosys + ABC flow, weighed by
+  `score/ppa.py` (`sky130_a0_v3`). The Pareto frontier of area and time (the
+  array reference 8290.4512 um^2 at 10907 ps is on it,
+  `score/tests/ppa/expected_ppa.json`), area in NAND2 gate equivalents and
+  depth in gates are extra columns, for exploring. The score is deterministic,
+  the same file always scoring the same: names, comments, blank lines,
+  whitespace and the file name never change it, while operand order, how a
+  chain of gates is grouped, gate forms and the order of statements do, and
+  trying them is golf (svGolf `README.md`, "Scoring"; moving one generate
+  block of a proved multiplier ahead of another moved its area 12.6% and its
+  delay 41%, measured 2026-11-05). Every number can be reproduced bit for bit:
+  score/PPA.md, "Reproduce a score". `N = 8` and `N = 32` are reported
+  alongside (not scored).
 * Post-synthesis check (`task.json` `postsynth`): ls-sv's reading and the
   scored netlist must agree on the fixed corners (130 vectors), the
   harvested comparison constants and 200 seeded random vectors at `N = 16`.
@@ -116,9 +256,10 @@ A file `solution.sv` with the module above, and a Lean file
 theorem Submission.solution : Submission.Goal
 ```
 
-where `Submission.Goal` is `SvGolf.Tasks.Mul.Statement design.sem` for the
+(inside `namespace Submission`, as every reference writes it: `theorem solution :
+Goal`), where `Submission.Goal` is `SvGolf.Tasks.Mul.Statement design.sem` for the
 design the checker extracts from `solution.sv` (the svGolf `README.md`,
-"Submitting"). Check it with
+"Submitting"; file names and paths are free). Check it with
 
 ```bash
 python3.12 check.py tasks/mul solution.sv Solution.lean
@@ -329,7 +470,39 @@ the reported points `N = 8, 32` are in `tests/expected.json`, which
 
 ## Scores
 
-Pinned flow (`score.py`, the two-stage canonical flow, Yosys 0.53), area in
+The ranked numbers at `N = 16` (sky130 A0', `score/tests/ppa/expected_ppa.json`, re-measured by
+`tests/run.py`'s `ppa` step):
+
+| design | area (um^2) | delay (ps) | area x time (um2*ns, ranked) |
+|---|---|---|---|
+| `reference/mul_tree_h.sv` (par) | 8563.2128 | 5992 | **51 310.8** |
+| `reference/mul_tree.sv` | 8603.2512 | 6129 | 52 729.3 |
+| `reference/mul_wallace.sv` | 8966.0992 | 5982 | 53 635.2 |
+| `reference/mul_n.sv` (the array; `mul_n_byhand` the same) | 8290.4512 | 10907 | 90 424.0 |
+| `tests/mul/baselines/dadda_rc_16.sv` (Dadda + ripple, simulation only) | 8230.3936 | 5461 | 44 946.2 |
+| `tests/mul/baselines/dadda_ks_16.sv` (Dadda + Kogge-Stone, simulation only) | 8937.3216 | 5148 | 46 009.3 |
+| `tests/mul/baselines/yosys_mul.sv` (Yosys's own `*`, banned) | 8825.9648 | 6261 | 55 259.4 |
+
+Measure a design with the golfing inner loop, about 2 seconds and no Lean (it runs the source gate and
+the pinned flow, not the banlist, the 4-state rules, ls-sv, the post-synthesis check or a proof, so
+`check.py --unproved` must still pass before you prove):
+
+```bash
+python3.12 score/ppa.py solution.sv --task tasks/mul --no-mapped          # area_um2_sky130, delay_ps_sky130
+python3.12 score/ppa.py solution.sv --task tasks/mul --no-mapped --path   # ... and the critical path, net by net
+```
+
+**What moves the score** (observations from trial runs, not promises; the pinned flow is the judge):
+
+* The Boolean form of a cell moves both area and delay: the association of a three-input XOR, a `?:`
+  majority, which input of a 4:2 compressor enters late.
+* ABC restructures what you write: a structural trick that ABC can factor back into the plain form does
+  not survive.
+* Commuting the operands of one operator moves the A0' area by up to 11% and the delay by up to 32%
+  (`score/PPA.md`, the two flows).
+* `--path` names the critical path with each net's arrival time: read it before you guess.
+
+The extra columns: pinned flow (`score.py`, the two-stage canonical flow, Yosys 0.53), area in
 GE / depth in gates; every number is in `tests/expected.json` (with the gate
 mix) and re-measured by `tests/run.py` (the canonical flow left all of them
 unchanged):

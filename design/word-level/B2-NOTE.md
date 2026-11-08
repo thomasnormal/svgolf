@@ -325,10 +325,11 @@ while `localparam` accepts only `+ - *` by a literal and `/ %` by a literal (PRO
 Nothing in `add`, `mul`, `aes_sbox`: `add` and `mul` ban `+ - *` (`task.json`), and the S-box reference is an
 XOR/AND netlist. What changes for existing material: `tests/add/baselines/cmp_carry.sv` (195.975 GE, depth 17,
 MEASURED; a policy probe whose depth beats every reference) uses `>`, `==` on operands of width `i`, and `~`. It
-passes the banlist but has no proof, because the tactics read none of it. With B2 plus S2's `~` it is
+passed the banlist then (banned since 2026-11-05: a task that bans `+` or `-` rejects the `$alu` that Yosys
+builds for a run-time ordering comparison) and has no proof, because the tactics read none of it. With B2 plus S2's `~` it is
 tactic-readable; the remaining mathematics (the carry-of-a-prefix identity `c_i = (2^i ≤ A_i + B_i + cin)` and the sum
-assembly) I estimate at 60 to 120 lines, unmeasured. It would be a second Pareto point on the `add` board (195.975
-GE / 17, against the reference's 112.000 / 33). The hand-built word-level proofs in `LeanModels/Sv`
+assembly) I estimate at 60 to 120 lines, unmeasured. It would have been a second Pareto point on the `add` board (195.975
+GE / 17, against the reference's 112.000 / 33); under the 2026-11-05 ban it cannot be a record. The hand-built word-level proofs in `LeanModels/Sv`
 (`Comb2ConcatExample`, `Comb2ProcExample`) remain examples; their arithmetic moves into `CombWord`.
 
 ## 7. Open questions for the maintainers
@@ -343,7 +344,7 @@ GE / 17, against the reference's 112.000 / 33). The hand-built word-level proofs
    first (smaller; 23 of `fdiv16`'s 52 assigns and its table need it), B2 second, reductions with S2, H2 not started
    on B2 alone.
 4. **Which tasks allow `+`.** `add` and `mul` ban it; the `fdivp` draft bans `/ % **` only. B2's board payoff is
-   `cmp_carry`-style comparison adders and any new `+`-allowed task (a `+`-allowed adder starts from Yosys's own
+   `cmp_carry`-style comparison adders (banned in `add` since 2026-11-05) and any new `+`-allowed task (a `+`-allowed adder starts from Yosys's own
    117.994 GE). Banlists are per task and their call.
 5. **Constants.** Parameter-valued constant arithmetic (WP-F2, size casts): inside B2 or a separate gate? The
    parametric fdiv cannot proceed without it.

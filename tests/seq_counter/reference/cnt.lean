@@ -1,5 +1,6 @@
 import Submission.Design
 import SvGolf.Seq
+import SvGolf.SeqV2
 import LeanModels.Sv.Comb2
 import LeanModels.Sv.Known2
 import LeanModels.Sv.Mono2
@@ -12,10 +13,15 @@ import LeanModels.Sv.Hier2Gen
 The positive case of the clocked checker (PLAN4 Gate 2): `Submission.Goal` is
 `SvGolf.Tests.SeqCounter.Statement design.sem` for `design` loaded from
 `tests/seq_counter/reference/cnt.sv`. A one-file port of the design study's counter proof
-(`design/sequential/CounterCycle.lean`, `CounterInst.lean`) to the frozen trusted `SeqTask`
+(`design/sequential/CounterCycle.lean`, `CounterInst.lean`) to the trusted `SeqTask`
 (`SvGolf/TaskSeq.lean`) and its reduction theorem `SeqTask.satisfiedAt_of_cycle`
 (`SvGolf/Seq.lean`): the hand-built family `cntD`, its one-cycle closed form, the register
 algebra, the reset and step cycles, and the instantiation `design.sem N = cntD N` at symbolic `N`.
+
+The statement is txtask-v2's (`SeqTask.StatementV2`): section 5 proves the claim from every
+power-up state (rule 2: the reduction's invariant is the state's shape, which every power-up state
+has), termination from every power-up, rule 1 (`MooreOutDep`: no combinational dependency at all)
+and rule 3 (`XSafe`, by `simp`).
 -/
 
 namespace Submission
@@ -143,8 +149,8 @@ theorem bv1_cases (b : BitVec 1) : b = 0#1 ∨ b = 1#1 := by
 /-! ## 4. The statement for the hand-built family -/
 
 theorem cnt_interface (N : Nat) : cntTask.Interface N (cntD N) := by
-  simp [SeqTask.Interface, SeqTask.ports, cntTask, SvGolf.Tests.SeqCounter.task, inputPorts,
-    outputPorts, cntD]
+  refine ⟨?_, ?_, by show (["clk", "rst", "en", "q"] : List String).Nodup; decide⟩ <;>
+  simp [SeqTask.ports, cntTask, SvGolf.Tests.SeqCounter.task, inputPorts, outputPorts, cntD]
 
 theorem cnt_disciplined (N : Nat) : cntTask.Disciplined (cntD N) := by
   simp [SeqTask.Disciplined, cntTask, SvGolf.Tests.SeqCounter.task, ClockedBy, cntD,
@@ -224,7 +230,51 @@ theorem cnt_satisfiedAt (N : Nat) : cntTask.SatisfiedAt N (cntD N) :=
     (fun _ _ _ _ _ _ _ hs h => sh_step hs h)
     (cnt_reset_cycle N) (cnt_step_cycle N)
 
-/-! ## 5. The loaded family is `cntD`, for every `N ≥ 1` (`instantiate2` at symbolic `N`) -/
+/-! ## 5. txtask-v2: every power-up (rule 2), Moore outputs (rule 1), no x-creating construct (rule 3)
+
+Rule 2: the reduction's invariant `Sh` (the state's shape: `q` of width `N`, any values) holds at every
+power-up state (`sh_powerUp`), so v1's reset and step cycle lemmas, which already hold from any state of
+the shape, give the claim from every power-up (`SeqTask.satisfiedAtV2_of_cycle`, `SvGolf.SeqV2`), and the
+same cycle gives termination from every power-up. Rule 1: one `always_ff`, no combinational dependency.
+Rule 3: every expression is a known literal, a declared signal, or `q + 1` (`cnt_xsafe`, by `simp`). -/
+
+/-- Every power-up state of the counter has its shape. -/
+theorem sh_powerUp (N : Nat) (st : SvState) (h : PowerUp (cntD N) st) : Sh N st := by
+  obtain ⟨c, r1, rfl, -, -, h1⟩ := powerUp_cons.mp h
+  obtain ⟨r, r2, rfl, -, -, h2⟩ := powerUp_cons.mp h1
+  obtain ⟨e, r3, rfl, -, -, h3⟩ := powerUp_cons.mp h2
+  obtain ⟨q, r4, rfl, hq, -, h4⟩ := powerUp_cons.mp h3
+  obtain rfl := powerUp_nil.mp h4
+  exact ⟨c, r, e, q, rfl, hq⟩
+
+/-- **Termination from every power-up.** -/
+theorem cnt_terminatesPU (N : Nat) : TerminatesPU (cntD N) :=
+  TerminatesPU.of_invariant (Sh N) (sh_powerUp N) (fun σ =>
+    ⟨12, fun inputs st k hs => by
+      obtain ⟨c, r, e, q, rfl, hw⟩ := hs
+      exact ⟨_, _, cnt_cycle N σ inputs c r e q k 12 (Nat.le_refl _),
+        _, _, _, _, rfl, by rw [cntNext_width]; exact hw⟩⟩) rfl
+
+/-- The counter has no combinational dependency (one `always_ff`). -/
+theorem cnt_combDeps (N : Nat) : combDeps (cntD N) = [] := rfl
+
+/-- **Rule 1.** -/
+theorem cnt_moore (N : Nat) : MooreOutDep (cntD N) [] :=
+  MooreOutDep.of_noComb (cnt_combDeps N) (by simp [cntD, Design2.outputNames, Design2.inputNames])
+
+/-- **Rule 3**: no construct of the counter can create an `x` from known operands. -/
+theorem cnt_xsafe (N : Nat) : XSafe (cntD N) := by
+  simp [XSafe, xsafeB, cntD, xsProc, xsStmt, xsOpt, xsLhs, xsWidth, binW, sigWidth, lit_one,
+    LVec.replicate_l0]
+
+/-- **The v2 statement for the hand-built family.** -/
+theorem cnt_satisfiedAtV2 (N : Nat) : cntTask.SatisfiedAtV2 N (cntD N) :=
+  SeqTask.satisfiedAtV2_of_cycle cntTask N (cntD N) ⟨_, rfl⟩ (cnt_interface N) (cnt_disciplined N)
+    (cnt_terminatesPU N) (Sh N) (Rel N) (sh_powerUp N)
+    (fun _ _ _ _ _ _ _ hs h => sh_step hs h)
+    (cnt_reset_cycle N) (cnt_step_cycle N) (cnt_moore N) (cnt_xsafe N)
+
+/-! ## 6. The loaded family is `cntD`, for every `N ≥ 1` (`instantiate2` at symbolic `N`) -/
 
 def cntScope (N : Int) : IEnv := { vals := [("N", N)], pwidths := [("N", 32)] }
 
@@ -302,9 +352,9 @@ theorem cnt_sem_eq (N : Nat) (hN : 1 ≤ N) : design.sem N = cntD N := by
   simp only [PDesign.assemble2, cnt_static N N hN, cntD, cntProc]
   simp [design.pdesign, cntDeclsRaw]
 
-/-- **The counter's statement, of the loaded family.** -/
+/-- **The counter's statement (txtask-v2), of the loaded family.** -/
 theorem solution : Goal := fun N hN => by
   rw [cnt_sem_eq N hN]
-  exact cnt_satisfiedAt N
+  exact cnt_satisfiedAtV2 N
 
 end Submission

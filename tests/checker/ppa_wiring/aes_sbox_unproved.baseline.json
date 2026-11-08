@@ -1,6 +1,7 @@
 {
   "accepted": false,
-  "errors": [
+  "errors": [],
+  "notes": [
     "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design, score, postsynth); the proof stages were not run, so the design is not accepted"
   ],
   "score": {
@@ -28,7 +29,11 @@
       "backstop": [],
       "diagnostics": [],
       "front": [],
-      "operators": []
+      "operators": [
+        "/",
+        "%",
+        "**"
+      ]
     },
     "design": {
       "exit": 0,
@@ -41,13 +46,24 @@
       "extractor_sha256": "<volatile>",
       "lean_surfaces": "<volatile>",
       "parameters": [],
+      "ports_checked": [
+        "the defaults"
+      ],
       "probe_points": []
     },
     "fourstate": {
       "diagnostics": [],
+      "failed_point": null,
       "findings": [],
       "passed": true,
       "point": {},
+      "points": [
+        {
+          "passed": true,
+          "point": {},
+          "seconds": "<volatile>"
+        }
+      ],
       "seconds": "<volatile>"
     },
     "postsynth": {
@@ -129,10 +145,11 @@
     "task": {
       "parameters": [],
       "statement": "SvGolf.Tasks.AesSbox.Statement",
-      "time_limit_s": 120,
+      "time_limit_s": 300,
       "top": "aes_sbox",
       "verify_time_limit_s": 900
     }
   },
-  "task": "aes_sbox"
+  "task": "aes_sbox",
+  "unproved_ok": true
 }

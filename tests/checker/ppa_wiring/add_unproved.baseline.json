@@ -1,6 +1,7 @@
 {
   "accepted": false,
-  "errors": [
+  "errors": [],
+  "notes": [
     "--unproved: every check that needs no proof passed (source, extract, banlist, fourstate, design, score, postsynth); the proof stages were not run, so the design is not accepted"
   ],
   "score": {
@@ -45,6 +46,14 @@
       "parameters": [
         "N"
       ],
+      "ports_checked": [
+        "N=1",
+        "N=2",
+        "N=3",
+        "N=16",
+        "N=32",
+        "N=64"
+      ],
       "probe_points": [
         "N=1",
         "N=2",
@@ -56,11 +65,56 @@
     },
     "fourstate": {
       "diagnostics": [],
+      "failed_point": null,
       "findings": [],
       "passed": true,
       "point": {
         "N": 16
       },
+      "points": [
+        {
+          "passed": true,
+          "point": {
+            "N": 16
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 1
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 2
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 3
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 32
+          },
+          "seconds": "<volatile>"
+        },
+        {
+          "passed": true,
+          "point": {
+            "N": 64
+          },
+          "seconds": "<volatile>"
+        }
+      ],
       "seconds": "<volatile>"
     },
     "postsynth": {
@@ -140,10 +194,11 @@
         "N"
       ],
       "statement": "SvGolf.Tasks.Add.Statement",
-      "time_limit_s": 120,
+      "time_limit_s": 300,
       "top": "add_n",
       "verify_time_limit_s": 900
     }
   },
-  "task": "add"
+  "task": "add",
+  "unproved_ok": true
 }

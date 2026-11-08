@@ -35,7 +35,7 @@ GOLDEN_DIR = os.path.join(HERE, "ppa_wiring")
 MASK = "<volatile>"
 RUN_VOLATILE = frozenset({
     # time
-    "seconds", "t_harvest_s", "t_lssv_s", "t_netlist_build_s", "t_netlist_run_s", "t_reread_s",
+    "seconds", "cpu_seconds", "t_harvest_s", "t_lssv_s", "t_netlist_build_s", "t_netlist_run_s", "t_reread_s",
     "lssv_ms_per_vector", "lssv_timing",
     # where
     "stage_dir", "path", "extractor",
@@ -61,6 +61,14 @@ PPA_STAGE = "ppa"
 # `stages.sandbox`; `--sandbox off` (and a library caller that never configured one) adds neither
 SANDBOX_KEY = "sandbox"
 SANDBOX_STAGE = "sandbox"
+# what a Lean slot wrapper adds (check.py, B7 of the newcomer study): `waited` in a stage's record, the seconds its Lean
+# calls queued behind $SVGOLF_LEAN_WRAP (never part of the stage's `seconds`), and the key `lean_wrap` of a run that took
+# the wrapper once ($SVGOLF_LEAN_WRAP_ONCE=1)
+WAITED = "waited"
+LEAN_WRAP_KEY = "lean_wrap"
+# what the solution's progress report adds (check.py, item 9 of the from-scratch study): `progress` in the `solution`
+# stage's record, the declarations the kernel finished and when each was reported (times of this run: volatile)
+PROGRESS = "progress"
 # the references whose proved (`full`) baseline result is recorded, by task
 FULL_GOLDEN_REFERENCE = {"add": "add_n", "aes_sbox": "sbox_bp"}
 
@@ -87,10 +95,14 @@ def render(res, strict=False):
 
 
 def without_ppa(res):
-    """`res` minus exactly what `--ppa auto` / `require` add (the key `ppa` and the stage `stages.ppa`) and what the
-    sandbox adds (the key `sandbox` and the stage `stages.sandbox`)."""
-    out = {k: v for k, v in res.items() if k not in (PPA_KEY, SANDBOX_KEY)}
-    out["stages"] = {k: v for k, v in res["stages"].items() if k not in (PPA_STAGE, SANDBOX_STAGE)}
+    """`res` minus exactly what `--ppa auto` / `require` add (the key `ppa` and the stage `stages.ppa`), what the
+    sandbox adds (the key `sandbox` and the stage `stages.sandbox`) and what a Lean slot wrapper adds (`waited` in the
+    stages whose Lean calls went behind it, `SVGOLF_LEAN_WRAP`; the key `lean_wrap` of `SVGOLF_LEAN_WRAP_ONCE=1`):
+    whether a wrapper is in front of Lean is a property of the machine, not of the check; and the solution's
+    `progress` record (its times are this run's)."""
+    out = {k: v for k, v in res.items() if k not in (PPA_KEY, SANDBOX_KEY, LEAN_WRAP_KEY)}
+    out["stages"] = {k: ({f: x for f, x in v.items() if f not in (WAITED, PROGRESS)} if isinstance(v, dict) else v)
+                     for k, v in res["stages"].items() if k not in (PPA_STAGE, SANDBOX_STAGE)}
     return out
 
 

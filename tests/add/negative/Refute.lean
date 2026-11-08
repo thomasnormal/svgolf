@@ -430,7 +430,7 @@ theorem errorDesign_not_terminates (n msg : String) :
 task**, at any parameter point. -/
 theorem not_satisfiedAt_of_clocked {t : CombTask} {N : Nat} {pd : PDesign} {args : List Int}
     (hc : pd.processes.any clockedB = true) : ¬ t.SatisfiedAt N (pd.instantiateGD2 args) := by
-  rintro ⟨-, ⟨hu, ht⟩, -⟩
+  rintro ⟨-, ⟨hu, -, ht⟩, -⟩
   obtain ⟨p, hp, hpc⟩ := List.any_eq_true.mp hc
   rw [PDesign.instantiateGD2_eq_driverGuard] at hu ht
   cases hi : pd.instantiate2 args (PDesign.surfaceFuel args) with

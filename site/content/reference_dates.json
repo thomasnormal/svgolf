@@ -2,7 +2,8 @@
  "_comment": "When each proved reference joined its task (UTC): the author date of the first commit that listed it in the task's task.json. The score chart plots references at these times. Written by site/gen_reference_dates.py, which keeps existing entries; add a new reference's date with it.",
  "_example": {
   "band": "2026-10-29T10:46:16Z",
-  "band_lp": "2026-10-29T10:46:16Z"
+  "band_lp": "2026-10-29T10:46:16Z",
+  "band_tactics": "2026-11-05T22:15:37Z"
  },
  "add": {
   "add_n": "2026-10-29T10:46:16Z",
@@ -14,6 +15,9 @@
  "aes_sbox": {
   "sbox_bp": "2026-10-30T22:46:45Z",
   "sbox_table": "2026-10-31T17:41:41Z"
+ },
+ "arbiter": {
+  "rr_mask": "2026-11-05T18:53:43Z"
  },
  "clmul": {
   "clmul_n": "2026-11-01T14:52:49Z"

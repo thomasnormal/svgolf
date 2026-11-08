@@ -5,16 +5,18 @@ import LeanModels.Sv.Seq2Cycle
 /-!
 # Proof helpers for sequential tasks (untrusted, kernel-checked)
 
-Nothing here is part of the trusted base. It goes with the draft trusted text `SvGolf/TaskSeq.lean` (`ClockedBy`,
-`SeqTask`, `TxTask`, `StreamTask`): the reductions a clocked reference proof targets, each from a few facts about
+Nothing here is part of the trusted base. It goes with the trusted text `SvGolf/TaskSeq.lean` (`ClockedBy`,
+final; `SeqTask`, `TxTask`, `StreamTask`, a DRAFT): the reductions a clocked reference proof targets, each from a few facts about
 ONE cycle.
 
 ## API
 
 * `SeqTask.scan_getElem?_snd`: the spec machine's `scan` keeps each cycle's inputs.
 * `CombTask.toSeq`, `toSeq_interface`, `toSeq_follows_iff`, **`toSeq_satisfiedAt_iff`**: a combinational task is
-  the one-point-state case of a sequential one (no clock, no reset, `State = Unit`), and the two statements agree.
-  So the sequential statement does not move any combinational task.
+  the one-point-state case of a sequential one (no clock, no reset, `State = Unit`), and the two statements agree
+  but for two conjuncts: `SeqTask.Interface` asks for distinct declaration names, which `CombTask.Interface` does
+  not (decided 2026-11-06), and the combinational statement asks for `LoopFree` (2026-11-06), which the sequential
+  statement does not. So the sequential statement does not move any combinational task beyond those two.
 * **`SeqTask.satisfiedAt_of_cycle`**, the reduction theorem of `SeqTask`: for a task with a reset port, the
   statement at one parameter value follows from the interface, the discipline, termination, and three facts about
   ONE cycle (`cycleStep2`): an invariant `Inv` on snapshots, a reset lemma (a cycle that asserts reset yields the
@@ -70,10 +72,10 @@ def CombTask.toSeq (c : CombTask) : SeqTask where
   step := fun _ _ _ => ()
   obs := fun N _ v => c.fn N v
 
-/-- The sequential interface of `c.toSeq` is `c`'s interface. -/
+/-- The sequential interface of `c.toSeq` is `c`'s interface and distinct declaration names. -/
 theorem CombTask.toSeq_interface (c : CombTask) (N : Nat) (d : Design2) :
-    c.toSeq.Interface N d ↔ c.Interface N d := by
-  simp [SeqTask.Interface, SeqTask.ports, CombTask.toSeq, CombTask.Interface]
+    c.toSeq.Interface N d ↔ c.Interface N d ∧ (d.decls.toList.map Decl.name).Nodup := by
+  simp [SeqTask.Interface, SeqTask.ports, CombTask.toSeq, CombTask.Interface, and_assoc]
 
 /-- **The combinational claim is the one-point-state case of the sequential one.** -/
 theorem CombTask.toSeq_follows_iff (c : CombTask) (N : Nat) (d : Design2) :
@@ -116,27 +118,93 @@ theorem CombTask.toSeq_follows_iff (c : CombTask) (N : Nat) (d : Design2) :
     exact key a.2 p.2 hsnd this
 
 /-- The whole statements agree at a parameter value: **`CombTask` is the degenerate case of
-`SeqTask`** (same interface, same `Unclocked`, same termination, same claim). -/
+`SeqTask`** (same interface, plus distinct declaration names; same `Unclocked`, same termination,
+same claim), with the combinational statement's `LoopFree` on top. -/
 theorem CombTask.toSeq_satisfiedAt_iff (c : CombTask) (N : Nat) (d : Design2) :
-    c.toSeq.SatisfiedAt N d ↔ c.SatisfiedAt N d := by
+    c.toSeq.SatisfiedAt N d ∧ LoopFree d ↔
+      c.SatisfiedAt N d ∧ (d.decls.toList.map Decl.name).Nodup := by
   unfold SeqTask.SatisfiedAt CombTask.SatisfiedAt
   rw [CombTask.toSeq_interface, CombTask.toSeq_follows_iff]
-  exact Iff.rfl
+  constructor
+  · rintro ⟨⟨⟨hi, hn⟩, ⟨hu, ht⟩, hc⟩, hl⟩
+    exact ⟨⟨hi, ⟨hu, hl, ht⟩, hc⟩, hn⟩
+  · rintro ⟨⟨hi, ⟨hu, hl, ht⟩, hc⟩, hn⟩
+    exact ⟨⟨⟨hi, hn⟩, ⟨hu, ht⟩, hc⟩, hl⟩
+
+/-! ## Runs from a start state
+
+`RunFrom d σ st0 stim tr`: some fuel completes `runFrom2` from `st0`. It is what the reductions below
+read off a run: v1's `Runs2` is a `RunFrom` from `initState2 d` (`Runs2.runFrom`), and txtask-v2's
+`RunsAt` a `RunFrom` from a power-up state (`RunsAt.runFrom`, `SvGolf/SeqV2.lean`), so one proof of a
+claim from a start state of the invariant serves both. -/
+
+/-- A completed `runFrom2` from `st0`. -/
+def RunFrom (d : Design2) (σ : ScheduleOracle) (st0 : SvState) (stim tr : List SvState) : Prop :=
+  ∃ fuel, runFrom2 d σ fuel st0 0 stim = .ok tr
+
+theorem Runs2.runFrom {d : Design2} {σ : ScheduleOracle} {stim tr : List SvState}
+    (h : Runs2 d σ stim tr) : RunFrom d σ (initState2 d) stim tr :=
+  let ⟨fuel, hr⟩ := h; ⟨fuel, run2_from_ok hr⟩
+
+theorem RunFrom.exists_snapshot {d : Design2} {σ : ScheduleOracle} {st0 : SvState}
+    {stim tr : List SvState} (h : RunFrom d σ st0 stim tr) {c : Nat} (hc : c < stim.length) :
+    ∃ st, tr[c]? = some st := by
+  obtain ⟨fuel, hr⟩ := h
+  have hl := runFrom2_length hr
+  exact ⟨tr[c]'(hl ▸ hc), List.getElem?_eq_getElem _⟩
+
+theorem RunFrom.snapshot_step {d : Design2} {σ : ScheduleOracle} {st0 : SvState}
+    {stim tr : List SvState} (h : RunFrom d σ st0 stim tr) {c : Nat} {st : SvState}
+    (hc : tr[c]? = some st) : ∃ fuel inputs prev k k', stim[c]? = some inputs ∧
+      (st0 :: tr)[c]? = some prev ∧ cycleStep2 d σ fuel inputs prev k = .ok (st, k') := by
+  obtain ⟨fuel, hr⟩ := h
+  obtain ⟨inputs, prev, k, k', hi, hp, hs⟩ := runFrom2_snapshot hr hc
+  exact ⟨fuel, inputs, prev, k, k', hi, hp, hs⟩
+
+theorem RunFrom.forall_of_step {d : Design2} {σ : ScheduleOracle} {st0 : SvState}
+    {stim tr : List SvState} {I : SvState → Prop} (hinit : I st0)
+    (hstep : ∀ (fuel : Nat) (inputs prev : SvState) (k : Nat) (st : SvState) (k' : Nat),
+      I prev → cycleStep2 d σ fuel inputs prev k = .ok (st, k') → I st)
+    (h : RunFrom d σ st0 stim tr) : ∀ (c : Nat) (st : SvState), tr[c]? = some st → I st := by
+  intro c
+  induction c with
+  | zero =>
+      intro st hc
+      obtain ⟨fuel, inputs, prev, k, k', _, hp, hs⟩ := h.snapshot_step hc
+      simp only [List.getElem?_cons_zero, Option.some.injEq] at hp
+      subst hp
+      exact hstep fuel inputs _ k st k' hinit hs
+  | succ c ih =>
+      intro st hc
+      obtain ⟨fuel, inputs, prev, k, k', _, hp, hs⟩ := h.snapshot_step hc
+      simp only [List.getElem?_cons_succ] at hp
+      exact hstep fuel inputs prev k st k' (ih prev hp) hs
+
+/-- `CycleModel.snapshot` from a start state of the shape: every snapshot of a run from `st0` is a
+`Step` from the previous snapshot (`st0` at cycle 0), which has the shape. -/
+theorem CycleModel.snapshotFrom {d : Design2} (M : CycleModel d) {σ : ScheduleOracle}
+    {st0 : SvState} {stim tr : List SvState} (h0 : M.Shape st0) (hr : RunFrom d σ st0 stim tr)
+    {c : Nat} {st : SvState} (hc : tr[c]? = some st) : ∃ e prev, stim[c]? = some e ∧
+      (st0 :: tr)[c]? = some prev ∧ M.Shape prev ∧ M.Step e prev st := by
+  obtain ⟨F, e, prev, k, k', he, hp, hs⟩ := hr.snapshot_step hc
+  have hsh : M.Shape prev := by
+    cases c with
+    | zero => simp only [List.getElem?_cons_zero, Option.some.injEq] at hp; exact hp ▸ h0
+    | succ c => exact hr.forall_of_step h0 (fun F e q k s k' hq hs =>
+        M.shape e q s hq (M.cycle σ F e q k s k' hq hs)) c prev (by simpa using hp)
+  exact ⟨e, prev, he, hp, hsh, M.cycle σ F e prev k st k' hsh hs⟩
 
 /-! ## The reduction theorem: refinement by an invariant -/
 
-/-- **A design satisfies the statement (task with a reset port) as soon as, besides the interface,
-the clock discipline and termination, it has** an invariant `Inv` on snapshots (true initially,
-kept by every successful cycle), a relation `R` between a snapshot and the spec state, a RESET
-cycle lemma (any successful cycle whose entry asserts reset yields `R` with `init` and the spec's
-observation, from ANY invariant state: reset forgets history, x included) and a STEP cycle lemma
-(any successful cycle whose entry does not assert reset, from a snapshot related to `s`, yields
-`R` with `step s v` and the observation). The cycle lemmas are about `cycleStep2` at any fuel. -/
-theorem SeqTask.satisfiedAt_of_cycle (t : SeqTask) (N : Nat) (d : Design2)
+/-- **The claim of `SeqTask` from a cycle invariant**, for one completed run from a start state
+`st0` of the invariant `Inv` (kept by every successful cycle): a relation `R` between a snapshot
+and the spec state, a RESET cycle lemma (any successful cycle whose entry asserts reset yields `R`
+with `init` and the spec's observation, from ANY invariant state) and a STEP cycle lemma (any
+successful cycle whose entry does not assert reset, from a snapshot related to `s`, yields `R`
+with `step s v` and the observation) give the claim on that run. -/
+theorem SeqTask.claim_of_cycle (t : SeqTask) (N : Nat) (d : Design2)
     (hrst : ∃ r, t.rst = some r)
-    (hI : t.Interface N d) (hD : t.Disciplined d) (hT : Terminates2 d)
     (Inv : SvState → Prop) (R : SvState → t.State N → Prop)
-    (hinit : Inv (initState2 d))
     (hinv : ∀ σ F inputs prev k st k', Inv prev →
         cycleStep2 d σ F inputs prev k = .ok (st, k') → Inv st)
     (hreset : ∀ σ F inputs prev k st k' (v : t.Ins N), Inv prev →
@@ -144,15 +212,19 @@ theorem SeqTask.satisfiedAt_of_cycle (t : SeqTask) (N : Nat) (d : Design2)
         R st (t.init N) ∧ t.ObsOK N st (t.init N, v))
     (hstep : ∀ σ F inputs prev k st k' (s : t.State N) (v : t.Ins N), Inv prev → R prev s →
         cycleStep2 d σ F inputs prev k = .ok (st, k') → t.Drives N inputs (false, v) →
-        R st (t.step N s v) ∧ t.ObsOK N st (t.step N s v, v)) :
-    t.SatisfiedAt N d := by
-  refine ⟨hI, ⟨hD, hT⟩, ?_⟩
-  intro σ stim tr hr c0 ps hstart hdrv
+        R st (t.step N s v) ∧ t.ObsOK N st (t.step N s v, v))
+    {σ : ScheduleOracle} {st0 : SvState} {stim tr : List SvState} (hinit : Inv st0)
+    (hr : RunFrom d σ st0 stim tr) :
+    ∀ (c0 : Nat) (ps : List (Bool × t.Ins N)), t.StartOK N ps →
+      (∀ j p, ps[j]? = some p → ∃ e, stim[c0 + j]? = some e ∧ t.Drives N e p) →
+      ∀ j a, (t.scan N (t.init N) ps)[j]? = some a →
+        ∃ st, tr[c0 + j]? = some st ∧ t.ObsOK N st a := by
+  intro c0 ps hstart hdrv
   obtain ⟨rr, hrr⟩ := hrst
   simp only [SeqTask.StartOK, hrr] at hstart
   have hall : ∀ (c : Nat) (st : SvState), tr[c]? = some st → Inv st :=
     hr.forall_of_step hinit (fun fuel inputs prev k st k' hp hc => hinv σ fuel inputs prev k st k' hp hc)
-  have hprevInv : ∀ (c : Nat) (prev : SvState), (initState2 d :: tr)[c]? = some prev → Inv prev := by
+  have hprevInv : ∀ (c : Nat) (prev : SvState), (st0 :: tr)[c]? = some prev → Inv prev := by
     intro c prev h
     cases c with
     | zero =>
@@ -164,7 +236,7 @@ theorem SeqTask.satisfiedAt_of_cycle (t : SeqTask) (N : Nat) (d : Design2)
   have main : ∀ (ps : List (Bool × t.Ins N)) (c : Nat) (s : t.State N),
       (∀ j p, ps[j]? = some p → ∃ e, stim[c + j]? = some e ∧ t.Drives N e p) →
       (ps.head?.map Prod.fst = some true ∨
-        ∃ prev, (initState2 d :: tr)[c]? = some prev ∧ R prev s) →
+        ∃ prev, (st0 :: tr)[c]? = some prev ∧ R prev s) →
       ∀ j a, (t.scan N s ps)[j]? = some a → ∃ st, tr[c + j]? = some st ∧ t.ObsOK N st a := by
     intro ps
     induction ps with
@@ -207,6 +279,30 @@ theorem SeqTask.satisfiedAt_of_cycle (t : SeqTask) (N : Nat) (d : Design2)
             obtain ⟨st2, h2, h3⟩ := hrest
             exact ⟨st2, by rw [show c + (j + 1) = c + 1 + j by omega]; exact h2, h3⟩
   exact main ps c0 (t.init N) hdrv (Or.inl hstart) |> fun f j a ha => by simpa using f j a ha
+
+/-- **A design satisfies the statement (task with a reset port) as soon as, besides the interface,
+the clock discipline and termination, it has** an invariant `Inv` on snapshots (true initially,
+kept by every successful cycle), a relation `R` between a snapshot and the spec state, a RESET
+cycle lemma (any successful cycle whose entry asserts reset yields `R` with `init` and the spec's
+observation, from ANY invariant state: reset forgets history, x included) and a STEP cycle lemma
+(any successful cycle whose entry does not assert reset, from a snapshot related to `s`, yields
+`R` with `step s v` and the observation). The cycle lemmas are about `cycleStep2` at any fuel.
+The claim itself, from any start state of the invariant, is `SeqTask.claim_of_cycle`. -/
+theorem SeqTask.satisfiedAt_of_cycle (t : SeqTask) (N : Nat) (d : Design2)
+    (hrst : ∃ r, t.rst = some r)
+    (hI : t.Interface N d) (hD : t.Disciplined d) (hT : Terminates2 d)
+    (Inv : SvState → Prop) (R : SvState → t.State N → Prop)
+    (hinit : Inv (initState2 d))
+    (hinv : ∀ σ F inputs prev k st k', Inv prev →
+        cycleStep2 d σ F inputs prev k = .ok (st, k') → Inv st)
+    (hreset : ∀ σ F inputs prev k st k' (v : t.Ins N), Inv prev →
+        cycleStep2 d σ F inputs prev k = .ok (st, k') → t.Drives N inputs (true, v) →
+        R st (t.init N) ∧ t.ObsOK N st (t.init N, v))
+    (hstep : ∀ σ F inputs prev k st k' (s : t.State N) (v : t.Ins N), Inv prev → R prev s →
+        cycleStep2 d σ F inputs prev k = .ok (st, k') → t.Drives N inputs (false, v) →
+        R st (t.step N s v) ∧ t.ObsOK N st (t.step N s v, v)) :
+    t.SatisfiedAt N d :=
+  ⟨hI, ⟨hD, hT⟩, fun _ _ _ hr => t.claim_of_cycle N d hrst Inv R hinv hreset hstep hinit (Runs2.runFrom hr)⟩
 
 /-- A signal holds at most one known bit. -/
 theorem BitIs.unique {st : SvState} {n : String} {a b : Bool} (ha : BitIs st n a)
@@ -294,14 +390,14 @@ private abbrev Inv {p : P} {lat : Nat} {d : Design2} (M : t.PhaseModel p lat d)
     ∃ s0, c0 < s0 ∧ s0 ≤ c ∧ StimBit stim s0 t.start true ∧ t.NoStart stim s0 c ∧
       t.Ph M stim tr s0 c st)
 
-/-- **The transaction-protocol reduction**: a design satisfies the `TxTask` statement at `p` and
-`lat ≥ 1` as soon as, besides the interface, the clock discipline and termination, it has a phase
-model (`PhaseModel`: the clock step and the one-cycle reset, start, busy and hold obligations).
+/-- **The transaction-protocol claim from a phase model**, for one completed run from a start state
+`st0` of the model's shape: from every release, at every horizon, the rely gives the guarantee.
 The release, the horizon, `Idle`, the held operands and back-to-back starts are handled here. -/
-theorem satisfiedAt_of_phases {p : P} {lat : Nat} {d : Design2} (hI : t.Interface p d)
-    (hD : t.Disciplined d) (hT : Terminates2 d) (hlat : 1 ≤ lat) (M : t.PhaseModel p lat d) :
-    t.SatisfiedAt p lat d := by
-  refine ⟨hI, ⟨hD, hT⟩, hlat, fun σ stim tr hr c1 h hrel hR => ?_⟩
+theorem guar_of_phases {p : P} {lat : Nat} {d : Design2} (M : t.PhaseModel p lat d)
+    {σ : ScheduleOracle} {st0 : SvState} {stim tr : List SvState} (h0 : M.Shape st0)
+    (hr : RunFrom d σ st0 stim tr) :
+    ∀ c1 h, Released t.rst stim c1 h → t.Rely p stim tr c1 h → t.Guar p lat stim tr c1 h := by
+  intro c1 h hrel hR
   obtain ⟨hc1, ⟨e0, he0, hb0⟩, hoff⟩ := hrel
   obtain ⟨c0, rfl⟩ : ∃ c0, c1 = c0 + 1 := ⟨c1 - 1, by omega⟩
   simp only [Nat.add_sub_cancel] at he0
@@ -330,7 +426,7 @@ theorem satisfiedAt_of_phases {p : P} {lat : Nat} {d : Design2} (hI : t.Interfac
     | zero =>
         intro hh
         obtain ⟨st, hst⟩ := hsnap c0 (Nat.le_refl _) hh
-        obtain ⟨e, prev, he, -, hsh, hs⟩ := M.snapshot hr hst
+        obtain ⟨e, prev, he, -, hsh, hs⟩ := CycleModel.snapshotFrom M.toCycleModel h0 hr hst
         rw [he0, Option.some.injEq] at he; subst he
         exact ⟨st, hst, .inl ⟨M.reset _ prev st hsh hs hb0, fun s h1 h2 => absurd h2 (by omega)⟩⟩
     | succ n ih =>
@@ -340,7 +436,7 @@ theorem satisfiedAt_of_phases {p : P} {lat : Nat} {d : Design2} (hI : t.Interfac
         have hle : c0 ≤ c0 + n := Nat.le_add_right _ _
         generalize c0 + n = c at hprev hG hh hle
         obtain ⟨st, hst⟩ := hsnap (c + 1) (by omega) hh
-        obtain ⟨e, prev', he, hp, hsh, hs⟩ := M.snapshot hr hst
+        obtain ⟨e, prev', he, hp, hsh, hs⟩ := CycleModel.snapshotFrom M.toCycleModel h0 hr hst
         rw [List.getElem?_cons_succ, hprev, Option.some.injEq] at hp; subst hp
         have hr0 : BitIs e t.rst false := onE he (hoff (c + 1) (by omega) hh)
         obtain ⟨⟨b, hb⟩, -, hidle, hheld⟩ := hR (c + 1) (by omega) hh
@@ -427,6 +523,15 @@ theorem satisfiedAt_of_phases {p : P} {lat : Nat} {d : Design2} (hI : t.Interfac
     rcases hph x hx with hf | ⟨m, -, -, hnd⟩
     · exact ⟨st, hc, M.fin_done x st hf⟩
     · exact absurd hd (hnd c' h5 h6)
+
+/-- **The transaction-protocol reduction**: a design satisfies the `TxTask` statement at `p` and
+`lat ≥ 1` as soon as, besides the interface, the clock discipline and termination, it has a phase
+model (`PhaseModel`: the clock step and the one-cycle reset, start, busy and hold obligations).
+The claim on each run is `guar_of_phases`. -/
+theorem satisfiedAt_of_phases {p : P} {lat : Nat} {d : Design2} (hI : t.Interface p d)
+    (hD : t.Disciplined d) (hT : Terminates2 d) (hlat : 1 ≤ lat) (M : t.PhaseModel p lat d) :
+    t.SatisfiedAt p lat d :=
+  ⟨hI, ⟨hD, hT⟩, hlat, fun _ _ _ hr => t.guar_of_phases M M.init (Runs2.runFrom hr)⟩
 
 end TxTask
 
@@ -616,14 +721,15 @@ private theorem idle_done (hcount : 1 ≤ t.count p) {stim tr : List SvState} {s
 
 end
 
-/-- **The stream-protocol reduction**: the `StreamTask` statement at `p` and `lat` (`1 ≤ count p ≤ lat`,
-`spec` keeping the length) from the interface, the discipline, termination and a phase model. The release,
-the horizon, `Idle`, `in_valid`, back-to-back starts and C8's points 6 and 7 are handled here. -/
-theorem satisfiedAt_of_phases {lat : Nat} {d : Design2} (hI : t.Interface p d) (hD : t.Disciplined d)
-    (hT : Terminates2 d) (hcount : 1 ≤ t.count p) (hle : t.count p ≤ lat)
+/-- **The stream-protocol claim from a phase model** (`1 ≤ count p ≤ lat`, `spec` keeping the length), for one
+completed run from a start state `st0` of the model's shape. The release, the horizon, `Idle`, `in_valid`,
+back-to-back starts and C8's points 6 and 7 are handled here. -/
+theorem guar_of_phases {lat : Nat} {d : Design2} (hcount : 1 ≤ t.count p) (hle : t.count p ≤ lat)
     (hlen : ∀ xs, xs.length = t.count p → (t.spec p xs).length = t.count p)
-    (M : t.PhaseModel p lat d) : t.SatisfiedAt p lat d := by
-  refine ⟨hI, ⟨hD, hT⟩, by omega, fun σ stim tr hr c1 h hrel hR => ?_⟩
+    (M : t.PhaseModel p lat d) {σ : ScheduleOracle} {st0 : SvState} {stim tr : List SvState}
+    (h0 : M.Shape st0) (hr : RunFrom d σ st0 stim tr) :
+    ∀ c1 h, Released t.rst stim c1 h → t.Rely p stim tr c1 h → t.Guar p lat stim tr c1 h := by
+  intro c1 h hrel hR
   obtain ⟨hc1, ⟨e0, he0, hb0⟩, hoff⟩ := hrel
   obtain ⟨c0, rfl⟩ : ∃ c0, c1 = c0 + 1 := ⟨c1 - 1, by omega⟩
   simp only [Nat.add_sub_cancel] at he0
@@ -649,7 +755,7 @@ theorem satisfiedAt_of_phases {lat : Nat} {d : Design2} (hI : t.Interface p d) (
     | zero =>
         intro hh
         obtain ⟨st, hst⟩ := hsnap c0 (Nat.le_refl _) hh
-        obtain ⟨e, prev, he, -, hsh, hs⟩ := M.snapshot hr hst
+        obtain ⟨e, prev, he, -, hsh, hs⟩ := CycleModel.snapshotFrom M.toCycleModel h0 hr hst
         rw [he0, Option.some.injEq] at he; subst he
         exact ⟨st, hst, .inl ⟨M.reset _ prev st hsh hs hb0, fun s h1 h2 => absurd h2 (by omega)⟩⟩
     | succ n ih =>
@@ -659,7 +765,7 @@ theorem satisfiedAt_of_phases {lat : Nat} {d : Design2} (hI : t.Interface p d) (
         have hle : c0 ≤ c0 + n := Nat.le_add_right _ _
         generalize c0 + n = c at hprev hG hh hle
         obtain ⟨st, hst⟩ := hsnap (c + 1) (by omega) hh
-        obtain ⟨e, prev', he, hp, hsh, hstp⟩ := M.snapshot hr hst
+        obtain ⟨e, prev', he, hp, hsh, hstp⟩ := CycleModel.snapshotFrom M.toCycleModel h0 hr hst
         rw [List.getElem?_cons_succ, hprev, Option.some.injEq] at hp; subst hp
         have hr0 : BitIs e t.rst false := onE he (hoff (c + 1) (by omega) hh)
         obtain ⟨⟨b, hb⟩, ⟨e', v, he', hv⟩, hidle, hon, hoff'⟩ := hR (c + 1) (by omega) hh
@@ -750,12 +856,24 @@ theorem satisfiedAt_of_phases {lat : Nat} {d : Design2} (hI : t.Interface p d) (
     · exact hh k (by omega)
     · exact M.out_lat xs k hx hl
 
+/-- **The stream-protocol reduction**: the `StreamTask` statement at `p` and `lat` (`1 ≤ count p ≤ lat`,
+`spec` keeping the length) from the interface, the discipline, termination and a phase model. The claim
+on each run is `guar_of_phases`. -/
+theorem satisfiedAt_of_phases {lat : Nat} {d : Design2} (hI : t.Interface p d) (hD : t.Disciplined d)
+    (hT : Terminates2 d) (hcount : 1 ≤ t.count p) (hle : t.count p ≤ lat)
+    (hlen : ∀ xs, xs.length = t.count p → (t.spec p xs).length = t.count p)
+    (M : t.PhaseModel p lat d) : t.SatisfiedAt p lat d :=
+  ⟨hI, ⟨hD, hT⟩, by omega, fun _ _ _ hr => t.guar_of_phases hcount hle hlen M M.init (Runs2.runFrom hr)⟩
+
 end StreamTask
 
 #print axioms SeqTask.scan_getElem?_snd
 #print axioms CombTask.toSeq_follows_iff
 #print axioms CombTask.toSeq_satisfiedAt_iff
+#print axioms SeqTask.claim_of_cycle
 #print axioms SeqTask.satisfiedAt_of_cycle
+#print axioms TxTask.guar_of_phases
+#print axioms StreamTask.guar_of_phases
 #print axioms TxTask.satisfiedAt_of_phases
 #print axioms StreamTask.satisfiedAt_of_phases
 

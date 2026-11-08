@@ -956,6 +956,23 @@ resolution must be covered by the proof (the maintainers' rule: proofs hold for 
 Round 1, workflow `async-fifo-study`, branch `svgolf-async-fifo`: a draft statement and kind, a two-clock bench with
 metastability injection and attacks, real-world RTL through today's pipeline, a scoring proposal, and the ask for
 ls-sv (two-clock semantics over every edge interleaving, the sampling rule, memories).
+- **Round 1 result (11/05), branch `svgolf-async-fifo`, design note `design/async_fifo/README.md`, not merged:**
+  - Statement revision 2 (`tasks/async_fifo/`, DRAFT, not wired into `tasks.lean` or `check.py`): a flop captures z
+    wherever its input changes or may glitch in the instant (a ternary hazard view); only a same-domain flop reading
+    through wires resolves z (per bit, every resolution); every decision bit must be known (txtask-v2's list). No
+    synchronizer-shape rule remains in trusted text.
+  - Nine kernel-checked refutations at depth 2, axioms [propext, Quot.sound]: six fail a safety clause for every
+    declared bound (binLazy, fullLate, oneFlop, oneFlopCase, lateWrite, crossRst), three fail liveness for bounds up
+    to 16 (bin2, combGray, stuck). Four correct designs pass every refuting run. No design is proved against the whole
+    statement yet.
+  - MEASURED: binary pointers with two-flop synchronizers are safe (17.3M bench instants, exhaustive search) and fail
+    only liveness and flag stability, so Gray coding buys stability, not safety. `ppa.py --seq` silently merges the two
+    clocks; `rtl-probe/scripts/domain_sta.py` gives per-domain periods.
+  - Real-world RTL: OpenTitan, ZipCPU, pulp and verilog-axis, pinned and adapted by counted changes, refuse only at
+    `Clock:multiple`. The ls-sv ask (`design/async_fifo/LSSV_ASK.txt`) is in its inbox (11/05).
+  - Open for the maintainers: the metastability rule, a mux between synchronizer stages, the score (proposed
+    area × (latR + latW) × period), the depth range, ports, reset, whether a liveness-only refutation of binary
+    pointers is intended, and a one-clock FIFO as the proof stepping stone.
 
 **Rules, for the maintainers** (ranking is their decision):
 1. **Rank at several points** (add at 16/32/64, mul at 8/16/32), dropping each golfer's worst rank (the ISPD 2018
@@ -1050,6 +1067,7 @@ the SRT reference) first; Wally's iterative fdivsqrt with minimal changes once t
 | formal tools (kernel-checked LRAT) | explorer | report only |
 | RISC-V (`alu_div`, then `mult`) | none yet | backlog |
 | spec reviews `clmul`, `aes_sbox`, `fdivp`; Task v2 packet; `Admissible` A1–A6; X-robustness route | The maintainers | independent |
+| **Reactive controller tasks (decided 11/04)**: "sound interesting, since they are a category of tasks we don't have yet" (SYNTCOMP's controller specs). Note: [`design/reactive/README.md`](design/reactive/README.md).<br>• **11/05: ADDED (decided 11/05: "Please add it. I love new task types.")**, branch `svgolf-react`: `SvGolf/TaskReact.lean` (the kind, two named slots for the shared clocked conjuncts), `tasks/arbiter` a statement draft (goalpost `reference/rr_mask.sv`, 769.488 µm² × 2826 ps), `check.py` kind `react-family` (clocked rules, goal `Statement design.sem`, cycles = 1), the reactive post-synthesis check (segments, a 70000-entry reset-free run, salted, G0-G4 on the netlist, a Moore sample), the 17 attacks rejected (16 postsynth, 1 source), run.py steps; site hidden here. Walls: OpenTitan tree's generate-local declarations (ls-sv), a netlist-lint false rejection of a correct rotating arbiter (task README F5, F6).<br>• **11/05: the reference is PROVED, the task is `ready`, unranked** (branch `svgolf-react`): `reference/rr_mask.lean` for every `N ≥ 1` through the new `ReactTask.satisfiedAt_of_rank` (`SvGolf/React.lean`, the rank reduction; `SvGolf/RoundRobin.lean`, lowest set bit, thermometer, mask round-robin step); `check.py --postsynth full` ACCEPTS it (solution 8.25 s cold, 51.4 M heartbeats). Not seeded: the leaderboard has no clocked record format (task README F9). Tool gaps found by the proof: no closed clock step for designs with comb logic (F10), `sv2_inst_simp` stuck at `x != '0` (F11). Next reference: the OpenTitan tree, once ls-sv instantiates generate-local declarations.<br>• **11/06: txtask-v2's rules ported** (branch `svgolf-react`, task README §7): `ReactTask`'s claims hold from every power-up state (`ModelsPU`, `TerminatesPU`), rule 3 `XSafe` is a conjunct, the known-state clause KS is gone (implied: `ReactTask.snapshots_known`), `Interface` asks distinct declaration names (else `KnownEntry` leaves a port without a known entry), rule 1 not added (`MooreOut` already forbids comb input-to-output paths); the reference re-proved (+41/-11 lines, 53.3 M heartbeats, check.py ACCEPTS it); the audit's `bit_ring.sv` and `reset_edge.sv` refuted in the kernel; A16 refused at `score` as a never-loaded register; the reactive post-synthesis check from power-up states.<br>• **Was: DRAFT, on branch `svgolf-reactive`, not wired** into `tasks.lean`/`check.py`. A new kind `ReactTask` (safety monitor + bounded response, no environment assumption) and the first task `arbiter` (N clients, `K = N - 1`, scored at `N = 8`): `tasks/arbiter/Spec.lean` + `Refute.lean` (kernel-checked refutations, `bound_tight`), 17 attacks, `tests/arbiter/sim.py`. Reference: OpenTitan `prim_arbiter_tree` behind an output register, 668 µm² / 1454 ps at `N = 8`.<br>• **Review (11/04) found two holes.** H1, x-optimism on a never-reset register: a fixed-priority netlist at 280 µm² with a valid snapshot proof (MEASURED); fixed by a known-state clause KS. It also reaches `TxTask`/`StreamTask`, where only the post-synthesis check stands in its way. H2, the loader drops `areset`/`negedge`/`iff`, so `react-family` must be a clocked kind for the source gate.<br>• **Open:** the maintainers' rulings (note §9); ~~the reduction theorem and a proved reference~~ (done 11/05); ~~the `react-family` checker kind with a reactive post-synthesis check~~ (done 11/05); next tasks HSBUF (GenBuf), the AMBA AHB arbiter, the prioritized arbiter. Build plan: note §10. | reactive track | new category; awaiting review |
 
 **Earlier architecture gates, carried forward explicitly:**
 - **Passed** (EXECUTION-PLAN): G-A, G-L0..L3, G-B, R-COMB-1, R-DESIGN2 (comb and window-rank slices), the indexed
@@ -1113,7 +1131,9 @@ The environment rely:
   - Without the overhead, slicing work into one-gate cycles would be free in time.
   - SETTLED by the sky130 ruling (11/03): the period is the register-to-register path in ps from the pinned liberty, with the flop's own clock-to-Q and setup, so there is no ad hoc overhead. Unit depth stays as an extra column.
 - Time = n × period.
-- The leaderboard is the Pareto frontier of (area, time). On a tie in both, the earlier record stands.
+- **Superseded (decided 11/05):** the ONE ranked number is area × time (par, record, under par, the leaderboard's
+  order); the Pareto frontier of (area, time) is an exploration view. (Was: the leaderboard is the Pareto frontier of
+  (area, time).) On a tie in both, the earlier record stands.
 - One submission declares one latency; resubmitting with another n is a separate record.
 
 **C8, the sorter's `StreamTask` [M].** A separate contract on the same rely/guarantee base (not an overloaded TxTask).

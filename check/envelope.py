@@ -186,6 +186,19 @@ def gate(sv_path, name=None, clock=None):
     return srcgate.gate_file(sv_path, name=name, clock=clock)
 
 
+# What to do when lean-surfaces (and with it the pinned extractor) is not where it should be: Lake fetches it into
+# `.lake/packages/lean-models` (standalone) the first time the project is built.
+BUILD_FIRST = "run `lake build` from the repository root first (README, Building)"
+
+
+def missing_extractor_message():
+    """The infrastructure error for an extractor that is not there, with the remedy."""
+    where = (", or point SVGOLF_LS_ROOT at a lean-surfaces checkout" if os.environ.get("SVGOLF_LS_ROOT")
+             else "")
+    return (f"the pinned extractor {EXTRACTOR} does not exist (SVGOLF_LS_ROOT={LS_ROOT}): "
+            f"{BUILD_FIRST}{where}")
+
+
 def extractor_has_probe_points():
     try:
         out = subprocess.run([python(), EXTRACTOR, "--help"], capture_output=True, text=True,
@@ -204,14 +217,14 @@ def run_extractor(canon_path, top, probe_pts, env_path):
     command line). Raises InfraError when the extractor is missing or cannot
     cross-check; the caller judges a nonzero exit."""
     if not os.path.isfile(EXTRACTOR):
-        raise InfraError(f"the pinned extractor {EXTRACTOR} does not exist "
-                         f"(SVGOLF_LS_ROOT={LS_ROOT})")
+        raise InfraError(missing_extractor_message())
     cmd = [python(), EXTRACTOR, "--top", top, os.path.basename(canon_path),
            "-o", os.path.abspath(env_path)]
     if probe_pts:
         if not extractor_has_probe_points():
             raise InfraError("the extractor has no --probe-points: the multi-point cross-check "
-                             "(which includes the scoring point) cannot run")
+                             "(which includes the scoring point) cannot run; it is older than the "
+                             f"lean-models revision the manifest pins: {BUILD_FIRST}")
         cmd += ["--probe-points", ";".join(point_str(p) for p in probe_pts)]
     pol = sandbox.policy()
     try:
@@ -322,8 +335,7 @@ def cached(sv_path, top, probe_pts, cache_dir):
     if findings:
         raise Refused("source", "the source gate refused the design:\n" + "\n".join(findings[:8]))
     if not os.path.isfile(EXTRACTOR):   # before the key, which hashes it
-        raise InfraError(f"the pinned extractor {EXTRACTOR} does not exist "
-                         f"(SVGOLF_LS_ROOT={LS_ROOT})")
+        raise InfraError(missing_extractor_message())
     key = cache_key(canon, name, top, probe_pts)
     base = os.path.join(cache_dir, rel) + "." + key
     env, probes = base + ".json", (base + ".probes.json" if probe_pts else None)

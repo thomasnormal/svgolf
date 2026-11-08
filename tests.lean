@@ -8,11 +8,24 @@ extracts them at elaboration time; the library `needs` the `.sv` files and the
 extraction scripts (`lakefile.toml`), so changing a design re-elaborates it.
 `tests/run.py` runs everything else (references, negatives, baselines and
 attacks through `check.py`, scores, simulation).
+
+Not imported here, so not in the default `lake build`: the refutations of
+`add`, `mul` and `clmul` (`tests.add.negative.Refute`, `tests.mul.negative.Refute`,
+`tests.clmul.negative.Refute`). They wait for the int32 port round: the pinned
+ls-sv's loader refuses their `only_n16.sv` (`PDesign.int32Agrees`), so they do
+not build at the pin. They are unchanged, and `tests/run.py`'s `negatives` step
+still builds each one and pins its known failure (`PENDING_REFUTES`); once one
+builds, that step fails until it is imported here again.
 -/
 import tests._example.negative.Refute
-import tests.add.negative.Refute
-import tests.mul.negative.Refute
 import tests.fdivp.negative.Refute
-import tests.clmul.negative.Refute
+import tests.arbiter.negative.Refute
+-- kernel refutations of a sample of the arbiter reference's generated mutants (tests/mutate.py)
+import tests.arbiter.negative.Mutants
 -- the clocked checker's fixture task statement (PLAN4 Gate 2; check.py builds it too)
 import tests.seq_counter.Spec
+-- its txtask-v2 refutations (the soundness probe's H1 and F1 twins, hand-built)
+import tests.seq_counter.negative.Refute
+-- txtask-v2's acceptance table (the maintainers' fixtures 0 to 11, round 1's W1 to W4, the attack on
+-- revision 2's fixtures 12 to 16, hand-built)
+import tests.seq_counter.negative.Table

@@ -1,7 +1,8 @@
 # svGolf PINNED scoring flow for CLOCKED designs, stage 2 of 2: SYNTHESIS AND
-# MEASUREMENT (Yosys + ABC). The combinational flow (svgolf.ys) plus ONE line,
-# `dfflegalize`, after `synth`. Do not edit: a change here is a change to every
-# sequential score. score.py (`--seq`) fills the @NAME@ placeholders and records
+# MEASUREMENT (Yosys + ABC). The combinational flow (svgolf.ys) with `-nofsm`
+# on `synth`, ONE line, `dfflegalize`, after it, and `-purge` on the last
+# `opt_clean`. Do not edit: a change here
+# is a change to every sequential score. score.py (`--seq`) fills the @NAME@ placeholders and records
 # this file's sha256 (`script_sha256`) in every result; the combinational flow,
 # its file and its hashes are untouched.
 #
@@ -10,6 +11,14 @@
 #   @STAT@     output file for `stat -json` (cell counts by type)
 #   @LTP@      output file for `ltp -noff` (longest topological path)
 #   @NETLIST@  output file: the scored netlist (gates and $_DFF_P_ flops)
+#
+# `-nofsm` (decided 2026-11-06): `synth` skips its `fsm` pass and nothing
+# else (Yosys 0.53, `help synth`: "fsm (unless -nofsm)"). That pass re-encodes
+# a state register read only by comparisons with constants (one-hot for
+# `auto`) and builds new flip-flops whose power-up values include codes that
+# are no value of the register, so the netlist was not the design from every
+# power-up (txtask-v2 review, section 12, F2). Without it a state register
+# keeps its own flip-flops, one per bit, as every other register does.
 #
 # `dfflegalize -cell $_DFF_P_ x`: every flip-flop becomes the plain rising-edge
 # D flip-flop with NO initial value (contract C1: synchronous active-high reset,
@@ -25,11 +34,20 @@
 # excludes the flops from the graph, so it is the number of gates on the
 # longest combinational path between any two of {input port, flop Q, flop D,
 # output port}: the clock-period proxy.
+#
+# `opt_clean -purge` (decided 2026-11-07; the combinational flow keeps plain
+# `opt_clean`): the last clean-up also removes internal nets that have a
+# public name (Yosys 0.53, `help opt_clean`), among them the dead
+# public-named wires of techmapped cells (`\_269_.B`) with undriven bits,
+# which the post-synthesis lint (check/postsynth.py, Verilator -Wall,
+# UNDRIVEN fatal) refused in correct designs (tasks/arbiter/README.md, F6).
+# It removes wires, never a cell or a port: the gate count, the GE and the
+# depth are those of plain `opt_clean`.
 read_rtlil @RTLIL@
-synth -flatten -top @TOP@
+synth -flatten -nofsm -top @TOP@
 dfflegalize -cell $_DFF_P_ x
 abc -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX
-opt_clean
+opt_clean -purge
 tee -q -o @STAT@ stat -json
 tee -q -o @LTP@ ltp -noff
 write_verilog -noattr -noexpr @NETLIST@

@@ -1,0 +1,249 @@
+{
+  "assisted_by": [
+    "Claude Opus 5.5 (Anthropic)"
+  ],
+  "canonical_sha256": "4628185a3e7815930fb6dc1aa49b1c709aa0ab8499b380358e090560d89ef263",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "e708084f72f955b0ae1aaabe469dba3eacc5a91484a1ed81bcc073b60f3c0b6d",
+      "check/Comparator.lean": "3145eb578ca71e452eff05a398e8ad04673e6c72ca5343b234cb22e2cefe65a6",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "4e1ee2110c63f24e033dd689c929ea686ddf10f4db23b9057c6fb711394c7558",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "f18c14c23a14d55db63e202f42cc424dc84c1dd1c337f132ad60859dc9d5d33a",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "95332451ae3754226fb87b46027385b46a91121e7eb9ae25b302bce756d90475",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "54b93ca63888009d0671c8978e8ab7bf4fb8ce303bc78d3b4e1f83d946cc3201",
+      "score/ppa.py": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "d1f3cae6f01a088007a57b31ff8baa6b839d6f74",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "tasks/mul/Spec.lean": "8791b67eebf44034f5d825561fc6d472bae2347a7ba3a75461ebd4dc59d00880"
+    },
+    "svgolf_revision": "d1f3cae6f01a088007a57b31ff8baa6b839d6f74",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "Solution.lean",
+      "sha256": "82239e66a52649df67647c70b7fc6fb8941a73b0d72c3d1a7dfb01aada559d35"
+    },
+    "sv": {
+      "name": "solution.sv",
+      "sha256": "90943a571f7f69892a084a2045add583e1cafaee9bf623ceb18aa108f69b0192"
+    }
+  },
+  "notes": "Made by an AI agent (Claude Opus, Anthropic) in the maintainers' newcomer study on 2026-11-05, as a new design rather than a variation of a shipped one; the agent chose the player name. The design is an unsigned radix-4 (modified) Booth multiplier for every N >= 1: b is recoded into K = (N+3)/2 digits in {-2..2}; each digit selects a, 2a or 0 as an (N+1)-bit magnitude XORed with the digit's sign, with the standard sign-extension constants and each negative row's +1 placed in a free column of the next row, all modulo 2^(2N); the K rows are reduced by a carry-save tape of full adders (adder g reads rows 3g..3g+2 and appends a sum row and a carry row), and a 2N-bit ripple-carry adder adds the last two rows. Of two sign-extension variants, both scored with score/ppa.py and simulated with sim.py, the one with the constants (rather than a sign fill) was kept. The proof is plain Lean over CombLib: a bfVal toolkit for rows built from windows and single bits, each Booth row's integer value by a case split on its three recoded bits, the Booth sum identity by induction on the number of rows, and a carry-save tape theorem for any number of leaf rows, generalized from the Wallace reference's argument; it is connected to the netlist by sv_structure (with its own rank function), sv_interface, sv_equations, sv_bridge and sv_cover. The comments in both files are the agent's. Proof ported by the maintainers for the 2026-11-06 range change; design unchanged.",
+  "player": "plus-minus-two",
+  "postsynth": {
+    "full_vectors": 330,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "N=16",
+    "salted": false,
+    "seed": "4e2bbe4e2c8b22a42cb606fb59c6f2af2de620234e2433a45a6c2c90970cd247",
+    "vectors": 330
+  },
+  "ppa": {
+    "area_e4um2_sky130": 79789024,
+    "area_um2_sky130": 7978.9024,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 208,
+      "inv_1": 1,
+      "mux2_1": 11,
+      "nand2_1": 590,
+      "nand2b_1": 33,
+      "nor2_1": 17,
+      "nor2b_1": 25,
+      "or2_1": 48,
+      "xnor2_1": 201,
+      "xor2_1": 211
+    },
+    "cells_sky130": 1345,
+    "constants": false,
+    "critical": {
+      "cells": 63,
+      "edge": "r",
+      "output": "p[31]"
+    },
+    "delay_ps_sky130": 6329,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.464,
+      "worst_transition_ratio": 0.468
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+      "area_e4um2_sky130_mapped_v1": 69641792,
+      "area_um2_sky130_mapped_v1": 6964.1792,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 33,
+        "edge": "r",
+        "output": "p[31]"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "a211oi_1": 1,
+        "a21bo_1": 1,
+        "a21boi_0": 6,
+        "a21o_1": 8,
+        "a21oi_1": 31,
+        "a221o_1": 1,
+        "a22oi_1": 98,
+        "a31oi_1": 2,
+        "a32o_1": 2,
+        "a32oi_1": 9,
+        "and2_0": 10,
+        "and3_1": 5,
+        "and3b_1": 7,
+        "inv_1": 19,
+        "maj3_1": 57,
+        "nand2_1": 100,
+        "nand2b_1": 31,
+        "nand3_1": 17,
+        "nand3b_1": 1,
+        "nor2_1": 44,
+        "nor2b_1": 36,
+        "nor3_1": 3,
+        "nor3b_1": 1,
+        "o21a_1": 6,
+        "o21ai_0": 54,
+        "o22ai_1": 1,
+        "o32ai_1": 1,
+        "or2_0": 6,
+        "or3_1": 5,
+        "or4_1": 1,
+        "xnor2_1": 276,
+        "xnor3_1": 11,
+        "xor2_1": 93,
+        "xor3_1": 3
+      },
+      "mapped_cells_sky130_v1": 947,
+      "mapped_delay_sky130_v1": 7694,
+      "mapped_inverters_sky130_v1": 19,
+      "mapped_levels_sky130_v1": 33,
+      "netlist_sha256": "9383c96887626b075e285065361c71e6fce98fddc1db255aa6a44b5779b9fdf7",
+      "ppa_mapped_pins_sha256": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v1",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+      "rtlil_sha256": "0af7b7eb8a7a66ddc1d805060f6d0968880d97f36cf9e853b36f1f83e87a330a",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "netlist_sha256": "46a50b3df3a6df6134d40b1e2d2cdb2065e0788bd4db0324736c4c77f2d97656",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 1345,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "f004d9322750b545d2b544289bf33e7b8519a7baeba01b5f278b7992e5b91e7f",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 64
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 97.59,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombLib"
+    ],
+    "lines": 768,
+    "tactics": [
+      "decide",
+      "grind",
+      "induction",
+      "omega",
+      "simp",
+      "sv_cover",
+      "sv_equations",
+      "sv_interface",
+      "sv_rowmajor",
+      "sv_structure"
+    ],
+    "uses_comb_eq": true,
+    "uses_comb_view": false
+  },
+  "record_hash": "adce0bcea63056598ae7a54894b5e77d82a0dbcc331eece073a123e4cc25ae1a",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 1875.892,
+    "area_mge": 1875892,
+    "depth": 64,
+    "gates": {
+      "AND": 208,
+      "ANDNOT": 25,
+      "MUX": 11,
+      "NAND": 590,
+      "NOR": 17,
+      "NOT": 1,
+      "OR": 48,
+      "ORNOT": 33,
+      "XNOR": 201,
+      "XOR": 211
+    },
+    "num_gates": 1345,
+    "rtlil_sha256": "0af7b7eb8a7a66ddc1d805060f6d0968880d97f36cf9e853b36f1f83e87a330a",
+    "scoring_point": {
+      "N": 16
+    },
+    "top": "mul_n"
+  },
+  "submitted_at": "2026-11-05",
+  "task": "mul"
+}

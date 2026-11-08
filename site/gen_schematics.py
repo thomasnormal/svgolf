@@ -5,7 +5,8 @@
     python3.12 site/gen_schematics.py --check                                      # the committed files, no tools
 
 Run from svgolf/ (any directory works). For every design that gets a page on the site (each proved reference of a
-listed task and each record in leaderboard/data/<task>/; a design file shared by several is done once) it writes
+task with a display instance, which every listed task has, and each record in leaderboard/data/<task>/; a design
+file shared by several is done once) it writes
 two files under site/schematics/<task>/, named by the first 16 hex digits of the design file's sha256:
 
   <key>.json   the scored point: score/ppa.py --path on the design at task.json's scoring point (the ranked area
@@ -26,7 +27,8 @@ without a record); a missing or stale file is a warning (fatal under --strict), 
 
 THE FLOW. Each design is run through `score/ppa.py SV --task tasks/<t> --no-mapped --path` twice, at the scoring
 point and with `--param K=V ...` at the display instance (`--repaired-netlist` there), each in its own process, one
-at a time (run the tool under `nice -n 19`). The repaired netlist is read by the pinned Yosys against the pinned
+at a time (run the tool under `nice -n 19`); a design of a clocked task (check.py's CLOCKED_KINDS) with `--seq` too,
+the clocked flow check.py scores it with, so the delay is the register-to-register period. The repaired netlist is read by the pinned Yosys against the pinned
 liberty's cells as black boxes (`read_liberty -lib`, `read_verilog`, `write_json`), turned into netlistsvg's input
 here, and drawn by `node netlistsvg.js IN.json --skin sky130_skin.svg`.
 
@@ -75,6 +77,7 @@ SCHEMA = "svgolf-schematic/1"
 NETLISTSVG = "1.0.2"
 ELKJS = "0.3.0"
 PREFIX = "sky130_fd_sc_hd__"
+CLOCKED_KINDS = ("seq-family", "tx-family", "stream-family", "react-family")     # check.py's
 SVG_NS = "http://www.w3.org/2000/svg"
 NSVG_NS = "https://github.com/nturley/netlistsvg"
 # sky130 cell function -> (skin symbol, {cell pin: skin pin}); the A0' table, the repair's buffers, the tie cell, the flop
@@ -142,6 +145,12 @@ def listed_tasks():
     return [t for t, how in site_config()["tasks"].items() if how in ("tutorial", "listed")]
 
 
+def drawn_tasks():
+    """The tasks with a display instance (site/schematics/display.json), in its order: every listed task, and a
+    task whose drawing is prepared before the site lists it (its files are generated and checked all the same)."""
+    return list(load_json(DISPLAY)["tasks"])
+
+
 def key_of(sha):
     return sha[:16]
 
@@ -182,9 +191,17 @@ def run(cmd, timeout, what):
     return proc.stdout
 
 
+def is_clocked(task):
+    """Whether `task` is scored by the clocked flow (check.py's CLOCKED_KINDS, score.py --seq)."""
+    return load_json(os.path.join(TASKS, task, "task.json")).get("kind") in CLOCKED_KINDS
+
+
 def run_ppa(src, task, params=None, repaired=None, timeout=1800):
-    """score/ppa.py --path on the design at the scoring point (params None) or at `params`: its JSON result."""
+    """score/ppa.py --path on the design at the scoring point (params None) or at `params`: its JSON result. A clocked
+    task's design goes through the clocked flow (`--seq`, which is A0' only), as check.py scores it."""
     cmd = [sys.executable, PPA_PY, os.path.join(SVGOLF, src), "--task", os.path.join(TASKS, task), "--no-mapped", "--path"]
+    if is_clocked(task):
+        cmd.append("--seq")
     for k, v in (params or {}).items():
         cmd += ["--param", f"{k}={v}"]
     if repaired:
@@ -216,9 +233,11 @@ def ppa_module():
 
 
 def cell_areas(cells):
-    """{cell (no prefix): its area in 1e-4 um^2, read from the pinned liberty (hash-checked by ppa.py)}."""
-    _, lib, pins = ppa_module()
-    return {c: lib.cell(pins.prefix + c).area_e4 for c in sorted(cells)}
+    """{cell (no prefix): its area in 1e-4 um^2, read from the pinned liberty (hash-checked by ppa.py)}. The clocked
+    flow's flop is read as ppa.py reads it (`FlopTiming`: its CLK->Q arc is no combinational arc)."""
+    mod, lib, pins = ppa_module()
+    return {c: (mod.FlopTiming(lib, pins).area_e4 if c == mod.FLOP_CELL else lib.cell(pins.prefix + c).area_e4)
+            for c in sorted(cells)}
 
 
 def yosys_json(repaired, top, work):
@@ -609,12 +628,13 @@ def check(tasks):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Generate the record pages' schematics and critical-path data.")
-    ap.add_argument("--task", action="append", help="only this task (repeatable; default: every listed task)")
+    ap.add_argument("--task", action="append", help="only this task (repeatable; default: every task with a display "
+                    "instance in site/schematics/display.json)")
     ap.add_argument("--netlistsvg", default=os.environ.get("SVGOLF_NETLISTSVG"),
                     help="the node_modules directory holding netlistsvg 1.0.2 (default $SVGOLF_NETLISTSVG)")
     ap.add_argument("--check", action="store_true", help="check the committed files only (no tool runs)")
     args = ap.parse_args(argv)
-    tasks = args.task or listed_tasks()
+    tasks = args.task or drawn_tasks()
     unknown = sorted(set(tasks) - set(load_json(DISPLAY)["tasks"]))
     if unknown:
         ap.error(f"no display instance in site/schematics/display.json for {unknown}")

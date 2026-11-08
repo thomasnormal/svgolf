@@ -1,6 +1,7 @@
-// expect: is x/z in a cared position
+// expect: the payload is not the task's result
 // A NEGATIVE of the clocked post-synthesis check (PLAN4 Gate 2 step 5): tasks/matmul/reference/matmul_g1.sv
-// with one change: C is never cleared, so it accumulates onto its unreset (x) start-up value
+// with one change: C is never cleared, so it accumulates onto its power-up value and the previous
+// transaction's (since txtask-v2 revision 2 ls-sv runs from concrete power-up states, not from x)
 module matmul #(parameter int N = 4, parameter int W = 8, parameter int AccW = 32) (
   input  logic                 clk, rst,
   input  logic                 start,

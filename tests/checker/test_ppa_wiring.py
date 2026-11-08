@@ -250,6 +250,30 @@ class ByteIdentity(unittest.TestCase):
         self.assertEqual(auto["score"], off["score"])
         self.assertEqual((auto["score"]["area_ge"], auto["score"]["depth"]), (112.0, 33))
 
+    def test_a_clean_unproved_run_has_its_sentence_as_a_note(self):
+        """The shared contract (the 11/05 newcomer study): `accepted` false, stage `unproved`, `errors` empty, the
+        sentence in `notes`, `unproved_ok` true (and check.py's main exits 0 on it)."""
+        res, err = run_check("add", "off", lib=missing_lib())
+        self.assertEqual((res["accepted"], res["stage"], res["errors"], res["unproved_ok"]), (False, "unproved", [], True))
+        self.assertTrue(res["notes"][0].startswith("--unproved: every check that needs no proof passed"))
+        # the long stages say when they start (shared contract item 3), and never mention the columns under --ppa off
+        for s in ("extract", "score", "postsynth"):
+            self.assertIn(f"check: {s} ...", err)
+
+    def test_the_wrappers_keys_are_the_machines_not_the_checks(self):
+        """`without_ppa` strips what a Lean slot wrapper adds (`waited` per stage, `lean_wrap`), as it strips the
+        sandbox's: the comparison against the goldens must not depend on whether a wrapper ran."""
+        res = {"accepted": True, "lean_wrap": {"once": True, "waited": 3.0},
+               "stages": {"design": {"exit": 0, "seconds": 1.0, "waited": 30.5}, "solution": {"exit": 0}}}
+        self.assertEqual(bi.without_ppa(res), {"accepted": True, "stages": {"design": {"exit": 0, "seconds": 1.0},
+                                                                           "solution": {"exit": 0}}})
+
+    def test_the_solutions_progress_record_is_this_runs(self):
+        """`without_ppa` strips the solution's `progress` record (when each declaration finished: this run's times)."""
+        res = {"accepted": True, "stages": {"solution": {"exit": 0, "progress": {"finished": 3, "run_s": 2.0,
+                                                                                  "last": None, "slowest": []}}}}
+        self.assertEqual(bi.without_ppa(res), {"accepted": True, "stages": {"solution": {"exit": 0}}})
+
 
 @needs_flow
 class AbsentLiberty(unittest.TestCase):

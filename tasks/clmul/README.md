@@ -8,6 +8,100 @@ RECURSIVE (Karatsuba is 20 % smaller than the schoolbook array at `N = 16` and 3
 below), so it is also the task that shows what the proof tactics need next. The reference array is **proved for
 every `N`** with the `sv_comb` tactics (`reference/clmul_n.lean`, 238 code lines, `solution` stage about 8 s).
 
+## Start a new design
+
+A new carry-less multiplier is your own `solution.sv` (the header below; `+ - * / % **` are banned at run time)
+and a `Solution.lean` that proves it for every `N ≥ 1`. Find the design without Lean, then check it once
+without a proof:
+
+```bash
+python3.12 score/ppa.py solution.sv --task tasks/clmul --no-mapped   # area and delay, about a second
+python3.12 check.py tasks/clmul solution.sv --unproved --tactics --stage-dir stage
+```
+
+The second command runs every stage that needs no proof, the task's oracle included (a wrong circuit is
+named there, not deep in a proof), says whether the proof tactics read the design (`tactics.in_fragment`)
+and leaves it staged in `stage/` for probe files ([PROVING.md, section 0](../../PROVING.md#0-the-loop)).
+
+**The route: the `sv_comb` tactics, then the XOR arithmetic of your rows** ([PROVING.md, section
+1](../../PROVING.md#1-the-shape-of-a-proof); `reference/clmul_n.lean` is a complete proof, 238 code lines):
+
+1. `sv_structure (lexRank := key N)`: one driver per bit and no combinational loop (`CombDesign ∧ Acyclic`),
+   ordered by your key, a lexicographic triple per site (`clmulKey`: the row first, the output bits last).
+2. `sv_interface`: the ports, one line.
+3. `sv_equations`: each assign as an equation over `Bool` and every driven bit known; the 2-D signal `r` is
+   read as `st.cell "r" N i j`, and each field of your arithmetic lemma is one `sv_bridge eq_…` line.
+4. The arithmetic, in plain Lean: the equations give the Spec's product. The reference's is a structure of
+   five fields (`View`), a row invariant by induction on the row (`view_row`: row `i`, column `j` is the XOR
+   over `t ≤ i` of `a t & b (i + j - t)`) and the collapse of the Spec's double sum (`view_spec`).
+
+**Lay the design out so the tactics take it** (what they refuse, with the messages: [PROVING.md, section
+4](../../PROVING.md#4-what-the-tactics-accept-and-what-they-refuse); the styles of real code and where each
+stops: "How people write clmul" below):
+
+* continuous `assign`s of `&` and `^` in at most two nested `generate for` loops that start at an integer
+  literal, every index and loop bound affine in `N` and the genvars;
+* partial sums as the rows of a 2-D array, `r[i][j]`; `sv_cover` finds the assign that writes a read by
+  solving one unknown per index equation, so a read whose writer needs a quotient and a remainder of the
+  index is not covered;
+* every declared bit driven at `N = 16`;
+* no module instances: the tactics cannot summarize them yet, so a Karatsuba multiplier (the smaller design)
+  is written flat, as one module; no procedural `for` loop (`fourstate` refuses it).
+
+**The skeleton** (`reference/clmul_n.lean` is it, filled in for the array):
+
+```lean
+import Submission.Design
+import tasks.clmul.Spec
+import SvGolf.Comb
+import LeanModels.Sv.CombEqTactic
+import LeanModels.Sv.CombLib
+
+namespace Submission
+open LeanModels.Sv LeanModels.Sv.CombView LeanModels.Sv.CombLib LeanModels.Sv.CombEq SvGolf
+open SvGolf.Tasks.Clmul
+
+set_option maxHeartbeats 400000 in
+theorem my_struct (N : Nat) (hN : 1 ≤ N) :
+    CombDesign (design.sem N) ∧ Acyclic (design.sem N) ∧ SharedObl design.pdesign [N] := by
+  sv_structure (lexRank := myKey N)           -- your key, a `def` above (clmul_n.lean's `clmulKey`)
+  all_goals (intros; sv_rowmajor; omega)
+
+theorem my_interface (N : Nat) (hN : 1 ≤ N) (hc : CombDesign (design.sem N)) :
+    SvGolf.Tasks.Clmul.task.Interface N (design.sem N) := by
+  sv_interface
+
+-- your arithmetic: the rows' equations in, the product's coefficients out (clmul_n.lean's `ClmulArith`)
+
+set_option maxHeartbeats 400000 in
+theorem solution : Goal := by
+  intro N hN
+  have hN' : 1 ≤ N := hN.1
+  obtain ⟨hc, ha, hso⟩ := my_struct N hN'
+  refine CombTask.satisfiedAt_of_comb (my_interface N hN' hc) hc ha ?_
+  intro st heqs hs v hv
+  obtain ⟨x, y, ⟨⟩⟩ := v
+  simp only [SvGolf.Tasks.Clmul.task, HoldAll_cons, HoldAll_nil, and_true] at hv ⊢
+  obtain ⟨hA, hB⟩ := hv
+  sv_equations
+  · -- the main goal: your arithmetic lemma, one `sv_bridge eq_…` per field (clmul_n.lean)
+  case inputsKnown_1 => exact inKnown_ofBitVec hA (by omega)
+  case inputsKnown_2 => exact inKnown_ofBitVec hB (by omega)
+  all_goals first | (intros; omega) | sv_cover
+
+end Submission
+```
+
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-tips-the-library)):
+
+* the XOR arithmetic is in the reference (a task ships no library: copy it): `bx` (the XOR of `f 0, …,
+  f (n-1)`) with `bx_congr`, `bx_trunc`, `bx_pair`, `foldl_xor`; `coeff_eq` (the Spec's double sum as a
+  nested `bx`), `getLsbD_ofBits`, `view_row`, `view_spec`;
+* `LeanModels.Sv.CombLib`: the bit-function value `bfVal` and its lemmas, `rowMajor_inj`, `lexLt`;
+* `SvState.cell`, `sv_bridge` and `sv_rowmajor`; `rmN` and `Key` (`LeanModels/Sv/CombViewArith.lean`) and
+  `LeanModels.Sv.Lib.RowMajor`; the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`,
+  `inKnown_ofBitVec`.
+
 ## The circuit
 
 Write a module with exactly this header (port names, directions, widths and order matter; the parameter must
@@ -39,7 +133,7 @@ def coeff (N : Nat) (a b : BitVec N) (k : Nat) : Bool :=
     (List.range N).foldl (fun acc j => acc ^^ (decide (i + j = k) && a.getLsbD i && b.getLsbD j)) acc) false
 
 def task : CombTask where
-  inRange N := 1 ≤ N
+  inRange N := 1 ≤ N ∧ N < 2 ^ 30
   inputs N := [("a", N), ("b", N)]
   outputs N := [("p", 2 * N - 1)]
   fn N := fun (a, b, ()) => (ofBits (2 * N - 1) (coeff N a b), ())
@@ -47,39 +141,56 @@ def task : CombTask where
 abbrev Statement : (Nat → LeanModels.Sv.Design2) → Prop := task.Statement
 ```
 
-(`ofBits n f` is the `n`-bit vector whose bit `k` is `f k`.) For every `N ≥ 1`: the design's ports are exactly
-`a`, `b` (inputs, `N` bits) and `p` (output, `2N-1` bits); no process is clocked (`Unclocked`) and every run
+(`ofBits n f` is the `n`-bit vector whose bit `k` is `f k`.) For every `N` with `1 ≤ N < 2^30`: the design's ports are exactly
+`a`, `b` (inputs, `N` bits) and `p` (output, `2N-1` bits); no process is clocked (`Unclocked`) and there is no combinational loop; every run
 terminates under every schedule and stimulus; and every cycle whose stimulus drives `a` and `b` with known
 values ends with `p` holding `coeff`, the XOR of `a_i AND b_j` over `i + j = k`, at every bit `k`.
 `SvGolf/Task.lean` defines `CombTask` and explains why the statement cannot be met vacuously; `REVIEW.md` is
 the statement's review (what it says, where it is checked, the cheating surfaces and the questions for the
 project owner).
 
+The range ends below `2^30`, not `2^31` (decided 2026-11-06): the port widths are `int` expressions of
+`N` (`[2*N-2:0]`), and an `int` holds no value of `2^31` or more, so at `N ≥ 2^30` the elaborated
+`2*N` wraps and the output port is not `2N-1` bits wide. Every task's range keeps every width it implies
+below `2^31`.
+
 ## Rules for this task
 
-* **Banned run-time operators: `+ - *`**, including compound assignments (`+=`), `++`/`--` on signals, unary
-  minus and the system functions Yosys builds from adders. The task is to build the product from XOR and AND:
-  `*` would build the integer product (or, by Kronecker substitution on bit-spread operands, this one),
-  and a one-bit `+` is an XOR with the carry dropped. `/ % **` are not banned (none of them reaches this
-  function; `REVIEW.md` has the reasoning). The check is `score/banlist.py` (a pyslang front check and a Yosys
-  backstop at `N = 1, 2, 3, 16`). Constant arithmetic is fine: parameter expressions (`2*N-2`), localparams,
+* **Banned run-time operators: `+ - * / % **`**, including compound assignments (`+=`), `++`/`--` on signals,
+  unary minus and the system functions Yosys builds from adders. The task is to build the product from XOR and
+  AND: `*` would build the integer product (or, by Kronecker substitution on bit-spread operands, this one),
+  and a one-bit `+` is an XOR with the carry dropped. `/ % **` are banned as in EVERY task (since 2026-11-06;
+  the svGolf README, "Rules"): not because they would build this function (`REVIEW.md` has the reasoning: none
+  does) but because a zero divisor makes an x from known inputs, which ls-sv carries into a decision and Yosys
+  builds as a defined value (`tests/clmul/attacks/div_zero_x.sv`: correct in ls-sv at every input, its scored
+  netlist wrong on one input pair in 2^32, which the post-synthesis vectors miss; before the ban it passed every
+  stage). The check is `score/banlist.py` (a pyslang front check and a Yosys backstop at `N = 1, 2, 3, 16`). Constant arithmetic is fine: parameter expressions (`2*N-2`), localparams,
   genvar index arithmetic (`r[i-1][j+1]`).
+* **Run-time ordering comparisons (`< <= > >=`) are banned too**, as in every task that bans `+` or `-` (decided
+  2026-11-05): Yosys's `alumacc` builds each one as an `$alu`, its own adder, so after `proc; opt` the backstop
+  also runs `alumacc` and rejects every `$alu`/`$macc` cell it builds, at the comparison's source line. Equality
+  (`== != === !==`), comparisons over parameters and genvars (folded as constants) and a comparator built from
+  `& | ^ ~` stay allowed.
 * **Genvar loops step by one** (`i++`, `i = i + 1`); a stride or a parameter amount is refused at the `design`
   stage (an ls-sv limit, not a rule). Loops with zero iterations (the upper half of the reference at `N = 1`)
   are fine.
 * Axioms: `propext`, `Classical.choice`, `Quot.sound` only (`allow_bv_decide: false`: external solvers are not
   supported, 2026-11-01). No `native_decide`, no `sorry`.
-* **Proof time limit: 120 s** (`task.json`), the one limit of every task (svGolf `README.md`, "Proof effort"): three
-  cold runs of the reference's `solution` stage, 2026-11-01, measured 7.42, 7.66 and 7.66 s (`score/time_limits.json`); the other stages of
+* **Proof time limit: 300 CPU s** (`task.json`), the one limit of every task (svGolf `README.md`, "Proof effort"): three
+  cold runs of the reference's `solution` stage, 2026-11-06, measured 10.4, 9.9 and 10.0 CPU s (`score/time_limits.json`; in wall-clock seconds, 2026-11-01: 7.42, 7.66 and 7.66 s); the other stages of
   `check.py` add the comparator (14 s) and `leanchecker` (13 to 14 s), which the limit does not count.
-* **Scoring at `N = 16`**, no depth budget. The ranked score is sky130 A0' (decided 11/03; svGolf `README.md`,
-  "Scoring"): the cell area in um^2 and the critical-path delay in ps of the scored netlist of the pinned two-stage
-  Yosys + ABC flow, weighed by `score/ppa.py` (`sky130_a0_v3`, repaired by buffering only); the leaderboard keeps their
-  Pareto frontier. Area in NAND2 gate equivalents and depth in gates are extra columns, and the research flow A1'
-  (`ppa.mapped`) is an unranked one; the table below has them all. The score depends on the circuit's expression
-  structure, not on its layout or names. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce a score". `N = 8` and `N = 32` are reported alongside (not scored). For a FLAT netlist the
-  order of the statements moves the score (the `aes_sbox` finding): the baselines here are the generator's
-  emission order, which is their canon.
+* **Scoring at `N = 16`**, no depth budget. The one ranked number is area x time on sky130 A0' (A0' decided 11/03,
+  the product 11/05; svGolf `README.md`, "Scoring"): the cell area in um^2 times the critical-path delay of the
+  scored netlist of the pinned two-stage Yosys + ABC flow, weighed by `score/ppa.py` (`sky130_a0_v3`, repaired by
+  buffering only). Par, the proved array `clmul_n`, is 3429.5392 um^2 x 1114 ps = 3820.5 um2*ns. The Pareto frontier
+  of area and time, area in NAND2 gate equivalents and depth in gates are extra columns, for exploring, and the
+  research flow A1' (`ppa.mapped`) is an unranked one; `python3.12 score/ppa.py solution.sv --task tasks/clmul
+  --no-mapped [--path]` measures a design in seconds, with no Lean; the table below has them all. The score is deterministic, the same file always scoring the same: names,
+  comments, blank lines, whitespace and the file name never change it, while operand order, how a chain of
+  gates is grouped, gate forms and the order of statements do, and trying them is golf (svGolf `README.md`,
+  "Scoring"; commuting the XOR of `clmul_n` moved its area 0.44%, measured 2026-11-05). Every number can be
+  reproduced bit for bit: score/PPA.md, "Reproduce a score". `N = 8` and `N = 32` are reported alongside (not
+  scored). The baselines here are in the generator's emission order, which is their canon.
 * Post-synthesis check (`task.json` `postsynth`): ls-sv's reading and the scored netlist must agree on the fixed
   corners, the harvested comparison constants and seeded random vectors at `N = 16`.
 * No x or z value may arise (README.md, "Rules"): no x/z literal digit (the source gate) and no out-of-range
@@ -192,7 +303,7 @@ conjunction first, `sv_simp` ran out of its 100000 steps on the larger designs, 
 goals of the 19-site design (`design/tasks-week2/clmul/karatsuba/`) now close with the standard closer and no hand-written case split
 (`Examples/system-verilog/comb_karatsuba/cover.lean`, `k1u_covers`). The Karatsuba proof is NOT yet registered as a reference: the
 structure theorem takes about 60 s of CPU at 19 sites with a raised heartbeat limit, so registering it would raise the task's time
-limit from the 120 s floor; that is a decision for the lead and the maintainers.
+limit from the floor (then 120 s); that is a decision for the lead and the maintainers.
 
 ## How people write clmul (and what our pipeline accepts today)
 
@@ -220,7 +331,7 @@ every `N`, simulated in Verilator, run through `check.py --unproved --tactics` b
 | 6 | **Karatsuba on module instances**: one level with three base multipliers, or per-width modules, or a recursive parameterized module | `effanem/set_project` `rtl/gf128_karatsuba.v` (three `gf64_mul` instances; no licence listed); `patwarind/Karatsuba_algorithm_for_Multiplication` `KA_131bit/*.v` (a module per width); `JC-S/Karatsuba_multiplier_HDL` `rtl/karat_mult_recursion.sv` (GPL-2.0; integer arithmetic, `nSTAGE` recursion with generate-if) | `inst_karatsuba_1level` (procedural base), `inst_karatsuba_1level_gen` (generate-array base), `inst_karatsuba_rec` (recursive) | `inst_karatsuba_1level`: `fourstate` (its procedural base). `inst_karatsuba_1level_gen`: **accepted up to the proof** (the loader, the scorer and postsynth handle instances); the tactics refuse module instances (WP-I). `inst_karatsuba_rec`: **refused at `extract`** ("no such module among top instances": a self-instantiating top, register `le-recursion`, rank 14) |
 | 7 | **unary reduction XOR per column**, `p[k] = ^(a & window of b)` | not seen in the files read (the style the task description names; written here for coverage) | `reduce_xor_column` | **accepted up to the proof**; the tactics refuse the indexed part select `bpad[… +: N]` |
 | 9 | **explicit size cast** to widen before shifting, `(2*N-1)'(a) << i` (the survey's commonest spelling of the word-wide partial product; 49 of its 331 entries use casts) | cv32e40x-style and `ibex`-style code in the survey's probes c01, c02 | `gen_size_cast` | **refused at `design`**: `ConversionExpression:Explicit` (register `cv-explicit`, rank 9) |
-| 10 | **unpacked partial-product / accumulator arrays**, `logic [2*N-2:0] pp [N]` | `lowRISC/ibex` (`clmul_and_stage[32]`), the cogs core; survey probe c01 | `gen_unpacked_pp` | **refused at `design`**: `assign target 'acc[0]' undeclared` (parameter-sized unpacked arrays) |
+| 10 | **unpacked partial-product / accumulator arrays**, `logic [2*N-2:0] pp [N]` | `lowRISC/ibex` (`clmul_and_stage[32]`), the cogs core; survey probe c01 | `gen_unpacked_pp` | **refused at `design`**: `decl 'pp': unpacked array storage outside E (UnpackedDecl:memory)` (parameter-sized unpacked arrays) |
 | 11 | **replicated-bit mask**, `(a << i) & {W{b[i]}}` | VeeR and scarv macros (the survey's second spelling of the shift-and-XOR accumulate) | `gen_mask_replication` | **accepted up to the proof**; the tactics read it since WP-B2 gate 4c (at this task's base commit the first refusal was the run-time shift, added by gate 3a, then the genvar amount, gate 4b, then the replication of a bit select, gate 4c): `sv_structure` and `sv_equations` accept it |
 | 12 | **Verilog-2001 nets**: `input wire` / `output wire`, `wire [N-1:0][N-1:0] r` | 13 of the survey's 30 clmul entries are Verilog (`effanem/set_project`, `Pim-aes-gcm`, `fontamsoc/hw`) | `verilog2001_wire` | **refused at `design`**: `decl 'a': unrecoverable packed dimensions` (register `dc-net-z`) |
 | 13 | **`always @*`** per row inside a generate-for (60 of the 331 surveyed entries use `always @*`) | the survey's SHA/MD5 and ALU entries, `effanem`'s Verilog | `always_star_rows` | **refused at `design`**: `TimedStatement:ImplicitEventControl` (registers `pr-implicit-event`, `pr-event-list`) |

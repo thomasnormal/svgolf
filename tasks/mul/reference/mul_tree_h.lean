@@ -369,7 +369,7 @@ and column and walks the disjunction of writers, `CombCover.lean`); the number o
 set_option maxHeartbeats 600000 in
 theorem solution : Goal := by
   intro N hN
-  have hN' : 1 ≤ N := hN
+  have hN' : 1 ≤ N := hN.1
   obtain ⟨hc, ha, hso⟩ := tree_struct N hN'
   refine CombTask.satisfiedAt_of_comb (tree_interface N hN' hc) hc ha ?_
   intro st heqs hs v hv

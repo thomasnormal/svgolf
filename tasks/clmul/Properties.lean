@@ -14,9 +14,10 @@ namespace SvGolf.Tasks.Clmul.Properties
 
 open SvGolf LeanModels.Sv
 
-/-- The widths the statement covers: every `N ≥ 1`. -/
+/-- The widths the statement covers: every `N` with `1 ≤ N < 2^30` (so that the widths `2N-1` and
+`2N-2`, `int` expressions of the module, stay below `2^31`, the values an `int` holds). -/
 def ParamsInRange (N : Nat) : Prop :=
-  1 ≤ N
+  1 ≤ N ∧ N < 2 ^ 30
 
 /-- Exactly these ports, in this order, with these widths. -/
 def Interface (N : Nat) (d : Design2) : Prop :=
@@ -25,6 +26,11 @@ def Interface (N : Nat) (d : Design2) : Prop :=
 /-- No process runs at a clock edge (no `always_ff`, no `always @(posedge …)`). -/
 def Unclocked (d : Design2) : Prop :=
   ∀ p ∈ d.processes.toList, p.isEdgePhase = false
+
+/-- No combinational loop: the design lowers to continuous assigns (`Design2.lowerComb`) that are
+ranked (`Acyclic`): each reads only what lower-ranked ones write. -/
+def LoopFree (d : Design2) : Prop :=
+  ∃ d', d.lowerComb = some d' ∧ Acyclic d'
 
 /-- Under every schedule and every stimulus, the run completes. -/
 def Terminates (d : Design2) : Prop :=
@@ -42,17 +48,17 @@ def ComputesCarrylessProduct (N : Nat) (d : Design2) : Prop :=
 /-- **The statement is exactly the properties.** -/
 theorem statement_iff_properties (sem : Nat → Design2) :
     Statement sem ↔ ∀ N, ParamsInRange N →
-      Interface N (sem N) ∧ Unclocked (sem N) ∧ Terminates (sem N) ∧
+      Interface N (sem N) ∧ Unclocked (sem N) ∧ LoopFree (sem N) ∧ Terminates (sem N) ∧
         ComputesCarrylessProduct N (sem N) := by
   constructor
   · intro h N hN
-    obtain ⟨hi, ⟨hu, ht⟩, hc⟩ := h N hN
-    refine ⟨hi, hu, ht, ?_⟩
+    obtain ⟨hi, ⟨hu, hl, ht⟩, hc⟩ := h N hN
+    refine ⟨hi, hu, hl, ht, ?_⟩
     intro σ stim tr hr c inputs st hs hst a b hv
     exact hc σ stim tr hr c inputs st hs hst (a, b, ()) hv
   · intro h N hN
-    obtain ⟨hi, hu, ht, hc⟩ := h N hN
-    refine ⟨hi, ⟨hu, ht⟩, ?_⟩
+    obtain ⟨hi, hu, hl, ht, hc⟩ := h N hN
+    refine ⟨hi, ⟨hu, hl, ht⟩, ?_⟩
     intro σ stim tr hr c inputs st hs hst v hv
     obtain ⟨a, b, ⟨⟩⟩ := v
     exact hc σ stim tr hr c inputs st hs hst a b hv

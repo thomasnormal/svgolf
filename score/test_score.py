@@ -147,6 +147,31 @@ class SeqFlowTest(unittest.TestCase):
         self.assertEqual(r["script_sha256"], score.sha256_file(score.SCRIPT))
         self.assertEqual(r["ge_table_sha256"], score.sha256_file(score.GE_TABLE))
 
+    def test_no_fsm_pass(self):
+        """The clocked flow's `synth` runs with `-nofsm` (decided 2026-11-06), the combinational flow's without: an
+        ordinary reset controller whose state register every reader compares with a constant keeps its own two
+        flops (the fsm pass mapped it before); the log pattern `FSM_MAPPED` stays as a backstop."""
+        render = lambda path: score.render_script("r.il", "t", "s", "l", "n", path).splitlines()  # noqa: E731
+        self.assertIn("synth -flatten -nofsm -top t", render(score.SCRIPT_SEQ))
+        self.assertIn("synth -flatten -top t", render(score.SCRIPT))
+        sv = os.path.join(SVGOLF, "tests", "seq_counter", "never_loaded", "fsm_reset_controller.sv")
+        r = score.score([sv], "cnt", {"N": 8}, flow="seq")
+        self.assertEqual((r["ffs"], r["flop_removals"]["fsm_mapped"]), (10, []))
+        self.assertEqual(len(score.flop_removals("Mapping FSM `$fsm$\\s$31' from module `\\cnt'.\n")["fsm_mapped"]), 1)
+
+    def test_purge(self):
+        """The clocked flow's last clean-up is `opt_clean -purge` (decided 2026-11-07), the combinational flow's plain
+        `opt_clean`. The rotating-priority arbiter at N = 8, whose scored netlist kept a partly undriven dead techmap
+        wire before (`\\_269_.B`, which the post-synthesis lint refused: tasks/arbiter/README.md, F6), has the gates
+        plain `opt_clean` gave (MEASURED 2026-11-07: 310.294 GE, depth 13, 11 flops); that the netlist is now
+        lint-clean is tests/checker/test_clocked_post.py's (the post-synthesis check at N = 3, 5, 8)."""
+        render = lambda path: score.render_script("r.il", "t", "s", "l", "n", path).splitlines()  # noqa: E731
+        self.assertIn("opt_clean -purge", render(score.SCRIPT_SEQ))
+        self.assertNotIn("opt_clean -purge", render(score.SCRIPT))
+        sv = os.path.join(SVGOLF, "tests", "arbiter", "designs", "rotate.sv")
+        r = score.score([sv], "arbiter", {"N": 8}, flow="seq")
+        self.assertEqual((r["area_mge"], r["depth"], r["ffs"]), (310294, 13, 11))
+
     def test_one_flop(self):
         r = score.score([os.path.join(HERE, "tests", "reg.sv")], "reg1", {}, flow="seq")
         self.assertEqual((r["ffs"], r["area_comb_mge"]), (1, 0))

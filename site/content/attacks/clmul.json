@@ -10,5 +10,7 @@
   "top_shift": "The top N - 1 output bits are read from the wrong position.",
   "wide_out": "The output `p` is 2N bits wide instead of 2N - 1."
  },
- "attacks": {}
+ "attacks": {
+  "div_zero_x": "The right product, plus a run-time division whose divisor is zero on one input pair in 2^32: the proof sees an unknown value there and the synthesized circuit a different, defined one. Run-time `/ % **` are banned in every task."
+ }
 }

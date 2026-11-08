@@ -119,7 +119,7 @@ Ranks and Kendall tau are in `data/report_N16.md`; the findings, with the streng
    20.5 ps for the ripple adder, 22 to 23 for the prefix adders, 25.6 for the comparison-carry adder, 26 for the
    tree multipliers and **33.9 for the array multiplier** (XOR-heavy full-adder chains). Consequences: the **AT
    leader among the adders flips**: area x unit depth ranks comparison-carry first (3332) and ripple last (3696)
-   among the four legal adders; area x NLDM delay ranks ripple first (75.7) and comparison-carry fourth (85.9).
+   among the four adders the banlist passed then (`cmp_carry` is banned since 2026-11-05); area x NLDM delay ranks ripple first (75.7) and comparison-carry fourth (85.9).
    The whole AT range is only 13% in NLDM, so this is a model-sensitive near-tie, not a finding to build on.
    Area x depth underprices the array multiplier's slowness: array against `mul_tree_h` is 1.37x in GE x depth, 1.79x
    in AT (NLDM), 2.6x in glitch-aware energy and **4.7x in EDP**.

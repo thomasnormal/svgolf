@@ -34,6 +34,13 @@ the score uses it. Run-time operators are not banned.
 **Range.** `N, W ≥ 1` and `N·W < 2^31`: the parameters are `int`, and a design that buffers the whole
 stream declares `N·W` bits; every such width must stay in the 32-bit range, where a real elaboration
 and ls-sv's unbounded constant tier agree (`PDesign.int32Agrees`; Task v2 decision 1).
+
+**txtask-v2 (DRAFT, 2026-11-05).** `Statement` is the v2
+statement `StreamTask.StatementV2`: txtask-v1's interface, clock discipline and latency bound; its
+claims and termination from EVERY power-up state on every known stimulus (rule 2); Moore outputs
+(`MooreOutDep`, rule 1, with `rst` exempt: no combinational path from `start`, `in_valid` or
+`in_data` to `out_valid` or `out_data`); and no construct that creates an `x` from known operands
+(`XSafe`, rule 3). `SvGolf/TaskSeq.lean`, last section, and `design/soundness/TXTASK-V2-REVIEW.md`.
 -/
 
 namespace SvGolf.Tasks.Sorter
@@ -71,7 +78,7 @@ def task : StreamTask Params where
 /-- **The challenge statement**, for the two-parameter design family `sem N W` and the latency
 function `lat N W`. -/
 abbrev Statement (sem : Nat → Nat → LeanModels.Sv.Design2) (lat : Nat → Nat → Nat) : Prop :=
-  task.Statement (fun p => sem p.1 p.2) (fun p => lat p.1 p.2)
+  task.StatementV2 (fun p => sem p.1 p.2) (fun p => lat p.1 p.2)
 
 /-! ## Sanity checks on the statement's data (proved; they add nothing to the trusted base) -/
 

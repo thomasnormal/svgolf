@@ -4910,7 +4910,7 @@ theorem fdiv_interface (W P : Nat) (hW : 2 ≤ W) (hP : 2 ≤ P) (hc : CombDesig
 set_option maxHeartbeats 500000 in
 theorem solution : Goal := by
   intro W P hWP
-  obtain ⟨hW, hP⟩ := hWP
+  obtain ⟨hW, hP, -⟩ := hWP
   obtain ⟨hc, ha, hso⟩ := fdiv_struct W P hW hP
   refine CombTask.satisfiedAt_of_comb (fdiv_interface W P hW hP hc) hc ha ?_
   intro st heqs hs v hv

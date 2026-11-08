@@ -1,0 +1,34 @@
+{
+  "_comment": "The tool build the ranked numbers (the sky130 A0' area and time, and with them par, the record and every board) are rated with: the README (\"Scoring\", \"The build ratings use\"), the site's rules page and every task page's score card read it from here, and tests/site/test_rating_build.py checks that the README states these values. The pinned FILES of the flow are hashed where they live (tests/expected.json `flow`, score/ppa_pins.json `liberty`, score/ppa.py itself); this file pins the BINARIES, which a golfer installs and the repository cannot carry, and what was measured about them. Not part of what the checker hashes. A change of the rating build is a decision of the maintainers: re-measure every stored number under the new build first.",
+  "decided": "2026-11-05",
+  "yosys": {
+    "binary": "yosys",
+    "version": "0.53",
+    "git_sha1": "53c22ab7c0ced80861c7536c5dae682c30fb5834",
+    "version_line": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "build": "the Homebrew build for macOS arm64",
+    "compiler": "clang++ 17, -O3",
+    "sha256": "011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732"
+  },
+  "abc": {
+    "binary": "yosys-abc",
+    "version": "ABC 1.01 of 6 May 2025",
+    "version_line": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+    "build": "the yosys-abc of that Homebrew build",
+    "sha256": "769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653"
+  },
+  "determinism": {
+    "measured": "2026-11-05",
+    "designs": 52,
+    "runs": 826,
+    "what": "every reference, baseline and record of the ranked tasks and two study designs, 14 to 16 runs each: serial and six at once, a dozen hash seeds, other temporary and working directories, two checkouts, two locales, other file names, two install paths; every number and every netlist byte equal on the rating build",
+    "other_build": {
+      "build": "YoWASP's WebAssembly Yosys 0.53 (the same git sha1, its own ABC and C library)",
+      "designs_differing": 3,
+      "task": "fdivp",
+      "max_delay_change_pct": 2.9,
+      "max_area_change_pct": 0.3,
+      "cause": "ABC's mapper sorts with the C library's qsort, which is not stable, and its comparisons leave ties: another C library breaks the ties in another order"
+    }
+  }
+}

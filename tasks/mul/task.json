@@ -7,7 +7,7 @@
   "parameters": [
     {
       "name": "N",
-      "range": "1 <= N"
+      "range": "1 <= N < 2^30"
     }
   ],
   "ports": {
@@ -78,7 +78,7 @@
     "Quot.sound"
   ],
   "allow_bv_decide": false,
-  "time_limit_s": 120,
+  "time_limit_s": 300,
   "postsynth": {
     "random": 200,
     "light_vectors": 40,
