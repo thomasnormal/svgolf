@@ -982,6 +982,14 @@ class SiteTest(unittest.TestCase):
                 body = readme.split("## Start a new design", 1)[1].split("\n## ", 1)[0]
                 for para in re.findall(r"^\*\*([^*]+)\*\*", body, re.M):     # every bold lead-in, on the page
                     self.assertIn(norm(para), card)
+                # decided 2026-11-10: the page opens with the score, then the two columns starting with "This
+                # task"; the card comes after them, and "How to participate" links it
+                html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
+                at = [html_.index(mark) for mark in ('id="score"', '<div class="split">', ">This task<",
+                                                     'id="new-design"', 'id="explore"')]
+                self.assertEqual(at, sorted(at))
+                self.assertNotIn("<section", html_[at[0]:at[1]].split("</section>", 1)[1])
+                self.assertIn('href="#new-design"', html_[at[2]:at[3]])
         page_ = self.files["tasks/_example/index.html"].decode("utf-8")
         self.assertNotIn('id="new-design"', page_)              # the tutorial walks through the reference instead
 

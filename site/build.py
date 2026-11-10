@@ -2654,7 +2654,9 @@ def tutorial_html(site, t, here):
 
 
 # "Start a new design": the from-scratch card of a task (decided 2026-11-05), the section of that name at the top of
-# the task's README.md, rendered on the task page as it is (one text, two places). The card is chosen by the
+# the task's README.md, rendered on the task page as it is (one text, two places). On the page it comes after
+# the two columns (decided 2026-11-10: the page opens with the score, then "This task"), and "How to participate"
+# links it. The card is chosen by the
 # task's kind, and the build checks that it names that kind's route.
 NEW_DESIGN = "Start a new design"
 NEW_DESIGN_ROUTE = {"comb-family": ("sv_structure", "sv_interface", "sv_equations", "Library lemmas"),
@@ -2690,8 +2692,9 @@ def new_design_html(site, t, here, slugger):
     return site.render_md(body, source=readme, here=here, first_line=s0 + 2, slugger=slugger, heading_shift=1).html
 
 
-def participate_html(t, here):
-    """How to participate, in four steps (zk.golf's list): the details are the sections they link."""
+def participate_html(t, here, new_design=False):
+    """How to participate, in four steps (zk.golf's list): the details are the sections they link.
+    `new_design`: the page has the from-scratch card, so the proving step links it."""
     last = (f"Beat par: an accepted design whose <strong>area × time</strong> (sky130 µm² times {time_words(t)}, "
             "the one ranked number) is below that of the best proved reference. "
             + page.link("#leaderboard", "The leaderboard") + " ranks by it; the other numbers are for "
@@ -2702,7 +2705,8 @@ def participate_html(t, here):
     return page.steps([
         f"Write a circuit with the task's exact {page.link('#interface', '<strong>interface</strong>')}.",
         f"Prove in Lean 4 that it meets the {page.link('#spec', '<strong>trusted statement</strong>')}; "
-        f"the {page.link(rel_link(here, 'proving.html'), 'proving guide')} shows how.",
+        f"the {page.link(rel_link(here, 'proving.html'), 'proving guide')} shows how"
+        + (f", and {page.link('#new-design', NEW_DESIGN)} has this task's route." if new_design else "."),
         f"Check and record it ({page.link('#submit', 'how to submit')}): the checker accepts the pair or says "
         "which stage refused it.",
         last,
@@ -2748,14 +2752,15 @@ def task_page(site, t):
         aside_html=f'<section id="numbers">{preview_html(t) if t.preview else big_numbers(t)}</section>')
     score = page.card(score_html(site, t, here), tag="section", id_="score", title_html="Score",
                       actions_html=score_actions(t))
+    statement = sec("statement", statement_html(site, t, here, slugger))
+    interface = sec("interface", h("interface", "Interface") + interface_html(site, t))
+    spec = sec("spec", h("spec", "The trusted statement") + spec_html(t, here))
+    fresh = new_design_html(site, t, here, slugger)      # rendered after the statement, as before: same heading ids
     task_card = page.card(
-        sec("statement", statement_html(site, t, here, slugger))
-        + sec("interface", h("interface", "Interface") + interface_html(site, t))
-        + sec("spec", h("spec", "The trusted statement") + spec_html(t, here))
-        + h("participate", "How to participate", own_id=True) + participate_html(t, here),
+        statement + interface + spec
+        + h("participate", "How to participate", own_id=True) + participate_html(t, here, bool(fresh)),
         tag="article", label_html="This task",
         actions_html=page.button(rel_link(here, "proving.html"), "Proving guide", arrow=True))
-    fresh = new_design_html(site, t, here, slugger)
     if fresh:
         fresh = page.card(fresh, tag="section", id_="new-design", title_html=NEW_DESIGN)
     submit = page.card(submit_html(site, t, site.config.get("repo_url")), tag="section", id_="submit",
@@ -2788,10 +2793,10 @@ def task_page(site, t):
                 ("references", "Proved references", references_html(t, here)),
                 ("baselines", "Baselines", baselines_html(t, here)),
                 ("does-not-count", "What does not count", rejects_html(site, t, here)))]
-    body = (head + score + walk + fresh
+    body = (head + score + walk
             + f'<div class="split"><div class="col">{task_card}{submit}</div>'
               f'<div class="col">{board}{facts}{downloads}</div></div>'
-            + explore + "".join(wide))
+            + fresh + explore + "".join(wide))
     site.page(here, f"{t.title} ({t.name})", body, scripts=("charts.js",),
               description=f"svGolf task {t.name}: {t.title}." + (f" {t.subtitle}" if t.subtitle else ""))
     # the files the page offers, byte-identical
