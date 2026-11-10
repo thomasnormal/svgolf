@@ -33,9 +33,9 @@
       "text": "[`arbiter`](site:tasks/arbiter/index.html), a fair N-client arbiter: a statement that holds on every cycle of every input trace and from every power-up state (one grant at most, only to a requester, someone whenever anyone asks, and a requester that asks `N` cycles in a row granted within them), a checker for clocked designs (one clock, a synchronous reset, registered outputs, no construct that can create an unknown value, and a post-synthesis check that runs the netlist from random power-up states), the clocked scoring flow (the area with the flip-flops, times the register-to-register clock period), and a reference proved for every `N`."
     },
     {
-      "status": "in-progress",
-      "title": "More clocked tasks",
-      "text": "Two clocked tasks with a latency (a transaction answered within a declared number of cycles) have a statement, a checker and a proved reference: `matmul` (a start/done handshake) and `sorter` (a stream). They are previews: their statements are drafts under review, being revised to cover the outputs on the wire and unknown values at reset, and their submissions are not ranked until the statements are final."
+      "status": "done",
+      "title": "Clocked tasks with a latency: matmul and the sorter",
+      "text": "[`matmul`](site:tasks/matmul/index.html), matrix multiplication behind a start/done handshake, and [`sorter`](site:tasks/sorter/index.html), a streaming sorter: each transaction is answered within a latency the submission declares as a function of the parameters, from every power-up state and under every environment that follows the protocol. The post-synthesis check drives seeded transactions through the scored netlist and ls-sv's reading of the design, and the score is the area times the latency in cycles times the register-to-register clock period. Each has a reference proved for every parameter value in range."
     },
     {
       "status": "in-progress",

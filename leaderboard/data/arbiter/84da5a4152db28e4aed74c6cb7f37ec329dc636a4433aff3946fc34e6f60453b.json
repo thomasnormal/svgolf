@@ -7,12 +7,12 @@
     "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
     "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
     "files": {
-      "check.py": "ceceeb055076dc2c59350f7778f09c600c8dfd96ff07485b9d6ba8d722ed69be",
-      "check/Comparator.lean": "3145eb578ca71e452eff05a398e8ad04673e6c72ca5343b234cb22e2cefe65a6",
+      "check.py": "b0c939438a765c2ffeb679721c83ced6213c0a96bfef84759948d3857db9f431",
+      "check/Comparator.lean": "936f97636d6256374eaa4435d03321eeff29e22f808a72c7781375ab648600e8",
       "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
       "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
       "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
-      "check/postsynth.py": "4e1ee2110c63f24e033dd689c929ea686ddf10f4db23b9057c6fb711394c7558",
+      "check/postsynth.py": "dd89805f9e8335ab15d6bb753eea76865bce47e84ccffa7e7280c91da8131d23",
       "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
       "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
       "score/banlist.py": "f18c14c23a14d55db63e202f42cc424dc84c1dd1c337f132ad60859dc9d5d33a",
@@ -31,16 +31,16 @@
     },
     "flow": "seq",
     "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
-    "lean_surfaces_revision": "a09c90e8c0b2e006e5e8e56bd60dca4446f1d9f7",
+    "lean_surfaces_revision": "7fb4c3d844e0911b67cb6657e9dfdac8741e72d3",
     "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
     "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
     "statement": {
       "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
       "SvGolf/TaskReact.lean": "a065631fb9c22faa11c2b667bd3a929835af4d3734c51f29b8057ddb4ae94e15",
-      "SvGolf/TaskSeq.lean": "53058fcd78d0661cdc1d8c299da54c1193993e00343680232fdbd66128f38665",
+      "SvGolf/TaskSeq.lean": "2c1fdc15996716bea71f6e28129b7092834d2fcc0ee1a524f56457c46b155a08",
       "tasks/arbiter/Spec.lean": "21c83d684dee0be32115bad1167351a840b767d804188e62f0065aa55980bdfb"
     },
-    "svgolf_revision": "a09c90e8c0b2e006e5e8e56bd60dca4446f1d9f7",
+    "svgolf_revision": "7fb4c3d844e0911b67cb6657e9dfdac8741e72d3",
     "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
     "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
   },
@@ -401,7 +401,7 @@
       "Quot.sound",
       "propext"
     ],
-    "build_seconds": 4.25,
+    "build_seconds": 4.26,
     "imports": [
       "Submission.Design",
       "LeanModels.Sv.Gen2",
@@ -422,7 +422,7 @@
     "uses_comb_eq": false,
     "uses_comb_view": false
   },
-  "record_hash": "f45a50745d61ed8d85ce767fb35fafe306d4d7c21ec298419be763d3ae548232",
+  "record_hash": "84da5a4152db28e4aed74c6cb7f37ec329dc636a4433aff3946fc34e6f60453b",
   "schema": "svgolf-leaderboard-record/1",
   "score": {
     "area_ge": 188.979,
@@ -450,6 +450,6 @@
     "time_ps": 2826,
     "top": "arbiter"
   },
-  "submitted_at": "2026-11-08",
+  "submitted_at": "2026-11-09",
   "task": "arbiter"
 }

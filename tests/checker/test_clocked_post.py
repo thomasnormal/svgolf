@@ -6,7 +6,8 @@
   * the counter fixture (seq-family) passes; its ranked score is sky130 area and cycles x period;
     two runs give byte-identical score and ppa objects;
   * the matmul G1 reference (tx-family, at the small point N=2, W=4, AccW=8 of a copy of the task)
-    passes at its latency, with back-to-back transactions in the log;
+    passes at its latency, with back-to-back transactions in the log; with `done` set by the reset it fails at
+    `postsynth` (`done` 1 before the first start, decided 2026-11-09);
   * every negative fails at its stage: tests/seq_tx/*.sv (first line `// expect: <message>`) and a
     declared latency below the design's at `postsynth`; the counter's initial-block, async-reset,
     two-clock and initializer attacks at `source`;
@@ -61,12 +62,51 @@ STREAM_NEGATIVES = [
      "1'b1", "the emitted values are not the task's: output"),
     ("a dropped duplicate (a value equal to the last output is not shown)", "out_valid <= tok[0];",
      "out_valid <= tok[0] & ~(out_valid & (out_data == data[0 +: W]));", "2 values emitted, want 3"),
-    ("out_valid depends on the power-up (the cells' tokens are not reset): from different power-ups of the "
-     "netlist and of ls-sv (txtask-v2 revision 2), the two disagree", "        tok[k] <= 1'b0;\n", "",
-     "out_valid: the netlist ("),       # either way round: the draws are the salt's (F5), the two disagree
+    ("out_valid depends on the power-up (the cells' tokens are not reset): from a power-up with a token set, out_valid "
+     "is 1 before the first start (the netlist's run, and ls-sv's held to the guarantee: L5, 2026-11-08)",
+     "        tok[k] <= 1'b0;\n", "", "before the first start"),
     ("out_valid 1 before the first start (the tokens reset to 1)", "        tok[k] <= 1'b0;\n",
      "        tok[k] <= 1'b1;\n", "out_valid is 1 at cycle 1, before the first start"),
 ]
+
+
+# L5 (TXTASK-V2-REVIEW.md section 12.2, fixed 2026-11-08): two designs correct from every power-up whose `done` /
+# `out_valid` cycle depends on a register that is never reset. (old, new) edits of the references:
+# the matmul takes one idle step after a start when bit 2 of a free-running 3-bit counter `ph` is 1 (latency N + 1);
+L5_TX = [
+    ("  logic             busy;\n",
+     "  logic             busy, stall;\n  logic [2:0]       ph;\n"
+     "  always_ff @(posedge clk) ph <= ph + 3'd1;     // never reset: its power-up is free\n"),
+    ("      k    <= 32'd0;\n    end else if (start) begin\n",
+     "      k    <= 32'd0;\n      stall <= 1'b0;\n    end else if (start) begin\n"),
+    ("      a_sh <= A;\n      b_sh <= B;\n", "      a_sh <= A;\n      b_sh <= B;\n      stall <= ph[2];\n"),
+    ("    end else if (busy) begin\n",
+     "    end else if (busy && stall) begin\n      stall <= 1'b0;\n    end else if (busy) begin\n"),
+    ("        else if (busy)\n", "        else if (busy && !stall)\n"),
+]
+# the sorter shows its outputs through one more register when a toggle `ph` was 1 at the start (latency 2N + 1)
+L5_STREAM = [
+    ("  always_ff @(posedge clk) begin\n    out_valid <= tok[0];\n    out_data  <= data[0 +: W];\n"
+     "    if (rst) out_valid <= 1'b0;\n  end\n",
+     "  logic ph, sel, ov1, ov2;\n  logic [W-1:0] od1, od2;\n"
+     "  always_ff @(posedge clk) ph <= ~ph;     // never reset: its power-up is free\n"
+     "  always_ff @(posedge clk) begin\n    ov1 <= tok[0];\n    od1 <= data[0 +: W];\n    ov2 <= ov1 & ~start;\n"
+     "    od2 <= od1;\n    if (start) sel <= ph;\n    if (rst) begin\n      ov1 <= 1'b0;\n      ov2 <= 1'b0;\n"
+     "      sel <= 1'b0;\n    end\n  end\n  assign out_valid = sel ? ov2 : ov1;\n  assign out_data  = sel ? od2 : od1;\n"),
+]
+
+
+def edited(src, edits, work, name):
+    """`src` with the (old, new) `edits` (each old exactly once), written to `work`/`name`."""
+    with open(src) as fh:
+        text = fh.read()
+    for old, new in edits:
+        assert text.count(old) == 1, (name, old)
+        text = text.replace(old, new)
+    out = os.path.join(work, name)
+    with open(out, "w") as fh:
+        fh.write(text)
+    return out
 
 
 # (what, old, new: the arbiter goalpost's text; the stage and the message it fails with)
@@ -115,14 +155,18 @@ def matmul_small():
     return d
 
 
-def sorter_small():
-    """A temporary copy of tasks/sorter (task.json, oracle.py) scored and checked at N=3, W=4."""
+def sorter_small(scoring=(3, 4), points=None, seeds=3):
+    """A temporary copy of tasks/sorter (task.json, oracle.py) scored at (N, W) = `scoring` (3, 4), checked there and at
+    `points` ([(N, W)], postsynth.points; None: the scoring point only)."""
     d = tempfile.mkdtemp(prefix="svgolf-streamsmall-")
     shutil.copy(os.path.join(SVGOLF, "tasks", "sorter", "oracle.py"), d)
     with open(os.path.join(SVGOLF, "tasks", "sorter", "task.json")) as fh:
         t = json.load(fh)
+    ps = {"seeds": seeds, "txns": 24}
+    if points:
+        ps["points"] = [{"N": n, "W": w} for n, w in points]
     t.update(name="stream_sorter_small", probe_points=["N=2,W=4", "N=3,W=4"],
-             scoring={"params": {"N": 3, "W": 4}}, postsynth={"seeds": 3, "txns": 24})
+             scoring={"params": {"N": scoring[0], "W": scoring[1]}}, postsynth=ps)
     with open(os.path.join(d, "task.json"), "w") as fh:
         json.dump(t, fh)
     return d
@@ -201,6 +245,20 @@ class ClockedPost(unittest.TestCase):
             self.assertEqual(len(log), 24)
             self.assertTrue(all(t["latency"] == 2 and t["samples"] >= 1 for t in log))
             self.assertTrue(any(u["start"] == t["first_done"] + 1 for t, u in zip(log, log[1:])))
+
+    def test_done_before_the_first_start_fails_at_postsynth(self):
+        """Decided 2026-11-09: `done` = 1 claims a result, and before the first start there is none (TxTask.Guar).
+        The reference with `done` set by the reset (the generated mutant m032) shows `done` = 1 from the release on,
+        which the seeds with an idle gap before the first transaction see."""
+        work = tempfile.mkdtemp(prefix="svgolf-txneg-")
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        sv = edited(MATMUL_SV, [("      busy <= 1'b0;\n      done <= 1'b0;\n      k    <= 32'd0;\n    end else if (start)",
+                                 "      busy <= 1'b0;\n      done <= 1'b1;\n      k    <= 32'd0;\n    end else if (start)")],
+                    work, "done_up.sv")
+        res = self.check(self.small, sv, latency=2)
+        self.assertEqual(res["stage"], "postsynth", res["errors"])
+        report = res["stages"]["postsynth"]["points"][-1].get("report") or []
+        self.assertIn("before the first start", res["errors"][0] + json.dumps(report))
 
     def test_each_negative_fails_at_its_stage(self):
         cases = [(self.small, MATMUL_SV, 1, "postsynth", "within the declared latency 1")]
@@ -287,6 +345,58 @@ class ClockedPost(unittest.TestCase):
                 self.assertEqual(res["stage"], "postsynth", res["errors"])
                 report = res["stages"]["postsynth"]["points"][-1].get("report") or []
                 self.assertIn(want, res["errors"][0] + json.dumps(report))
+
+    def test_power_up_dependent_timing_is_not_refused(self):
+        """L5 (TXTASK-V2-REVIEW.md section 12.2, fixed 2026-11-08): a design correct from every power-up whose `done` /
+        `out_valid` cycle within the latency depends on a register never reset (`L5_TX`: matmul latency N + 1,
+        `L5_STREAM`: sorter latency 2N + 1) passes: the netlist is compared with ls-sv bit for bit only from the same
+        start (seed 0), and from different power-ups each run is held to the guarantee, ls-sv's up to the entry where
+        the stimulus (realized against the netlist's `done` / `out_valid`) stops honouring ls-sv's rely. Before, both
+        were refused at seed 1 (`done: the netlist (0) is not ls-sv (1)`, `out_valid: the netlist (0) is not ls-sv
+        (1)`)."""
+        work = tempfile.mkdtemp(prefix="svgolf-l5-")
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        for task_dir, src, edits, lat, lats in ((self.small, MATMUL_SV, L5_TX, 3, {2, 3}),
+                                                (self.sorter, SORTER_SV, L5_STREAM, 7, {6, 7})):
+            with self.subTest(os.path.basename(src)):
+                res = self.check(task_dir, edited(src, edits, work, os.path.basename(src)), latency=lat)
+                self.assertEqual(res["stage"], "unproved", res["errors"])
+                (pt,) = res["stages"]["postsynth"]["points"]
+                self.assertEqual((pt["mismatches"], len(pt["seeds"])), (0, 3))
+                self.assertEqual([s["compared"].split(" (")[0] for s in pt["seeds"]],
+                                 ["the netlist with ls-sv, bit for bit on the cared outputs"]
+                                 + ["each run with the guarantee"] * 2)
+                # the netlist's own timing moves with `ph`; ls-sv's claims are checked up to its rely horizon
+                self.assertEqual({t["latency"] for s in pt["seeds"] for t in s["transactions"]}, lats)
+                for s in pt["seeds"][1:]:
+                    self.assertTrue(0 < s["lssv_claimed_to"] <= s["cycles"], s)
+                    self.assertEqual(s["lssv_claimed_to"] == s["cycles"], s["lssv_rely_ends"] is None)
+                self.assertNotIn("lssv_claimed_to", pt["seeds"][0])
+
+    def test_each_point_is_checked_against_its_own_latency(self):
+        """F8 (decided 2026-11-08): the clocked post-synthesis check runs each point against that point's latency,
+        `lat p` (an `--unproved` run: `--latency-at POINT:n`, else the scoring point's `--latency`). The sorter
+        reference (lat = 2N) scored at (2, 4) and checked at (3, 4) too: refused at (3, 4) with one latency 4 for every
+        point (the over-rejection F8 removes), accepted with 6 there; and a latency below the design's at the other point
+        is refused there."""
+        tdir = sorter_small(scoring=(2, 4), points=[(2, 4), (3, 4)], seeds=2)
+        self.addCleanup(shutil.rmtree, tdir, ignore_errors=True)
+        res = self.check(tdir, SORTER_SV, latency=4, latency_at={"N=3,W=4": 6})
+        self.assertEqual(res["stage"], "unproved", res["errors"])
+        self.assertEqual(res["latency_at"], {"N=2,W=4": 4, "N=3,W=4": 6})
+        pts = res["stages"]["postsynth"]["points"]
+        self.assertEqual([(p["point"], p["latency"], p["mismatches"]) for p in pts], [("N=2,W=4", 4, 0), ("N=3,W=4", 6, 0)])
+        self.assertEqual((res["score"]["cycles"], res["stages"]["latency"]["points"]), (4, res["latency_at"]))
+        for given, want in (({}, "beyond the declared latency 4"), ({"N=3,W=4": 5}, "beyond the declared latency 5")):
+            with self.subTest(given=given):
+                res = self.check(tdir, SORTER_SV, latency=4, latency_at=given)
+                self.assertEqual(res["stage"], "postsynth", res["errors"])
+                self.assertEqual(res["stages"]["postsynth"]["points"][-1]["point"], "N=3,W=4")
+                self.assertIn(want, res["errors"][0])
+        # usage: a point that is not checked, or the scoring point given another value than --latency
+        for given in ({"N=8,W=8": 16}, {"N=2,W=4": 5}):
+            with self.subTest(given=given), self.assertRaises(RuntimeError):
+                self.check(tdir, SORTER_SV, latency=4, latency_at=given)
 
     def test_the_arbiter_goalpost_passes_the_reactive_check(self):
         res = self.check(self.arbiter, ARBITER_SV)
@@ -407,6 +517,167 @@ class ClockedPost(unittest.TestCase):
                 points = (res["stages"].get("postsynth") or {}).get("points") or [{}]
                 report = points[-1].get("report") or []
                 self.assertIn(want, res["errors"][0] + json.dumps(report))
+
+
+class ProvedLean(FakeLean):
+    """A PROVED run's Lean for the F8 wiring: every compile succeeds, `printenv LEAN_PATH` names an empty directory,
+    leanchecker passes, and the comparator accepts and answers `goal_arg_at` with `values` ({"a,b": {"value": n} or
+    {"error": why}}), recording the points it was asked (`asked`). The real comparator's point 8 is
+    tests/checker/test_comparator.py's."""
+    asked, values, search = [], {}, None
+
+    def run(self, args, timeout=None, lake_env=True, **kw):
+        if args[:2] == ["printenv", "LEAN_PATH"]:
+            return 0, ProvedLean.search + "\n", 0.1
+        if "--goal" in args:
+            pts = [args[i + 1] for i, a in enumerate(args) if a == "--goal-arg-at"]
+            ProvedLean.asked = pts
+            rep = {"accepted": True, "goal": "Submission.Goal", "goal_arg": args[args.index("--goal-arg") + 1],
+                   "imports": {"Submission.Solution": ["Init", "Submission.Design"]}, "errors": [],
+                   "goal_arg_at": [{"args": [int(x) for x in p.split(",")], **ProvedLean.values[p]} for p in pts]}
+            return 0, "SVGOLF_COMPARATOR " + json.dumps(rep) + "\n", 0.1
+        return 0, "", 0.1
+
+
+class ProvedLatency(unittest.TestCase):
+    """F8 (decided 2026-11-08) in a proved run, with ProvedLean and the real score and postsynth stages: check.py asks
+    the comparator for `Submission.lat` at every clocked point (the scoring point among them), checks each point
+    against its value, records them (`latency_at`, `stages.latency.points`); a point the kernel gave no number is
+    refused at `latency`, a value below the design's latency at its point at `postsynth`, and a scoring-point value
+    other than the header's n (the goal the kernel accepted pins it) is an infrastructure error."""
+
+    def run_proved(self, values):
+        tdir = sorter_small(scoring=(2, 4), points=[(2, 4), (3, 4)], seeds=1)
+        work = tempfile.mkdtemp(prefix="svgolf-provedlat-")
+        stage = os.path.join(work, "stage")
+        ProvedLean.search = os.path.join(work, "search")
+        os.makedirs(ProvedLean.search)
+        self.addCleanup(shutil.rmtree, tdir, ignore_errors=True)
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        sol = os.path.join(work, "Solution.lean")
+        with open(sol, "w") as fh:
+            fh.write("-- svgolf-latency: 4\nimport Submission.Design\n")
+        ProvedLean.values, ProvedLean.asked = values, []
+        orig, checkpy.Lean = checkpy.Lean, ProvedLean
+        try:
+            # the tripwire fingerprints the shared build trees, which other jobs may rebuild meanwhile: not this test's
+            with mock.patch.object(checkpy, "integrity_snapshot", return_value={}):
+                return checkpy.check(tdir, SORTER_SV, sol, stage, [], do_score=True, build_trusted=False,
+                                     postsynth_mode="full")
+        finally:
+            checkpy.Lean = orig
+
+    def test_each_point_runs_at_the_kernels_latency(self):
+        res = self.run_proved({"2,4": {"value": 4}, "3,4": {"value": 6}})
+        self.assertTrue(res["accepted"], res["errors"])
+        self.assertEqual(ProvedLean.asked, ["2,4", "3,4"])
+        self.assertEqual(res["latency_at"], {"N=2,W=4": 4, "N=3,W=4": 6})
+        self.assertEqual(res["stages"]["latency"]["points"], res["latency_at"])
+        self.assertIn("the kernel", res["stages"]["latency"]["points_from"])
+        self.assertEqual([(p["point"], p["latency"], p["mismatches"]) for p in res["stages"]["postsynth"]["points"]],
+                         [("N=2,W=4", 4, 0), ("N=3,W=4", 6, 0)])
+        self.assertEqual((res["latency"], res["score"]["cycles"]), (4, 4))
+
+    def test_a_point_without_a_number_or_below_the_designs_latency_is_refused(self):
+        res = self.run_proved({"2,4": {"value": 4}, "3,4": {"error": "the kernel reduces it to `fun x => x`"}})
+        self.assertEqual(res["stage"], "latency", res["errors"])
+        self.assertIn("at N=3,W=4", res["errors"][0])
+        self.assertIn("fun x => x", res["errors"][0])
+        res = self.run_proved({"2,4": {"value": 4}, "3,4": {"value": 5}})
+        self.assertEqual(res["stage"], "postsynth", res["errors"])
+        self.assertIn("beyond the declared latency 5", res["errors"][0])
+        with self.assertRaises(RuntimeError):
+            self.run_proved({"2,4": {"value": 5}, "3,4": {"value": 6}})
+
+
+class LssvClaims(unittest.TestCase):
+    """L5 (2026-11-08), on synthetic runs (no tool): `lssv_claims` holds ls-sv's run from a power-up other than the
+    netlist's to what the statement claims of it, up to the entry where the stimulus (realized against the netlist)
+    stops honouring ls-sv's rely: the same timing, a faster ls-sv and a slower one within the latency pass (the slower
+    one's claims end at that entry); a late `done` / output, a wrong payload, a `done` that falls, an x in a claimed
+    bit, and `done` (since 2026-11-09) or `out_valid` before the first start fail."""
+
+    class Oracle:
+        @staticmethod
+        def good(params, txn, res):
+            return res.get("C") == 2 * txn.get("A", 0) if "C" in res else res["out"] == sorted(txn["xs"])
+
+    TX = {"kind": "tx-family", "protocol": {"start": "start", "operands": ["A"], "done": "done", "payload": ["C"]}}
+    ST = {"kind": "stream-family", "protocol": {"start": "start", "in_valid": "iv", "in_data": "d", "out_valid": "ov",
+                                                "out_data": "od", "count": "N"}}
+
+    @staticmethod
+    def rows(spec):
+        """ls-sv rows [(σ_src, σ_rev)] from {output: [bit strings per snapshot]}."""
+        n = len(next(iter(spec.values())))
+        return [({o: v[c] for o, v in spec.items()},) * 2 for c in range(n)]
+
+    def tx(self, done, C, lat=2):
+        import postsynth
+        # reset; start A=3 (entry 1), held to the netlist's done at 3; start A=5 (entry 4), held to 6; idle
+        stim = [{"start": s, "A": a} for s, a in ((0, 0), (1, 3), (0, 3), (0, 3), (1, 5), (0, 5), (0, 5), (0, 0))]
+        items = [{"A": 3, "tag": "t0"}, {"A": 5, "tag": "t1"}]
+        return postsynth.lssv_claims(self.TX, self.Oracle, {}, stim, self.rows({"done": list(done), "C": C}), items,
+                                     1, lat)
+
+    def test_tx(self):
+        same = ["x", "0", "0", "1", "0", "0", "1", "1"]          # done at 3 and 6; the start edge clears it
+        c = ["0", "0", "0", "110", "110", "0", "1010", "1010"]
+        self.assertEqual(self.tx(same, c), (8, None, []))
+        # faster: done at 2 for the first start (the operands held longer than ls-sv needs them: rely kept)
+        self.assertEqual(self.tx(["x", "0", "1", "1", "0", "0", "1", "1"], ["0", "0", "110"] + c[3:]), (8, None, []))
+        # slower within the latency 3: the start at 4 comes before ls-sv's done: claims end there, nothing fails
+        h, why, bad = self.tx(["x", "0", "0", "0", "1", "0", "1", "1"], c, lat=3)
+        self.assertEqual((h, bad), (4, []))
+        self.assertIn("the start at entry 4 comes before ls-sv's done rose for the start at entry 1", why)
+        # slower beyond the latency 2 (the claim at s + lat = 3 < h = 4)
+        self.assertIn("did not rise within the declared latency 2", self.tx(["x", "0", "0", "0", "1", "0", "1", "1"],
+                                                                            c)[2][0][1])
+        # the operands change before ls-sv's done: the hold of the second start ends at entry 7 (A = 0)
+        h, why, bad = self.tx(same[:6] + ["0", "0"], c, lat=3)
+        self.assertEqual((h, bad), (7, []))
+        self.assertIn("the operands change at entry 7", why)
+        # a wrong payload, a done that falls, an x in done
+        self.assertIn("the payload is not the task's result", self.tx(same, c[:6] + ["1011", "1010"])[2][0][1])
+        self.assertIn("done fell at cycle 7", self.tx(same[:7] + ["0"], c)[2][0][1])
+        self.assertEqual(self.tx(same[:2] + ["x"] + same[3:], c)[2], [(2, "ls-sv: done is x/z in a claimed snapshot "
+                                                                         "(done = x, MSB first)")])
+        # done = 1 before the first start (decided 2026-11-09): reset, idle, then the start A=3 at entry 2
+        import postsynth
+        stim = [{"start": s, "A": a} for s, a in ((0, 0), (0, 0), (1, 3), (0, 3), (0, 3), (0, 0))]
+        c1 = ["0", "0", "0", "0", "110", "110"]
+        for d1, want in (("0", []), ("1", [(1, "ls-sv: done is 1 at cycle 1, before the first start")])):
+            rows = self.rows({"done": ["x", d1, "0", "0", "1", "1"], "C": c1})
+            self.assertEqual(postsynth.lssv_claims(self.TX, self.Oracle, {}, stim, rows, [{"A": 3, "tag": "t0"}], 1,
+                                                   2), (6, None, want))
+
+    def st(self, ov, od, lat=4):
+        import postsynth
+        # reset; idle; start (entry 2); the values 5, 2; waits; start (entry 7); the values 1, 0; idle
+        e = [(0, 0, 0), (0, 0, 0), (1, 0, 0), (0, 1, 5), (0, 1, 2), (0, 0, 0), (0, 0, 0), (1, 0, 0), (0, 1, 1),
+             (0, 1, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
+        stim = [{"start": a, "iv": b, "d": c} for a, b, c in e]
+        items = [{"xs": [5, 2], "tag": "t0"}, {"xs": [1, 0], "tag": "t1"}]
+        return postsynth.lssv_claims(self.ST, self.Oracle, {"N": 2}, stim, self.rows({"ov": list(ov), "od": od}),
+                                     items, 1, lat)
+
+    def test_stream(self):
+        od = ["0"] * 5 + ["10", "101"] + ["0"] * 3 + ["0", "1"] + ["0"]
+        same = "x000011000110"                                  # outputs at 5, 6 and 10, 11
+        self.assertEqual(self.st(same, od), (13, None, []))
+        # faster: the outputs at 4 and 5 (the second output one entry earlier)
+        self.assertEqual(self.st("x000110000110", ["0"] * 4 + ["10", "101"] + od[6:]), (13, None, []))
+        # slower within the latency 5: one output shown before the start at 7, so the claims end there
+        h, why, bad = self.st("x000001100110", ["0"] * 6 + ["10", "101"] + od[8:], lat=5)
+        self.assertEqual((h, bad), (7, []))
+        self.assertIn("the start at entry 7 comes before ls-sv showed the 2 outputs of the start at entry 2", why)
+        # beyond the latency 4 (s + lat = 6 < h = 7): only one value in [2, 7)
+        bad = self.st("x000001100110", ["0"] * 6 + ["10", "101"] + od[8:], lat=4)[2]
+        self.assertTrue(bad and "the emitted values are not the task's" in bad[0][1], bad)
+        # a wrong order, out_valid before the first start, an x in out_data where out_valid = 1
+        self.assertIn("the emitted values are not the task's", self.st(same, od[:5] + ["101", "10"] + od[7:])[2][0][1])
+        self.assertIn("out_valid is 1 at cycle 1, before the first start", self.st("x100011000110", od)[2][0][1])
+        self.assertIn("od is x/z in a claimed snapshot", self.st(same, od[:5] + ["1x"] + od[6:])[2][0][1])
 
 
 if __name__ == "__main__":

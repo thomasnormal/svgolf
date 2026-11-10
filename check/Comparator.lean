@@ -82,6 +82,15 @@ not executed), and then decides, from the kernel-level environment only:
    environment). `NAME` (`Submission.lat`) must be a definition (`def`/`abbrev`, not an axiom, an
    `opaque` or a theorem) without universe parameters; the kernel checks its type through the
    application, its closure is walked and replayed with the solution's.
+8. **The latency at the post-synthesis points** (`--goal-arg-at a,b,…`, repeatable, with
+   `--goal-arg`; F8, decided 2026-11-08): for each list of numbers, the value of `NAME a b …` as
+   the KERNEL reduces it (`Kernel.whnf` of the application to raw `Nat` literals: no compiled code
+   runs, so nothing the submission compiled can answer), confirmed by the kernel accepting
+   `theorem _ : NAME a b … = v := Eq.refl v`. `check.py` uses `v` as the post-synthesis check's
+   latency at that point. A value the kernel cannot reduce to a literal, or one it does not
+   confirm, is reported as that entry's `error` (the run then rejects at `latency`); it does not
+   change `accepted`, which stays the verdict on the theorem. The report lists the entries under
+   `goal_arg_at` only when the run asked for some.
 
 Kernel replay of the submission's own declarations (catching a module that
 added declarations without kernel checking) is `leanchecker`'s job; `check.py`
@@ -96,6 +105,7 @@ open Lean
 structure Args where
   goal : Name := .anonymous
   goalArg : Option Name := none
+  goalArgAt : Array (Array Nat) := #[]
   solution : Name := .anonymous
   modules : Array Name := #[]
   prefixes : Array Name := #[]
@@ -108,6 +118,10 @@ def parseArgs : List String → Args → Except String Args
   | [], a => .ok a
   | "--goal" :: v :: rest, a => parseArgs rest { a with goal := v.toName }
   | "--goal-arg" :: v :: rest, a => parseArgs rest { a with goalArg := some v.toName }
+  | "--goal-arg-at" :: v :: rest, a =>
+      match (v.splitOn ",").mapM String.toNat? with
+      | some ns => parseArgs rest { a with goalArgAt := a.goalArgAt.push ns.toArray }
+      | none => .error s!"--goal-arg-at: not a comma-separated list of numbers: {v}"
   | "--solution" :: v :: rest, a => parseArgs rest { a with solution := v.toName }
   | "--module" :: v :: rest, a => parseArgs rest { a with modules := a.modules.push v.toName }
   | "--prefix" :: v :: rest, a => parseArgs rest { a with prefixes := a.prefixes.push v.toName }
@@ -460,6 +474,24 @@ def recheck (env : Environment) (maxNodes maxDepth : Nat) (ax : Name) :
 end BvRecheck
 
 
+/-- Point 8: the value of `n a₁ … aₖ` (the `aᵢ` raw `Nat` literals) as the kernel reduces it, and the
+kernel's confirmation `n a₁ … aₖ = v` by `Eq.refl v`; `Except` the reason there is none. -/
+def kernelNatAt (env : Environment) (n : Name) (args : Array Nat) : IO (Except String Nat) := do
+  let lhs := mkAppN (mkConst n) (args.map mkRawNatLit)
+  let shown := s!"{n} {" ".intercalate (args.toList.map toString)}"
+  let v ← match Kernel.whnf env {} lhs with
+    | .ok (.lit (.natVal v)) => pure v
+    | .ok e => return .error s!"the kernel reduces `{shown}` to `{(e.dbgToString).take 160}`, not a number"
+    | .error e => return .error s!"the kernel cannot reduce `{shown}`: {((← (e.toMessageData {}).toString).take 400)}"
+  let one := Level.succ .zero
+  let decl := Declaration.thmDecl {
+    name := `_svgolf_goal_arg_at, levelParams := [],
+    type := mkApp3 (mkConst ``Eq [one]) (mkConst ``Nat) lhs (mkRawNatLit v),
+    value := mkApp2 (mkConst ``Eq.refl [one]) (mkConst ``Nat) (mkRawNatLit v) }
+  match env.addDeclCore 0 0 decl none with
+  | .ok _ => return .ok v
+  | .error e => return .error s!"the kernel rejects `{shown} = {v}` by `Eq.refl`: {((← (e.toMessageData {}).toString).take 400)}"
+
 def report (ok : Bool) (fields : List (String × Json)) : IO UInt32 := do
   IO.println s!"SVGOLF_COMPARATOR {(Json.mkObj (("accepted", Json.bool ok) :: fields)).compress}"
   return if ok then 0 else 1
@@ -565,7 +597,18 @@ unsafe def main (argv : List String) : IO UInt32 := do
     match moduleOf env n with
     | some m => args.prefixes.any (·.isPrefixOf m)
     | none => false
-  report errors.isEmpty [
+  -- 8. the latency at the post-synthesis points, as the kernel reduces it (only after point 7 found a definition)
+  let mut atPoints : Array Json := #[]
+  for xs in args.goalArgAt do
+    let entry ← match args.goalArg, argOk with
+      | some n, true => match ← kernelNatAt env n xs with
+        | .ok v => pure [("value", toJson v)]
+        | .error e => pure [("error", toJson e)]
+      | none, _ => pure [("error", toJson "--goal-arg-at needs --goal-arg")]
+      | some n, false => pure [("error", toJson s!"{n} is not a latency definition (point 7)")]
+    atPoints := atPoints.push (Json.mkObj (("args", toJson xs) :: entry))
+  let atField : List (String × Json) := if args.goalArgAt.isEmpty then [] else [("goal_arg_at", Json.arr atPoints)]
+  report errors.isEmpty ([
     ("solution", toJson args.solution.toString),
     ("goal", toJson args.goal.toString),
     ("goal_arg", toJson (args.goalArg.map (·.toString))),
@@ -578,5 +621,5 @@ unsafe def main (argv : List String) : IO UInt32 := do
       (m.toString, toJson ((importsOf env m).getD #[])))),
     ("toolchain_modules", toJson toolchainChecked),
     ("replay", Json.mkObj [("closure", toJson closureAll.toList.length),
-      ("replayed", toJson replayed), ("ms", toJson replayMs), ("ok", Json.bool replayErr.isNone)]),
-    ("errors", toJson errors)]
+      ("replayed", toJson replayed), ("ms", toJson replayMs), ("ok", Json.bool replayErr.isNone)])]
+    ++ atField ++ [("errors", toJson errors)])

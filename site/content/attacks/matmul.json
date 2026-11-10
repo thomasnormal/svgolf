@@ -3,6 +3,7 @@
  "negatives": {},
  "attacks": {
   "acc_2w": "The accumulator is only 2W bits wide and sign-extended to AccW bits: wrong when AccW > 2W and a dot product leaves the 2W-bit range.",
+  "async_reset": "The control process has an asynchronous reset: the reset is synchronous on this task, the statement refuses an asynchronous one, and the source check refuses the second event first.",
   "done_early": "`done` rises one step early (`k == N - 2`), while `C` still lacks the last product.",
   "missing_sign_ext": "Each W × W product is sign-extended to 2W bits only, then zero-extended into the accumulator: wrong for a negative product when AccW > 2W.",
   "no_clear_on_start": "The accumulators are cleared by the reset but not by `start`, so every transaction after the first adds onto the previous result.",

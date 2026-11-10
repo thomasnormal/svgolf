@@ -2,7 +2,7 @@ import SvGolf.TaskSeq
 
 /-!
 # Task `matmul`: N×N signed matrix multiplication, wrapping at the accumulator width
-# (DRAFT of TRUSTED text, for review, 2026-11-04; contract C6 of `design/sequential/CONTRACT.md`)
+# (TRUSTED text, final, decided 2026-11-08, amended 2026-11-09; written 2026-11-04; contract C6 of `design/sequential/CONTRACT.md`)
 
 Module (port order as written; `N`, `W`, `AccW` are the module's parameters, in this order):
 
@@ -28,21 +28,22 @@ summation order is legal). `C`'s entries are two's complement `AccW`-bit values.
 claims from the cycle after its release; `start` a one-cycle pulse raised only when the design is
 idle; `A` and `B` held from `start` until `done` rises; `done` rises within the declared latency
 `lat` (cycles after the edge that samples `start`), then stays 1 with `C` = the product until the
-next `start`. `done` is known in every cycle after the release, `C` only where `done` = 1.
+next `start`. `done` is known in every cycle after the release, and 0 up to the first start
+(`done` = 1 claims a result, and there is none before a start); `C` only where `done` = 1.
 
 The declared latency `lat` is the submission's; the checker pins its value at the scoring point
-`(4, 8, 32)` and the score uses it (C3, C7). Run-time operators are not banned.
+`(4, 8, 32)` and the score uses it (C3, C7). Run-time `/ % **` are banned, as in every task (`task.json`).
 
 **Range.** `N, W, AccW ≥ 1`, and the port widths `N·N·W` and `N·N·AccW` below `2^31`: the parameters
 are `int`, and every width and index expression of the interface (`N*N*W-1`, `(i*N+k)*W`) must stay in
 the 32-bit range, where a real elaboration and ls-sv's unbounded constant tier agree
 (`PDesign.int32Agrees`; Task v2 decision 1, the `clmul` precedent).
 
-**txtask-v2 (DRAFT, 2026-11-05).** `Statement` is the v2
+**txtask-v2 (2026-11-05; final, decided 2026-11-08, amended 2026-11-09).** `Statement` is the v2
 statement `TxTask.StatementV2`: txtask-v1's interface, clock discipline and latency bound; its claims
 and termination from EVERY power-up state on every known stimulus (rule 2: an unreset register is an
-unknown 0/1 value, not ls-sv's `x` start); Moore outputs (`MooreOutDep`, rule 1, with `rst` exempt: no
-combinational path from `start`, `A` or `B` to `done` or `C`); and no construct that creates an `x`
+unknown 0/1 value, not ls-sv's `x` start); Moore outputs (`MooreOutDep`, rule 1, nothing exempt: no
+combinational path from `rst`, `start`, `A` or `B` to `done` or `C`); and no construct that creates an `x`
 from known operands (`XSafe`, rule 3). `SvGolf/TaskSeq.lean`, last section, and
 `design/soundness/TXTASK-V2-REVIEW.md`.
 -/

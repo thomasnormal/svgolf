@@ -1,0 +1,344 @@
+# Mutants of tasks/matmul/reference/matmul_g1.sv (sha256 8dbb8b29b4ba583c), tests/mutate.py with pyslang 11.0.0: 169 generated, 2 duplicates, 0 do not elaborate, 167 kept.
+# Columns: id, operator, ctx, line:col, original -> replacement; the verdict (KILLED / EQUIVALENT /
+# CORRECT / EQUIVALENT-SMALL / CORRECT-SMALL / SURVIVOR: `verdict` in tests/txsweep.py) and what killed
+# it: `check:<stage>@<point>` (check.py's stages that run no Lean, the big latency), `check.py:<stage>`
+# (the real check.py, sampled); `formal` per point: the equivalence (proved / falsified / undecided) and,
+# where it is not proved, the guarantee miter (`correct: ...`); `kernel:` a refutation of the statement in
+# tests/matmul/negative/Mutants.lean. Full records and the method: MANIFEST.json.
+
+m001 CRP param  7:35  '4' -> '5'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m002 CRP param  7:35  '4' -> '3'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m003 CRP param  7:56  '8' -> '9'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m004 CRP param  7:56  '8' -> '7'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m005 CRP param  7:80  '32' -> '33'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m006 CRP param  7:80  '32' -> '31'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m007 CRP index  10:23  '1' -> '2'
+    KILLED check:extract
+m008 CRP index  10:23  '1' -> '0'
+    KILLED check:extract
+m009 CRP index  10:25  '0' -> '1'
+    KILLED check:extract
+m010 CRP index  12:26  '1' -> '2'
+    KILLED check:extract
+m011 CRP index  12:26  '1' -> '0'
+    KILLED check:extract
+m012 CRP index  12:28  '0' -> '1'
+    KILLED check:extract
+m013 CRP index  14:10  '31' -> '32'
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m014 CRP index  14:10  '31' -> '30'
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m015 CRP index  14:13  '0' -> '1'
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m016 CRP index  16:16  '1' -> '2'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m017 CRP index  16:16  '1' -> '0'
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m018 CRP index  16:18  '0' -> '1'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m019 NEG if     19:9   'rst' -> '!(rst)'
+    KILLED check:postsynth@N=2,W=4,AccW=8 check.py:postsynth; kernel: m019_refuted
+m020 SWP if     19:14  "if (rst) begin\n      busy <= 1'b0;\n      done <= 1'b0;\n      k    <= 32'd0;\n    end else if (start) begin\n      busy <= 1'b1;\n      done <= 1'b0;\n      k    <= 32'd0;\n      a_sh <= A;\n      b_sh <= B;\n    end else if (busy) begin\n      k    <= k + 32'd1;\n      a_sh <= a_sh >> W;\n      b_sh <= b_sh >> (N*W);\n      if (k == N - 1) begin\n        busy <= 1'b0;\n        done <= 1'b1;\n      end\n    end" -> '(swap)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m021 SA0 read   19:9   'rst' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m022 SA1 read   19:9   'rst' -> "'1"
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m023 DEL stmt   20:7   "busy <= 1'b0;" -> ';'
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m024 RST reset  20:15  "1'b0" -> "'0"
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m025 RST reset  20:15  "1'b0" -> "'1"
+    CORRECT-SMALL; check.py: unproved; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m026 RST reset  20:15  "1'b0" -> "1'b1"
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m027 RST reset  20:15  "1'b0" -> "~('1 >> 1)"
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m028 CRP expr   20:15  "1'b0" -> "1'b1"  DROPPED: duplicate of m026
+m029 DEL stmt   21:7   "done <= 1'b0;" -> ';'
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m030 RST reset  21:15  "1'b0" -> "'0"
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m031 RST reset  21:15  "1'b0" -> "'1"
+    CORRECT-SMALL; check.py: unproved; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m032 RST reset  21:15  "1'b0" -> "1'b1"
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m033 RST reset  21:15  "1'b0" -> "~('1 >> 1)"
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: unproved
+m034 CRP expr   21:15  "1'b0" -> "1'b1"  DROPPED: duplicate of m032
+m035 DEL stmt   22:7   "k    <= 32'd0;" -> ';'
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m036 RST reset  22:15  "32'd0" -> "'0"
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m037 RST reset  22:15  "32'd0" -> "'1"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m038 RST reset  22:15  "32'd0" -> "1'b1"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m039 RST reset  22:15  "32'd0" -> "~('1 >> 1)"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m040 CRP expr   22:15  "32'd0" -> "32'd1"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m041 CRP expr   22:15  "32'd0" -> "32'd4294967295"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m042 CRP expr   22:15  "32'd0" -> "32'd2147483648"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m043 NEG if     23:18  'start' -> '!(start)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m044 SWP if     23:25  "if (start) begin\n      busy <= 1'b1;\n      done <= 1'b0;\n      k    <= 32'd0;\n      a_sh <= A;\n      b_sh <= B;\n    end else if (busy) begin\n      k    <= k + 32'd1;\n      a_sh <= a_sh >> W;\n      b_sh <= b_sh >> (N*W);\n      if (k == N - 1) begin\n        busy <= 1'b0;\n        done <= 1'b1;\n      end\n    end" -> '(swap)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m045 SA0 read   23:18  'start' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m046 SA1 read   23:18  'start' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m047 DEL stmt   24:7   "busy <= 1'b1;" -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8; kernel: m047_refuted
+m048 CRP expr   24:15  "1'b1" -> "1'b0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m049 DEL stmt   25:7   "done <= 1'b0;" -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m050 CRP expr   25:15  "1'b0" -> "1'b1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m051 DEL stmt   26:7   "k    <= 32'd0;" -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m052 CRP expr   26:15  "32'd0" -> "32'd1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m053 CRP expr   26:15  "32'd0" -> "32'd4294967295"
+    CORRECT-SMALL; check.py: postsynth; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: postsynth
+m054 CRP expr   26:15  "32'd0" -> "32'd2147483648"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m055 DEL stmt   27:7   'a_sh <= A;' -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8 check.py:postsynth; kernel: m055_refuted
+m056 SA0 read   27:15  'A' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m057 SA1 read   27:15  'A' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m058 DEL stmt   28:7   'b_sh <= B;' -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m059 SA0 read   28:15  'B' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m060 SA1 read   28:15  'B' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m061 NEG if     29:18  'busy' -> '!(busy)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m062 SWP if     29:24  "if (busy) begin\n      k    <= k + 32'd1;\n      a_sh <= a_sh >> W;\n      b_sh <= b_sh >> (N*W);\n      if (k == N - 1) begin\n        busy <= 1'b0;\n        done <= 1'b1;\n      end\n    end" -> "begin end else begin\n      k    <= k + 32'd1;\n      a_sh <= a_sh >> W;\n      b_sh <= b_sh >> (N*W);\n      if (k == N - 1) begin\n        busy <= 1'b0;\n        done <= 1'b1;\n      end\n    end"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m063 SA0 read   29:18  'busy' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m064 SA1 read   29:18  'busy' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m065 DEL stmt   30:7   "k    <= k + 32'd1;" -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m066 AOR expr   30:17  '+' -> '-'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m067 AOR expr   30:17  '+' -> '*'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m068 SA0 read   30:15  'k' -> "'0"
+    KILLED check:postsynth@N=4,W=8,AccW=32
+m069 SA1 read   30:15  'k' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m070 CRP expr   30:19  "32'd1" -> "32'd2"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m071 CRP expr   30:19  "32'd1" -> "32'd0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m072 CRP expr   30:19  "32'd1" -> "32'd2147483649"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m073 DEL stmt   31:7   'a_sh <= a_sh >> W;' -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m074 SOR expr   31:20  '>>' -> '<<'
+    KILLED check:postsynth@N=2,W=4,AccW=8; kernel: m074_refuted
+m075 SOR expr   31:20  '>>' -> '<<<'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m076 SOR expr   31:20  '>>' -> '>>>'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m077 OSW expr   31:15  'a_sh >> W' -> '(swap)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m078 SA0 read   31:15  'a_sh' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m079 SA1 read   31:15  'a_sh' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m080 DEL stmt   32:7   'b_sh <= b_sh >> (N*W);' -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m081 SOR expr   32:20  '>>' -> '<<'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m082 SOR expr   32:20  '>>' -> '<<<'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m083 SOR expr   32:20  '>>' -> '>>>'
+    EQUIVALENT; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m084 OSW expr   32:15  'b_sh >> (N*W)' -> '(swap)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m085 SA0 read   32:15  'b_sh' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m086 SA1 read   32:15  'b_sh' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m087 AOR expr   32:25  '*' -> '+'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m088 AOR expr   32:25  '*' -> '-'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m089 NEG if     33:11  'k == N - 1' -> '!(k == N - 1)'
+    KILLED check:postsynth@N=2,W=4,AccW=8 check.py:postsynth; kernel: m089_refuted
+m090 SWP if     33:23  "if (k == N - 1) begin\n        busy <= 1'b0;\n        done <= 1'b1;\n      end" -> "begin end else begin\n        busy <= 1'b0;\n        done <= 1'b1;\n      end"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m091 ROR expr   33:13  '==' -> '!='
+    KILLED check:postsynth@N=2,W=4,AccW=8; kernel: m091_refuted
+m092 ROR expr   33:13  '==' -> '<'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m093 ROR expr   33:13  '==' -> '<='
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m094 ROR expr   33:13  '==' -> '>'
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: postsynth
+m095 ROR expr   33:13  '==' -> '>='
+    EQUIVALENT; check.py: unproved; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:proved; at the reference's latency: unproved
+m096 SA0 read   33:11  'k' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m097 SA1 read   33:11  'k' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m098 AOR expr   33:18  '-' -> '+'
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: postsynth
+m099 AOR expr   33:18  '-' -> '*'
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: postsynth
+m100 OSW expr   33:16  'N - 1' -> '(swap)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m101 CRP expr   33:20  '1' -> '2'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m102 CRP expr   33:20  '1' -> '0'
+    CORRECT-SMALL; formal: N=1,W=2,AccW=3:falsified (correct: proved) N=2,W=4,AccW=8:falsified (correct: proved) N=4,W=8,AccW=32:falsified (correct: undecided); at the reference's latency: postsynth
+m103 DEL stmt   34:9   "busy <= 1'b0;" -> ';'
+    EQUIVALENT-SMALL; check.py: unproved; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m104 CRP expr   34:17  "1'b0" -> "1'b1"
+    EQUIVALENT-SMALL; formal: N=1,W=2,AccW=3:proved N=2,W=4,AccW=8:proved N=4,W=8,AccW=32:undecided (correct: undecided); at the reference's latency: unproved
+m105 DEL stmt   35:9   "done <= 1'b1;" -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8 check.py:postsynth; kernel: m105_refuted
+m106 CRP expr   35:17  "1'b1" -> "1'b0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m107 CRP expr   39:19  '0' -> '1'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m108 CRP expr   40:21  '0' -> '1'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m109 NEG if     42:13  'start' -> '!(start)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m110 SWP if     43:11  "if (start)\n          C[(i*N+j)*AccW +: AccW] <= '0;\n        else if (busy)\n          // Each operand sign-extended by AccW copies of its sign bit; the sum is reduced mod 2^AccW\n          // by the assignment (the operands' extra high bits never reach C).\n          C[(i*N+j)*AccW +: AccW] <= C[(i*N+j)*AccW +: AccW]\n              + {{AccW{a_sh[i*N*W + W - 1]}}, a_sh[i*N*W +: W]}\n              * {{AccW{b_sh[j*W + W - 1]}}, b_sh[j*W +: W]};" -> '(swap)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m111 SA0 read   42:13  'start' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m112 SA1 read   42:13  'start' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m113 DEL stmt   43:11  "C[(i*N+j)*AccW +: AccW] <= '0;" -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8; kernel: m113_refuted
+m114 AOR expr   43:20  '*' -> '+'
+    KILLED check:banlist
+m115 AOR expr   43:20  '*' -> '-'
+    KILLED check:banlist
+m116 AOR expr   43:17  '+' -> '-'
+    KILLED check:banlist
+m117 AOR expr   43:17  '+' -> '*'
+    KILLED check:banlist
+m118 AOR expr   43:15  '*' -> '+'
+    KILLED check:banlist
+m119 AOR expr   43:15  '*' -> '-'
+    KILLED check:banlist
+m120 CRP expr   43:38  "'0" -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8 check.py:postsynth; kernel: m120_refuted
+m121 CRP expr   43:38  "'0" -> "1'b1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m122 CRP expr   43:38  "'0" -> "~('1 >> 1)"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m123 NEG if     44:18  'busy' -> '!(busy)'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m124 SWP if     47:11  "if (busy)\n          // Each operand sign-extended by AccW copies of its sign bit; the sum is reduced mod 2^AccW\n          // by the assignment (the operands' extra high bits never reach C).\n          C[(i*N+j)*AccW +: AccW] <= C[(i*N+j)*AccW +: AccW]\n              + {{AccW{a_sh[i*N*W + W - 1]}}, a_sh[i*N*W +: W]}\n              * {{AccW{b_sh[j*W + W - 1]}}, b_sh[j*W +: W]};" -> 'begin end else C[(i*N+j)*AccW +: AccW] <= C[(i*N+j)*AccW +: AccW]\n              + {{AccW{a_sh[i*N*W + W - 1]}}, a_sh[i*N*W +: W]}\n              * {{AccW{b_sh[j*W + W - 1]}}, b_sh[j*W +: W]};'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m125 SA0 read   44:18  'busy' -> "'0"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m126 SA1 read   44:18  'busy' -> "'1"
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m127 DEL stmt   47:11  'C[(i*N+j)*AccW +: AccW] <= C[(i*N+j)*AccW +: AccW]\n              + {{AccW{a_sh[i*N*W + W - 1]}}, a_sh[i*N*W +: W]}\n              * {{AccW{b_sh[j*W + W - 1]}}, b_sh[j*W +: W]};' -> ';'
+    KILLED check:postsynth@N=2,W=4,AccW=8; kernel: m127_refuted
+m128 AOR expr   47:20  '*' -> '+'
+    KILLED check:banlist
+m129 AOR expr   47:20  '*' -> '-'
+    KILLED check:banlist
+m130 AOR expr   47:17  '+' -> '-'
+    KILLED check:banlist
+m131 AOR expr   47:17  '+' -> '*'
+    KILLED check:banlist
+m132 AOR expr   47:15  '*' -> '+'
+    KILLED check:banlist
+m133 AOR expr   47:15  '*' -> '-'
+    KILLED check:banlist
+m134 AOR expr   48:15  '+' -> '-'
+    KILLED check:postsynth@N=2,W=4,AccW=8; kernel: m134_refuted
+m135 AOR expr   48:15  '+' -> '*'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m136 AOR expr   47:47  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m137 AOR expr   47:47  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m138 AOR expr   47:44  '+' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m139 AOR expr   47:44  '+' -> '*'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m140 AOR expr   47:42  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m141 AOR expr   47:42  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m142 AOR expr   49:15  '*' -> '+'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m143 AOR expr   49:15  '*' -> '-'
+    KILLED check:postsynth@N=2,W=4,AccW=8
+m144 AOR expr   48:39  '-' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m145 AOR expr   48:39  '-' -> '*'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m146 OSW expr   48:29  'i*N*W + W - 1' -> '(swap)'
+    KILLED check:fourstate@N=4,W=8,AccW=32 check.py:fourstate
+m147 AOR expr   48:35  '+' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m148 AOR expr   48:35  '+' -> '*'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m149 AOR expr   48:32  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m150 AOR expr   48:32  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m151 AOR expr   48:30  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m152 AOR expr   48:30  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m153 CRP index  48:41  '1' -> '2'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m154 CRP index  48:41  '1' -> '0'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m155 AOR expr   48:55  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m156 AOR expr   48:55  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m157 AOR expr   48:53  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m158 AOR expr   48:53  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m159 AOR expr   49:37  '-' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m160 AOR expr   49:37  '-' -> '*'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m161 OSW expr   49:29  'j*W + W - 1' -> '(swap)'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m162 AOR expr   49:33  '+' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m163 AOR expr   49:33  '+' -> '*'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m164 AOR expr   49:30  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m165 AOR expr   49:30  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32
+m166 CRP index  49:39  '1' -> '2'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m167 CRP index  49:39  '1' -> '0'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m168 AOR expr   49:51  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1,AccW=1
+m169 AOR expr   49:51  '*' -> '-'
+    KILLED check:fourstate@N=4,W=8,AccW=32

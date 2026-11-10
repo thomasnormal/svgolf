@@ -3,10 +3,9 @@
   "title": "Streaming sorter, clocked: N unsigned W-bit values in on consecutive in_valid cycles, the same values out ascending (duplicates kept) on N out_valid cycles, within a declared latency",
   "status": "ready",
   "_status": [
-    "The status block of PLAN4.md section 1, as of 11/04 (Gate 5, the sorter line):",
-    "trusted statement: complete    run2 proof: complete    checker: complete",
-    "post-synthesis: complete       E transport: pending (Gate 4)",
-    "Statement txtask-v1 (StreamTask, C8); proof reference/sorter_ins.lean (lat = 2N, every N, W >= 1, through SvGolf.StreamTask.satisfiedAt_of_phases); check.py accepts it (stream-family, the clocked score and post-synthesis at (3,4) and (8,8)); the seven attacks of tests/sorter/attacks/ fail at solution and are each wrong at post-synthesis (tests/expected.json)."
+    "Status, 2026-11-08: the statement is txtask-v2 (StreamTask.StatementV2 in Spec.lean: every power-up, Moore outputs, no x-creating construct).",
+    "The proof reference/sorter_ins.lean (lat = 2N, every N, W >= 1) ends in SvGolf.StreamTask.satisfiedAtV2_of_phases (SvGolf/SeqV2.lean); check.py accepts it (stream-family: the clocked score at (8,8), the clocked post-synthesis check at (3,4) and (8,8), 8 seeds each, each point at its own latency lat p, 6 and 16).",
+    "The seven attacks of tests/sorter/attacks/ fail at solution with the reference proof (tests/expected.json)."
   ],
   "kind": "stream-family",
   "_kind_comment": "check.py's kind for a StreamTask statement (C8). Like tx-family it names a clock and a latency function: the goal is Statement design.sem lat ∧ lat 8 8 = n, n from the proof file's `-- svgolf-latency: n` line. `protocol` names the stream ports and `count`, the parameter that is the number of values per transaction (Spec.lean's `count p := p.1`).",
@@ -125,14 +124,14 @@
     "reset_cycles": 1,
     "txns": 24,
     "time_limit_s": 900,
-    "_comment": "As matmul's proposal for the clocked post-synthesis check, with oracle.py's stream transactions: per seed a randomized start state, reset for 1 cycle, then txns(params, seed, rng) with Idle observed (the gap counts from the entry after the snapshot showing the previous transaction's N-th output), and the free values on in_data whenever in_valid = 0. Binding: (i) the netlist against ls-sv, out_valid every cycle and out_data where out_valid = 1; (ii) the emitted values of each transaction against oracle.py's good. Field names follow matmul's package; the checker defines the final ones. F5 (decided 2026-11-07): 8 seeds per point; everything random in a seed's run (the stimulus source, Verilator's randSeed, ls-sv's power-up seed:k) is derived from sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed) and recorded in the seed's record (check/postsynth.py `seed_draw`)."
+    "_comment": "As matmul's proposal for the clocked post-synthesis check, with oracle.py's stream transactions: per seed a randomized start state, reset for 1 cycle, then txns(params, seed, rng) with Idle observed (the gap counts from the entry after the snapshot showing the previous transaction's N-th output), and the free values on in_data whenever in_valid = 0. Binding: (i) the netlist against ls-sv, out_valid every cycle and out_data where out_valid = 1, where the two start from the same state (seed 0); from different power-ups, ls-sv's own run against the statement's guarantee up to the entry where the stimulus stops honouring its rely (L5, fixed 2026-11-08); (ii) the emitted values of each transaction against oracle.py's good. Each point runs at its own latency, the proof's lat p (F8, decided 2026-11-08). Field names follow matmul's package; the checker defines the final ones. F5 (decided 2026-11-07): 8 seeds per point; everything random in a seed's run (the stimulus source, Verilator's randSeed, ls-sv's power-up seed:k) is derived from sha256($SVGOLF_POSTSYNTH_SALT, task, point, seed) and recorded in the seed's record (check/postsynth.py `seed_draw`)."
   },
   "oracle": "oracle.py",
   "references": [
     {
       "sv": "reference/sorter_ins.sv",
       "lean": "reference/sorter_ins.lean",
-      "note": "The insertion-cell array (cell sort) adapted from andrewpeck/cell-sort (MIT; provenance and every change in the file header): N cells, each comparing the broadcast input with its own value and its upper neighbour's, shifting out through cell 0 when in_valid = 0; a valid token per cell; latency 2N (out_valid = 1 exactly at the snapshots s+N+1 .. s+2N; PLAN4.md Gate 5)."
+      "note": "The insertion-cell array (cell sort) adapted from andrewpeck/cell-sort (MIT; provenance and every change in the file header): N cells, each comparing the broadcast input with its own value and its upper neighbour's, shifting out through cell 0 when in_valid = 0; a valid token per cell; latency 2N (out_valid = 1 exactly at the snapshots s+N+1 .. s+2N)."
     }
   ]
 }

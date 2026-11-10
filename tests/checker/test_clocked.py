@@ -131,6 +131,48 @@ class Header(unittest.TestCase):
             self.assertEqual(checkpy.goal_text(json.load(fh)),
                              "abbrev Goal : Prop := SvGolf.Tasks.Arbiter.Statement design.sem")
 
+    def test_the_latency_at_every_point(self):
+        """F8 (decided 2026-11-08): the clocked points (the task's `postsynth.points`, the scoring point first when they
+        do not list it), `--latency-at POINT:n`, an `--unproved` run's latency per point (the scoring point's n where
+        none is given), and a proved run's from the comparator's `goal_arg_at` (Comparator point 8)."""
+        with open(os.path.join(SORTER, "task.json")) as fh:
+            sorter = json.load(fh)
+        self.assertEqual(checkpy.clocked_points(sorter), [{"N": 3, "W": 4}, {"N": 8, "W": 8}])
+        other = dict(sorter, scoring={"params": {"N": 4, "W": 8}})
+        self.assertEqual(checkpy.clocked_points(other), [{"N": 4, "W": 8}, {"N": 3, "W": 4}, {"N": 8, "W": 8}])
+        self.assertEqual(checkpy.parse_latency_at(["N=3,W=4:6", " N=8, W=8 : 16", "N=3,W=4:6"]),
+                         {"N=3,W=4": 6, "N=8,W=8": 16})
+        self.assertEqual(checkpy.parse_latency_at(None), {})
+        for bad in (["N=3,W=4"], ["N=3,W=4:0"], ["N=3,W=4:x"], ["N=3,W=4:06"], ["N=3,W=4:6", "N=3,W=4:7"]):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                checkpy.parse_latency_at(bad)
+        self.assertEqual(checkpy.unproved_latency_at(sorter, 16, {}), {"N=3,W=4": 16, "N=8,W=8": 16})
+        self.assertEqual(checkpy.unproved_latency_at(sorter, 16, {"N=3,W=4": 6, "N=8,W=8": 16}),
+                         {"N=3,W=4": 6, "N=8,W=8": 16})
+        for given in ({"N=4,W=8": 8}, {"N=8,W=8": 15}):
+            with self.subTest(given=given), self.assertRaises(RuntimeError):
+                checkpy.unproved_latency_at(sorter, 16, given)
+
+        def comp(*entries):
+            return {"goal_arg_at": [dict(args=a, **e) for a, e in entries]}
+        ok = comp(([3, 4], {"value": 6}), ([8, 8], {"value": 16}))
+        self.assertEqual(checkpy.latency_at_from_comparator(sorter, ok, 16), {"N=3,W=4": 6, "N=8,W=8": 16})
+        for c, stage in ((comp(([3, 4], {"error": "not a number"}), ([8, 8], {"value": 16})), "latency"),
+                         (comp(([3, 4], {"value": 0}), ([8, 8], {"value": 16})), "latency"),
+                         (comp(([3, 4], {"value": True}), ([8, 8], {"value": 16})), "latency"),
+                         (comp(([3, 4], {"value": checkpy.LATENCY_MAX + 1}), ([8, 8], {"value": 16})), "latency"),
+                         (comp(([3, 4], {"value": 6}), ([8, 8], {"value": 15})), None),     # the scoring point is n
+                         (comp(([3, 4], {"value": 6})), None),                               # a point unanswered
+                         (comp(([4, 3], {"value": 6}), ([8, 8], {"value": 16})), None),     # another point
+                         ({}, None)):
+            with self.subTest(comp=c):
+                if stage is None:
+                    self.assertRaises(RuntimeError, checkpy.latency_at_from_comparator, sorter, c, 16)
+                else:
+                    with self.assertRaises(checkpy.Reject) as cm:
+                        checkpy.latency_at_from_comparator(sorter, c, 16)
+                    self.assertEqual(cm.exception.stage, stage)
+
     def test_the_comparator_report_keeps_goal_arg_for_tx_only(self):
         def out(goal_arg):
             rep = {"accepted": True, "goal": "Submission.Goal", "goal_arg": goal_arg, "errors": []}

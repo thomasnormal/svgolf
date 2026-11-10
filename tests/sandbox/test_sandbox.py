@@ -522,6 +522,39 @@ class RealSandbox(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(other, "w.txt")))
             self.assertTrue(os.path.exists(os.path.join(d, "w.txt")))
 
+    def test_a_python_venv_outside_the_system_trees_starts(self):
+        """The extractor's interpreter may be a venv anywhere (`SVGOLF_PYTHON`; 2026-11-08, `check.py --sandbox require`
+        with a venv under a temporary directory died at `extract` with "init_import_site": the interpreter could not
+        read its own prefix, where `pyvenv.cfg` lives). `python_spec` gives the interpreter read access to its
+        `sys.prefix`, `sys.base_prefix` and `sys.exec_prefix`, and nothing beside them: a file next to the venv
+        stays unreadable."""
+        with tempfile.TemporaryDirectory(prefix="sbvenv-") as d:
+            d = os.path.realpath(d)
+            venv = os.path.join(d, "venv")
+            subprocess.run([sys.executable, "-m", "venv", "--without-pip", venv], check=True, capture_output=True,
+                           timeout=300)
+            py = os.path.join(venv, "bin", "python3")
+            secret = os.path.join(d, "secret.txt")
+            with open(secret, "w") as fh:
+                fh.write("s3cret\n")
+            out = os.path.join(d, "out")
+            os.makedirs(out)
+            spec, pyenv = sandbox.python_spec(py, out, write=[out], label="venv")
+            self.assertIn(venv, spec.read)
+            self.assertNotIn(d, spec.read)
+            self.assertNotIn(venv, spec.write + spec.exec_subpaths)
+            ok = sandbox.run([py, "-s", "-B", "-c", "import sys; print(sys.prefix)"], spec,
+                             env=sandbox.tool_env(out, pyenv), cwd=out, timeout=60)
+            self.assertEqual((ok.returncode, ok.stdout.strip()), (0, venv), ok.stderr)
+            no = sandbox.run([py, "-s", "-B", "-c", f"print(open({secret!r}).read())"], spec,
+                             env=sandbox.tool_env(out, pyenv), cwd=out, timeout=60)
+            self.assertNotEqual(no.returncode, 0)
+            self.assertNotIn("s3cret", no.stdout + no.stderr)
+            w = sandbox.run([py, "-s", "-B", "-c", f"open({os.path.join(venv, 'w.txt')!r}, 'w')"], spec,
+                            env=sandbox.tool_env(out, pyenv), cwd=out, timeout=60)
+            self.assertNotEqual(w.returncode, 0)                  # read-only: it may not write into the venv
+            self.assertFalse(os.path.exists(os.path.join(venv, "w.txt")))
+
     def test_exec_spec_runs_only_itself(self):
         with tempfile.TemporaryDirectory() as d:
             spec = sandbox.exec_spec("/usr/bin/env", read=[d], label="model")

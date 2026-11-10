@@ -27,7 +27,7 @@
       "decl": "SvGolf.Tasks.Sorter.Properties.ClockDiscipline",
       "file": "svgolf/tasks/sorter/Properties.lean",
       "kind": "property",
-      "text": "The clock is the input clk: every register is clocked by it, an asynchronous reset (if the design has one) can only be rst, and no logic reads clk as a data signal. Together these make one cycle of Lean's model exactly one rising edge of clk in the real circuit: a clock that is gated, derived from logic, tied off or never driven is ruled out. One consequence to know: the registers have to sit in the top module, because connecting clk to a child instance copies it as data."
+      "text": "The clock is the input clk: every register is clocked by it, no register has an asynchronous reset (rst is synchronous, read inside the clocked processes), and no logic reads clk as a data signal. Together these make one cycle of Lean's model exactly one rising edge of clk in the real circuit: a clock that is gated, derived from logic, tied off or never driven is ruled out. One consequence to know: the registers have to sit in the top module, because connecting clk to a child instance copies it as data."
     },
     {
       "name": "TERMINATES",
@@ -48,14 +48,14 @@
       "decl": "SvGolf.Tasks.Sorter.Properties.MooreOutputs",
       "file": "svgolf/tasks/sorter/Properties.lean",
       "kind": "property",
-      "text": "No combinational path leads from start, in_valid and in_data to out_valid and out_data: the outputs are functions of the registers only (rst may gate them). The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another (txtask-v2 rule 1, DRAFT for review)."
+      "text": "No combinational path leads from any input, rst included, to out_valid and out_data: the outputs are functions of the registers only. The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another; an output gated by rst could hide a transaction's last value from a consumer when a reset follows (txtask-v2 rule 1)."
     },
     {
       "name": "NO_X_CREATING",
       "decl": "SvGolf.Tasks.Sorter.Properties.NoXCreating",
       "file": "svgolf/tasks/sorter/Properties.lean",
       "kind": "property",
-      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (txtask-v2 rule 3, DRAFT for review)."
+      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (txtask-v2 rule 3)."
     },
     {
       "name": "OUT_VALID_KNOWN",
@@ -229,7 +229,7 @@
       "name": "MooreOutDep",
       "decl": "SvGolf.MooreOutDep",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "The trusted rule 1 of txtask-v2 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list, is closed along every combinational dependency and holds no output port."
+      "text": "The trusted rule 1 of txtask-v2 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list (here the list is empty: every input port, rst included), is closed along every combinational dependency and holds no output port."
     },
     {
       "name": "combDeps",

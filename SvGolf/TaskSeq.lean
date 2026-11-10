@@ -1,9 +1,9 @@
 import SvGolf.Task
 
 /-!
-# svGolf sequential task statements (TRUSTED text: the shared primitives final, the rest a DRAFT)
+# svGolf sequential task statements (TRUSTED text: final, but for `SeqTask` and the superseded v1 statements)
 
-**Status: two parts.**
+**Status: three parts.**
 
 * **Final (decided 2026-11-07): the primitives the reactive kind shares.** These are the
   declarations of this file that `SvGolf/TaskReact.lean` (the kind `ReactTask`) and
@@ -21,11 +21,29 @@ import SvGolf.Task
     `sigSigned`, `unsignedIdx`, `scmpOp`;
 
   with the `Decidable` instances of `PowerUp`, `KnownEntry`, `KnownStim` and `XSafe`.
-* **DRAFT of trusted text: everything else.** That is the sequential kinds and the tx/stream half
-  of txtask-v2: `SeqTask`, `TxTask` and `StreamTask` with their v1 statements and their v2
-  statements (`FollowsPU`, `SatisfiedAtV2`, `StatementV2`), rule 1 (`MooreOutDep`, `combDeps` and
-  their helpers), `TraceBit` and `run2_eq_run2At`. They state the matmul and sorter tasks and the
-  counter fixture, none of which is ranked yet.
+* **Final (decided 2026-11-08; amended 2026-11-09, before any record of these tasks was
+  published): the tx/stream half of txtask-v2.** The amendments: `TxTask.Guar` asks `done` = 0
+  from the release up to the first start; rule 1 exempts nothing in `TxTask.SatisfiedAtV2` and
+  `StreamTask.SatisfiedAtV2`, the reset included; `TxTask.Disciplined` and
+  `StreamTask.Disciplined` refuse an asynchronous reset. These are the declarations
+  that `tasks/matmul/Spec.lean` (`TxTask.StatementV2`) and `tasks/sorter/Spec.lean`
+  (`StreamTask.StatementV2`) reach beyond the list above, and they are part of the trusted base
+  of those two tasks:
+  * the handshake: `TraceBit`;
+  * `TxTask` (the structure) with `Ops`, `Interface`, `Disciplined`, `OpsAt`, `Idle`, `Rely`,
+    `Guar`, and its v2 statement `FollowsPU`, `SatisfiedAtV2`, `StatementV2`;
+  * `StreamTask` (the structure) with `Interface`, `Disciplined`, `DataIs`, `Obs`, `Shows`,
+    `emitted`, `Idle`, `Rely`, `Guar`, and its v2 statement `FollowsPU`, `SatisfiedAtV2`,
+    `StatementV2`;
+  * txtask-v2's rule 1: `MooreOutDep`, `combDeps`, `processDeps`, `stmtDeps`, `stmtOptDeps`,
+    `stmtListDeps`, `itemDeps`, `itemListDeps`, `underCtx`, `DepEdge`, `itemListPatNames`;
+
+  and the theorem `run2_eq_run2At` (`rfl`), which no statement reaches.
+* **Not part of any ranked statement: everything else.** `SeqTask` with its v1 and v2 statements
+  is a DRAFT of trusted text; it states only the counter fixture (`tests/seq_counter`). The v1
+  statements of `TxTask` and `StreamTask` (`Follows`, `SatisfiedAt`, `Statement`) are superseded
+  by their v2 statements, and no task states them; they stay in the file as the v1 text (each
+  `FollowsPU` restates its kind's `Follows` claim word for word).
 
 The file is a module of its own so that it does not change `SvGolf/Task.lean`, which every task's
 statement, every record's trusted-file hashes and the whole `tasks` library depend on. Only the
@@ -41,8 +59,8 @@ Contents:
   `design/sequential/CONTRACT.md`): reset release, `Idle`, start, latency, knownness;
 * `TxTask` (held operands, a result at `done`: `matmul`) and `StreamTask` (a stream in, a stream
   out: `sorter`), each a bounded-latency rely/guarantee with a declared latency.
-* **txtask-v2** (2026-11-05, the last section; its shared primitives final, the rest a DRAFT, as
-  listed under Status): the versioned statements
+* **txtask-v2** (2026-11-05, the last section; final but for `SeqTask`'s statement, as listed
+  under Status): the versioned statements
   `SeqTask.StatementV2`, `TxTask.StatementV2`, `StreamTask.StatementV2`: v1's claims of every
   run from every power-up state (`ModelsPU`, rule 2), Moore outputs (`MooreOutDep`, rule 1) and
   no x-creating construct (`XSafe`, rule 3). Everything before that section is txtask-v1,
@@ -56,7 +74,7 @@ namespace SvGolf
 
 open LeanModels.Sv
 
-/-! ## Sequential tasks: `SeqTask` (the cycle-exact Moore form)
+/-! ## Sequential tasks: `SeqTask` (the cycle-exact Moore form; DRAFT of trusted text)
 
 The shape approved on 10/30 (`design/sequential/README.md`, section 2):
 a state machine in Lean, Moore outputs read after the clock edge, a claim from
@@ -360,12 +378,13 @@ end SeqTask
 
 
 /-! ## The handshake common to `TxTask` and `StreamTask` (contract decisions C1 to C5, C8;
-`design/sequential/CONTRACT.md`; `BitIs`, `StimBit` and `Released` final, `TraceBit` a DRAFT)
+`design/sequential/CONTRACT.md`; final)
 
 Both statements are bounded-latency rely/guarantee contracts (the D11 shape of
 `LeanModels/Sv/Contract.lean`) over the same handshake:
 
-* **Reset (C1).** A synchronous, active-high input `rst`. A claim begins at a
+* **Reset (C1).** A synchronous, active-high input `rst`; no process has an
+  asynchronous reset (`Disciplined`, decided 2026-11-09). A claim begins at a
   release cycle `c1`: the stimulus entry before it asserts `rst` (so `rst` was
   held at least one cycle) and every entry from `c1` on deasserts it. Nothing
   is claimed while `rst` is 1 or before the first reset.
@@ -380,8 +399,9 @@ Both statements are bounded-latency rely/guarantee contracts (the D11 shape of
   the start entry is cycle 0, and the design must finish at a cycle `≤ lat`.
   Finishing earlier is legal, and so is a data-dependent latency within `lat`.
 * **Knownness (C4, C5).** The output flag (`done`, `out_valid`) is KNOWN in
-  every cycle from the release on; the payload (`C`, `out_data`) only where
-  the flag is 1.
+  every cycle from the release on, and 0 from the release up to the first
+  start (there is nothing to show yet); the payload (`C`, `out_data`) only
+  where the flag is 1 after a start.
 
 The rely depends on what the design shows (`Idle` reads `done`), so it is
 stated up to a HORIZON `h`: if the environment followed the protocol at every
@@ -407,7 +427,7 @@ deasserts it. -/
 def Released (rst : String) (stim : List SvState) (c1 h : Nat) : Prop :=
   0 < c1 ∧ StimBit stim (c1 - 1) rst true ∧ ∀ c, c1 ≤ c → c < h → StimBit stim c rst false
 
-/-! ## `TxTask`: held operands, a result at `done` (matmul; DRAFT of trusted text) -/
+/-! ## `TxTask`: held operands, a result at `done` (matmul; final, but for the superseded v1 statement) -/
 
 /-- **A held-operand transaction task** over parameters `P`. The ports are `clk`,
 `rst`, `start`, the operands (inputs) and `done`, the payload (outputs). When
@@ -446,10 +466,13 @@ def Interface (p : P) (d : Design2) : Prop :=
   inputPorts d = (t.clk, 1) :: (t.rst, 1) :: (t.start, 1) :: t.operands p ∧
     outputPorts d = (t.done, 1) :: t.payload p ∧ (d.decls.toList.map Decl.name).Nodup
 
-/-- Conjunct 2a: the clock discipline, with `rst` the only possible
-asynchronous reset. -/
+/-- Conjunct 2a: the clock discipline, with NO asynchronous reset (`ClockedBy t.clk none`, as
+`ReactTask.Disciplined`; decided 2026-11-09). `rst` is synchronous (C1). An asynchronous reset, in
+either polarity, makes ls-sv run the process at a reset event the protocol does not describe: with
+the wrong polarity on the active-high `rst`, at the release entry, a claimed snapshot; and rule 1
+does not see a path through a reset event. (The superseded v1 statements read this conjunct too.) -/
 def Disciplined (d : Design2) : Prop :=
-  ClockedBy t.clk (some t.rst) d
+  ClockedBy t.clk none d
 
 /-- The stimulus entry `c` exists and drives the operands with the values `x`. -/
 def OpsAt (p : P) (stim : List SvState) (c : Nat) (x : t.Ops p) : Prop :=
@@ -473,38 +496,43 @@ def Rely (p : P) (stim tr : List SvState) (c1 h : Nat) : Prop :=
       (∀ c', s ≤ c' → c' < c → ¬ TraceBit tr c' t.done true) → t.OpsAt p stim c x
 
 /-- **The guarantee, up to the horizon `h`** (C3, C4, C5): `done` is known at
-every cycle from the release (so before it first rises after a start it is
-0); and for every start `s` with operands `x`: `done` rises at a cycle
-`≤ s + lat` (when that cycle is before `h`), and from the first cycle it is 1
-until the next start it stays 1 with the payload equal to `result x`. -/
+every cycle from the release. `done` = 1 claims a result; before the first start
+there is none, so `done` is 0 at every cycle from the release up to the first
+start (as `out_valid` in `StreamTask.Guar`; decided 2026-11-09). For every start
+`s` with operands `x`: `done` rises at a cycle `≤ s + lat` (when that cycle is
+before `h`), and from the first cycle it is 1 until the next start it stays 1
+with the payload equal to `result x`. -/
 def Guar (p : P) (lat : Nat) (stim tr : List SvState) (c1 h : Nat) : Prop :=
   (∀ c, c1 ≤ c → c < h → ∃ b, TraceBit tr c t.done b) ∧
+  (∀ c, c1 ≤ c → c < h → (∀ s, c1 ≤ s → s ≤ c → ¬ StimBit stim s t.start true) →
+    TraceBit tr c t.done false) ∧
   ∀ s x, c1 ≤ s → s < h → StimBit stim s t.start true → t.OpsAt p stim s x →
     (s + lat < h → ∃ c, s ≤ c ∧ c ≤ s + lat ∧ TraceBit tr c t.done true) ∧
     ∀ c, s ≤ c → c < h → (∃ c', s ≤ c' ∧ c' ≤ c ∧ TraceBit tr c' t.done true) →
       (∀ s', s < s' → s' ≤ c → ¬ StimBit stim s' t.start true) →
       ∃ st, tr[c]? = some st ∧ BitIs st t.done true ∧ HoldAll st (t.payload p) (t.result p x)
 
-/-- Conjunct 3: in every completed run, from every reset release, at every
+/-- Conjunct 3 of v1 (superseded: v2's `FollowsPU` claims it, word for word, of
+every power-up): in every completed run, from every reset release, at every
 horizon, the rely gives the guarantee. -/
 def Follows (p : P) (lat : Nat) (d : Design2) : Prop :=
   d ⊨₂ spec2 fun stim tr =>
     ∀ c1 h, Released t.rst stim c1 h → t.Rely p stim tr c1 h → t.Guar p lat stim tr c1 h
 
-/-- The statement at one parameter value and latency (C3: `lat ≥ 1`). -/
+/-- The v1 statement at one parameter value and latency (C3: `lat ≥ 1`;
+superseded by `SatisfiedAtV2`). -/
 def SatisfiedAt (p : P) (lat : Nat) (d : Design2) : Prop :=
   t.Interface p d ∧ (t.Disciplined d ∧ Terminates2 d) ∧ 1 ≤ lat ∧ t.Follows p lat d
 
-/-- **The challenge statement** for a design family `sem` with the latency
-function `lat`. The checker's goal is `t.Statement design.sem lat ∧ lat p₀ = n`
-for the latency `lat` the proof file defines, the scoring point `p₀` and the
-declared number `n` (C3). -/
+/-- **The v1 challenge statement** for a design family `sem` with the latency
+function `lat`: superseded by `StatementV2`, which the matmul task states; no
+task states this one. -/
 def Statement (sem : P → Design2) (lat : P → Nat) : Prop :=
   ∀ p, t.inRange p → t.SatisfiedAt p (lat p) (sem p)
 
 end TxTask
 
-/-! ## `StreamTask`: a stream in, a stream out (sorter; C8; DRAFT of trusted text) -/
+/-! ## `StreamTask`: a stream in, a stream out (sorter; C8; final, but for the superseded v1 statement) -/
 
 /-- **A stream transaction task** over parameters `P`. The ports are `clk`,
 `rst`, `start`, `in_valid`, `in_data` (inputs) and `out_valid`, `out_data`
@@ -546,9 +574,10 @@ def Interface (p : P) (d : Design2) : Prop :=
     outputPorts d = [(t.outValid, 1), (t.outData, t.width p)] ∧
       (d.decls.toList.map Decl.name).Nodup
 
-/-- Conjunct 2a: the clock discipline. -/
+/-- Conjunct 2a: the clock discipline, with no asynchronous reset (as `TxTask.Disciplined`;
+decided 2026-11-09). -/
 def Disciplined (d : Design2) : Prop :=
-  ClockedBy t.clk (some t.rst) d
+  ClockedBy t.clk none d
 
 /-- The entry or snapshot `st` binds the data port `n` to the value `v`. -/
 def DataIs (p : P) (st : SvState) (n : String) (v : BitVec (t.width p)) : Prop :=
@@ -605,36 +634,40 @@ def Guar (p : P) (lat : Nat) (stim tr : List SvState) (c1 h : Nat) : Prop :=
       ∃ obs : List (t.Obs p), obs.length = e - s ∧ t.Shows p tr s obs ∧
         t.emitted p obs = t.spec p xs ∧ ∀ k o, obs[k]? = some o → lat < k → o.1 = false
 
-/-- Conjunct 3: in every completed run, from every reset release, at every
+/-- Conjunct 3 of v1 (superseded: v2's `FollowsPU` claims it, word for word, of
+every power-up): in every completed run, from every reset release, at every
 horizon, the rely gives the guarantee. -/
 def Follows (p : P) (lat : Nat) (d : Design2) : Prop :=
   d ⊨₂ spec2 fun stim tr =>
     ∀ c1 h, Released t.rst stim c1 h → t.Rely p stim tr c1 h → t.Guar p lat stim tr c1 h
 
-/-- The statement at one parameter value and latency (`lat ≥ 1`). -/
+/-- The v1 statement at one parameter value and latency (`lat ≥ 1`; superseded
+by `SatisfiedAtV2`). -/
 def SatisfiedAt (p : P) (lat : Nat) (d : Design2) : Prop :=
   t.Interface p d ∧ (t.Disciplined d ∧ Terminates2 d) ∧ 1 ≤ lat ∧ t.Follows p lat d
 
-/-- **The challenge statement** for a design family `sem` with the latency
-function `lat`. -/
+/-- **The v1 challenge statement** for a design family `sem` with the latency
+function `lat`: superseded by `StatementV2`, which the sorter task states; no
+task states this one. -/
 def Statement (sem : P → Design2) (lat : P → Nat) : Prop :=
   ∀ p, t.inRange p → t.SatisfiedAt p (lat p) (sem p)
 
 end StreamTask
 
-/-! ## txtask-v2: every power-up, Moore outputs, no x-creating construct (TRUSTED text, 2026-11-05; in two parts)
+/-! ## txtask-v2: every power-up, Moore outputs, no x-creating construct (TRUSTED text, 2026-11-05; final but for `SeqTask`'s)
 
-**Status: in two parts** (the file's Status lists every declaration; the review summary is
-`design/soundness/TXTASK-V2-REVIEW.md`). FINAL (decided 2026-11-07), because the reactive kind
-uses them: the concrete runs of rule 2 (`PowerUp` to `TerminatesPU`, but for `run2_eq_run2At`),
-`lhsTargets` and `lhsListTargets`, and rule 3 (`XSafe` and its helpers). DRAFT of trusted text:
-`run2_eq_run2At`, the rest of rule 1 (`MooreOutDep`, `combDeps` and their helpers) and the v2
-statements of `SeqTask`, `TxTask` and `StreamTask` (the last subsection). Everything above is
-txtask-v1 and is unchanged, but for the distinct-names conjunct of each `Interface` (decided
-2026-11-06). This section defines, for each kind, a versioned statement `StatementV2`. The tasks
-state v2: `tasks/matmul/Spec.lean` (`TxTask.StatementV2`), `tasks/sorter/Spec.lean`
-(`StreamTask.StatementV2`) and the counter fixture `tests/seq_counter/Spec.lean`
-(`SeqTask.StatementV2`), and their references prove it.
+**Status: final, but for `SeqTask`'s v2 statement** (the file's Status lists every declaration;
+the review summary is `design/soundness/TXTASK-V2-REVIEW.md`). FINAL (decided 2026-11-07),
+because the reactive kind uses them: the concrete runs of rule 2 (`PowerUp` to `TerminatesPU`),
+`lhsTargets` and `lhsListTargets`, and rule 3 (`XSafe` and its helpers). FINAL (decided
+2026-11-08), because the matmul and sorter tasks state them: the rest of rule 1 (`MooreOutDep`,
+`combDeps` and their helpers) and the v2 statements of `TxTask` and `StreamTask` (the last
+subsection); with them the theorem `run2_eq_run2At`. A DRAFT of trusted text: the v2 statement
+of `SeqTask` (the counter fixture only). Everything above is txtask-v1 and is unchanged, but for
+the distinct-names conjunct of each `Interface` (decided 2026-11-06). This section defines, for
+each kind, a versioned statement `StatementV2`. The tasks state v2: `tasks/matmul/Spec.lean`
+(`TxTask.StatementV2`), `tasks/sorter/Spec.lean` (`StreamTask.StatementV2`) and the counter
+fixture `tests/seq_counter/Spec.lean` (`SeqTask.StatementV2`), and their references prove it.
 
 **Why.** A soundness probe (its findings are summarized in `design/soundness/TXTASK-V2-REVIEW.md`)
 found that v1 admits designs whose scored netlist is not the circuit the proof is about:
@@ -668,9 +701,9 @@ bound, unchanged, and
   is the formal reading of the standard's x start. A design may decide on an unreset value, as
   long as its claims hold for every value that value can have.
 * **Rule 1, Moore outputs** (`MooreOutDep`): no combinational path, control dependencies included,
-  from an input port to an output port (the reset exempt for `TxTask`/`StreamTask`). It constrains
-  the interface (a claimed snapshot is what the outputs show for the whole next period), not
-  correctness.
+  from an input port to an output port, the reset included (for `TxTask`/`StreamTask` since
+  2026-11-09). It constrains the interface (a claimed snapshot is what the outputs show for the
+  whole next period), not correctness.
 * **Rule 3, no x-creating construct** (`XSafe`): structurally, no construct that can produce an
   `x` or `z` from known operands under the standard: run-time `/` and `%` by anything but a
   nonzero constant, `**` with a signed exponent unless the base is a nonzero constant, a
@@ -687,7 +720,7 @@ the qualifiers today); and ls-sv and the netlist can still differ on defined val
 ls-sv bug), which only the sampled post-synthesis check looks for (obligation C).
 -/
 
-/-! ### The concrete runs (rule 2; final, but for `run2_eq_run2At`) -/
+/-! ### The concrete runs (rule 2; final) -/
 
 /-- **A power-up state** of `d`: every declaration, in declaration order, bound to a value of its
 declared width whose every bit is `0` or `1`. 2-state declarations are included (ls-sv's
@@ -757,7 +790,7 @@ def TerminatesPU (d : Design2) : Prop :=
   ∀ st0, PowerUp d st0 → ∀ (σ : ScheduleOracle) (stim : List SvState), KnownStim d stim →
     ∃ tr, RunsAt d σ st0 stim tr
 
-/-! ### Rule 1: Moore outputs, by signal dependency (DRAFT of trusted text; `lhsTargets`, `lhsListTargets` final)
+/-! ### Rule 1: Moore outputs, by signal dependency (final)
 
 `MooreOutDep d exempt` says that no combinational path leads from an input port (other than the
 `exempt` ones) to an output port. A path follows the combinational assignments (`combDeps`): an
@@ -770,8 +803,9 @@ outputs show on the wire for the whole next period, so a consumer sees the claim
 machine written as ONE `always_comb` whose output assignments read only the state is admitted,
 although the same block reads the inputs for the next state. Over-rejections, by design: a signal
 assigned twice in one block takes both assignments' reads; a read masked by a constant still
-counts. Not seen: a path through an asynchronous reset event (the clocked source gate refuses
-asynchronous resets, `score/srcgate.py` item 6). -/
+counts. Not seen: a path through an asynchronous reset event. `TxTask.Disciplined` and
+`StreamTask.Disciplined` refuse asynchronous resets (decided 2026-11-09); for `SeqTask` the
+clocked source gate refuses them (`score/srcgate.py` item 6). -/
 
 mutual
 /-- The signals an assignment target writes (its index expressions are reads, not writes). -/
@@ -855,8 +889,8 @@ def combDeps (d : Design2) : List DepEdge := d.processes.toList.flatMap processD
 /-- **Rule 1, Moore outputs**: no combinational path leads from an input port outside `exempt`
 to an output port. `S` is a set of signals that contains every such input, is closed along the
 combinational dependencies (if an assignment depends on a signal in `S`, every signal it writes
-is in `S`) and contains no output port. `SeqTask` exempts nothing; `TxTask` and `StreamTask`
-exempt the reset port (see `TxTask.SatisfiedAtV2`). -/
+is in `S`) and contains no output port. Every v2 statement exempts nothing (`SeqTask`'s from the
+start; `TxTask`'s and `StreamTask`'s since 2026-11-09, see `TxTask.SatisfiedAtV2`). -/
 def MooreOutDep (d : Design2) (exempt : List String) : Prop :=
   ∃ S : String → Prop,
     (∀ n ∈ d.inputNames.toList, n ∉ exempt → S n) ∧
@@ -1053,7 +1087,7 @@ def XSafe (d : Design2) : Prop := xsafeB d = true
 
 instance (d : Design2) : Decidable (XSafe d) := inferInstanceAs (Decidable (xsafeB d = true))
 
-/-! ### The v2 statements (DRAFT of trusted text) -/
+/-! ### The v2 statements (final for `TxTask` and `StreamTask`; `SeqTask`'s a DRAFT of trusted text) -/
 
 namespace SeqTask
 
@@ -1094,16 +1128,23 @@ def FollowsPU (p : P) (lat : Nat) (d : Design2) : Prop :=
     ∀ c1 h, Released t.rst stim c1 h → t.Rely p stim tr c1 h → t.Guar p lat stim tr c1 h
 
 /-- **The v2 statement at one parameter value and latency**: the interface, the clock discipline
-and `lat ≥ 1` (v1); termination and the claims from every power-up (rule 2); rule 1 with the reset
-port exempt; rule 3. Exempting `rst` is sound here: every claimed snapshot has `rst` = 0, and its
-wire reading (the outputs during the next period, the next entry applied) differs only if the
-next entry does not deassert `rst`, which ends the claims (C1); an asynchronous reset, which v1
-admits, behaves the same way on the wire. -/
+and `lat ≥ 1` (v1); termination and the claims from every power-up (rule 2); rule 1 with no input
+exempt, the reset included (decided 2026-11-09, as `SeqTask.SatisfiedAtV2`); rule 3. Why the reset
+is not exempt: the claims up to a horizon `h` cover the snapshot `h - 1`, and the entry `h` may
+assert `rst`; an output that read `rst` combinationally (`assign out_valid = q & ~rst`) could show
+a claimed value in that snapshot and another on the wire during the next period, so a consumer
+could miss a transaction's last output. With nothing exempt, every claimed snapshot is what the
+outputs show on the wire for the whole next period. Rule 1 does not see a path through an
+asynchronous reset event; `Disciplined` refuses asynchronous resets (decided 2026-11-09), so there
+is none. -/
 def SatisfiedAtV2 (p : P) (lat : Nat) (d : Design2) : Prop :=
   t.Interface p d ∧ (t.Disciplined d ∧ TerminatesPU d) ∧ 1 ≤ lat ∧ t.FollowsPU p lat d ∧
-    MooreOutDep d [t.rst] ∧ XSafe d
+    MooreOutDep d [] ∧ XSafe d
 
-/-- **The v2 challenge statement** for a design family `sem` with the latency function `lat`. -/
+/-- **The v2 challenge statement** for a design family `sem` with the latency function `lat`.
+The checker's goal is the task's `Statement design.sem lat ∧ lat p₀ = n` (the task's `Statement`
+is this one, specialized), for the latency `lat` the proof file defines, the scoring point `p₀`
+and the number `n` of the solution's `-- svgolf-latency:` line (C3). -/
 def StatementV2 (sem : P → Design2) (lat : P → Nat) : Prop :=
   ∀ p, t.inRange p → t.SatisfiedAtV2 p (lat p) (sem p)
 
@@ -1119,12 +1160,14 @@ def FollowsPU (p : P) (lat : Nat) (d : Design2) : Prop :=
   ModelsPU d fun stim tr =>
     ∀ c1 h, Released t.rst stim c1 h → t.Rely p stim tr c1 h → t.Guar p lat stim tr c1 h
 
-/-- **The v2 statement at one parameter value and latency**: as for `TxTask`. -/
+/-- **The v2 statement at one parameter value and latency**: as for `TxTask` (rule 1 with no
+input exempt, the reset included). -/
 def SatisfiedAtV2 (p : P) (lat : Nat) (d : Design2) : Prop :=
   t.Interface p d ∧ (t.Disciplined d ∧ TerminatesPU d) ∧ 1 ≤ lat ∧ t.FollowsPU p lat d ∧
-    MooreOutDep d [t.rst] ∧ XSafe d
+    MooreOutDep d [] ∧ XSafe d
 
-/-- **The v2 challenge statement** for a design family `sem` with the latency function `lat`. -/
+/-- **The v2 challenge statement** for a design family `sem` with the latency function `lat`;
+the checker's goal as for `TxTask.StatementV2`. -/
 def StatementV2 (sem : P → Design2) (lat : P → Nat) : Prop :=
   ∀ p, t.inRange p → t.SatisfiedAtV2 p (lat p) (sem p)
 

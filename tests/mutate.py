@@ -46,7 +46,8 @@ and an operator set: m001, m002, ... in the order of the walk.
 `rename_module(text, new)` (used by harnesses that instantiate a reference and a mutant side by side) renames
 the first module declaration through the same syntax tree.
 
-`python3.12 tests/mutate.py --selftest` checks the operators on a small fixed design.
+`python3.12 tests/mutate.py --selftest` checks the operators on a small fixed design, and the parameter points on a
+second one with two parameters (the transaction tasks' families: `--point N=2,W=4`).
 """
 import argparse, hashlib, json, os, sys
 
@@ -374,7 +375,21 @@ def selftest():
     # a mutant that does not elaborate is dropped: `y <= t` with t stuck at '0 is fine, a width error is not
     assert elaborate(src.replace("a - 1'b1", "a - "), {"N": 4})
     assert rename_module(src, "m2").startswith("module m2 #(")
-    print(f"mutate.py: self-test ok ({len(recs)} generated, {len(texts)} kept)")
+    # two parameters (the transaction tasks' families, `--point N=2,W=4`): every point overrides both, a declared
+    # range `[N*W-1:0]` gives index mutants, and elaboration is per point (an error at one point only is found there)
+    src2 = ("module s #(parameter int N = 2, parameter int W = 4) (input logic clk, rst, input logic [W-1:0] d,\n"
+            "    output logic [N*W-1:0] q);\n"
+            "  always_ff @(posedge clk) if (rst) q <= '0; else q <= {q[(N-1)*W-1:0], d};\n"
+            "endmodule\n")
+    pts = [parse_point("N=2,W=1"), parse_point("N=3,W=4")]
+    assert pts == [{"N": 2, "W": 1}, {"N": 3, "W": 4}]
+    recs2, texts2 = generate(src2, pts, reset="rst")
+    assert any(r["op"] == "CRP" and r["ctx"] == "index" and r["file"] for r in recs2)
+    assert all(r["elaborates"] for r in recs2 if r["file"])
+    src3 = src2.replace("endmodule", "  if (N == 2 && W == 1) begin : g\n    $error(\"only at N=2, W=1\");\n  end\nendmodule")
+    assert not elaborate(src3, {"N": 3, "W": 4}) and elaborate(src3, {"N": 2, "W": 1})
+    print(f"mutate.py: self-test ok ({len(recs)} generated, {len(texts)} kept; two parameters: {len(recs2)} generated, "
+          f"{len(texts2)} kept)")
 
 
 def main():

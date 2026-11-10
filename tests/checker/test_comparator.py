@@ -52,6 +52,7 @@ GOAL = """\
 abbrev TcGoal.Goal : Prop := 1 = 2
 abbrev TcGoal.Goal2 : Prop := 1 + 1 = 2
 abbrev TcGoal.GoalLat (lat : Nat → Nat) : Prop := lat 3 = 5 ∧ ∀ n, 1 ≤ lat n
+abbrev TcGoal.GoalLat2 (lat : Nat → Nat → Nat) : Prop := lat 3 4 = 6
 """
 # a tx-family goal applied to the solution's latency (`--goal-arg`, Comparator point 7)
 LAT = """\
@@ -60,6 +61,16 @@ def TcSolLat.lat (n : Nat) : Nat := n + 2
 def TcSolLat.lat3 (n : Nat) : Nat := n + 3
 opaque TcSolLat.op : Nat → Nat
 theorem TcSolLat.solution : TcGoal.GoalLat TcSolLat.lat := ⟨rfl, fun n => by unfold TcSolLat.lat; omega⟩
+"""
+# two parameters, curried like `design.sem`; `slow` reaches the same values by structural recursion
+# (the kernel evaluates it through `Nat.rec`: `--goal-arg-at`, Comparator point 8)
+LAT2 = """\
+import TcGoal
+def TcSolLat2.lat (N _W : Nat) : Nat := 2 * N
+def TcSolLat2.slow : Nat → Nat → Nat
+  | 0, _ => 0
+  | n + 1, w => TcSolLat2.slow n w + 2
+theorem TcSolLat2.solution : TcGoal.GoalLat2 TcSolLat2.lat := rfl
 """
 PKG = """\
 theorem TcPkg.honest : 1 + 1 = 2 := rfl
@@ -88,6 +99,7 @@ SOLS = {
     "TcSolShadow": "import TcGoal\nimport Lake.Util.Casing\ntheorem TcSolShadow.solution : TcGoal.Goal2 := rfl\n",
     "TcSolExtern": EXTERN,
     "TcSolLat": LAT,
+    "TcSolLat2": LAT2,
 }
 
 
@@ -212,6 +224,37 @@ class Comparator(unittest.TestCase):
         self.assertIn("no constant TcSolLat.nope", "; ".join(cmp("TcSolLat.nope")["errors"]))
         # without `--goal-arg`, a function-valued goal is not a statement
         self.assertFalse(self.compare("TcSolLat", goal="TcGoal.GoalLat")["accepted"])
+        # no `--goal-arg-at`: no `goal_arg_at` key (point 8)
+        self.assertNotIn("goal_arg_at", cmp("TcSolLat.lat"))
+
+    def test_the_latency_at_each_point_is_the_kernels(self):
+        """Point 8 (F8, decided 2026-11-08): `--goal-arg-at a,b` reports the latency definition's value at (a, b) as
+        the kernel reduces it, confirmed by `Eq.refl`; the verdict on the theorem is unchanged, and a value the kernel
+        cannot reduce to a number (the wrong number of arguments: a function) is that entry's error."""
+        def cmp(arg, *pts, sol="TcSolLat2", goal="TcGoal.GoalLat2"):
+            extra = ["--goal-arg", arg] + [x for p in pts for x in ("--goal-arg-at", p)]
+            return self.compare(sol, goal=goal, extra=extra)
+        r = cmp("TcSolLat2.lat", "3,4", "8,8", "0,0")
+        self.assertTrue(r["accepted"], r["errors"])
+        self.assertEqual(r["goal_arg_at"], [{"args": [3, 4], "value": 6}, {"args": [8, 8], "value": 16},
+                                            {"args": [0, 0], "value": 0}])
+        # structural recursion: the kernel unfolds it (and accepts `slow` as the goal's argument: 3 4 gives 6 too)
+        r = cmp("TcSolLat2.slow", "3,4", "50,1")
+        self.assertTrue(r["accepted"], r["errors"])
+        self.assertEqual([e.get("value") for e in r["goal_arg_at"]], [6, 100])
+        # one argument short: a function, not a number; the theorem's verdict stands
+        r = cmp("TcSolLat2.lat", "3", "3,4")
+        self.assertTrue(r["accepted"], r["errors"])
+        self.assertIn("not a number", r["goal_arg_at"][0]["error"])
+        self.assertNotIn("value", r["goal_arg_at"][0])
+        self.assertEqual(r["goal_arg_at"][1], {"args": [3, 4], "value": 6})
+        # one parameter (TcGoal.GoalLat): lat n = n + 2
+        r = cmp("TcSolLat.lat", "3", "1000000", sol="TcSolLat", goal="TcGoal.GoalLat")
+        self.assertEqual([e.get("value") for e in r["goal_arg_at"]], [5, 1000002])
+        # not a definition: no value
+        r = cmp("TcSolLat.op", "3", sol="TcSolLat", goal="TcGoal.GoalLat")
+        self.assertFalse(r["accepted"])
+        self.assertIn("is not a latency definition", r["goal_arg_at"][0]["error"])
 
 
 if __name__ == "__main__":

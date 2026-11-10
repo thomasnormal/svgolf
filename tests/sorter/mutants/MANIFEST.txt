@@ -1,0 +1,381 @@
+# Mutants of tasks/sorter/reference/sorter_ins.sv (sha256 2f51939328bf61aa), tests/mutate.py with pyslang 11.0.0: 191 generated, 9 duplicates, 0 do not elaborate, 182 kept.
+# Columns: id, operator, ctx, line:col, original -> replacement; the verdict (KILLED / EQUIVALENT /
+# CORRECT / EQUIVALENT-SMALL / CORRECT-SMALL / SURVIVOR: `verdict` in tests/txsweep.py) and what killed
+# it: `check:<stage>@<point>` (check.py's stages that run no Lean, the big latency), `check.py:<stage>`
+# (the real check.py, sampled); `formal` per point: the equivalence (proved / falsified / undecided) and,
+# where it is not proved, the guarantee miter (`correct: ...`); `kernel:` a refutation of the statement in
+# tests/sorter/negative/Mutants.lean. Full records and the method: MANIFEST.json.
+
+m001 CRP param  76:35  '8' -> '9'
+    EQUIVALENT; check.py: unproved; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m002 CRP param  76:35  '8' -> '7'
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m003 CRP param  76:56  '8' -> '9'
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m004 CRP param  76:56  '8' -> '7'
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m005 CRP index  79:19  '1' -> '2'
+    KILLED check:extract check.py:extract; kernel: m005_refuted
+m006 CRP index  79:19  '1' -> '0'
+    KILLED check:extract
+m007 CRP index  79:21  '0' -> '1'
+    KILLED check:extract
+m008 CRP index  81:19  '1' -> '2'
+    KILLED check:extract
+m009 CRP index  81:19  '1' -> '0'
+    KILLED check:extract
+m010 CRP index  81:21  '0' -> '1'
+    KILLED check:extract
+m011 CRP index  83:14  '1' -> '2'
+    KILLED check:banlist check.py:banlist
+m012 CRP index  83:14  '1' -> '0'
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m013 CRP index  83:16  '0' -> '1'
+    KILLED check:banlist
+m014 CRP index  84:12  '1' -> '2'
+    KILLED check:fourstate@N=8,W=8
+m015 CRP index  84:12  '1' -> '0'
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m016 CRP index  84:14  '0' -> '1'
+    KILLED check:fourstate@N=8,W=8
+m017 CRP expr   87:19  '0' -> '1'
+    KILLED check:fourstate@N=8,W=8
+m018 CRP expr   87:28  '1' -> '2'
+    KILLED check:fourstate@N=8,W=8
+m019 CRP expr   87:28  '1' -> '0'
+    KILLED check:banlist
+m020 NEG if     89:11  'in_valid' -> '!(in_valid)'
+    KILLED check:postsynth@N=3,W=4 check.py:postsynth; kernel: m020_refuted
+m021 SWP if     89:21  "if (in_valid) begin\n        if (in_data > data[(k+1)*W +: W])         // the neighbour is pushed: take its value\n          data[k*W +: W] <= data[(k+1)*W +: W];\n        else if (in_data > data[k*W +: W])        // the input beats this cell's value\n          data[k*W +: W] <= in_data;\n      end else\n        data[k*W +: W] <= data[(k+1)*W +: W];" -> '(swap)'
+    KILLED check:postsynth@N=3,W=4
+m022 SA0 read   89:11  'in_valid' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m023 SA1 read   89:11  'in_valid' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m024 NEG if     90:13  'in_data > data[(k+1)*W +: W]' -> '!(in_data > data[(k+1)*W +: W])'
+    KILLED check:postsynth@N=3,W=4
+m025 SWP if     91:11  "if (in_data > data[(k+1)*W +: W])         // the neighbour is pushed: take its value\n          data[k*W +: W] <= data[(k+1)*W +: W];\n        else if (in_data > data[k*W +: W])        // the input beats this cell's value\n          data[k*W +: W] <= in_data;" -> '(swap)'
+    KILLED check:postsynth@N=3,W=4
+m026 ROR expr   90:21  '>' -> '=='
+    KILLED check:postsynth@N=3,W=4 check.py:postsynth; kernel: m026_refuted
+m027 ROR expr   90:21  '>' -> '!='
+    KILLED check:postsynth@N=3,W=4
+m028 ROR expr   90:21  '>' -> '<'
+    KILLED check:postsynth@N=3,W=4
+m029 ROR expr   90:21  '>' -> '<='
+    KILLED check:postsynth@N=3,W=4
+m030 ROR expr   90:21  '>' -> '>='
+    EQUIVALENT; check.py: unproved; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m031 OSW expr   90:13  'in_data > data[(k+1)*W +: W]' -> '(swap)'
+    KILLED check:postsynth@N=3,W=4
+m032 SA0 read   90:13  'in_data' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m033 SA1 read   90:13  'in_data' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m034 AOR expr   90:33  '*' -> '+'
+    KILLED check:fourstate@N=2,W=1
+m035 AOR expr   90:33  '*' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m036 AOR expr   90:30  '+' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m037 AOR expr   90:30  '+' -> '*'
+    KILLED check:postsynth@N=3,W=4
+m038 CRP index  90:31  '1' -> '2'
+    KILLED check:fourstate@N=8,W=8 check.py:fourstate; kernel: m038_refuted
+m039 CRP index  90:31  '1' -> '0'
+    KILLED check:postsynth@N=3,W=4
+m040 DEL stmt   91:11  'data[k*W +: W] <= data[(k+1)*W +: W];' -> ';'
+    KILLED check:postsynth@N=3,W=4; kernel: m040_refuted
+m041 AOR expr   91:17  '*' -> '+'
+    KILLED check:banlist
+m042 AOR expr   91:17  '*' -> '-'
+    KILLED check:banlist
+m043 AOR expr   91:39  '*' -> '+'
+    KILLED check:fourstate@N=2,W=1
+m044 AOR expr   91:39  '*' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m045 AOR expr   91:36  '+' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m046 AOR expr   91:36  '+' -> '*'
+    KILLED check:postsynth@N=3,W=4
+m047 CRP index  91:37  '1' -> '2'
+    KILLED check:fourstate@N=8,W=8
+m048 CRP index  91:37  '1' -> '0'
+    KILLED check:postsynth@N=3,W=4
+m049 NEG if     92:18  'in_data > data[k*W +: W]' -> '!(in_data > data[k*W +: W])'
+    KILLED check:postsynth@N=3,W=4
+m050 SWP if     93:11  "if (in_data > data[k*W +: W])        // the input beats this cell's value\n          data[k*W +: W] <= in_data;" -> 'begin end else data[k*W +: W] <= in_data;'
+    KILLED check:postsynth@N=3,W=4
+m051 ROR expr   92:26  '>' -> '=='
+    KILLED check:postsynth@N=3,W=4
+m052 ROR expr   92:26  '>' -> '!='
+    KILLED check:postsynth@N=3,W=4
+m053 ROR expr   92:26  '>' -> '<'
+    KILLED check:postsynth@N=3,W=4
+m054 ROR expr   92:26  '>' -> '<='
+    KILLED check:postsynth@N=3,W=4
+m055 ROR expr   92:26  '>' -> '>='
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m056 OSW expr   92:18  'in_data > data[k*W +: W]' -> '(swap)'
+    KILLED check:postsynth@N=3,W=4
+m057 SA0 read   92:18  'in_data' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m058 SA1 read   92:18  'in_data' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m059 AOR expr   92:34  '*' -> '+'
+    KILLED check:postsynth@N=3,W=4
+m060 AOR expr   92:34  '*' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m061 DEL stmt   93:11  'data[k*W +: W] <= in_data;' -> ';'
+    KILLED check:postsynth@N=3,W=4; kernel: m061_refuted
+m062 AOR expr   93:17  '*' -> '+'
+    KILLED check:banlist
+m063 AOR expr   93:17  '*' -> '-'
+    KILLED check:banlist
+m064 SA0 read   93:29  'in_data' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m065 SA1 read   93:29  'in_data' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m066 DEL stmt   95:9   'data[k*W +: W] <= data[(k+1)*W +: W];' -> ';'
+    KILLED check:postsynth@N=3,W=4
+m067 AOR expr   95:15  '*' -> '+'
+    KILLED check:banlist
+m068 AOR expr   95:15  '*' -> '-'
+    KILLED check:banlist
+m069 AOR expr   95:37  '*' -> '+'
+    KILLED check:fourstate@N=2,W=1
+m070 AOR expr   95:37  '*' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m071 AOR expr   95:34  '+' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m072 AOR expr   95:34  '+' -> '*'
+    KILLED check:postsynth@N=3,W=4
+m073 CRP index  95:35  '1' -> '2'
+    KILLED check:fourstate@N=8,W=8
+m074 CRP index  95:35  '1' -> '0'
+    KILLED check:postsynth@N=3,W=4
+m075 DEL stmt   96:7   'tok[k] <= tok[k+1];' -> ';'
+    KILLED check:postsynth@N=3,W=4 check.py:postsynth; kernel: m075_refuted
+m076 AOR expr   96:22  '+' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m077 AOR expr   96:22  '+' -> '*'
+    KILLED check:postsynth@N=3,W=4
+m078 CRP index  96:23  '1' -> '2'
+    KILLED check:fourstate@N=8,W=8
+m079 CRP index  96:23  '1' -> '0'
+    KILLED check:postsynth@N=3,W=4
+m080 NEG if     97:11  'rst' -> '!(rst)'
+    KILLED check:postsynth@N=3,W=4
+m081 SWP if     97:16  "if (rst) begin\n        data[k*W +: W] <= '0;\n        tok[k] <= 1'b0;\n      end" -> "begin end else begin\n        data[k*W +: W] <= '0;\n        tok[k] <= 1'b0;\n      end"
+    KILLED check:postsynth@N=3,W=4
+m082 SA0 read   97:11  'rst' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m083 SA1 read   97:11  'rst' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m084 DEL stmt   98:9   "data[k*W +: W] <= '0;" -> ';'
+    KILLED check:postsynth@N=3,W=4
+m085 RST reset  98:27  "'0" -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m086 RST reset  98:27  "'0" -> "1'b1"
+    KILLED check:postsynth@N=3,W=4
+m087 RST reset  98:27  "'0" -> "~('1 >> 1)"
+    KILLED check:postsynth@N=3,W=4
+m088 AOR expr   98:15  '*' -> '+'
+    KILLED check:banlist
+m089 AOR expr   98:15  '*' -> '-'
+    KILLED check:banlist
+m090 CRP expr   98:27  "'0" -> "'1"  DROPPED: duplicate of m085
+m091 CRP expr   98:27  "'0" -> "1'b1"  DROPPED: duplicate of m086
+m092 CRP expr   98:27  "'0" -> "~('1 >> 1)"  DROPPED: duplicate of m087
+m093 DEL stmt   99:9   "tok[k] <= 1'b0;" -> ';'
+    KILLED check:postsynth@N=3,W=4 check.py:postsynth; kernel: m093_refuted
+m094 RST reset  99:19  "1'b0" -> "'0"
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m095 RST reset  99:19  "1'b0" -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m096 RST reset  99:19  "1'b0" -> "1'b1"
+    KILLED check:postsynth@N=3,W=4
+m097 RST reset  99:19  "1'b0" -> "~('1 >> 1)"
+    KILLED check:postsynth@N=3,W=4
+m098 CRP expr   99:19  "1'b0" -> "1'b1"  DROPPED: duplicate of m096
+m099 NEG if     106:9   'in_valid' -> '!(in_valid)'
+    KILLED check:postsynth@N=3,W=4 check.py:postsynth; kernel: m099_refuted
+m100 SWP if     106:19  "if (in_valid) begin\n      if (in_data > data[(N-1)*W +: W])\n        data[(N-1)*W +: W] <= in_data;\n    end else\n      data[(N-1)*W +: W] <= '0;" -> '(swap)'
+    KILLED check:postsynth@N=3,W=4
+m101 SA0 read   106:9   'in_valid' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m102 SA1 read   106:9   'in_valid' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m103 NEG if     107:11  'in_data > data[(N-1)*W +: W]' -> '!(in_data > data[(N-1)*W +: W])'
+    KILLED check:postsynth@N=3,W=4
+m104 SWP if     108:9   'if (in_data > data[(N-1)*W +: W])\n        data[(N-1)*W +: W] <= in_data;' -> 'begin end else data[(N-1)*W +: W] <= in_data;'
+    KILLED check:postsynth@N=3,W=4
+m105 ROR expr   107:19  '>' -> '=='
+    KILLED check:postsynth@N=3,W=4
+m106 ROR expr   107:19  '>' -> '!='
+    KILLED check:postsynth@N=3,W=4
+m107 ROR expr   107:19  '>' -> '<'
+    KILLED check:postsynth@N=3,W=4
+m108 ROR expr   107:19  '>' -> '<='
+    KILLED check:postsynth@N=3,W=4
+m109 ROR expr   107:19  '>' -> '>='
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m110 OSW expr   107:11  'in_data > data[(N-1)*W +: W]' -> '(swap)'
+    KILLED check:postsynth@N=3,W=4
+m111 SA0 read   107:11  'in_data' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m112 SA1 read   107:11  'in_data' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m113 AOR expr   107:31  '*' -> '+'
+    KILLED check:fourstate@N=1,W=1
+m114 AOR expr   107:31  '*' -> '-'
+    KILLED check:fourstate@N=8,W=8
+m115 AOR expr   107:28  '-' -> '+'
+    KILLED check:fourstate@N=8,W=8
+m116 AOR expr   107:28  '-' -> '*'
+    KILLED check:fourstate@N=8,W=8
+m117 OSW expr   107:27  'N-1' -> '(swap)'
+    KILLED check:fourstate@N=8,W=8
+m118 CRP index  107:29  '1' -> '2'
+    KILLED check:fourstate@N=1,W=1
+m119 CRP index  107:29  '1' -> '0'
+    KILLED check:fourstate@N=8,W=8
+m120 DEL stmt   108:9   'data[(N-1)*W +: W] <= in_data;' -> ';'
+    KILLED check:postsynth@N=3,W=4
+m121 AOR expr   108:19  '*' -> '+'
+    KILLED check:banlist
+m122 AOR expr   108:19  '*' -> '-'
+    KILLED check:banlist
+m123 AOR expr   108:16  '-' -> '+'
+    KILLED check:fourstate@N=8,W=8
+m124 AOR expr   108:16  '-' -> '*'
+    KILLED check:fourstate@N=8,W=8
+m125 OSW expr   108:15  'N-1' -> '(swap)'
+    KILLED check:banlist
+m126 CRP index  108:17  '1' -> '2'
+    KILLED check:banlist
+m127 CRP index  108:17  '1' -> '0'
+    KILLED check:fourstate@N=8,W=8
+m128 SA0 read   108:31  'in_data' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m129 SA1 read   108:31  'in_data' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m130 DEL stmt   110:7   "data[(N-1)*W +: W] <= '0;" -> ';'
+    KILLED check:postsynth@N=3,W=4
+m131 AOR expr   110:17  '*' -> '+'
+    KILLED check:banlist
+m132 AOR expr   110:17  '*' -> '-'
+    KILLED check:banlist
+m133 AOR expr   110:14  '-' -> '+'
+    KILLED check:fourstate@N=8,W=8
+m134 AOR expr   110:14  '-' -> '*'
+    KILLED check:fourstate@N=8,W=8
+m135 OSW expr   110:13  'N-1' -> '(swap)'
+    KILLED check:banlist
+m136 CRP index  110:15  '1' -> '2'
+    KILLED check:banlist
+m137 CRP index  110:15  '1' -> '0'
+    KILLED check:fourstate@N=8,W=8
+m138 CRP expr   110:29  "'0" -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m139 CRP expr   110:29  "'0" -> "1'b1"
+    KILLED check:postsynth@N=3,W=4
+m140 CRP expr   110:29  "'0" -> "~('1 >> 1)"
+    KILLED check:postsynth@N=3,W=4
+m141 DEL stmt   111:5   'tok[N-1] <= in_valid;' -> ';'
+    KILLED check:postsynth@N=3,W=4; kernel: m141_refuted
+m142 AOR expr   111:10  '-' -> '+'
+    KILLED check:fourstate@N=8,W=8
+m143 AOR expr   111:10  '-' -> '*'
+    KILLED check:fourstate@N=8,W=8
+m144 OSW expr   111:9   'N-1' -> '(swap)'
+    KILLED check:fourstate@N=8,W=8
+m145 CRP index  111:11  '1' -> '2'
+    KILLED check:banlist
+m146 CRP index  111:11  '1' -> '0'
+    KILLED check:fourstate@N=8,W=8
+m147 SA0 read   111:17  'in_valid' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m148 SA1 read   111:17  'in_valid' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m149 NEG if     112:9   'rst' -> '!(rst)'
+    KILLED check:postsynth@N=3,W=4
+m150 SWP if     112:14  "if (rst) begin\n      data[(N-1)*W +: W] <= '0;\n      tok[N-1] <= 1'b0;\n    end" -> "begin end else begin\n      data[(N-1)*W +: W] <= '0;\n      tok[N-1] <= 1'b0;\n    end"
+    KILLED check:postsynth@N=3,W=4
+m151 SA0 read   112:9   'rst' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m152 SA1 read   112:9   'rst' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m153 DEL stmt   113:7   "data[(N-1)*W +: W] <= '0;" -> ';'
+    KILLED check:postsynth@N=3,W=4
+m154 RST reset  113:29  "'0" -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m155 RST reset  113:29  "'0" -> "1'b1"
+    KILLED check:postsynth@N=3,W=4
+m156 RST reset  113:29  "'0" -> "~('1 >> 1)"
+    KILLED check:postsynth@N=3,W=4
+m157 AOR expr   113:17  '*' -> '+'
+    KILLED check:banlist
+m158 AOR expr   113:17  '*' -> '-'
+    KILLED check:banlist
+m159 AOR expr   113:14  '-' -> '+'
+    KILLED check:fourstate@N=8,W=8
+m160 AOR expr   113:14  '-' -> '*'
+    KILLED check:fourstate@N=8,W=8
+m161 OSW expr   113:13  'N-1' -> '(swap)'
+    KILLED check:banlist
+m162 CRP index  113:15  '1' -> '2'
+    KILLED check:banlist
+m163 CRP index  113:15  '1' -> '0'
+    KILLED check:fourstate@N=8,W=8
+m164 CRP expr   113:29  "'0" -> "'1"  DROPPED: duplicate of m154
+m165 CRP expr   113:29  "'0" -> "1'b1"  DROPPED: duplicate of m155
+m166 CRP expr   113:29  "'0" -> "~('1 >> 1)"  DROPPED: duplicate of m156
+m167 DEL stmt   114:7   "tok[N-1] <= 1'b0;" -> ';'
+    KILLED check:postsynth@N=3,W=4
+m168 RST reset  114:19  "1'b0" -> "'0"
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m169 RST reset  114:19  "1'b0" -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m170 RST reset  114:19  "1'b0" -> "1'b1"
+    KILLED check:postsynth@N=3,W=4
+m171 RST reset  114:19  "1'b0" -> "~('1 >> 1)"
+    KILLED check:postsynth@N=3,W=4
+m172 AOR expr   114:12  '-' -> '+'
+    KILLED check:fourstate@N=8,W=8
+m173 AOR expr   114:12  '-' -> '*'
+    KILLED check:fourstate@N=8,W=8
+m174 OSW expr   114:11  'N-1' -> '(swap)'
+    KILLED check:fourstate@N=8,W=8
+m175 CRP index  114:13  '1' -> '2'
+    KILLED check:banlist
+m176 CRP index  114:13  '1' -> '0'
+    KILLED check:fourstate@N=8,W=8
+m177 CRP expr   114:19  "1'b0" -> "1'b1"  DROPPED: duplicate of m170
+m178 DEL stmt   120:5   'out_valid <= tok[0];' -> ';'
+    KILLED check:postsynth@N=3,W=4; kernel: m178_refuted
+m179 CRP index  120:22  '0' -> '1'
+    KILLED check:fourstate@N=1,W=1
+m180 DEL stmt   121:5   'out_data  <= data[0 +: W];' -> ';'
+    KILLED check:fourstate@N=8,W=8 check.py:fourstate; kernel: m180_refuted
+m181 CRP index  121:23  '0' -> '1'
+    KILLED check:fourstate@N=1,W=1
+m182 NEG if     122:9   'rst' -> '!(rst)'
+    KILLED check:postsynth@N=3,W=4
+m183 SWP if     122:14  "if (rst) out_valid <= 1'b0;" -> "begin end else out_valid <= 1'b0;"
+    KILLED check:postsynth@N=3,W=4
+m184 SA0 read   122:9   'rst' -> "'0"
+    KILLED check:postsynth@N=3,W=4
+m185 SA1 read   122:9   'rst' -> "'1"
+    KILLED check:postsynth@N=3,W=4
+m186 DEL stmt   122:14  "out_valid <= 1'b0;" -> ';'
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m187 RST reset  122:27  "1'b0" -> "'0"
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m188 RST reset  122:27  "1'b0" -> "'1"
+    EQUIVALENT; check.py: unproved; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m189 RST reset  122:27  "1'b0" -> "1'b1"
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m190 RST reset  122:27  "1'b0" -> "~('1 >> 1)"
+    EQUIVALENT; formal: N=2,W=2:proved N=3,W=4:proved N=8,W=8:proved; at the reference's latency: unproved
+m191 CRP expr   122:27  "1'b0" -> "1'b1"  DROPPED: duplicate of m189

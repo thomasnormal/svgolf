@@ -48,8 +48,8 @@ Install once: [Step 0](site:tasks/_example/index.html#first-submission).
 ## How a design becomes Lean
 
 You never write the Lean model of your circuit. The checker reads your `.sv` through a source gate that
-makes one canonical text for every tool, and the pinned extractor of lean-surfaces (built on the slang
-SystemVerilog frontend) turns that text into an envelope: the elaborated design, cross-checked at several
+makes one canonical text for every tool, and the pinned extractor of proglib (formerly lean-surfaces), built on the slang
+SystemVerilog frontend, turns that text into an envelope: the elaborated design, cross-checked at several
 parameter values. The checker then writes the trusted module `Submission.Design`, whose
 `load_design_sv2 design from "<envelope>"` makes the Lean constant `design`: `design.sem N` is your circuit
 at parameter `N` as ls-sv runs it, and `Goal` is the task's statement of `design.sem`. Your

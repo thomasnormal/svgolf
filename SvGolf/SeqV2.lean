@@ -220,7 +220,7 @@ state (`hpu`), termination from every power-up, and the two structural rules. -/
 theorem TxTask.satisfiedAtV2_of_phases {P : Type} (t : TxTask P) {p : P} {lat : Nat} {d : Design2}
     (hI : t.Interface p d) (hD : t.Disciplined d) (hT : TerminatesPU d) (hlat : 1 ≤ lat)
     (M : t.PhaseModel p lat d) (hpu : ∀ st, PowerUp d st → M.Shape st)
-    (hm : MooreOutDep d [t.rst]) (hx : XSafe d) : t.SatisfiedAtV2 p lat d :=
+    (hm : MooreOutDep d []) (hx : XSafe d) : t.SatisfiedAtV2 p lat d :=
   ⟨hI, ⟨hD, hT⟩, hlat, fun st0 h0 _ _ _ _ hr => t.guar_of_phases M (hpu st0 h0) hr.runFrom, hm, hx⟩
 
 /-- **The v2 statement of a `StreamTask`** from v1's phase model, its shape holding at every
@@ -230,7 +230,7 @@ theorem StreamTask.satisfiedAtV2_of_phases {P : Type} (t : StreamTask P) {p : P}
     (hcount : 1 ≤ t.count p) (hle : t.count p ≤ lat)
     (hlen : ∀ xs, xs.length = t.count p → (t.spec p xs).length = t.count p)
     (M : t.PhaseModel p lat d) (hpu : ∀ st, PowerUp d st → M.Shape st)
-    (hm : MooreOutDep d [t.rst]) (hx : XSafe d) : t.SatisfiedAtV2 p lat d :=
+    (hm : MooreOutDep d []) (hx : XSafe d) : t.SatisfiedAtV2 p lat d :=
   ⟨hI, ⟨hD, hT⟩, by omega, fun st0 h0 _ _ _ _ hr =>
     t.guar_of_phases hcount hle hlen M (hpu st0 h0) hr.runFrom, hm, hx⟩
 

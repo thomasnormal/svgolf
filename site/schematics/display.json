@@ -11,6 +11,10 @@
             "_why": "a 6-bit float, 3 exponent bits and 3 significand bits (the hidden one included): the binary16 divider's every stage at 191 (fdivp), 230 (fdivp_srt) and 290 (fdivp_newton) cells, against 1,515 to 5,692 at the scoring point"},
   "aes_sbox": {"params": {}, "draw": "critical"},
   "arbiter": {"params": {"N": 4}, "draw": "auto",
-              "_why": "a small display instance, labelled as one on the page: four clients, the mask round-robin's every part (8 flops, the masked and the plain lowest-requester pick, the mask update) at 48 cells, against 103 at the scoring point N = 8"}
+              "_why": "a small display instance, labelled as one on the page: four clients, the mask round-robin's every part (8 flops, the masked and the plain lowest-requester pick, the mask update) at 48 cells, against 103 at the scoring point N = 8"},
+  "matmul": {"params": {"N": 2, "W": 2, "AccW": 4}, "draw": "auto",
+             "_why": "a small display instance, labelled as one on the page: 2 × 2 matrices of 2-bit entries with 4-bit sums, the reference's every part (the four multiply-accumulate units, the operand shift registers, the step counter and `done`; 66 flops) at 473 cells, against 12,574 at the scoring point N = 4, W = 8, AccW = 32"},
+  "sorter": {"params": {"N": 4, "W": 4}, "draw": "auto",
+             "_why": "a small display instance, labelled as one on the page: four 4-bit cells, the insertion array's every part (the cells, the valid tokens, the output register; 25 flops) at 148 cells, against 713 at the scoring point N = 8, W = 8"}
  }
 }

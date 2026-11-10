@@ -595,8 +595,11 @@ def clocked_acceptance_problems(res, task, postsynth="full"):
     (`stages.score.flow` "seq") with the clocked score (check.py `score_clocked`: CLOCKED_SCORE_KEYS), and
     `stages.postsynth.points` holds EVERY point of the task (`clocked_points`) once, each of the task's kind, in full
     mode (light only for a light record), with every seed of the task (`clocked_seeds`: seeds 0 to S-1, each with its
-    cycles and the count its kind's check makes, CLOCKED_SEED_UNIT), 0 mismatches, its netlist's sha256 and the
-    declared latency; the stage's `netlist_sha256` is the scoring point's, the netlist the `ppa` block weighed."""
+    cycles and the count its kind's check makes, CLOCKED_SEED_UNIT), 0 mismatches, its netlist's sha256 and its
+    latency: the point's own `lat p` from the result's `latency_at` (F8, decided 2026-11-08: check.py has the kernel
+    evaluate the proved latency function at every point; the scoring point's is the declared n), or the declared n at
+    every point for a result without `latency_at` (an older checker); the stage's `netlist_sha256` is the scoring
+    point's, the netlist the `ppa` block weighed."""
     p = []
     sc = res.get("score") if isinstance(res.get("score"), dict) else {}
     if _get(res, "stages", "score", "flow") != SEQ_FLOW:
@@ -624,6 +627,18 @@ def clocked_acceptance_problems(res, task, postsynth="full"):
         p.append(f"the clocked post-synthesis check lists the points {twice} more than once")
     seeds, unit = clocked_seeds(task), CLOCKED_SEED_UNIT.get(task.get("kind"))
     latency = res.get("latency")
+    # F8 (decided 2026-11-08): a latency kind's every point is checked against its OWN latency, the kernel's `lat p`
+    # (check.py `latency_at`, the scoring point's the declared n); a result without `latency_at` (an older checker)
+    # used the declared n at every point
+    lat_at = res.get("latency_at")
+    if latency is not None and lat_at is not None:
+        if not (isinstance(lat_at, dict) and sorted(lat_at) == sorted(want)
+                and all(_isint(v, 1) for v in lat_at.values())):
+            p.append(f"the result's latency_at {lat_at!r} does not give a latency for each clocked point {want}")
+            lat_at = {}
+        elif lat_at.get(point_text(scoring_point(task))) != latency:
+            p.append(f"latency_at gives the scoring point {lat_at.get(point_text(scoring_point(task)))!r}, not the "
+                     f"declared {latency!r}")
     for x in pts:
         at = f"stages.postsynth.points[{x.get('point')!r}]"
         if x.get("kind") != task.get("kind"):
@@ -638,8 +653,9 @@ def clocked_acceptance_problems(res, task, postsynth="full"):
                      "--postsynth light`")
         if not SHA_RE.fullmatch(str(x.get("netlist_sha256", ""))):
             p.append(f"{at} has no netlist sha256")
-        if x.get("latency") != latency:
-            p.append(f"{at} checked the latency {x.get('latency')!r}, not the declared {latency!r}")
+        want_lat = latency if latency is None or lat_at is None else lat_at.get(x.get("point"))
+        if x.get("latency") != want_lat:
+            p.append(f"{at} checked the latency {x.get('latency')!r}, not the point's {want_lat!r}")
         ss = x.get("seeds")
         ran = ([s.get("seed") for s in ss] if isinstance(ss, list) and all(isinstance(s, dict) for s in ss)
                else None)
@@ -1078,8 +1094,10 @@ def clocked_postsynth_problems(rec):
     """Structural problems of a clocked record's `postsynth` (`clocked_postsynth_record`'s shape), and its agreement
     with the record's own score and `ppa` block: the points are distinct, each named after its params, passed (0
     mismatches) with its seeds 0 to n-1; the top-level mode is "light" exactly when a point ran light; one point is the
-    scoring point, and its netlist is `postsynth.netlist_sha256`, the netlist the `ppa` block weighed; every point
-    used the latency `score.cycles` counts (1 when none is declared). Whether the points and seeds are the TASK's is
+    scoring point, and its netlist is `postsynth.netlist_sha256`, the netlist the `ppa` block weighed; the scoring
+    point used the latency `score.cycles` counts (1 when none is declared), and the points declare a latency all or
+    none (F8, 2026-11-08: another point's is its own `lat p`, which only the kernel gives: acceptance holds it to the
+    result's `latency_at`, `verify --full` to a fresh check's). Whether the points and seeds are the TASK's is
     acceptance (`clocked_acceptance_problems`), which needs the task.json. [] when well-formed."""
     ps = rec.get("postsynth")
     if not isinstance(ps, dict):
@@ -1107,7 +1125,9 @@ def clocked_postsynth_problems(rec):
                                                  for n, v in params.items())):
             p.append(f"{at}.params must map parameter names to integers")
             continue
-        if x["point"] != point_text(params):
+        # the same name=value pairs in any order: check.py names a point in the task's parameter order (N, W, AccW),
+        # and a stored record's params come back in sorted key order (the file is written with sorted keys)
+        if sorted(str(x["point"]).split(",")) != sorted(point_text(params).split(",")):
             p.append(f"{at}.point {x['point']!r} is not the name of its params {params}")
         if x["mode"] not in POSTSYNTH_MODES:
             p.append(f"{at}.mode must be 'light' or 'full'")
@@ -1161,10 +1181,14 @@ def clocked_postsynth_problems(rec):
         p.append("ppa.netlist_sha256 is not postsynth.netlist_sha256: the sky130 columns weighed another netlist than "
                  "the one checked at the scoring point")
     if _isint(sc.get("cycles"), 1):
-        off = [x["point"] for x in pts if (x["latency"] or 1) != sc["cycles"]]
+        # F8 (2026-11-08): the scoring point's latency is the score's cycles; another point's is its own `lat p`
+        off = [x["point"] for x in pts if x["params"] == sc.get("scoring_point") and (x["latency"] or 1) != sc["cycles"]]
         if off:
             p.append(f"score.cycles {sc['cycles']} is not the latency the check used at {off} (1 when none is "
                      "declared)")
+    if len({x["latency"] is None for x in pts}) > 1:
+        p.append("postsynth.points declare a latency at some points and none at others: "
+                 + ", ".join(f"{x['point']}: {x['latency']!r}" for x in pts))
     return p
 
 
@@ -2119,6 +2143,18 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
                 if axioms != rec["proof"]["axioms"]:
                     res.fails.append(f"recheck: axioms {axioms} differ from the recorded "
                                      f"{rec['proof']['axioms']}")
+                # a clocked record's latency at each point (F8, 2026-11-08: the kernel's `lat p`, which validation
+                # cannot re-derive) against the fresh check's: a proof fact, so compared whatever the flow
+                if record_flow(rec) == SEQ_FLOW:
+                    now = {x.get("point"): x.get("latency")
+                           for x in (_get(got, "stages", "postsynth", "points", default=None) or [])
+                           if isinstance(x, dict)}
+                    for q in rec["postsynth"]["points"]:
+                        if q["point"] not in now:
+                            res.fails.append(f"recheck: no post-synthesis check at {q['point']}")
+                        elif now[q["point"]] != q["latency"]:
+                            res.fails.append(f"recheck: the latency at {q['point']} recorded {q['latency']!r}, now "
+                                             f"{now[q['point']]!r}")
                 if same_flow:
                     gs = got.get("score") or {}
                     for k in ("area_mge", "depth", "gates"):

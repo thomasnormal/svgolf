@@ -29,7 +29,9 @@ STEPS, in order:
               `*.probes.json`) outside `.lake/`; `tests/expected.json` lists
               exactly the designs on disk; the aggregators `tasks.lean` and
               `tests.lean` import every Spec and every Refute (but the
-              PENDING_REFUTES, which `tests.lean` must not import);
+              PENDING_REFUTES, which `tests.lean` must not import); every
+              PENDING_STAGES row is a negative of `tests/expected.json` at
+              another stage than the pinned one;
               `tests/mul/baselines/gen_dadda.py --check`; every task's `time_limit_s`
               is the one limit, every reference a task.json lists has cold runs in CPU
               seconds in `score/time_limits.json` and none is over the limit
@@ -152,7 +154,10 @@ STEPS, in order:
   negatives   every negative design through check.py with the task's first
               reference proof (a draft task: its partial file; a statement
               draft: skipped): rejected at its expected stage; its expected
-              scores, if any. And each PENDING_REFUTES module, built alone
+              scores, if any; but a PENDING_STAGES row (the three
+              `only_n16.sv`, until the int32 port round) must be rejected at
+              its pinned stage, `design`, with the loader's refusal. And each
+              PENDING_REFUTES module, built alone
               (`lake build tests.<name>.negative.Refute`): it must fail with
               its pinned message; one that builds fails the step until
               `tests.lean` imports it again and the entry is dropped
@@ -317,6 +322,18 @@ PENDING_REFUTES = {
     f"tests.{t}.negative.Refute": (f"tests/{t}/negative/Refute.lean", f"tests/{t}/negative/only_n16.sv",
                                    "REFUSED", "INT-class constant expression leaves the 32-bit range",
                                    "(`PDesign.int32Agrees`)")
+    for t in ("add", "mul", "clmul")
+}
+# The check.py rows of the same designs wait for the same round: check.py loads each `only_n16.sv` at its `design`
+# stage, where the pinned loader refuses it, so the run never reaches the `solution` stage that tests/expected.json
+# gives it (the proof's failure, which the refutation above shows). Until the int32 port round the `negatives`
+# step pins the design-stage refusal instead: "<task>/<stem>" -> (the stage check.py stops at now, the start of its
+# first error, the phrases that error's first Lean error line must carry). tests/expected.json keeps the stage the
+# row has after that round, and its scores are checked as before. A row that check.py rejects any other way fails
+# the step (one rejected at its expected.json stage: drop it here, with its PENDING_REFUTES entry).
+PENDING_STAGES = {
+    f"{t}/only_n16": ("design", "the design does not load (ls-sv refused it)", "REFUSED",
+                      "INT-class constant expression leaves the 32-bit range", "(`PDesign.int32Agrees`)")
     for t in ("add", "mul", "clmul")
 }
 WRAP = os.environ.get("SVGOLF_LEAN_WRAP", "").split()
@@ -773,6 +790,14 @@ def step_layout(tasks, expected):
              if not os.path.isfile(os.path.join(SVGOLF, pin[0])) or f"import {m}\n" in sl]
     good &= record("layout", "tasks.lean / tests.lean import every Spec / Refute", not miss,
                    ", ".join(miss))
+    # a pending check.py row is a negative of tests/expected.json whose stage there is not the pinned one
+    stale = [f"{k} ({'no such negative' if want is None else 'expected.json already says ' + want})"
+             for k, pin in PENDING_STAGES.items()
+             for want in [expected["tasks"].get(k.split("/")[0], {}).get("negatives", {})
+                          .get(k.split("/")[1], {}).get("stage")]
+             if want in (None, pin[0])]
+    good &= record("layout", "PENDING_STAGES name negatives of tests/expected.json at another stage", not stale,
+                   ", ".join(stale))
     proc = subprocess.run([PY, os.path.join(HERE, "mul", "baselines", "gen_dadda.py"), "--check"],
                           capture_output=True, text=True)
     good &= record("layout", "gen_dadda.py --check", proc.returncode == 0,
@@ -1351,7 +1376,7 @@ def step_references(tasks, expected, args):
                 # the full check ran: today's whole budget (WP-C2), and the design stage
                 # tested every probe point for an Unsupported construct (WP-C3)
                 if clocked:
-                    mok, mdetail = clocked_postsynth_ok(task, ps)
+                    mok, mdetail = clocked_postsynth_ok(task, ps, res)
                 else:
                     mok = (ps.get("mode") == "full" and ps.get("vectors") == ps.get("full_vectors")
                            and "light_vectors" not in ps)
@@ -1395,21 +1420,32 @@ def step_references(tasks, expected, args):
     return good
 
 
-def clocked_postsynth_ok(task, ps):
+def clocked_postsynth_ok(task, ps, res=None):
     """A clocked reference's post-synthesis record (check/postsynth.py `run_clocked`, PLAN4 Gate 2 step 4): the
     scoring point and every point of task.json's `postsynth.points`, each in full mode with every seed run and no
-    failure (the netlist against ls-sv cycle by cycle, and C where done = 1 against the oracle: both binding)."""
+    failure (the netlist against ls-sv cycle by cycle, and C where done = 1 against the oracle: both binding); for a
+    latency kind each point at its own latency (F8, decided 2026-11-08): the kernel's `Submission.lat p` that the
+    result records (`latency_at`), the scoring point's the declared n."""
     cfg = postsynth.config(task)
     want = ({envelope.point_str(task["scoring"]["params"]) or "default"}
             | {envelope.point_str(p) or "default" for p in cfg["points"] or []})
     pts = ps.get("points") or []
+    lat_at = (res or {}).get("latency_at")
+    latency_kind = task.get("kind") in checkpy().LATENCY_KINDS
     bad = [p.get("point") for p in pts if not (p.get("mode") == "full" and p.get("mismatches") == 0
-                                                 and len(p.get("seeds") or []) == cfg["seeds"])]
+                                                 and len(p.get("seeds") or []) == cfg["seeds"])
+           or (latency_kind and not (isinstance(lat_at, dict) and p.get("latency") == lat_at.get(p.get("point"))))]
+    if latency_kind and isinstance(lat_at, dict) and \
+            lat_at.get(envelope.point_str(task["scoring"]["params"])) != (res or {}).get("latency"):
+        bad.append("the scoring point's latency is not the declared one")
     got = {p.get("point") for p in pts}
     ok = got == want and not bad and len(pts) == len(want)
     detail = "; ".join(f"{p.get('point')}: {p.get('mode')}, {len(p.get('seeds') or [])} seeds, "
                        f"{sum(x.get('cycles', 0) for x in p.get('seeds') or [])} cycles, "
-                       f"{p.get('mismatches')} failures, {p.get('seconds')} s" for p in pts)
+                       + (f"latency {p.get('latency')}, " if latency_kind else "")
+                       + f"{p.get('mismatches')} failures, {p.get('seconds')} s" for p in pts)
+    if bad:
+        detail = f"failing: {bad}; " + detail
     if got != want:
         detail = f"points {sorted(got)}, want {sorted(want)}; " + detail
     return ok, detail
@@ -1457,7 +1493,7 @@ def statement_draft_goalpost(t, task, tdir, stem, args):
     detail = "every stage without a proof passes (exit 0)" if ok else f"{verdict(res)} (want a clean unproved run)"
     clocked = task.get("kind") in checkpy().CLOCKED_KINDS
     if ok and clocked:
-        ok, detail = clocked_postsynth_ok(task, res["stages"].get("postsynth") or {})
+        ok, detail = clocked_postsynth_ok(task, res["stages"].get("postsynth") or {}, res)
         detail += f"; score {show_score(res['score'])}"
     good = record("drafts", f"{t}/{stem} goalpost --unproved {' '.join(lat)}".rstrip(), ok,
                   detail if ok else f"{detail}: {first_error(res)}", res["_seconds"])
@@ -1493,6 +1529,10 @@ def step_negatives(tasks, expected, args):
             # point is what a PROOF does with it (WP-G: a refusal by the new tactic elaborators)
             nlean = os.path.join(SVGOLF, "tests", t, n["lean"]) if n.get("lean") else lean
             res = run_check(tdir, sv, nlean, args.check_extra + ["--no-score"])
+            if f"{t}/{stem}" in PENDING_STAGES:
+                good &= pending_stage(f"{t}/{stem}", n, res)
+                good &= check_scores("negatives", f"{t}/{stem}", sv, task["top"], n.get("scores", {}), args)
+                continue
             ok = not res.get("accepted") and res.get("stage") == n["stage"]
             if ok and n.get("message_contains"):
                 ok = n["message_contains"] in json.dumps(res.get("errors"))
@@ -1506,6 +1546,26 @@ def step_negatives(tasks, expected, args):
         if mod in PENDING_REFUTES:
             good &= pending_refute(mod)
     return good
+
+
+def pending_stage(key, n, res):
+    """One PENDING_STAGES row's check.py result: rejected at the pinned stage (not yet at tests/expected.json's), its
+    first error starting as pinned and that error's first Lean error line carrying every pinned phrase (the loader's
+    refusal; the errors after it follow from the missing design). Any other result fails the step; one rejected at
+    its expected.json stage says the int32 port round has come for it."""
+    stage, head, *phrases = PENDING_STAGES[key]
+    errors = res.get("errors") or []
+    first = errors[0] if errors and isinstance(errors[0], str) else ""
+    lean = [ln for ln in first.splitlines() if re.search(r":\d+:\d+: error\b", ln)]
+    why = f"pinned until the int32 port round; tests/expected.json: {n['stage']}"
+    if not res.get("accepted") and res.get("stage") == n["stage"]:
+        return record("negatives", key, False, f"{verdict(res)}, the stage tests/expected.json gives it: drop it from "
+                      "PENDING_STAGES (and its module from PENDING_REFUTES)", res["_seconds"])
+    ok = (not res.get("accepted") and res.get("stage") == stage and first.startswith(head) and bool(lean)
+          and all(ph in lean[0] for ph in phrases))
+    return record("negatives", key, ok, f"{verdict(res)} (want {stage}, {why}): "
+                  + (lean[0].split(": error", 1)[1].lstrip(": ")[:160] if ok else json.dumps(errors)[:600]),
+                  res["_seconds"])
 
 
 def pending_refute(mod):

@@ -9,12 +9,12 @@ exactly when, at every `(N, W, AccW)` in range, every property holds. The theore
 Lean's kernel, so the properties cover the whole statement and nothing else; this file adds
 nothing to the trusted base. `properties.json` explains each property in plain words.
 
-The statement's guarantee (`TxTask.Guar`) is one conjunction under the protocol; here it is four
-properties, each under the same protocol (`UnderProtocol`): `DoneKnown`, `DoneWithinLatency`,
-`DoneHeld` and `ResultIsProduct`. Hypotheses of the guarantee that follow from the rest are
+The statement's guarantee (`TxTask.Guar`) is one conjunction under the protocol; here it is five
+properties, each under the same protocol (`UnderProtocol`): `DoneKnown`, `DoneLowBeforeFirstStart`,
+`DoneWithinLatency`, `DoneHeld` and `ResultIsProduct`. Hypotheses of the guarantee that follow from the rest are
 dropped: that the start's operands are known values (the protocol drives them in every cycle;
 `ResultIsProduct` keeps the hypothesis, since it names them), `s < h` and `s ≤ c` (implied by the
-other bounds). Under txtask-v2 (DRAFT, 2026-11-05, revision 2) every run is from a power-up state:
+other bounds). Under txtask-v2 (2026-11-05; final, decided 2026-11-08) every run is from a power-up state:
 `Terminates` and `UnderProtocol` quantify over every power-up state and every known stimulus (rule
 2); rules 1 and 3 are two more properties, `MooreOutputs` and `NoXCreating`, each the trusted
 conjunct verbatim.
@@ -33,13 +33,13 @@ def Interface (N W AccW : Nat) (d : Design2) : Prop :=
   inputPorts d = [("clk", 1), ("rst", 1), ("start", 1), ("A", N * N * W), ("B", N * N * W)] ∧
     outputPorts d = [("done", 1), ("C", N * N * AccW)] ∧ (d.decls.toList.map Decl.name).Nodup
 
-/-- `clk` is an input; every process that runs at a clock edge is clocked by `clk`; an
-asynchronous reset can only be `rst`; no process reads `clk` as data. -/
+/-- `clk` is an input; every process that runs at a clock edge is clocked by `clk`; no process
+has an asynchronous reset (`rst` is synchronous); no process reads `clk` as data. -/
 def ClockDiscipline (d : Design2) : Prop :=
   "clk" ∈ d.inputNames.toList ∧
     ∀ p ∈ d.processes.toList,
       (p.isEdgePhase = true → edgeClock p = some "clk") ∧
-      (∀ r, asyncReset p = some r → r = "rst") ∧
+      asyncReset p = none ∧
       "clk" ∉ processDataNames p
 
 /-- From every power-up state, under every schedule and every known stimulus, the run completes. -/
@@ -51,11 +51,11 @@ def Terminates (d : Design2) : Prop :=
 def LatencyAtLeastOne (lat : Nat) : Prop :=
   1 ≤ lat
 
-/-- No combinational path leads from an input port other than `rst` to an output port
-(`MooreOutDep`, txtask-v2 rule 1): `done` and `C` are functions of the registers, so every
-snapshot is what the wires show for the whole next period. -/
+/-- No combinational path leads from an input port, `rst` included, to an output port
+(`MooreOutDep` with nothing exempt, txtask-v2 rule 1): `done` and `C` are functions of the
+registers, so every snapshot is what the wires show for the whole next period. -/
 def MooreOutputs (d : Design2) : Prop :=
-  MooreOutDep d ["rst"]
+  MooreOutDep d []
 
 /-- `G` holds in every completed run from every power-up state on every known stimulus, from every
 release `c1` of the reset, up to every horizon `h` before which the environment kept the protocol
@@ -74,6 +74,12 @@ def NoXCreating (d : Design2) : Prop :=
 def DoneKnown (N W AccW : Nat) (d : Design2) : Prop :=
   UnderProtocol N W AccW d fun _ tr c1 h =>
     ∀ c, c1 ≤ c → c < h → ∃ b, TraceBit tr c "done" b
+
+/-- `done` is 0 at every cycle from the release up to the first start. -/
+def DoneLowBeforeFirstStart (N W AccW : Nat) (d : Design2) : Prop :=
+  UnderProtocol N W AccW d fun stim tr c1 h =>
+    ∀ c, c1 ≤ c → c < h → (∀ s, c1 ≤ s → s ≤ c → ¬ StimBit stim s "start" true) →
+      TraceBit tr c "done" false
 
 /-- After every start `s`, `done` is 1 at some cycle at most `lat` cycles later. -/
 def DoneWithinLatency (N W AccW lat : Nat) (d : Design2) : Prop :=
@@ -106,38 +112,44 @@ theorem clockDiscipline_iff (d : Design2) : ClockDiscipline d ↔ task.Disciplin
   · rintro ⟨hk, hp⟩
     refine ⟨hk, fun p hmem => ?_⟩
     obtain ⟨h1, h2, h3⟩ := hp p hmem
-    exact ⟨h1, fun r hr => by rw [h2 r hr]; rfl, h3⟩
+    exact ⟨h1, fun r hr => (by rw [h2] at hr; cases hr), h3⟩
   · rintro ⟨hk, hp⟩
     refine ⟨hk, fun p hmem => ?_⟩
     obtain ⟨h1, h2, h3⟩ := hp p hmem
-    exact ⟨h1, fun r hr => (Option.some.inj (h2 r hr)).symm, h3⟩
+    refine ⟨h1, ?_, h3⟩
+    cases h : asyncReset p with
+    | none => rfl
+    | some r => cases h2 r h
 
-/-- The guarantee is the four properties. -/
+/-- The guarantee is the five properties. -/
 theorem follows_iff (N W AccW lat : Nat) (d : Design2) :
     task.FollowsPU (N, W, AccW) lat d ↔
-      DoneKnown N W AccW d ∧ DoneWithinLatency N W AccW lat d ∧ DoneHeld N W AccW d ∧
-        ResultIsProduct N W AccW d := by
+      DoneKnown N W AccW d ∧ DoneLowBeforeFirstStart N W AccW d ∧ DoneWithinLatency N W AccW lat d ∧
+        DoneHeld N W AccW d ∧ ResultIsProduct N W AccW d := by
   constructor
   · intro hF
-    refine ⟨?_, ?_, ?_, ?_⟩
+    refine ⟨?_, ?_, ?_, ?_, ?_⟩
     · intro st0 h0 σ stim tr hks hr c1 h hrel hrely
       exact (hF st0 h0 σ stim tr hks hr c1 h hrel hrely).1
+    · intro st0 h0 σ stim tr hks hr c1 h hrel hrely
+      exact (hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.1
     · intro st0 h0 σ stim tr hks hr c1 h hrel hrely s hs hst hlat
       obtain ⟨x, hx⟩ := (hrely s hs (by omega)).2.1
-      exact ((hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2 s x hs (by omega) hst hx).1 hlat
+      exact ((hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.2 s x hs (by omega) hst hx).1 hlat
     · intro st0 h0 σ stim tr hks hr c1 h hrel hrely s c hch hfin
       obtain ⟨hs, hst, ⟨c', hsc', hc'c, hd⟩, hno⟩ := hfin
       obtain ⟨x, hx⟩ := (hrely s hs (by omega)).2.1
-      obtain ⟨st, hst', hdone, _⟩ := ((hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2 s x hs (by omega) hst
+      obtain ⟨st, hst', hdone, _⟩ := ((hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.2 s x hs (by omega) hst
         hx).2 c (by omega) hch ⟨c', hsc', hc'c, hd⟩ hno
       exact ⟨st, hst', hdone⟩
     · intro st0 h0 σ stim tr hks hr c1 h hrel hrely s c A B hch hfin hx
       obtain ⟨hs, hst, ⟨c', hsc', hc'c, hd⟩, hno⟩ := hfin
-      obtain ⟨st, hst', _, hC⟩ := ((hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2 s (A, B, ()) hs
+      obtain ⟨st, hst', _, hC⟩ := ((hF st0 h0 σ stim tr hks hr c1 h hrel hrely).2.2 s (A, B, ()) hs
         (by omega) hst hx).2 c (by omega) hch ⟨c', hsc', hc'c, hd⟩ hno
       exact ⟨st, hst', hC⟩
-  · rintro ⟨hK, hL, hH, hR⟩ st0 h0 σ stim tr hks hr c1 h hrel hrely
-    refine ⟨hK st0 h0 σ stim tr hks hr c1 h hrel hrely, fun s x hs _ hst hx => ⟨fun hlat =>
+  · rintro ⟨hK, hZ, hL, hH, hR⟩ st0 h0 σ stim tr hks hr c1 h hrel hrely
+    refine ⟨hK st0 h0 σ stim tr hks hr c1 h hrel hrely, hZ st0 h0 σ stim tr hks hr c1 h hrel hrely,
+      fun s x hs _ hst hx => ⟨fun hlat =>
       hL st0 h0 σ stim tr hks hr c1 h hrel hrely s hs hst hlat, fun c _ hch hdone hno => ?_⟩⟩
     obtain ⟨st₁, h₁, hb⟩ := hH st0 h0 σ stim tr hks hr c1 h hrel hrely s c hch ⟨hs, hst, hdone, hno⟩
     obtain ⟨A, B, ⟨⟩⟩ := x
@@ -153,7 +165,7 @@ theorem statement_iff_properties (sem : Nat → Nat → Nat → Design2)
       Interface N W AccW (sem N W AccW) ∧ ClockDiscipline (sem N W AccW) ∧
         Terminates (sem N W AccW) ∧ LatencyAtLeastOne (lat N W AccW) ∧
         MooreOutputs (sem N W AccW) ∧ NoXCreating (sem N W AccW) ∧
-        DoneKnown N W AccW (sem N W AccW) ∧
+        DoneKnown N W AccW (sem N W AccW) ∧ DoneLowBeforeFirstStart N W AccW (sem N W AccW) ∧
         DoneWithinLatency N W AccW (lat N W AccW) (sem N W AccW) ∧
         DoneHeld N W AccW (sem N W AccW) ∧ ResultIsProduct N W AccW (sem N W AccW) := by
   constructor

@@ -22,6 +22,12 @@ import tests.fdivp.negative.Refute
 import tests.arbiter.negative.Refute
 -- kernel refutations of a sample of the arbiter reference's generated mutants (tests/mutate.py)
 import tests.arbiter.negative.Mutants
+-- the sorter's and matmul's attacks and a sample of their references' generated mutants, refuted for every latency
+-- function (tests/txsweep.py's sweep, 2026-11-08)
+import tests.sorter.negative.Refute
+import tests.sorter.negative.Mutants
+import tests.matmul.negative.Refute
+import tests.matmul.negative.Mutants
 -- the clocked checker's fixture task statement (PLAN4 Gate 2; check.py builds it too)
 import tests.seq_counter.Spec
 -- its txtask-v2 refutations (the soundness probe's H1 and F1 twins, hand-built)

@@ -18,7 +18,7 @@ checker: react-family (check.py)   post-synthesis: react-family (segments, a 700
 reference: reference/rr_mask.sv + rr_mask.lean (own code, every N with 1 <= N, N*N < 2^31), check.py ACCEPTS it
   (--postsynth full)
 attacks: 19, all rejected (17 hand-written: 15 at postsynth, 1 at score, 1 at source; 2 mutants at extract)
-negatives: 2   site: listing decided 2026-11-07; par = the reference's record f45a50745d61,
+negatives: 2   site: listing decided 2026-11-07; par = the reference's record 84da5a4152db,
   769.488 um^2 x 2826 ps = 2174.57 um^2*ns ((k), (n))
 ```
 
@@ -306,8 +306,9 @@ them (`tests/arbiter/negative/Refute.lean`: `mealy_not_moore`, `merged_not_moore
 ### (h) `react-family`: a clocked checker kind without a latency (decided 2026-11-05)
 
 `check.py` `KINDS` and `CLOCKED_KINDS` gain `react-family` (not `LATENCY_KINDS`): the source gate's clocked
-rules apply (the loader drops an asynchronous reset, a `negedge` clock and an `iff` guard, which the gate
-refuses: A13 stops at `source`), the goal is `abbrev Goal : Prop := SvGolf.Tasks.Arbiter.Statement
+rules apply (they refuse an asynchronous reset, a `negedge` clock and an `iff` guard: A13 stops at `source`;
+past the gate, the pinned loader refuses the last two itself and keeps an asynchronous reset as `alwaysFFR`,
+which the statement's `ClockedBy clk none` refuses), the goal is `abbrev Goal : Prop := SvGolf.Tasks.Arbiter.Statement
 design.sem`, a `-- svgolf-latency:` line is refused, and task.json must name its `reset` port. The score is
 `score_clocked` with `cycles = 1`: `time_ps = period_ps`, ranked (`area_um2`, `time_ps`).
 
@@ -369,12 +370,12 @@ now the proved reference ((l)).
 
 ### (k) The site: hidden while the statement was a draft; listed directly, without a preview (decided 2026-11-05; the listing decided 2026-11-07)
 
-While its statement was a draft, `site/config.json` listed the task `hidden`, as it lists `matmul` and the
+While its statement was a draft, `site/config.json` listed the task `hidden`, as it then listed `matmul` and the
 sorter; the listing `preview` (a task page that ranks nothing, with a status line) exists on the public export
 branch only. Decided 2026-11-07: the task is listed directly (`listed`, open for submissions, ranked by area ×
 period with `cycles = 1`, par the reference at 769.488 µm² × 2826 ps, about 2175 µm²·ns), with no preview
 round, once its statement is final and the reference's record is seeded. Both held on 2026-11-07, when the
-listing was decided (`site/config.json`; the record `f45a50745d61`, (n)). The curated texts are
+listing was decided (`site/config.json`; the record, now `84da5a4152db`, (n)). The curated texts are
 `content/tasks/arbiter.md`, `.json` and `content/attacks/arbiter.json`.
 
 ### (l) The first proved reference is the own mask round-robin; the adapted OpenTitan tree is the next (decided 2026-11-05)
@@ -419,8 +420,20 @@ prices unchanged; the old record pinned the table's old sha256, so it was stale)
 769.488 µm² × 2826 ps = 2174.57 µm²·ns, 16 flops, the reactive post-synthesis check at `N = 3, 5, 8` with 8
 unsalted seeds each and 0 mismatches. MEASURED, against the record it replaces (`26ff615744bb`): score, `ppa`,
 `postsynth` (every seed), canonical hash, files and the stored `.sv` and `.lean` equal; new: the GE table's
-sha256, the two revisions, the build time, the date and the record hash. It is par, and the task ranks once it
-is listed ((k)).
+sha256, the two revisions, the build time, the date and the record hash. It was re-seeded once more on
+2026-11-08, the same way, after the comment-only change that made the tx/stream half of `SvGolf/TaskSeq.lean`
+final (the record names the sha256 of every statement file it was checked under, so it was stale): record
+`c3633e51ea51`. MEASURED, against `f45a50745d61`: score, `ppa`, `postsynth` (every seed), canonical hash, files,
+date and the stored `.sv` and `.lean` equal; new: the sha256 of `SvGolf/TaskSeq.lean`, of `check.py`,
+`check/Comparator.lean` and `check/postsynth.py` (the per-point latency and the tx/stream power-up rule, which do
+not touch a react-family check), the two revisions, the build time and the record hash. It was re-seeded again
+on 2026-11-09, the same way, after the statement decisions of 2026-11-09 changed `SvGolf/TaskSeq.lean` (in
+`TxTask` and `StreamTask` only: `done` = 0 before the first start, rule 1 with nothing exempt, no asynchronous
+reset; no constant of the reactive statement changed, MEASURED by constant hashes): record `84da5a4152db`.
+MEASURED, against `c3633e51ea51`: score, `ppa`, `postsynth` (every seed), canonical hash, files and the stored
+`.sv` and `.lean` equal; new: the sha256 of `SvGolf/TaskSeq.lean` and of `check/postsynth.py` (the tx-family
+`done` = 0 rule, which does not touch a react-family check), the two revisions, the build time, the date and the
+record hash. It is par, and the task ranks once it is listed ((k)).
 
 ## 2. Findings
 
@@ -516,7 +529,7 @@ kernel-checked refutation of the hand-built `Design2` twin (`tests/arbiter/negat
 | A10 | correct registered grant behind `gnt = (req == last) ? g : req` | MO only | postsynth: the Moore sample | MooreOut | `mealy_refuted`, `mealy_silicon` |
 | A11 | RR whose grant flop has no reset branch | G0 | postsynth: G0 on the netlist (since 2026-11-06; before, ls-sv's gnt x in the reset snapshot) | Follows (G0) | |
 | A12 | mask RR that forgets the mask on the wrap-around grant | G4 only (N ≥ 2) | postsynth: G4 | Follows | |
-| A13 | RR with an asynchronous reset (`posedge rst`) | MO at reset entries | source (the clocked rules) | the source gate (the loader drops `areset`) | |
+| A13 | RR with an asynchronous reset (`posedge rst`) | MO at reset entries | source (the clocked rules) | Disciplined (`ClockedBy clk none` refuses the `alwaysFFR` the loader keeps) | |
 | A14 | combinational (Mealy) RR, mask registered | MO, G0, G4 (N ≥ 3) | postsynth: the Moore sample, G0 | MooreOut | |
 | A15 | RR arbitrating every other cycle | G3, G4 | postsynth: G3 | Follows | |
 | A16 | correct RR behind `if (!u)` on a never-reset, self-holding `u` | NONE from Icarus's x start; G4 (N ≥ 2) from 0/1 power-ups (2026-11-07: from `u = 0`) | score: the never-loaded register (since 2026-11-06; before, postsynth: the netlist is not ls-sv) | Follows (from `u = 0`; KS until 2026-11-06) | `xopt_refuted`, `a16_refuted` |
@@ -620,18 +633,18 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
 * `load_sv` refutations of the SystemVerilog attacks (the Lean refutations use hand-built twins).
 * The ls-sv generate-local declarations (F5), outside this task's files. (The netlist-lint false rejection,
   F6, is closed for the clocked kinds since 2026-11-07: `opt_clean -purge` in the clocked flow.)
-* DONE since 2026-11-07: the reference's leaderboard record (`f45a50745d61` since its re-seed on 2026-11-08, par)
+* DONE since 2026-11-07: the reference's leaderboard record (`84da5a4152db` since its third re-seed on 2026-11-09, par)
   and the site listing ((k),
   (n)).
-* DONE since 2026-11-06: the refusal register (`docs/sv-refusals.json` of lean-surfaces, which generates
-  `REFUSALS.md`) cites this task's 17 attacks, its 2 negatives and the mutants m004 and m007, and has rows for
+* DONE since 2026-11-06: the refusal register `docs/sv-refusals.json` of proglib (formerly lean-surfaces),
+  which generates `REFUSALS.md`, cites this task's 17 attacks, its 2 negatives and the mutants m004 and m007, and has rows for
   the never-loaded and `clocked_rules` refusals of every clocked kind; `tools/gen_sv_refusals.py --check` (a
   nightly repository check) passes (MEASURED 2026-11-07: 210 ls-sv entries, 78 svGolf entries; it failed with
   19 errors on 2026-11-06).
 * NOT YET IN THIS REPOSITORY'S `REFUSALS.md`: the six register rows below, which this task's refusals rest on.
-  `REFUSALS.md` is what the refusal register of the pinned lean-surfaces revision renders (`bb5e58e0`, the
+  `REFUSALS.md` is what the refusal register of the pinned proglib revision renders (`bb5e58e0`, the
   revision `lakefile.toml` and `lake-manifest.json` require), and that revision predates them. They reach
-  `REFUSALS.md` with the round that moves svGolf to a later lean-surfaces revision (one with ls-sv's `int32`
+  `REFUSALS.md` with the round that moves svGolf to a later proglib revision (one with ls-sv's `int32`
   change, against which this task's reference proof and the tactic references must be re-checked first). Until
   then the checker refuses these designs with its own messages; the rows are:
 
@@ -645,10 +658,12 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
   | `sg-fsm-backstop` | (clocked tasks, a backstop) a state register re-implemented by Yosys's fsm pass, which the clocked flow does not run (`synth -nofsm`) | the `score` stage |
 
   The same round brings the register's stage `clocked_rules` and group `g-clocked`, the newer text of eleven
-  existing rows, and three rows that are not this task's own: `sg-ban-div-any` (a run-time `/ % **` in any
+  existing rows, and four rows that are not this task's own: `sg-ban-div-any` (a run-time `/ % **` in any
   task), `sg-ban-cmp` (a run-time ordering comparison in a task that bans `+` or `-`) and `sg-loopfree` (a
-  combinational loop or a latch, the statement's `LoopFree`); the svGolf README's Rules and The banlist
-  describe those three.
+  combinational loop or a latch, the statement's `LoopFree`), which the svGolf README's Rules and The banlist
+  describe, and `sg-txstream-moore` (an output of a transaction or stream task in the combinational cone of an
+  input port, the reset included: txtask-v2 rule 1, `MooreOutDep d []`, nothing exempt since 2026-11-09),
+  which the matmul and sorter READMEs describe as rule 1 (the sorter's attack `rst_gate` is its example).
 
 ## 7. txtask-v2's rules in the kind (2026-11-06)
 

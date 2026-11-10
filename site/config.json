@@ -9,9 +9,9 @@
     "clmul": "listed",
     "aes_sbox": "listed",
     "fdivp": "listed",
-    "matmul": "preview",
-    "sorter": "preview",
-    "arbiter": "listed"
+    "arbiter": "listed",
+    "matmul": "listed",
+    "sorter": "listed"
   },
   "pages": {
     "rules": {

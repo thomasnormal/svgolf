@@ -6,7 +6,7 @@
     "The reactive kind (decided 2026-11-05: ReactTask, SvGolf/TaskReact.lean, with the study's defaults: Moore observation, safety + bounded response with K = N - 1, no environment assumption beyond reset and known inputs, scored at N = 8).",
     "trusted statement: final, decided 2026-11-07 (txtask-v2's rules 2 and 3 since 2026-11-06: the claims from every power-up state, no x-creating construct)    run2 proof: complete (reference/rr_mask.lean, every N with 1 <= N, N*N < 2^31, through SvGolf.ReactTask.satisfiedAt_of_rank)",
     "checker: react-family (check.py ACCEPTS the reference, --postsynth full)    post-synthesis: react-family (the oracle's segments, a long reset-free run, the guarantee on the netlist, a Moore sample; 8 seeds per point)",
-    "Listing decided 2026-11-07 (listed directly, no preview; README.md (k), (n)): the leaderboard records a clocked result (README.md F9, closed), and the reference's record f45a50745d61 (leaderboard.py seed-references --task arbiter) is par."
+    "Listing decided 2026-11-07 (listed directly, no preview; README.md (k), (n)): the leaderboard records a clocked result (README.md F9, closed), and the reference's record 84da5a4152db (leaderboard.py seed-references --task arbiter) is par."
   ],
   "kind": "react-family",
   "_kind_comment": "check.py's kind for a ReactTask statement: `Statement design.sem`, no latency (one decision per cycle; the score's time is the clock period). Clocked: the source gate's clocked rules apply (one clock, posedge, synchronous reset; the loader drops an asynchronous reset, a negedge clock and an iff guard, which the gate refuses).",

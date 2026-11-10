@@ -10,7 +10,9 @@ smallest width `N = 1`.
 at the defaults an INT-class constant expression leaves the 32-bit range), so `Refute.lean` does not build at
 the pin. It is unchanged and not in the default `lake build` (`tests.lean` does not import it); `tests/run.py`'s
 `negatives` step builds it alone and checks that it fails with that refusal (`PENDING_REFUTES`; the svGolf
-README, "Building"). The `check.py` rejections in the table do not depend on it.
+README, "Building"). The `check.py` rejections in the table do not depend on it, but the same refusal stops
+`check.py` on `only_n16.sv` itself one stage early: at the pin it is rejected at `design`, not at the table's
+`solution`, and the `negatives` step pins that until the int32 port round (`PENDING_STAGES`).
 
 | design | what it tries | how it fails | refutation | checker stage |
 |---|---|---|---|---|

@@ -2696,6 +2696,15 @@
           ],
           "message_contains": "is not definitionally equal to the right-hand side\n  [genN \"g_row\" \"i\"",
           "why": "the accumulator is 2W bits (`acc`, the width of one product), and C is acc sign-extended to AccW bits by continuous assignments. Wrong when AccW > 2W and a dot product leaves the signed 2W-bit range (oracle.py `_faults`), right when AccW <= 2W or N = 1: check.py --unproved --latency 4 passes it at (2,4,8) (AccW = 2W, 0 failures) and rejects it at postsynth at (4,8,32), 33 failures; the first: C[0][0] = 512, want -65024 (min*max). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), first in mm_decls (the extra register acc), then pe_inst and mm_gens_src (the generate block holds an assign: not definitionally the reference's)."
+        },
+        "async_reset": {
+          "lean": "reference",
+          "stage": "source",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "a second event in an `always_ff` sensitivity list",
+          "why": "the control process has an asynchronous reset (`always_ff @(posedge clk or posedge rst)`; review L-a of 2026-11-08), the reset values unchanged. WRONG for the kind: rst is synchronous (C1); an asynchronous reset acts between clock edges, and with the other polarity ls-sv would run the body at the release entry, a claimed snapshot. Since 2026-11-09 the statement refuses it (TxTask.Disciplined is ClockedBy clk none): tests/matmul/negative/Refute.lean refutes it for every latency (async_reset_refuted). check.py rejects it at source: tx-family is a clocked kind, so the source gate's clocked rules apply (item 6), before any proof."
         }
       }
     },
@@ -2795,6 +2804,15 @@
           ],
           "message_contains": "Solution.lean:134:90: error: unsolved goals",
           "why": "the comparisons are signed (`$signed(in_data) > $signed(data[...])`, all three) instead of unsigned: values with the top bit set sort below the others and below the padding 0, so they are lost. Wrong for every N and W (at W = 1 the value 1 is -1). WRONG, independently of the proof: check.py --unproved --latency 16 (the clocked score) rejects it at postsynth, 57 failures at (3,4); the first: transaction 1 (one zero): output 1 is 0, want 15. the reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), in so_static (the top process: unsolved goal False) and in cell_inst (`decide`)."
+        },
+        "rst_gate": {
+          "lean": "reference",
+          "stage": "solution",
+          "args": [
+            "--no-score"
+          ],
+          "message_contains": "Solution.lean:97:89: error: unsolved goals",
+          "why": "the outputs are registered (ov_q, od_q) and out_valid is ov_q gated by the reset (`assign out_valid = ov_q & ~rst`; review L1 of 2026-11-08): every claimed snapshot is the reference's, but in the cycle of a reset entry the wire shows out_valid = 0 where the claimed snapshot before it shows a transaction's last output. Correct under the statement before 2026-11-09 (rule 1 exempted rst; check.py --unproved --postsynth full passes it: stage unproved, 0 failures at (3,4) and (8,8)); since 2026-11-09 rule 1 exempts nothing, and tests/sorter/negative/Refute.lean refutes it for every latency (rst_gate_refuted: the combinational path from rst to out_valid). The reference's proof (reference/sorter_ins.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), first in so_decls (the extra registers ov_q, od_q: unsolved goal False), then so_elems and so_static."
         }
       }
     },

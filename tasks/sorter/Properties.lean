@@ -14,7 +14,7 @@ four properties, each under the same protocol (`UnderProtocol`): `OutValidKnown`
 `SilentBeforeFirstStart`, `EmitsSorted` and `SilentAfterLatency`. The last two split the
 statement's per-transaction claim (one list of observations that emits the sorted values and is
 silent after the latency) in two; they are equivalent to it because the snapshots fix the
-`out_valid` bit of every observation. Under txtask-v2 (DRAFT, 2026-11-05, revision 2) every run is
+`out_valid` bit of every observation. Under txtask-v2 (2026-11-05; final, decided 2026-11-08) every run is
 from a power-up state: `Terminates` and `UnderProtocol` quantify over every power-up state and every
 known stimulus (rule 2); rules 1 and 3 are two more properties, `MooreOutputs` and `NoXCreating`,
 each the trusted conjunct verbatim.
@@ -33,13 +33,13 @@ def Interface (W : Nat) (d : Design2) : Prop :=
   inputPorts d = [("clk", 1), ("rst", 1), ("start", 1), ("in_valid", 1), ("in_data", W)] ∧
     outputPorts d = [("out_valid", 1), ("out_data", W)] ∧ (d.decls.toList.map Decl.name).Nodup
 
-/-- `clk` is an input; every process that runs at a clock edge is clocked by `clk`; an
-asynchronous reset can only be `rst`; no process reads `clk` as data. -/
+/-- `clk` is an input; every process that runs at a clock edge is clocked by `clk`; no process
+has an asynchronous reset (`rst` is synchronous); no process reads `clk` as data. -/
 def ClockDiscipline (d : Design2) : Prop :=
   "clk" ∈ d.inputNames.toList ∧
     ∀ p ∈ d.processes.toList,
       (p.isEdgePhase = true → edgeClock p = some "clk") ∧
-      (∀ r, asyncReset p = some r → r = "rst") ∧
+      asyncReset p = none ∧
       "clk" ∉ processDataNames p
 
 /-- From every power-up state, under every schedule and every known stimulus, the run completes. -/
@@ -51,11 +51,11 @@ def Terminates (d : Design2) : Prop :=
 def LatencyAtLeastOne (lat : Nat) : Prop :=
   1 ≤ lat
 
-/-- No combinational path leads from an input port other than `rst` to an output port
-(`MooreOutDep`, txtask-v2 rule 1): `out_valid` and `out_data` are functions of the registers, so
-every snapshot is what the wires show for the whole next period. -/
+/-- No combinational path leads from an input port, `rst` included, to an output port
+(`MooreOutDep` with nothing exempt, txtask-v2 rule 1): `out_valid` and `out_data` are functions of
+the registers, so every snapshot is what the wires show for the whole next period. -/
 def MooreOutputs (d : Design2) : Prop :=
-  MooreOutDep d ["rst"]
+  MooreOutDep d []
 
 /-- `G` holds in every completed run from every power-up state on every known stimulus, from every
 release `c1` of the reset, up to every horizon `h` before which the environment kept the protocol
@@ -112,11 +112,14 @@ theorem clockDiscipline_iff (d : Design2) : ClockDiscipline d ↔ task.Disciplin
   · rintro ⟨hk, hp⟩
     refine ⟨hk, fun p hmem => ?_⟩
     obtain ⟨h1, h2, h3⟩ := hp p hmem
-    exact ⟨h1, fun r hr => by rw [h2 r hr]; rfl, h3⟩
+    exact ⟨h1, fun r hr => (by rw [h2] at hr; cases hr), h3⟩
   · rintro ⟨hk, hp⟩
     refine ⟨hk, fun p hmem => ?_⟩
     obtain ⟨h1, h2, h3⟩ := hp p hmem
-    exact ⟨h1, fun r hr => (Option.some.inj (h2 r hr)).symm, h3⟩
+    refine ⟨h1, ?_, h3⟩
+    cases h : asyncReset p with
+    | none => rfl
+    | some r => cases h2 r h
 
 /-- A snapshot shows one value of a 1-bit signal. -/
 private theorem bitIs_unique {st : SvState} {n : String} {a b : Bool} (ha : BitIs st n a)

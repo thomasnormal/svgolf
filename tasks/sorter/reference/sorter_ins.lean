@@ -917,7 +917,7 @@ an in-range window of `data` or `tok`, or a comparison. -/
 
 /-- **Rule 1.** -/
 theorem so_moore (N W : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) :
-    MooreOutDep (design.sem N W) [Tasks.Sorter.task.rst] := by
+    MooreOutDep (design.sem N W) [] := by
   rw [so_sem_eq N W hN hW]
   exact MooreOutDep.of_noComb (combDeps_of_ffOnly (FFOnly.ofProfile (so_profile N W hN)))
     (by simp [soD, soDeclsW, Design2.outputNames, Design2.inputNames])

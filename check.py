@@ -25,7 +25,11 @@ order; the first failing stage rejects:
                 line `-- svgolf-latency: n`
                 (n ≥ 1); the goal is then `Goal lat := Statement design.sem lat ∧
                 lat p₀ = n` for the solution's definition `Submission.lat`, and the
-                result records `latency: n`. Any other kind refuses the line
+                result records `latency: n`. Any other kind refuses the line. After the
+                comparator, the kernel's value of `Submission.lat p` at every point p of
+                the clocked post-synthesis check (F8, decided 2026-11-08; `latency_at`):
+                each point is checked against its own latency (`--unproved`:
+                `--latency-at POINT:n`, else n)
   imports       the Lean file's imports are on the allowlist (Mathlib and the packages
                 it imports are: PACKAGE_ROOTS; for such a solution the `trusted` stage
                 ends with a probe that compiles the package imports ALONE: a module the
@@ -1428,6 +1432,84 @@ def goal_text(task, latency=None):
             f"  {const} design.sem lat ∧ lat {args} = {int(latency)}")
 
 
+# F8 (decided 2026-11-08): THE LATENCY AT EVERY POST-SYNTHESIS POINT. The statement holds `lat p` at every point p in
+# range, and the score uses the header's n = `lat p₀` at the scoring point only; the clocked post-synthesis check of a
+# latency kind runs at several points (`clocked_points`), each against THAT point's latency `lat p` (before, the scoring
+# point's n at every point: an over-rejection of a design whose latency is larger elsewhere, e.g. one that grows with N
+# when the scoring point is not the largest). A proved run asks the comparator for `lat p` at each point (point 8 of
+# check/Comparator.lean: the kernel reduces `Submission.lat a b …` to a literal and accepts `… = v` by `Eq.refl v`; no
+# compiled code of the submission runs); an `--unproved` run has no `lat` and takes `--latency-at POINT:n`, else the
+# scoring point's `--latency n`. The result records the values (`latency_at`, by point) and each point's record its own.
+LATENCY_MAX = 999999999      # the header's largest n (`parse_latency`); a larger `lat p` is refused at `latency`
+
+
+def clocked_points(task):
+    """The clocked post-synthesis check's points: the task's `postsynth.points`, the scoring point first when they do
+    not list it (the scored netlist is always checked)."""
+    sparams = score.task_scoring_point(task)[1]
+    points = [{n: int(v) for n, v in pt.items()} for pt in postsynth.config(task)["points"] or []]
+    return ([] if sparams in points else [sparams]) + points
+
+
+def parse_latency_at(items):
+    """`--latency-at POINT:n` (repeatable; POINT as `N=3,W=4`) as {point text: n}; ValueError on a malformed item."""
+    out = {}
+    for it in items or ():
+        pt, sep, n = it.rpartition(":")
+        m = re.fullmatch(r"\s*([1-9][0-9]{0,8})\s*", n)
+        if not sep or not m:
+            raise ValueError(f"--latency-at {it!r}: give POINT:n, e.g. N=3,W=4:6 (n a latency, 1 to {LATENCY_MAX})")
+        key = point_str(parse_point(pt))
+        if key in out and out[key] != int(m.group(1)):
+            raise ValueError(f"--latency-at names the point {key} twice, with {out[key]} and {m.group(1)}")
+        out[key] = int(m.group(1))
+    return out
+
+
+def unproved_latency_at(task, latency, given):
+    """An `--unproved` run's latency at every clocked point: `given` (`--latency-at`) where it names the point, else the
+    scoring point's `latency`. RuntimeError (a usage error) for a point that is not checked, or a scoring point given
+    another value than `--latency`."""
+    pts = [point_str(p) for p in clocked_points(task)]
+    s0 = point_str(score.task_scoring_point(task)[1])
+    stray = sorted(set(given) - set(pts))
+    if stray:
+        raise RuntimeError(f"--latency-at names {stray}, not among the clocked post-synthesis points {pts}")
+    if given.get(s0, latency) != latency:
+        raise RuntimeError(f"--latency-at {s0}:{given[s0]} is the scoring point, whose latency is --latency {latency}")
+    return {p: given.get(p, latency) for p in pts}
+
+
+def latency_at_from_comparator(task, comp, latency):
+    """A proved run's latency at every clocked point, from the comparator's `goal_arg_at` (point 8): {point text: n}.
+    Reject("latency") for a point the kernel gave no number, or one beyond LATENCY_MAX; RuntimeError (infrastructure)
+    for a report that does not answer every point asked, or a scoring point other than the declared n (the kernel
+    accepted the goal, which pins `lat p₀ = n`)."""
+    names = [p["name"] for p in task["parameters"]]
+    pts = clocked_points(task)
+    got = comp.get("goal_arg_at")
+    if not isinstance(got, list) or [e.get("args") if isinstance(e, dict) else None for e in got] != \
+            [[p[n] for n in names] for p in pts]:
+        raise RuntimeError(f"the comparator did not report the latency at the points asked ({[point_str(p) for p in pts]}): "
+                           f"{json.dumps(got)[:400]}")
+    out = {}
+    for p, e in zip(pts, got):
+        v = e.get("value")
+        if not isinstance(v, int) or isinstance(v, bool):
+            raise Reject("latency", f"the kernel gives no number for `{LATENCY_DEF}` at {point_str(p)}, a point of the "
+                         f"clocked post-synthesis check, which runs each point against its own latency: "
+                         f"{e.get('error') or e}")
+        if not 1 <= v <= LATENCY_MAX:
+            raise Reject("latency", f"`{LATENCY_DEF}` is {v} at {point_str(p)}, a point of the clocked post-synthesis "
+                         f"check: the checker simulates latencies 1 to {LATENCY_MAX}")
+        out[point_str(p)] = v
+    s0 = point_str(score.task_scoring_point(task)[1])
+    if out.get(s0, latency) != latency:
+        raise RuntimeError(f"the kernel gives {LATENCY_DEF} at the scoring point {s0} = {out[s0]}, but the goal it "
+                           f"accepted pins it to the declared {latency} (infrastructure: report this)")
+    return out
+
+
 def comparator_report(out, goal_arg=None):
     """The comparator's `SVGOLF_COMPARATOR {…}` report in its output `out`, or None. The report's
     `goal_arg` key is the tx-family's (`--goal-arg`, check/Comparator.lean point 7); a run given no
@@ -1714,7 +1796,7 @@ def fourstate_points(task):
 
 def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=True,
           build_trusted=True, unproved=False, keep=False, tactics=False, postsynth_mode=None,
-          ppa_mode="auto", latency=None):
+          ppa_mode="auto", latency=None, latency_at=None):
     """Check one submission. With `unproved` (and `lean_path` None), run every
     stage that needs no proof and stop at the pseudo-stage `unproved`, never
     accepting; with `tactics` (only then), also run the advisory fragment
@@ -1724,7 +1806,9 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
     else light; check/postsynth.py, "TWO MODES"); the result's
     `stages.postsynth.mode` says which ran. `ppa_mode` is "auto", "off" or
     "require" (the `ppa` stage, below): "require" opens the pinned liberty NOW,
-    before any work, and an absent or wrong file is an infrastructure error."""
+    before any work, and an absent or wrong file is an infrastructure error.
+    `latency_at` ({point text: n}, `--latency-at`) is an `--unproved` run's latency at the clocked
+    post-synthesis points other than the scoring point (F8; a proved run asks the kernel)."""
     try:
         postsynth_mode = postsynth.resolve_mode(postsynth_mode)
     except postsynth.InfraError as e:
@@ -1777,6 +1861,9 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         if (latency is not None) != (unproved and kind in LATENCY_KINDS):
             raise RuntimeError("--latency is given exactly for an --unproved run of a tx-family or stream-family task "
                                "(a proved run reads it from the solution's header)")
+        if latency_at and latency is None:
+            raise RuntimeError("--latency-at is for an --unproved run of a tx-family or stream-family task, with "
+                               "--latency (a proved run asks the kernel for the solution's `lat` at every point)")
         # `bv_decide` is not supported (BV_DECIDE_SUPPORTED, above): absent or false forbids it, true is an
         # infrastructure error, not a verdict. With the constant True (the tests of the dormant groundwork)
         # the default is allowed and the comparator re-verifies the axiom (check/Comparator.lean, point 6).
@@ -1820,6 +1907,12 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
             res["latency"] = latency
             st["latency"] = {"declared": latency, "definition": LATENCY_DEF,
                              "at": task["scoring"]["params"]}
+            if unproved and do_score:
+                # F8: no `lat` to evaluate; the command line's values, else the scoring point's n
+                res["latency_at"] = unproved_latency_at(task, latency, latency_at or {})
+                st["latency"]["points"] = res["latency_at"]
+                st["latency"]["points_from"] = ("--latency-at, else the scoring point's --latency" if latency_at else
+                                                "the scoring point's --latency (no --latency-at)")
 
         # source gate: the stage gets the CANONICAL text, and every later
         # stage (extractor, banlist, Yosys) reads it, never the submitted file
@@ -2098,6 +2191,9 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         goal_arg = LATENCY_DEF if kind in LATENCY_KINDS else None
         if goal_arg is not None:
             cargs += ["--goal-arg", goal_arg]
+            if do_score:      # F8: `lat p` at every clocked post-synthesis point, by the kernel (Comparator point 8)
+                for p in clocked_points(task):
+                    cargs += ["--goal-arg-at", ",".join(str(p[x["name"]]) for x in task["parameters"])]
         vcpu, vwall = verify_limits(vlimit)
         stage_start("comparator", "the kernel checks the theorem against Submission.Goal, the axioms and the "
                     f"dependency closure; CPU limit {vcpu:g} s (wall-clock backstop {vwall:g} s)", wrap)
@@ -2118,6 +2214,10 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
             raise Reject("imports", problem)
         if not comp.get("accepted"):
             raise Reject("comparator", "; ".join(comp.get("errors", [])) or "rejected")
+        if goal_arg is not None and do_score:
+            res["latency_at"] = latency_at_from_comparator(task, comp, latency)
+            st["latency"]["points"] = res["latency_at"]
+            st["latency"]["points_from"] = "the kernel: Submission.lat at each point (check/Comparator.lean, point 8)"
 
         # leanchecker (kernel replay of the submission's modules)
         stage_start("leanchecker", "kernel replay of Submission.Design and Submission.Solution; CPU limit "
@@ -2551,7 +2651,8 @@ def score_clocked(res, st, task, sv, env_path, ps_work, mod, mode, top, sparams)
     """The clocked `score`, `postsynth` and `ppa` stages (PLAN4 Gate 2 steps 3 and 4; C7): the clocked
     flow (score/svgolf_seq.ys, ge_seq.json) at the scoring point; the clocked post-synthesis check
     (check/postsynth.py `run_clocked`) at each of the task's `postsynth.points` (the scoring point's
-    netlist is the scored one, another point's is synthesized by the same flow); the sky130 columns
+    netlist is the scored one, another point's is synthesized by the same flow), a latency kind's
+    each against its own latency `lat p` (F8, `latency_at`); the sky130 columns
     of the scored netlist. RANKED: `area_um2` (sky130 A0', flops included) and `time_ps` = `cycles`
     x `period_ps`, the register-to-register period from the pinned liberty (clock-to-Q and setup
     included), `cycles` the declared latency n (1 for a seq-family task: one step per cycle). GE,
@@ -2564,10 +2665,21 @@ def score_clocked(res, st, task, sv, env_path, ps_work, mod, mode, top, sparams)
     sres["seconds"] = round(time.time() - t0, 2)
     st["score"] = sres
     never_loaded(sres, sv, top, sparams)
-    points = [{n: int(v) for n, v in pt.items()} for pt in postsynth.config(task)["points"] or []]
-    points = ([] if sparams in points else [sparams]) + points      # the scored netlist is always checked
+    points = clocked_points(task)       # the scored netlist is always checked
+    lat_at = res.get("latency_at") or {}
+
+    def latency_of(pt):
+        """The latency the check uses at `pt` (F8): `lat pt` (a proved run: the kernel's; `--unproved`: the command
+        line's), or None for a kind without one."""
+        if res.get("latency") is None:
+            return None
+        if point_str(pt) not in lat_at:
+            raise RuntimeError(f"no latency for the clocked post-synthesis point {point_str(pt)} (infrastructure)")
+        return lat_at[point_str(pt)]
     stage_start("postsynth", f"the clocked check, ls-sv against the netlist cycle by cycle, at {len(points)} "
-                "point(s)" + (f", {mode} mode" if mode else ""))
+                "point(s)" + (f", {mode} mode" if mode else "")
+                + ("; latency " + ", ".join(f"{latency_of(p)} at {point_str(p)}" for p in points)
+                   if res.get("latency") is not None else ""))
     st["postsynth"] = {"points": []}
     try:
         for k, pt in enumerate(points):
@@ -2579,7 +2691,7 @@ def score_clocked(res, st, task, sv, env_path, ps_work, mod, mode, top, sparams)
             pw = os.path.join(work, f"point_{k}")
             os.makedirs(pw)
             st["postsynth"]["points"].append(postsynth.run_clocked(
-                task, env_path, nl, pres, pw, mod, pt, res.get("latency"), mode))
+                task, env_path, nl, pres, pw, mod, pt, latency_of(pt), mode))
     except postsynth.InfraError as e:
         raise RuntimeError(f"postsynth: {e}")
     except postsynth.Reject as r:
@@ -2782,6 +2894,10 @@ def main(argv=None):
     ap.add_argument("--latency", type=int,
                     help="with --unproved, for a tx-family or stream-family task: the latency n the goal pins at the "
                     "scoring point (a proved run reads it from the solution's `-- svgolf-latency:` line)")
+    ap.add_argument("--latency-at", action="append", metavar="POINT:N",
+                    help="with --unproved and --latency (repeatable): the latency at another point of the clocked "
+                    "post-synthesis check, e.g. N=3,W=4:6; a point not named is checked against --latency (a proved "
+                    "run asks the kernel for the solution's `Submission.lat` at every point)")
     ap.add_argument("--no-score", action="store_true")
     ap.add_argument("--no-trusted-build", action="store_true",
                     help="skip `lake build SvGolf tasks svgolf-eval` (when it is known to be "
@@ -2797,6 +2913,10 @@ def main(argv=None):
         ap.error("give Solution.lean (the proof), or --unproved without one")
     if args.tactics and not args.unproved:
         ap.error("--tactics is a pre-check for --unproved runs (before a proof exists)")
+    try:
+        latency_at = parse_latency_at(args.latency_at)
+    except ValueError as e:
+        ap.error(str(e))
     for p in (args.task_dir, args.solution_sv) + ((args.solution_lean,) if args.solution_lean
                                                   else ()):
         if not os.path.exists(p):
@@ -2833,7 +2953,7 @@ def main(argv=None):
                     args.solution_lean and os.path.abspath(args.solution_lean), stage,
                     wrap, args.time_limit, not args.no_score,
                     not args.no_trusted_build, args.unproved, args.keep or bool(args.stage_dir),
-                    args.tactics, pmode, args.ppa, args.latency)
+                    args.tactics, pmode, args.ppa, args.latency, latency_at)
     except RuntimeError as e:
         print(json.dumps({"accepted": False, "stage": "infrastructure", "errors": [str(e)]},
                          indent=2))

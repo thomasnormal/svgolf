@@ -1,8 +1,8 @@
 # Proving a svGolf task
 
 This guide is for contestants. It explains how to prove that your circuit meets a task's
-statement, using the `sv_comb` tactics of lean-surfaces (`sv_structure`, `sv_equations`,
-`sv_cover`, `sv_bridge`) and the plain-Lean library `LeanModels.Sv.CombLib`. Two complete, checked examples
+statement, using the `sv_comb` tactics (`sv_structure`, `sv_equations`, `sv_cover`, `sv_bridge`) of proglib
+(formerly lean-surfaces) and the plain-Lean library `LeanModels.Sv.CombLib`. Two complete, checked examples
 are the references of the `add` and `mul` tasks:
 
 | task | tactic proof (read this first) | by-hand proof (no tactics, the fallback) |
@@ -12,8 +12,8 @@ are the references of the `add` and `mul` tasks:
 | `clmul` (section 3.1) | `tasks/clmul/reference/clmul_n.lean` (the array without carries; zero-iteration loops, a `(row, 0, 0)` rank) | |
 | `aes_sbox` (fixed size, 113 flat sites; section 12) | `tasks/aes_sbox/reference/sbox_bp.lean` (`sv_structure` and `sv_equations` decide the flat netlist's obligations) | |
 | `fdivp` (two parameters `W`, `P`; word-level sites and generate families) | `tasks/fdivp/reference/fdivp.lean` (restoring division, one `Glue.chain` from the 34 printed equations); `tasks/fdivp/reference/fdivp_newton.lean` (Newton-Raphson: the run-time `*` and a `$clog2` localparam, sections 4 and 17); `tasks/fdivp/reference/fdivp_srt.lean` (radix-4 SRT: a family of 19 sites per stage, the selection tables as `?:` trees over constants checked by `decide`, the shared obligations of `sv_structure` handed to `sv_equations`) | |
-| `matmul` (clocked, `TxTask`; section 19) | `tasks/matmul/reference/matmul_g1.lean` (`N²` multiply-accumulate units, `lat = N`; `TxTask.satisfiedAt_of_phases`) | |
-| `sorter` (clocked stream, `StreamTask`; section 19) | `tasks/sorter/reference/sorter_ins.lean` (the insertion-cell array, `lat = 2N`; `StreamTask.satisfiedAt_of_phases`) | |
+| `matmul` (clocked, `TxTask`; section 19) | `tasks/matmul/reference/matmul_g1.lean` (`N²` multiply-accumulate units, `lat = N`; `TxTask.satisfiedAtV2_of_phases`) | |
+| `sorter` (clocked stream, `StreamTask`; section 19) | `tasks/sorter/reference/sorter_ins.lean` (the insertion-cell array, `lat = 2N`; `StreamTask.satisfiedAtV2_of_phases`) | |
 | `arbiter` (clocked, reactive, `ReactTask`; section 20) | `tasks/arbiter/reference/rr_mask.lean` (the registered mask round-robin, every `N` with `1 ≤ N`, `N·N < 2^31`; `ReactTask.satisfiedAt_of_rank` with an invariant and a rank) | |
 
 Both proofs are for every `N` in their task's range (`1 ≤ N < 2^31` for `add`, `1 ≤ N < 2^30` for `mul`),
@@ -796,7 +796,7 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 * with nested loops, your own rank by cases on the site (section 2.1).
 
 Some refusals are not source-located (the last row). Note that several of these are checker-legal
-designs: the checker only needs *a* proof. `docs/sv-refusals.md` of lean-surfaces (the language
+designs: the checker only needs *a* proof. `docs/sv-refusals.md` of proglib (the language
 tier) and [REFUSALS.md](REFUSALS.md) (the checker) are the generated lists of what is refused
 elsewhere.
 
@@ -2189,14 +2189,22 @@ written in two separate groups of statements: the message of `sv_structure` name
 
 ## 19. A clocked task: one cycle at a time, then the phases (`matmul`, `sorter`)
 
-A clocked task (`kind` `tx-family` or `stream-family`) has no combinational fragment and no `sv_*` tactic: the
-statement (`TxTask` or `StreamTask` in `SvGolf/TaskSeq.lean`) is about every trace of the design from every reset
-release, under the environment's rely, and the proof declares the latency it claims (`Submission.lat`, and the
-header line `-- svgolf-latency: n` with `n = lat` at the scoring point). The untrusted library reduces that to
-facts about ONE clock cycle: `TxTask.satisfiedAt_of_phases` and `StreamTask.satisfiedAt_of_phases`
-(`SvGolf/Seq.lean`), each taking the interface, `Disciplined`, `Terminates2`, and a **phase model**. Both
-references follow the same four steps; the sorter's names are used here (`tasks/sorter/reference/sorter_ins.lean`,
-section numbers of that file).
+A clocked task with a latency (`kind` `tx-family` or `stream-family`) has no combinational fragment and no `sv_*`
+tactic. Its statement is txtask-v2 (`TxTask.StatementV2` or `StreamTask.StatementV2` in `SvGolf/TaskSeq.lean`, final
+since 2026-11-08, amended 2026-11-09 before any record of these tasks was published): the handshake's claims hold of
+every run of the design from EVERY power-up state (every declared signal, 2-state ones included, at some 0/1 value),
+under every schedule, on every known stimulus, from every reset release, under the environment's rely; every such run
+terminates (`TerminatesPU`); no combinational path leads from any input port, `rst` included, to an output port
+(`MooreOutDep d []`: nothing is exempt, rule 1); and no construct can create an `x` from known operands (`XSafe`,
+rule 3). The proof declares the latency it claims (`Submission.lat`, and the header line
+`-- svgolf-latency: n` with `n = lat` at the scoring point; at other points `lat` need only be a bound the proof
+establishes, and at the points of the post-synthesis check the kernel must reduce it to a number, which the check
+uses there, decided 2026-11-08). The untrusted library reduces the statement to facts about ONE clock cycle:
+`TxTask.satisfiedAtV2_of_phases` and `StreamTask.satisfiedAtV2_of_phases` (`SvGolf/SeqV2.lean`), each taking the
+interface, `Disciplined`, `TerminatesPU`, the latency facts (and, for a stream, that `spec` keeps the length), a **phase model** (`TxTask.PhaseModel`,
+`StreamTask.PhaseModel`, `SvGolf/Seq.lean`), the proof that every power-up state has the model's shape, `MooreOutDep`
+and `XSafe`. Both references follow the same five steps; the sorter's names are used here
+(`tasks/sorter/reference/sorter_ins.lean`, section numbers of that file).
 
 1. **Agreement** (§1, `so_sem_eq`): the loaded family `design.sem N W` equals a hand-built design `soD N W` at
    every in-range point. The generate loop is expanded with `expand2_genFor_ascending_processes`; at `N = 1` the
@@ -2204,11 +2212,13 @@ section numbers of that file).
    (`so_pairwise`), proved once, symbolically.
 2. **One cycle** (§2 to §5, `so_profile`, `so_cycle`, `next_reset`, `next_run`): `soD` is in the FF-only profile
    (`so_profile`, the disjointness through `ffDisjB_of_pairwise`), so G0's clock step (`cycleStep2_profile`)
-   says a cycle runs every `always_ff` body on the pre-edge state and commits the nonblocking queues. Write the queues per process (`topQ`, `outQ`, `cellQ`), commit them one register
-   at a time (`nbaFold` in `LeanModels.Sv.NbaCommit`; `bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV` in
-   `LeanModels.Sv.SeqFamily`), and read each register as a
-   function of the old one (`cell_data`, `cell_tok`). A reset that rewrites the same window wins because it is the
-   later write (`LVec.foldl_range_insertAt_last`).
+   says a cycle runs every `always_ff` body on the pre-edge state and commits the nonblocking queues. Write the
+   queues per process (`topQ`, `outQ`, `cellQ`), commit them one register at a time (`nbaFold` in
+   `LeanModels.Sv.NbaCommit`; `bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV` in `LeanModels.Sv.SeqFamily`),
+   and read each register as a function of the old one (`cell_data`, `cell_tok`). A reset that rewrites the same
+   window wins because it is the later write (`LVec.foldl_range_insertAt_last`). The cycle holds from ANY state of
+   the register shape (`I`: the declarations in order, the registers at their widths, any values), which is what
+   rule 2 needs. A design with combinational logic proves its own settle, as the arbiter does (section 20).
 3. **The invariant** (§6, §7): plain Lean over `List (BitVec W)`. A load is `tail ∘ insertAsc x` on the ascending
    cells (`hw_ins`), insertions commute (`ins_comm`), so `sortAsc (l ++ [x]) = insertAsc x (sortAsc l)`
    (`sort_snoc`) and `t` loads hold `[0]^(N-t) ++ sortAsc` of the inputs. `at_step` steps the whole state: cells
@@ -2216,29 +2226,55 @@ section numbers of that file).
 4. **The phases** (§8, `model`): a `StreamTask.PhaseModel` has `Ready` (here: the all-zero state) and `At ys j`
    (`j` cycles after a start, the inputs `ys` so far), a schedule `out xs j` of what the outputs show (here
    `out_valid` exactly when `N < j ≤ 2N`, carrying `(sortAsc xs)[j-N-1]`), and five one-step obligations: `reset`
-   (a reset edge leads to `Ready`), `hold` (an idle edge keeps `Ready`), `start`, `feed` (an input edge appends to
-   `ys`) and `run` (an edge after the last input advances `j`). Three facts about the schedule close it: nothing
-   is shown before the last input is sampled (`out_feed`), nothing after `lat` (`out_lat`), and the shown values
-   are `spec xs` (`out_spec`). The reduction does the rest: the release, the horizon, `Idle`, back-to-back
-   starts, `out_valid` = 0 before the first start. (`TxTask.PhaseModel` is the same idea with `Busy`/`Fin` and
-   `done`; `matmul_g1.lean`.)
+   (a reset edge leads to `Ready`, from EVERY state of the shape: here a reset clears every cell and token),
+   `hold` (an idle edge keeps `Ready`), `start`, `feed` (an input edge appends to `ys`) and `run` (an edge after
+   the last input advances `j`). Three facts about the schedule close it: nothing is shown before the last input
+   is sampled (`out_feed`), nothing after `lat` (`out_lat`), and the shown values are `spec xs` (`out_spec`). The
+   reduction does the rest: the release, the horizon, `Idle`, back-to-back starts, `out_valid` = 0 before the
+   first start. (`TxTask.PhaseModel` is the same idea with `Ready`, `Busy x m`, `Fin x` and `done`;
+   `matmul_g1.lean`. Its `ready_done` asks `done` = 0 in `Ready`: the statement asks `done` = 0 between the
+   release and the first start, as `out_valid` = 0 for the sorter.)
+5. **txtask-v2's three rules** (§9): rule 2 is `so_powerUp`, every power-up state has the shape `I`
+   (`powerUp_cons` once per declaration, then `powerUp_nil`), with termination from the same cycle
+   (`so_terminatesPU`, by `TerminatesPU.of_invariant` with the shape as the invariant); rule 1 is `so_moore`:
+   every process is an `always_ff`, so the design has no combinational dependency at all
+   (`MooreOutDep.of_noComb (combDeps_of_ffOnly (FFOnly.ofProfile so_profile))`, with a `simp` for its second
+   argument, that no output port is an input port); rule 3 is `so_xsafe`, a `simp`
+   over `xsafeB` and its helpers (`xsProc`, `xsStmt`, `xsWidth`, `binW`, `sigWidth`) with the window bounds
+   (`rowMajor_le`) and `omega`. `solution` is one application of `StreamTask.satisfiedAtV2_of_phases`. A design
+   with an `always_comb` block or a continuous `assign` proves `MooreOutDep` itself: give the set of signals the
+   input ports reach along `combDeps`, every input port included (`rst` and `clk` too: nothing is exempt), which
+   must contain no output port (the definition's witness), or evaluate `mooreOutDepB` (`MooreOutDep.of_check`).
 
-**What the attacks show.** Each design of `tests/sorter/attacks/` is the reference with one change and is wrong
+**The loader's generate fuel.** `design.sem` expands each generate loop to at most `PDesign.surfaceFuel`
+iterations at a point, `(s + 2)² + 64` with `s` the sum of the parameter values (`(N + W + 2)² + 64` for the sorter,
+`(N + W + AccW + 2)² + 64` for matmul), per loop. A loop with more iterations makes `design.sem` the error design at
+that point (no declarations, so its `Interface` is false), and no proof can hold there although the design is
+correct. Write one generate loop per index and nest them (a nested loop gets the whole budget again): matmul's
+`g_row`/`g_col` take `N` iterations each, the sorter's cell loop `N - 1`; one flat loop over the bits of a matmul
+port (`N·N·W`) exceeds the bound at `(30, 10, 1)`, in range (MEASURED, the readiness review of 2026-11-08).
+
+**What the attacks show.** Each design of `tests/sorter/attacks/` is the reference with one change. Seven are wrong
 for some `N, W` (a token shift that reads the cell's own token, a missing `else`, the neighbour push reading the cell's own value, the
 token entering with the start, a reset that leaves the cells, a top cell the drain does not clear, signed order).
-Each fails at the `solution` stage, inside one of the four steps above, and each is also rejected by the
-clocked post-synthesis check alone (`check.py --unproved --latency 16`). A design that orders EQUAL values
-differently (`>=` for `>`) is not an attack: equal values are interchangeable in the emitted list, the
+Each fails at the `solution` stage, inside one of the steps above, and each of the seven is also rejected by the
+clocked post-synthesis check alone (`check.py --unproved --latency 16`). The eighth, `rst_gate`
+(`assign out_valid = ov_q & ~rst`), shows the reference's value in every snapshot, so the post-synthesis check
+passes it; on the wire the snapshot before a reset entry is hidden during the reset cycle. Rule 1 refuses it (the
+path from `rst` to `out_valid`; `rst_gate_refuted` in `tests/sorter/negative/Refute.lean`), and with the
+reference's proof it fails at `solution` too, first in `so_decls` (its extra registers). A design that orders EQUAL
+values differently (`>=` for `>`) is not an attack: equal values are interchangeable in the emitted list, the
 statement cannot tell the two apart, and the proof's `insertAsc` only fixes where the reference puts them.
 
-**Cost** (MEASURED 2026-11-04, `sorter_ins.lean`, 899 lines). Lines: agreement 214, one cycle 333 (the clock
-step 114, the commit 26, the registers 167, shape and termination 26), the sort 107, the invariant 56, the
-phases and the statement 189 (with the header). Time: the `solution` stage 7.2 to 7.6 s in three cold
-`check.py` runs (limit 300 CPU s). Heartbeats, in `maxHeartbeats` units: 123.3k for the whole file, at most 21.1k
-for one declaration (`cell_run`; then `model` 14.2k, `apply_so` 9.5k), so no declaration needs the default
-limit of 200k raised. The agreement and the clock step are two thirds of it (81.0k); the sort and the
-invariant 7.5k. `Solution.olean` 12.9 MB; 1042 constants in the module, of which 104 written (70 theorems,
-34 definitions), 739 generated equation lemmas and 199 auxiliary declarations. Axioms `propext`,
+**Cost** (MEASURED 2026-11-08, line counts of `sorter_ins.lean`: 983 lines). Lines: the header 35, agreement 216,
+one cycle 343 (the clock step 114, the commit 26, the registers 177, shape and termination 26), the sort 107, the
+invariant 56, the phases and the statement 150, txtask-v2's rules 76. Time: the `solution` stage 17.0 to 17.4 CPU s
+in three cold `check.py` runs (2026-11-07, `score/time_limits.json`; the limit is 300 CPU s). Heartbeats and the
+olean, measured 2026-11-04 on the 899-line v1 file (not measured again): in `maxHeartbeats` units, 123.3k for the
+whole file, at most 21.1k for one declaration (`cell_run`; then `model` 14.2k, `apply_so` 9.5k), so no declaration
+needs the default limit of 200k raised; the agreement and the clock step were two thirds of it (81.0k), the sort
+and the invariant 7.5k; `Solution.olean` 12.9 MB, 1042 constants in the module, of which 104 written (70
+theorems, 34 definitions), 739 generated equation lemmas and 199 auxiliary declarations. Axioms `propext`,
 `Classical.choice`, `Quot.sound`.
 
 ## 20. A reactive task: the arbiter (`ReactTask`)

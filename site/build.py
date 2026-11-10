@@ -147,7 +147,8 @@ CONTENT = "svgolf/site/content"                   # the site's own texts (a repo
 MARKER = ".svgolf-site"                           # marks a directory this script may replace
 SCHEMA = "svgolf-site/1"
 TOOLCHAIN_ROOTS = ("Init", "Std", "Lean", "Lake")
-KIND_SHORT = {"comb-family": "parametric", "comb-fixed": "fixed size", "react-family": "clocked, reactive"}
+KIND_SHORT = {"comb-family": "parametric", "comb-fixed": "fixed size", "react-family": "clocked, reactive",
+              "tx-family": "clocked, transaction", "stream-family": "clocked, stream"}
 # "What does not count", grouped by where the checker stops (the stages of the refusal register):
 # a stage before `solution` refuses the design before any proof is tried, the proof stages reject
 # the proof that comes with it, and the stages after them reject the scored netlist.
@@ -2150,10 +2151,11 @@ def rejects_html(site, t, here):
             text = md_inline(r["description"]) if r["description"] else '<span class="muted">(no description yet)</span>'
             src = read_text(r["sv"])
             # a licence's notices (copyright, permission, changes) must stay with the code: an SPDX identifier
-            # (the SRT attacks, Apache-2.0 WITH SHL-2.1) or the MIT grant (the sorter's attacks)
+            # (the SRT attacks, Apache-2.0 WITH SHL-2.1) or the MIT grant (the sorter's attacks). The block is then
+            # the file byte for byte, so it names the file (`data-src`, which the tests compare with it)
             if "SPDX-License-Identifier" in src or "Permission is hereby granted" in src:
                 design = page.details("the design, with its licence and provenance notices",
-                                      page.code_block(src, "sv"), cls="reveal")
+                                      page.code_block(src, "sv", src=r["sv"]), cls="reveal")
             else:
                 design = page.details("the design, with its comments left out",
                                       page.code_block(strip_sv_comments(src), "sv"), cls="reveal")
@@ -2183,7 +2185,7 @@ def repo_link(repo_url, repo):
 
 # Step 0 of every "How to submit", of the tutorial and of llms.txt: the tools, then the two one-time
 # commands. The versions are read from the repository (lean-toolchain, requirements.txt, the flow pin).
-LAKE_BUILD_COST = ("about 6 minutes and 1 GB the first time: Lake clones lean-surfaces and its packages from "
+LAKE_BUILD_COST = ("about 6 minutes and 1 GB the first time: Lake clones proglib (formerly lean-surfaces) and its packages from "
                    "github.com, so it needs network access there, and builds the LeanModels.Sv modules svGolf "
                    "uses; Mathlib is cloned, never built")
 LATENCY_KINDS = metrics.LATENCY_KINDS               # check.py's: a clocked task's Goal takes the latency
@@ -2247,10 +2249,72 @@ def design_module(t):
             f"{goal}\nend Submission\n")
 
 
+# check.py's `-- svgolf-latency: n` header (LATENCY_HEADER, with its one decimal value) and the solution's latency
+# definition `Submission.lat` (LATENCY_DEF), as a line of par's proof: the skeleton of a latency kind shows that pair
+LATENCY_LINE = re.compile(r"^--[ \t]*svgolf-latency:[ \t]*([1-9][0-9]*)[ \t]*$", re.M)
+LATENCY_DEF_LINE = re.compile(r"^def lat [^\n]*$", re.M)
+# the v2 reduction a latency kind's proof ends in (SvGolf/SeqV2.lean) and the arguments it takes, in order
+LATENCY_REDUCTION = {
+    "tx-family": ("TxTask.satisfiedAtV2_of_phases",
+                  ("interface, discipline, TerminatesPU, 1 ≤ lat, a", "PhaseModel, the shape at every power-up,",
+                   "MooreOutDep (combDeps_of_ffOnly), XSafe; a complete one:")),
+    "stream-family": ("StreamTask.satisfiedAtV2_of_phases",
+                      ("interface, discipline, TerminatesPU, 1 ≤ count,", "count ≤ lat, spec keeps the length, a",
+                       "PhaseModel, the shape at every power-up,", "MooreOutDep (combDeps_of_ffOnly), XSafe; a",
+                       "complete one:")),
+}
+
+
+def latency_example(t):
+    """(n, the `def lat …` line) of par's proof: the value of its `-- svgolf-latency:` header and its latency
+    definition, the skeleton's example of the pair. None without par, or when par's proof has not exactly one of
+    each (the skeleton then shows placeholders)."""
+    if not t.par:
+        return None
+    src = read_text(t.par["lean"])
+    n, d = LATENCY_LINE.findall(src), LATENCY_DEF_LINE.findall(src)
+    return (int(n[0]), d[0]) if len(n) == 1 and len(d) == 1 else None
+
+
+def latency_skeleton(t, ref):
+    """The outline of a latency kind's `Solution.lean`: the header line, the latency definition `lat` (par's as the
+    example), and the goal `Goal lat`, whose second conjunct `rfl` closes when the header is `lat` at the scoring
+    point; the statement goes through the kind's v2 reduction (`LATENCY_REDUCTION`)."""
+    names = [p["name"] for p in t.task["parameters"]]
+    ex = latency_example(t)
+    n, lat_def = ex if ex else ("<n>", f"def lat ({' '.join(names)} : Nat) : Nat := <your latency>")
+    what = (f"-- your latency in cycles, one Nat per parameter (here the\n"
+            f"-- reference's, {t.par['stem']}); the header line above is its\n"
+            f"-- value at the scoring point, {point_text(t.point)}\n" if ex else
+            "-- your latency in cycles, one Nat per parameter; the header\n"
+            f"-- line above is its value at the scoring point, {point_text(t.point)}\n")
+    reduction, args = LATENCY_REDUCTION[t.kind]
+    return (f"-- svgolf-latency: {n}\n"
+            "import Submission.Design\n"
+            "import SvGolf.SeqV2   -- the v2 reductions, combDeps_of_ffOnly\n\n"
+            "namespace Submission\n"
+            "open LeanModels.Sv SvGolf\n\n"
+            + what
+            + f"{lat_def}\n\n"
+            "-- in `namespace Submission`, this is\n"
+            "-- `theorem Submission.solution : Submission.Goal Submission.lat`\n"
+            "theorem solution : Goal lat := by\n"
+            "  -- the statement at every in-range point, and `lat` at the\n"
+            "  -- scoring point is the header's number (`rfl`)\n"
+            "  refine ⟨fun p hp => ?_, rfl⟩\n"
+            f"  -- {reduction}:\n"
+            + "".join(f"  -- {a}\n" for a in args)
+            + f"  -- {ref}\n\n"
+            "end Submission\n")
+
+
 def solution_skeleton(t):
     """The outline of a `Solution.lean` (a skeleton: the proof is the player's): the sv_comb tactics for a
-    combinational task, the reactive reduction `ReactTask.satisfiedAt_of_rank` for a reactive one."""
+    combinational task, the reactive reduction `ReactTask.satisfiedAt_of_rank` for a reactive one, the latency
+    header, `lat` and the v2 phase reduction for a latency kind (`latency_skeleton`)."""
     ref = f"tasks/{t.name}/reference/{t.par['stem']}.lean" if t.par else "a reference proof"
+    if t.kind in LATENCY_KINDS:
+        return latency_skeleton(t, ref)
     if t.kind == "react-family":
         return ("import Submission.Design\n"
                 "import SvGolf.React        -- the reduction, MooreOut\n"
@@ -2280,30 +2344,72 @@ def solution_skeleton(t):
             "end Submission\n")
 
 
+SEQ_SECTION_NO = 19                                  # PROVING.md's section on the latency kinds (`proving_anchor`)
+
+
+def proving_anchor(number):
+    """The anchor of PROVING.md's section `number` on proving.html: its `## <number>. ` heading, slugged as the
+    page slugs it, so that a link to it follows the heading's text."""
+    m = re.search(rf"^## ({number}\. .+)$", read_text("svgolf/PROVING.md"), re.M)
+    if m is None:
+        raise BuildError(f"svgolf/PROVING.md: no section '## {number}. …' (the clocked kinds' pages link it)")
+    return md.Slugger().slug(m.group(1))
+
+
 def lean_contract_html(t, here):
-    """What the Lean file must be: the generated module it imports, a skeleton, what is free."""
+    """What the Lean file must be: the generated module it imports, a skeleton, what is free. A latency kind's
+    goal takes the solution's latency `lat`, pinned at the scoring point by its header line (check.py's
+    goal_text)."""
     stmt = t.task["statement"]
     first = rel_link(here, "proving.html") + "#0-the-loop"
+    if t.kind in LATENCY_KINDS:
+        p0 = " ".join(str(t.point[p["name"]]) for p in t.task["parameters"])     # check.py's goal_text order
+        goal = (f"<code>Goal lat</code> unfolds to <code>{esc(stmt['constant'])} Submission.design.sem lat ∧ lat "
+                f"{esc(p0)} = n</code>: the task's statement of your design at your latency <code>lat</code> (cycles, a "
+                f"function of the parameters), and its value at the scoring point ({esc(point_text(t.point))}), the "
+                "<code>n</code> of your header line <code>-- svgolf-latency: n</code>, which the score takes as the "
+                "cycles")
+        proves = "<code>Goal lat</code>"
+        fixed = ("the module name <code>Submission</code>, the <code>import Submission.Design</code> header, the "
+                 "definition <code>lat</code> (one <code>Nat</code> per parameter, in the task's order), the theorem "
+                 "<code>solution : Goal lat</code> and exactly one line <code>-- svgolf-latency: n</code> (n a decimal "
+                 "number of cycles, at least 1) are fixed. ")
+        seq = rel_link(here, "proving.html") + "#" + proving_anchor(SEQ_SECTION_NO)
+        guide = (f"{page.link(seq, f'The proving guide, section {SEQ_SECTION_NO}')}, walks through the clocked route "
+                 "on the two references.")
+    else:
+        goal = (f"<code>Goal</code> unfolds to <code>{esc(stmt['constant'])} Submission.design.sem</code>, the task's "
+                "statement of your design")
+        proves = "<code>Goal</code>"
+        fixed = ("the module name <code>Submission</code>, the <code>import Submission.Design</code> header and the "
+                 "theorem <code>solution : Goal</code> are fixed. ")
+        guide = (f"{page.link(first, 'The proving guide, section 0')}, shows the loop: stage the design, print its "
+                 "equations with a probe file, then prove." if t.kind != "react-family" else
+                 f"{page.link(rel_link(here, 'proving.html') + '#' + REACT_SECTION, 'The proving guide, section 20')}, "
+                 "walks through the reactive route on the reference.")
     return (f"<p><strong>The Lean file.</strong> The checker extracts your <code>.sv</code> itself and writes "
-            f"the trusted module <code>Submission.Design</code>; <code>Goal</code> unfolds to "
-            f"<code>{esc(stmt['constant'])} Submission.design.sem</code>, the task's statement of your "
-            "design:</p>"
+            f"the trusted module <code>Submission.Design</code>; {goal}:</p>"
             + page.code_block(design_module(t), "lean", name="Submission.Design (generated: you never write it)")
-            + "<p>Your <code>Solution.lean</code> imports it and proves <code>Goal</code>:</p>"
+            + f"<p>Your <code>Solution.lean</code> imports it and proves {proves}:</p>"
             + page.code_block(solution_skeleton(t), "lean", name="Solution.lean (a skeleton)")
             + "<p>File names and paths are free (here <code>solution.sv</code> and <code>Solution.lean</code>); "
-            "the module name <code>Submission</code>, the <code>import Submission.Design</code> header and the "
-            "theorem <code>solution : Goal</code> are fixed. "
-            + (f"{page.link(first, 'The proving guide, section 0')}, shows the loop: stage the design, print its "
-               "equations with a probe file, then prove." if t.kind != "react-family" else
-               f"{page.link(rel_link(here, 'proving.html') + '#' + REACT_SECTION, 'The proving guide, section 20')}, "
-               "walks through the reactive route on the reference.")
-            + "</p>")
+            + fixed + guide + "</p>")
+
+
+def unproved_latency(t):
+    """The `--latency` value of a latency kind's `--unproved` run in the commands shown (check.py refuses that run
+    without one, a usage error): par's latency at the scoring point (`latency_example`), else a placeholder.
+    None for a task whose goal takes no latency (check.py refuses `--latency` there)."""
+    if t.kind not in LATENCY_KINDS:
+        return None
+    ex = latency_example(t)
+    return str(ex[0]) if ex else "YOUR_LATENCY"
 
 
 def submit_commands(t):
     """The commands of a task's "How to submit", from the root of svGolf (Step 0 got there). A clocked task is
-    weighed through the clocked flow (`--seq`; its time is the register-to-register period)."""
+    weighed through the clocked flow (`--seq`; its time is the register-to-register period); a latency kind's
+    `--unproved` run takes the latency it means to claim (`--latency n`, par's as the example)."""
     name = t.name
     golf = ("# the golfing loop: ranked area and period, ~1 s, no Lean\n"
             f"python3.12 score/ppa.py solution.sv --task tasks/{name} \\\n"
@@ -2311,11 +2417,18 @@ def submit_commands(t):
             "# the golfing loop: ranked area and delay, ~2 s, no Lean\n"
             f"python3.12 score/ppa.py solution.sv --task tasks/{name} \\\n"
             "    --no-mapped --path\n")
+    n = unproved_latency(t)
+    step1 = (f"python3.12 check.py tasks/{name} solution.sv --unproved\n" if n is None else
+             "#    --latency: the cycles you mean to claim"
+             + (f" ({n}: par's)\n" if n.isdigit() else "\n")
+             + f"python3.12 check.py tasks/{name} solution.sv --unproved \\\n"
+             f"    --latency {n}\n")
     return (golf
             + "# 1. no proof needed; never accepts; exits 0 when every\n"
-            "#    stage passed, ending with area x time and par\n"
-            f"python3.12 check.py tasks/{name} solution.sv --unproved\n"
-            "# 2. the real check: prints \"accepted\": true\n"
+            + ("#    stage passed, ending with area x time and par\n" if n is None else
+               "#    stage passed, ending with area x time and par;\n")
+            + step1
+            + "# 2. the real check: prints \"accepted\": true\n"
             f"python3.12 check.py tasks/{name} solution.sv Solution.lean\n"
             "# 3. record it: the whole check again, full and sandboxed\n"
             f"python3.12 leaderboard/leaderboard.py add --task {name} \\\n"
@@ -2547,7 +2660,11 @@ NEW_DESIGN = "Start a new design"
 NEW_DESIGN_ROUTE = {"comb-family": ("sv_structure", "sv_interface", "sv_equations", "Library lemmas"),
                     "comb-fixed": ("sv_exhaustive", "Library lemmas"),
                     "react-family": ("satisfiedAt_of_rank", "RankModel", "mooreOut_of_combTargets",
-                                     "Library lemmas")}
+                                     "Library lemmas"),
+                    "tx-family": ("satisfiedAtV2_of_phases", "PhaseModel", "combDeps_of_ffOnly", "XSafe",
+                                  "Library lemmas"),
+                    "stream-family": ("satisfiedAtV2_of_phases", "PhaseModel", "combDeps_of_ffOnly", "XSafe",
+                                      "Library lemmas")}
 REACT_SECTION = "20-a-reactive-task-the-arbiter-reacttask"   # PROVING.md's reactive section (its anchor)
 
 
@@ -2881,7 +2998,11 @@ def load_schematic(site, s):
     sc = data.get("scored") or {}
     want = None
     if s.d is not None:
-        want = (combined.e4um2(s.d["m"]["area_um2"]), s.d["m"]["time_ps"])
+        m = s.d["m"]
+        # the file's delay is the flow's: on a latency kind the register-to-register period, which the ranked time
+        # multiplies by the cycles
+        want = (combined.e4um2(m["area_um2"]),
+                m["period_ps"] if metrics.has_latency(s.t.task) and "period_ps" in m else m["time_ps"])
     stale = []
     if data.get("sv_sha256") != s.sv_sha:
         stale.append("another design file")
@@ -3381,10 +3502,31 @@ def cells_html(s, ge_tables):
             + checks + "".join(f'<p class="fine">{f}</p>' for f in facts) + ge_part)
 
 
+# A licence notice a design may carry in full instead of an SPDX identifier: its SPDX identifier -> sentences that
+# must all appear in the source's comments (comment markers and line breaks ignored). The MIT notice is its grant
+# and its condition (MIT-0 has the grant alone): the sorter's reference, adapted from andrewpeck/cell-sort.
+LICENCE_NOTICES = {
+    "MIT": ("Permission is hereby granted, free of charge, to any person obtaining a copy of this software and "
+            "associated documentation files",
+            "The above copyright notice and this permission notice shall be included in all copies or substantial "
+            "portions of the Software."),
+}
+
+
+def licence_ids(sv_text):
+    """The licences a design's source declares: its SPDX identifiers, and the identifier of every notice of
+    LICENCE_NOTICES it carries in full."""
+    ids = set(re.findall(r"SPDX-License-Identifier:\s*([^\n]+?)\s*$", sv_text, re.M))
+    prose = " ".join(" ".join(re.sub(r"^\s*(//+|/\*+|\*+/?)", "", ln) for ln in sv_text.split("\n")).split())
+    ids |= {i for i, sentences in LICENCE_NOTICES.items() if all(x in prose for x in sentences)}
+    return sorted(ids)
+
+
 def licence_html(s, sv_text):
-    """For a design adapted from licensed code (an SPDX identifier in its source): the identifiers, that the notices
-    are kept in the file shown, and the licence texts that ship beside it (copied to the site)."""
-    ids = sorted(set(re.findall(r"SPDX-License-Identifier:\s*([^\n]+?)\s*$", sv_text, re.M)))
+    """For a design adapted from licensed code (an SPDX identifier in its source, or a licence notice it carries in
+    full, `licence_ids`): the identifiers, that the notices are kept in the file shown, and the licence texts that
+    ship beside it (copied to the site)."""
+    ids = licence_ids(sv_text)
     if not ids:
         return ""
     texts = []
@@ -3633,9 +3775,14 @@ def postsynth_clocked_html(t, ps):
                 f"{esc(agreed)}. The stimulus is a sample of the input traces: a guard against the two tools "
                 "disagreeing, not a proof.</p>")
     else:
+        # a latency kind checks each point against its own latency, the solution's `lat` there (F8; the record's
+        # `latency` per point, from check.py's `latency_at`)
+        timed = (" Each point ran against its own latency, the solution's " + code("lat") + " at that point (the "
+                 "table's latency column): every transaction had to finish within it."
+                 if any(pt.get("latency") is not None for pt in points) else "")
         what = (f"<p>At each point below, the check ran the scored netlist and ls-sv's reading of the design "
-                f"{esc(runs)}, each run from a power-up state and through a seeded stimulus of {esc(stim)}. The check "
-                f"found {esc(agreed)}. The stimulus is a sample of the inputs: a guard against the two tools "
+                f"{esc(runs)}, each run from a power-up state and through a seeded stimulus of {esc(stim)}.{timed} "
+                f"The check found {esc(agreed)}. The stimulus is a sample of the inputs: a guard against the two tools "
                 "disagreeing, not a proof.</p>")
     scored = {k: v for k, v in (t.point or {}).items()}
     pt_names = [esc(point_text(pt.get("params") or {})) + (" (the scoring point)" if pt.get("params") == scored else "")
@@ -3652,9 +3799,14 @@ def postsynth_clocked_html(t, ps):
             ("salted", "yes (a secret salt: the stimulus was not predictable)" if salted else
              "no (the default empty salt: anyone can run this exact stimulus again)"),
             ("scored netlist", f"sha256 {code(ps.get('netlist_sha256', ''))}")]
-    headers = ["point", "seeds", "clock cycles"] + ([unit] if unit else []) + ["mismatches", "netlist sha256"]
-    trows = [[esc(point_text(pt.get("params") or {})), esc(len(pt.get("seeds") or [])),
-              esc(thin(sum(sd.get("cycles", 0) for sd in pt.get("seeds") or [])))]
+    # the latency each point was checked at (cycles): a latency kind's record only (the reactive kind has none)
+    lat_col = any(pt.get("latency") is not None for pt in points)
+    headers = (["point"] + (["latency (cycles)"] if lat_col else []) + ["seeds", "clock cycles"]
+               + ([unit] if unit else []) + ["mismatches", "netlist sha256"])
+    trows = [[esc(point_text(pt.get("params") or {}))]
+             + ([esc(pt["latency"]) if pt.get("latency") is not None else '<span class="muted">–</span>']
+                if lat_col else [])
+             + [esc(len(pt.get("seeds") or [])), esc(thin(sum(sd.get("cycles", 0) for sd in pt.get("seeds") or [])))]
              + ([esc(thin(sum(sd.get(unit, 0) for sd in pt.get("seeds") or [])))] if unit else [])
              + [esc(pt.get("mismatches")), code((pt.get("netlist_sha256") or "")[:12])] for pt in points]
     srows = [[esc(point_text(pt.get("params") or {})), esc(sd.get("seed")),
@@ -3890,7 +4042,8 @@ def rules_page(site, refusals):
             parts.append('<section><h2 id="checker-stages">The checker\'s stages <a class="anchor" '
                          'href="#checker-stages" aria-label="link to this section">#</a></h2>'
                          "<p><code>check.py</code> runs the stages in this order and stops at the first that "
-                         "refuses; the stage is what a rejection names.</p>" + stages_table(refusals) + "</section>")
+                         "refuses; the stage is what a rejection names. The table is the refusal register's text, which "
+                         "calls proglib by its former name, lean-surfaces.</p>" + stages_table(refusals) + "</section>")
             toc.append(("checker-stages", "The checker's stages"))
     body = (page.page_head(title_html="Rules", sub_html=(
                 f"From {code(src)} of the repository: the rules, the checker's stages, scoring, the banlist "
@@ -4051,11 +4204,13 @@ def refusals_page(site, refusals):
                  + "".join(f"<li>{md_inline(x)}</li>" for x in sg["lifting"]) + "</ul>")
     parts.append('<h2 id="limits">Known limits (not refusals)</h2><ul>'
                  + "".join(f"<li>{md_inline(x)}</li>" for x in sg["limits"]) + "</ul>")
-    parts.append('<h2 id="more">Where to read more</h2><p>Paths in the lean-surfaces repository:</p><ul>'
+    parts.append('<h2 id="more">Where to read more</h2><p>Paths in the proglib repository:</p><ul>'
                  + "".join(f"<li>{code(x['path'])}: {md_inline(x['what'])}</li>" for x in sg["links"]) + "</ul>")
     toc += [("ls-sv", "The language tier"), ("lifting", "Lifting a refusal"), ("limits", "Known limits")]
     body = (page.page_head(title_html="What the checker refuses, and what you can write",
-                           sub_html=f"Rendered from the refusal register {code(src)} (version {esc(d.get('version'))}).")
+                           sub_html=f"Rendered from the refusal register {code(src)} (version {esc(d.get('version'))}) of "
+                                    "proglib, the repository formerly named lean-surfaces, as the register's own text still "
+                                    "calls it.")
             + page.doc("\n".join(parts), toc, wide=True))
     site.page(here, "Refusals", body, active=here, description="Every refusal the svGolf checker makes, and why.")
 
@@ -4120,9 +4275,18 @@ def llms_txt(site, tasks):
     example = next((t for t in tasks if t.name == "add"), tasks[0] if tasks else None)
     goal_const = example.task["statement"]["constant"] if example else "<the task's statement constant>"
     clocked = next((t for t in tasks if metrics.is_clocked(t.task)), None)     # a listed clocked task, if any
+    latency_tasks = [t for t in tasks if metrics.has_latency(t.task)]           # whose Goal takes the latency
     clocked_lines = ([f"# a clocked task ({clocked.name}) is weighed through the clocked flow, its time the period:",
                       f"# python3.12 score/ppa.py solution.sv --task tasks/{clocked.name} --seq --path"]
                      if clocked else [])
+    # check.py refuses an --unproved run of a latency kind without --latency (a usage error, exit 2)
+    lat_ex = next((t for t in latency_tasks if unproved_latency(t).isdigit()),
+                  latency_tasks[0] if latency_tasks else None)
+    latency_lines = ([f"# on a task with a latency ({', '.join(t.name for t in latency_tasks)}), --unproved needs --latency n, "
+                      "the cycles you mean to claim (the n of your `-- svgolf-latency: n` line; check.py refuses the run "
+                      f"without it), e.g. par's on {lat_ex.name}:",
+                      f"# python3.12 check.py tasks/{lat_ex.name} solution.sv --unproved --latency {unproved_latency(lat_ex)}"]
+                     if lat_ex else [])
     lines = ["# svGolf", "",
              "> A competition for SystemVerilog hardware: write a "
              + (f"circuit (combinational, or clocked on a clocked task such as `{clocked.name}`)" if clocked else
@@ -4155,6 +4319,7 @@ def llms_txt(site, tasks):
              *clocked_lines,
              "# 1. no proof needed: every stage but the proof; never accepts; exits 0 when every stage passed",
              "python3.12 check.py tasks/add solution.sv --unproved",
+             *latency_lines,
              "# 2. the real check: prints \"accepted\": true",
              "python3.12 check.py tasks/add solution.sv Solution.lean",
              "# 3. record it (the whole check again, full mode, OS sandbox); --data-dir DIR for a private trial",
@@ -4178,7 +4343,13 @@ def llms_txt(site, tasks):
              "Solution.lean must `import Submission.Design` and, inside `namespace Submission`, prove "
              "`theorem solution : Goal` (that is `theorem Submission.solution : Submission.Goal`); Goal unfolds to "
              f"the task's statement of the design, `{goal_const} Submission.design.sem` for add. The module name, "
-             "the import and the theorem are fixed. Allowed imports: Init, Std, Lean, LeanModels.Sv.*, SvGolf.*, "
+             "the import and the theorem are fixed. "
+             + (f"On a task with a latency ({and_list([f'`{t.name}`' for t in latency_tasks])}), Goal takes the "
+                "solution's latency: Solution.lean also defines `lat` (cycles, one Nat per parameter, in the task's "
+                "order), proves `theorem solution : Goal lat`, which unfolds to the statement of `design.sem lat` and "
+                "`lat <scoring point> = n`, and declares that n in exactly one line `-- svgolf-latency: n`; the "
+                "score's time is n times the clock period. " if latency_tasks else "")
+             + "Allowed imports: Init, Std, Lean, LeanModels.Sv.*, SvGolf.*, "
              "tasks.*, and Mathlib with its packages; axioms: the task's allowed_axioms (normally propext, "
              "Classical.choice, Quot.sound); no sorry, native_decide or bv_decide. Every task ships a complete "
              "reference pair under tasks/<name>/reference/.", "",
@@ -4209,7 +4380,9 @@ def llms_txt(site, tasks):
             par, best = ("a preview, not ranked (" + t.preview_note[:1].lower() + t.preview_note[1:].rstrip(".") + ")",
                          "no par, no board")
         clocked_note = ((" Clocked: weigh it with `score/ppa.py --seq`; its time is the register-to-register clock "
-                         "period" + (", times its latency in cycles." if metrics.has_latency(t.task) else
+                         "period" + (", times its latency in cycles (the solution's `-- svgolf-latency: n` line); "
+                                     f"`check.py --unproved` needs `--latency n` on it (par's n: "
+                                     f"{unproved_latency(t)})." if metrics.has_latency(t.task) else
                                      ", one decision per cycle.")) if metrics.is_clocked(t.task) else "")
         lines.append(f"- [{t.title}]({t.page}) (`{t.name}`): {t.subtitle}{clocked_note} Scored at {point_text(t.point)}; "
                      f"{par}; {best}. Statement: `{t.task['statement']['constant']}`. Data: "

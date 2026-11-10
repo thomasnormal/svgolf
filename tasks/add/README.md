@@ -316,7 +316,7 @@ The ripple-carry reference has two proofs of the same statement, for every
 bytes):
 
 * `reference/add_n.lean` (84 code lines) uses the `sv_comb` tactics of
-  lean-surfaces: `sv_structure` proves the comb profile and the acyclicity
+  proglib (formerly lean-surfaces): `sv_structure` proves the comb profile and the acyclicity
   certificate (one theorem, `CombDesign ∧ Acyclic`, plus the rank), `sv_interface`
   proves the ports, `sv_equations` derives the
   netlist's four equations and the knownness of every driven bit from the real

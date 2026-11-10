@@ -6,7 +6,7 @@ import LeanModels.Sv.Seq2Cycle
 # Proof helpers for sequential tasks (untrusted, kernel-checked)
 
 Nothing here is part of the trusted base. It goes with the trusted text `SvGolf/TaskSeq.lean` (`ClockedBy`,
-final; `SeqTask`, `TxTask`, `StreamTask`, a DRAFT): the reductions a clocked reference proof targets, each from a few facts about
+`TxTask` and `StreamTask` final; `SeqTask` a DRAFT): the reductions a clocked reference proof targets, each from a few facts about
 ONE cycle.
 
 ## API
@@ -332,7 +332,7 @@ variable {P : Type} (t : TxTask P)
 
 /-- **A phase model of `d` for `t` at `p` and latency `lat`**: the clock step, three phases of the
 snapshots and one obligation per kind of cycle, each about ONE `Step` (no trace, horizon or fuel):
-* `Ready st`: idle with nothing to show (after a reset, before the first start); `done` known.
+* `Ready st`: idle with nothing to show (after a reset, before the first start); `done` = 0.
 * `Busy x m st`: working on the operands `x`, `done` = 0; `done` shows within `m + 1` more cycles
   (the measure drops by at least one per busy cycle).
 * `Fin x st`: finished with `x`: `done` = 1 and the payload is `result x`.
@@ -349,8 +349,8 @@ structure PhaseModel (p : P) (lat : Nat) (d : Design2) extends CycleModel d wher
   Busy : t.Ops p → Nat → SvState → Prop
   /-- `Fin x st`: finished with the operands `x`. -/
   Fin : t.Ops p → SvState → Prop
-  /-- In `Ready`, `done` is a known bit (either value). -/
-  ready_done : ∀ st, Ready st → ∃ b, BitIs st t.done b
+  /-- In `Ready`, `done` is `0` (nothing is claimed before the first start). -/
+  ready_done : ∀ st, Ready st → BitIs st t.done false
   /-- In `Busy`, `done` is `0`. -/
   busy_done : ∀ x m st, Busy x m st → BitIs st t.done false
   /-- In `Fin x`, `done` is `1` and the payload ports hold `result x`. -/
@@ -497,15 +497,20 @@ theorem guar_of_phases {p : P} {lat : Nat} {d : Design2} (M : t.PhaseModel p lat
         · exact h5
         · exact absurd hs0 (hn s0 h5 h4)
       exact hph
-  refine ⟨fun c h1 h2 => ?_, fun s x h1 h2 hs hx => ⟨fun hl => ?_, fun c h3 h4 hd hn => ?_⟩⟩
+  refine ⟨fun c h1 h2 => ?_, fun c h1 h2 hn => ?_, fun s x h1 h2 hs hx => ⟨fun hl => ?_, fun c h3 h4 hd hn => ?_⟩⟩
   · -- `done` is known from the release on
     obtain ⟨st, hc, hG⟩ := hInv c (by omega) h2
     rcases hG with ⟨hrd, -⟩ | ⟨s0, h3, h4, -, -, hph⟩
-    · obtain ⟨b, hb⟩ := M.ready_done st hrd; exact ⟨b, st, hc, hb⟩
+    · exact ⟨false, st, hc, M.ready_done st hrd⟩
     · obtain ⟨-, ⟨x, hx⟩, -⟩ := hR s0 (by omega) (by omega)
       rcases hph x hx with hf | ⟨m, -, hbz, -⟩
       · exact ⟨true, st, hc, (M.fin_done x st hf).1⟩
       · exact ⟨false, st, hc, M.busy_done x m st hbz⟩
+  · -- `done` = 0 before the first start
+    obtain ⟨st, hc, hG⟩ := hInv c (by omega) h2
+    rcases hG with ⟨hrd, -⟩ | ⟨s0, h3, h4, hs0, -, -⟩
+    · exact ⟨st, hc, M.ready_done st hrd⟩
+    · exact absurd hs0 (hn s0 (by omega) h4)
   · -- `done` within the latency: at `s + lat`, or before a next start (which needs `Idle`)
     by_cases hn : t.NoStart stim s (s + lat)
     · obtain ⟨st, hc, hph⟩ := key s h1 hs (s + lat) (by omega) hl hn

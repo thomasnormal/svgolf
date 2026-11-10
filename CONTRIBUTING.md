@@ -46,6 +46,8 @@ README.md or PLAN2.md unless stated.
 | `clmul` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `clmul_n` (the array without carries) |
 | `fdivp` | ready | every `W, P` (two parameters; binary16 is `(5, 11)`) | `/ % **` | 300 CPU s | `fdivp` (a word-level netlist of 34 sites) |
 | `arbiter` | ready | clocked, reactive: every `N` (`N*N < 2^31`) | `/ % **` | 300 CPU s | `rr_mask` (a registered mask round-robin) |
+| `matmul` | ready | clocked, transaction, a declared latency: every `N, W, AccW` (`N*N*W < 2^31`, `N*N*AccW < 2^31`) | `/ % **` | 300 CPU s | `matmul_g1` (`N*N` multiply-accumulate units, latency `N`) |
+| `sorter` | ready | clocked, stream, a declared latency: every `N, W` (`N*W < 2^31`) | `/ % **` | 300 CPU s | `sorter_ins` (an insertion-cell array, latency `2N`) |
 
 (from each `tasks/<name>/task.json`; a task that bans `+` or `-` also bans the run-time ordering comparisons
 `< <= > >=`, decided 2026-11-05: Yosys builds each as its own adder, an `$alu`; equality and comparisons over
@@ -54,6 +56,10 @@ for-every-width proof to start from, and an (area, delay) frontier to golf. `fdi
 first task). `arbiter` is the first clocked task: a controller whose statement holds on every cycle of every input
 trace, not a function. Its README's "Start a new design" and PROVING.md section 20 are the route; its score is the
 area, flip-flops included, times the register-to-register clock period, one decision per cycle.
+`matmul` and `sorter` are clocked with a latency: the proof also proves the cycle count the solution declares,
+and the score is the area times that count times the clock period. Their READMEs' "Start a new design" and
+PROVING.md section 19 are the route; there `check.py --unproved` also takes `--latency n`, the latency you mean
+to claim.
 
 Read, in this order: `tasks/<name>/README.md` (the module header you must implement, the statement in words, the
 banned operators, the scoring point); `tasks/<name>/Spec.lean` (the TRUSTED statement; the README is a gloss of it);
@@ -211,9 +217,10 @@ python3.12 leaderboard/leaderboard.py verify --full               # re-runs chec
 ```
 
 There is **no submission server yet**: `add` writes a record on your machine and sends nothing. A record is
-self-verifying, so a pull request carrying the record directory is a possible hand-off, but how records reach a public
-board is an open decision (README.md, "Leaderboard"); until it is taken, use `--data-dir` so your records stay out of
-the repository's own.
+self-verifying through `verify --full`, which re-runs the whole check (the faster levels do not re-derive a clocked
+record's latency from its proof), so a pull request carrying the record directory is a possible hand-off, but how
+records reach a public board is an open decision (README.md, "Leaderboard"); until it is taken, use `--data-dir` so
+your records stay out of the repository's own.
 
 A record is one JSON file, `data/<task>/<record_hash>.json`, with your `.sv` and `.lean` copied next to it
 (`leaderboard/README.md` has the full schema, `svgolf-leaderboard-record/1`):
@@ -225,7 +232,7 @@ A record is one JSON file, `data/<task>/<record_hash>.json`, with your `.sv` and
 | `files` | base names and sha256 of the exact bytes of both files; `canonical_sha256` of the source gate's text |
 | `score` | the extra GE columns: `area_mge` (integer milli-GE, exact), `area_ge`, `depth`, `num_gates`, `gates`, the scoring point, `rtlil_sha256` |
 | `ppa` | the ranked score: the sky130 A0' columns, `area_e4um2_sky130` (1e-4 um^2) and `delay_ps_sky130` (a clocked record: `score.time_ps`, cycles x period), with the hashes they were weighed under and `setup.input_drive` |
-| `checker` | who judged: svgolf and lean-surfaces revisions, Lean toolchain, Yosys and Verilator versions, hashes of the pinned scripts, the GE table and the checker's own files |
+| `checker` | who judged: the svgolf and proglib (formerly lean-surfaces) revisions (`svgolf_revision`, `lean_surfaces_revision`), Lean toolchain, Yosys and Verilator versions, hashes of the pinned scripts, the GE table and the checker's own files |
 | `proof` | axioms, `build_seconds`, code `lines`, `imports`, `tactics` found in the file |
 | `postsynth` | point, vectors, mode (`full`, or `light` for a marked local record), seed |
 | `record_hash` | sha256 of the canonical JSON of the rest; it is the file name |

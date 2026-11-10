@@ -1,4 +1,10 @@
 # txtask-v2: the diff for review (2026-11-06, revision 3)
+**Superseded (a note of 2026-11-10; the rest of this file is unchanged history).** This is the review of
+revision 3. The `TxTask` and `StreamTask` statements became final on 2026-11-08 (`SeqTask`'s stays a draft) and
+were amended on 2026-11-09: rule 1 exempts nothing (`MooreOutDep d []`, so the quotes of `MooreOutDep d [t.rst]`
+below are revision 3's), `TxTask.Guar` asks `done` = 0 from the release up to the first start, and `Disciplined`
+refuses an asynchronous reset (`ClockedBy t.clk none`). The current text is `SvGolf/TaskSeq.lean`, whose Status
+lists it; the tasks' `REVIEW.md` files review it.
 
 **Status: DRAFT of trusted text, for the maintainers' review.** Branch `svgolf-txtask-v2`. Revision 2
 implements the decisions of 2026-11-05 on round 1 (the first version of this file, and round
@@ -258,7 +264,9 @@ output port. A path follows the combinational assignments (`combDeps`): an assig
 value reads, on its own target (a partial write keeps the other bits) and the target's indices, and
 on the condition of every enclosing `if` and the subject and items of every enclosing `case` (control
 dependencies). Edge processes give no dependency: the clock edge ends a path. `SeqTask` exempts
-nothing, `TxTask`/`StreamTask` exempt `rst` (round 1's argument, unchanged). It constrains the
+nothing, `TxTask`/`StreamTask` exempt `rst` (round 1's argument, unchanged; until 2026-11-09, when they too came
+to exempt nothing: the claims up to a horizon cover the snapshot before an entry that asserts `rst`, which a
+reset-gated output would hide on the wire). It constrains the
 interface (a claimed snapshot is what the outputs show on the wire for the whole next period), not
 correctness. It catches the probe's F1 (`f1m_refuted`).
 

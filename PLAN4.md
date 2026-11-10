@@ -475,6 +475,20 @@ status block of §1.
     - `initial` blocks, and `priority case`.
   - The frozen `Spec.lean`/`TaskSeq.lean` still carry "DRAFT … for review" headers. That is cosmetic, and
     removing them waits for `txtask-v2`.
+  - `[~]` 2026-11-08, **the sorter and matmul leave preview and rank** (decided 2026-11-08; §5, "Decided
+    2026-11-08"). The readiness round, branch `svgolf-rank`:
+    - `[x]` `SvGolf/TaskSeq.lean`: the tx/stream half of txtask-v2 is final (`TraceBit`, `TxTask`, `StreamTask`,
+      their v2 statements, rule 1 and its helpers, `run2_eq_run2At`); `SeqTask` stays a DRAFT (the counter fixture
+      only), the v1 `Follows`/`SatisfiedAt`/`Statement` of `TxTask`/`StreamTask` are marked superseded. Comment-only,
+      proved as the 11/07 split was (stripped files identical, kernel-term hashes equal, the same 115 `#print
+      axioms` lines); `TaskSeq.lean` sha256 `ab19a662f9347f33`, so the arbiter's record is re-seeded.
+    - `[x]` the task READMEs and REVIEWs describe the ranked v2 statement (the latency kind's rules, `done` free
+      before the first start, the reset that aborts, the generate-loop bound, F8 and L5 as built); PROVING.md section 19
+      teaches the v2 route (`satisfiedAtV2_of_phases`); the svGolf README has the latency kinds' rules and both
+      task rows.
+    - `[x]` the checker: each post-synthesis point at the kernel's `lat p` (F8) and the bit-for-bit comparison only
+      from the same power-up (L5), 15a8f6392; the listed site pages, d9f016dfa.
+    - `[ ]` the remaining readiness steps (the mutation sweep, the reference records), then the publication round.
 - `sv_seq_equations`, from G0's template once two designs have used it.
 - **`sv_exhaustive` acceptance:**
   - the evaluator's soundness against the actual generated design;
@@ -1160,6 +1174,17 @@ The environment rely:
   the reference records are re-seeded as a routine step.
 - **Layouts:** place-and-route for the detail pages runs nightly in the public repo's GitHub Actions; a run that
   times out is noted on the page, and we decide then what to do instead.
+
+**Decided 2026-11-08: the sorter and matmul leave preview and rank.** The sorter first, then matmul, each once its
+readiness round passes. It replaces the ruling of 2026-11-06 ("matmul and sorter state v2; they stay unranked
+previews"). They rank under txtask-v2 (`TxTask.StatementV2`, `StreamTask.StatementV2`), whose tx/stream half of
+`SvGolf/TaskSeq.lean` is final from the same date; a later statement change is a version bump that re-issues their
+records. The readiness reviews of 2026-11-08 approved both statements and changed no statement text: what they found
+is recorded in the tasks' REVIEW.md files (`done` is free between a release and the first start; an output shown in
+the cycle before a reset may be masked on the wire; the loader's per-loop generate bound), and the post-synthesis
+check's bit-for-bit comparison across two power-ups (L5) is fixed in the same round: it compares bit for bit only
+from the same power-up, as the reactive check does, and each post-synthesis point runs against its own `lat p`
+(F8).
 
 **Already ruled.** Matmul overflow wraps (decided 11/03); a clamp task may come later. No banlist for matmul (decided
 11/03). The clock is clocking, not observed (decided 11/03).

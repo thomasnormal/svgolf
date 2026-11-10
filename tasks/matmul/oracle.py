@@ -1,8 +1,8 @@
 """Transaction oracle of task `matmul` (README.md, "The oracle"; task.json `oracle`).
 
 The task's OWN evaluator: Python integers only, independent of ls-sv. It is NOT part of the trusted
-statement (`Spec.lean` and `SvGolf/TaskSeq.lean` are). The clocked post-synthesis check (PLAN4.md,
-Gate 2 step 4) uses it as binding check (ii): in every cycle where the netlist shows `done` = 1, its
+statement (`Spec.lean` and `SvGolf/TaskSeq.lean` are). The clocked post-synthesis check (check/postsynth.py)
+uses it as binding check (ii): in every cycle where the netlist shows `done` = 1, its
 `C` must be `good` for the transaction being held, so a bug that a design shares with ls-sv is
 still caught. It is reviewed with the spec (REVIEW.md, "The oracle").
 
@@ -44,7 +44,7 @@ versions.
 
 `python3 oracle.py` runs the self-test: Spec.lean's examples, a second formulation of the product,
 the generator's coverage, and that the transactions tell apart the wrong arithmetic of the planned
-attack designs (Gate 3 step 4).
+attack designs (tests/matmul/attacks/).
 """
 
 import random
@@ -187,7 +187,7 @@ def _product_alt(n, w, accw, a, b):
 
 
 def _faults(n, w, accw):
-    """The wrong arithmetic of the planned attack designs (PLAN4.md Gate 3 step 4), each as a
+    """The wrong arithmetic of the attack designs (tests/matmul/attacks/), each as a
     function of (a, b) -> flat C, with the condition under which it differs from the product."""
     m, nn = 1 << accw, n * n
 

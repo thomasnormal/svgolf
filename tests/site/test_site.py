@@ -386,7 +386,8 @@ class SiteTest(unittest.TestCase):
         """A preview (config.json `preview`) is listed on the home page and has its page, with its
         status line where a ranked task has its numbers and its leaderboard: no par, no record, no
         board, never "open for submissions"; the data says `ranked: false` and carries no board."""
-        self.assertTrue(self.previews, "config.json lists previews")
+        if not self.previews:                       # none since matmul and the sorter rank (2026-11-08)
+            self.skipTest("config.json lists no preview")
         home_html = self.files["index.html"].decode("utf-8")
         summary = {x["name"]: x for x in json.loads(self.files["data/site.json"])["tasks"]}
         llms = self.files["llms.txt"].decode("utf-8")
@@ -712,16 +713,15 @@ class SiteTest(unittest.TestCase):
                     for key, why in (e.get("dropped") or {}).items():
                         self.assertIn(f"{e['name']} at {names[key]} ({why})", text)
 
-    def test_hidden_tasks_are_measured_but_not_published(self):
-        """matmul and the sorter stay hidden (no page, no data in the output) while their points are measured."""
+    def test_hidden_tasks_are_not_published(self):
+        """A hidden task has no page and no data in the output (none is hidden since 2026-11-08, when matmul and the
+        sorter were listed: LatencyTaskTest)."""
         for t, how in self.config["tasks"].items():
             if how != "hidden":
                 continue
             with self.subTest(task=t):
                 self.assertNotIn(f"tasks/{t}/index.html", self.files)
                 self.assertFalse(any(p.startswith(f"tasks/{t}/") or p == f"data/tasks/{t}.json" for p in self.files))
-                if t in ("matmul", "sorter"):
-                    self.assertGreaterEqual(len(self.measured(t)["points"]), 2)
 
     def test_the_trusted_statement_as_property_cards(self):
         """A task with a properties.json shows one card per property and per definition. Each card's
@@ -869,12 +869,15 @@ class SiteTest(unittest.TestCase):
 
     def test_an_mit_rejected_design_keeps_its_notice(self):
         # The sorter's attacks are copies of MIT-licensed code (andrewpeck/cell-sort): the MIT notice
-        # must be included in every copy, so they are shown with their comments too.
-        part = text_of(section(self.files["tasks/sorter/index.html"].decode("utf-8"), "does-not-count"))
-        self.assertIn("token_self.sv", part)
-        self.assertIn("Copyright (c) 2024-2025 Andrew Peck", part)
-        self.assertIn("Permission is hereby granted, free of charge", part)
-        self.assertIn("The above copyright notice and this permission notice shall be included", part)
+        # must be included in every copy, so they are shown with their comments too, each the file byte
+        # for byte (its block names it: `data-src`, compared with the file by the verbatim test).
+        part = section(self.files["tasks/sorter/index.html"].decode("utf-8"), "does-not-count")
+        text = text_of(part)
+        self.assertIn("token_self.sv", text)
+        self.assertIn("Copyright (c) 2024-2025 Andrew Peck", text)
+        self.assertIn("Permission is hereby granted, free of charge", text)
+        self.assertIn("The above copyright notice and this permission notice shall be included", text)
+        self.assertIn('data-src="svgolf/tests/sorter/attacks/token_self.sv"', part)
 
     def test_submit_without_a_public_repository(self):
         files = self.files
@@ -905,7 +908,7 @@ class SiteTest(unittest.TestCase):
                 task = json.loads(read_text_file(f"tasks/{t}/task.json"))
                 const = task["statement"]["constant"]
                 flow = "--seq --path" if build.metrics.is_clocked(task) else "--no-mapped"
-                # a latency kind's Goal takes the latency (build.design_module): the previews matmul and sorter
+                # a latency kind's Goal takes the latency (build.design_module): matmul and sorter
                 goal = ((f"abbrev Goal (lat : …) : Prop :=", f"{const} design.sem lat")
                         if task.get("kind") in build.LATENCY_KINDS else (f"abbrev Goal : Prop := {const} design.sem",))
                 for phrase in ("Step 0", "requirements.txt", "lake build", "score/ppa.py --fetch-liberty",
@@ -915,6 +918,9 @@ class SiteTest(unittest.TestCase):
                                "theorem solution : Goal", "theorem Submission.solution : Submission.Goal",
                                "File names and paths are free", "python3.12 leaderboard/leaderboard.py add"):
                     self.assertIn(phrase, part)
+                # check.py's usage rule: `--latency` is given exactly for an --unproved run of a latency kind
+                # (LatencyTaskTest pins the number)
+                self.assertEqual("--latency " in part, task.get("kind") in build.LATENCY_KINDS)
                 self.assertNotIn("my_", part)
                 self.assertNotIn("python3 ", part)
         tut = self.files["tasks/_example/index.html"].decode("utf-8")
@@ -955,7 +961,13 @@ class SiteTest(unittest.TestCase):
                  "react-family": ("ReactTask.satisfiedAt_of_rank", "ReactTask.RankModel", "mooreOut_of_combTargets",
                                   "TerminatesPU.of_invariant", "XSafe", "theorem solution : Goal",
                                   "Lay the design out", "Library lemmas that exist today", "--seq --path")}
-        check = {"react-family": "check.py tasks/{t} solution.sv --unproved --stage-dir stage"}
+        for kind, task_type in (("tx-family", "TxTask"), ("stream-family", "StreamTask")):   # matmul, sorter
+            route[kind] = (f"{task_type}.satisfiedAtV2_of_phases", f"{task_type}.PhaseModel", "combDeps_of_ffOnly",
+                           "TerminatesPU.of_invariant", "XSafe", "theorem solution : Goal lat", "-- svgolf-latency:",
+                           "Lay the design out", "Library lemmas that exist today", "--seq --path")
+        check = {"react-family": "check.py tasks/{t} solution.sv --unproved --stage-dir stage",
+                 "tx-family": "check.py tasks/{t} solution.sv --unproved --latency ",
+                 "stream-family": "check.py tasks/{t} solution.sv --unproved --latency "}
         ranked = [t for t, how in self.config["tasks"].items() if how == "listed"]
         self.assertGreaterEqual(len(ranked), 5)
         for t in ranked:
@@ -979,6 +991,15 @@ class SiteTest(unittest.TestCase):
                        "--unproved", "check.py tasks/add solution.sv Solution.lean", "leaderboard.py add",
                        "import Submission.Design", "theorem solution : Goal", "area x time", "llms-full.txt"):
             self.assertIn(phrase, llms)
+        # check.py refuses an --unproved run of a latency kind without --latency: llms.txt says so, in the
+        # commands and on each such task's line
+        latency = [t for t in self.listed
+                   if json.loads(read_text_file(f"tasks/{t}/task.json")).get("kind") in build.LATENCY_KINDS]
+        self.assertEqual("--unproved needs --latency n" in llms, bool(latency))
+        for t in latency:
+            with self.subTest(task=t):
+                line = next(ln for ln in llms.split("\n") if ln.startswith("- [") and f"(`{t}`)" in ln)
+                self.assertIn("`check.py --unproved` needs `--latency n` on it (par's n: ", line)
         full = self.files["llms-full.txt"].decode("utf-8")
         self.assertIn("## 0. The loop", full)
         self.assertIn("sv_structure?", full)
@@ -1490,6 +1511,7 @@ class ReactiveTaskTest(unittest.TestCase):
         ps = self.rec["postsynth"]
         self.assertNotIn("None", part)
         self.assertNotIn("vectors", part)
+        self.assertNotIn("latency", part)                       # one decision per cycle: no latency column
         self.assertIn("N = 3, N = 5, N = 8 (the scoring point)", part)
         self.assertIn("8 seeds per point: seed 0 from the all-zeros power-up", part)
         self.assertIn("24 segments per seed", part)
@@ -1551,6 +1573,172 @@ class ReactiveTaskTest(unittest.TestCase):
         self.assertNotIn("cycles", keys)
         self.assertNotIn("period_ps", keys)
         self.assertIn("cycles", [m.key for m in build.metric_table(Tx)])
+
+
+class LatencyTaskTest(unittest.TestCase):
+    """matmul (kind tx-family) and the sorter (stream-family), the clocked tasks with a latency, listed and ranked
+    as decided 2026-11-08 (before, they were unranked previews). Their pages are built alone here, as ReactiveTaskTest
+    builds the arbiter's. Clocked wording: the time is the latency in cycles times the register-to-register period;
+    the golfing loop runs the clocked flow (`--seq`); the Solution.lean skeleton carries the header line
+    `-- svgolf-latency: n`, the latency definition `lat` and the goal `Goal lat`, with par's pair as the example, and
+    check.py reads its header as par's latency; the "Start a new design" card names the v2 phase route; the
+    schematic is a small display instance and says so."""
+
+    TASKS = {"matmul": ("tx-family", "clocked, transaction", "TxTask.satisfiedAtV2_of_phases"),
+             "sorter": ("stream-family", "clocked, stream", "StreamTask.satisfiedAtV2_of_phases")}
+
+    @classmethod
+    def setUpClass(cls):
+        site = build.Site(build.load_config())
+        refusals = json.loads(site.doc_text(site.config["refusals_json"]))
+        site.stages = [s["id"] for s in refusals["svgolf"]["stages"]]
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            tasks = build.collect(site, True)
+        cls.t = {t.name: t for t in tasks if t.name in cls.TASKS}
+        cls.numbers = {t.name: t.number for t in tasks}
+        ge_tables = build.load_ge_tables()
+        for t in cls.t.values():
+            build.task_page(site, t)
+            for rec in t.records:
+                build.record_page(site, t, rec, ge_tables)
+            for ref in t.refs:
+                if not ref["record_hash"]:
+                    build.reference_detail_page(site, t, ref, ge_tables)
+        cls.site = site
+        cls.page = {n: site.files[f"tasks/{n}/index.html"].decode("utf-8") for n in cls.t}
+        spec = importlib.util.spec_from_file_location("svgolf_check_py_latency", os.path.join(SVGOLF, "check.py"))
+        cls.checkpy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.checkpy)
+
+    def detail(self, name):
+        """The detail page of the task's par: its record's page when recorded, else its reference page."""
+        ref = self.t[name].par
+        path = (f"tasks/{name}/records/{ref['record_hash']}.html" if ref["record_hash"]
+                else f"tasks/{name}/reference/{ref['stem']}.html")
+        return self.site.files[path].decode("utf-8")
+
+    def test_the_tasks_are_listed_with_their_kinds(self):
+        config = build.load_config()
+        self.assertEqual(set(self.t), set(self.TASKS))
+        for name, (kind, _, _) in self.TASKS.items():
+            with self.subTest(task=name):
+                self.assertEqual(config["tasks"][name], "listed")
+                self.assertEqual(self.t[name].kind, kind)
+                self.assertIsNotNone(self.t[name].par)
+                self.assertNotIn("preview_note", json.loads(read_text_file(f"site/content/tasks/{name}.json")))
+                self.assertGreaterEqual(len(self.t[name].views), 2)              # the measured points
+        # listed after the arbiter, which keeps the number it was published with
+        self.assertEqual((self.numbers["arbiter"], self.numbers["matmul"], self.numbers["sorter"]), ("06", "07", "08"))
+
+    def test_the_pages_build_without_a_warning(self):
+        self.assertEqual(self.site.warnings, [])
+
+    def test_the_task_page_speaks_of_the_latency(self):
+        for name, (kind, short, _) in self.TASKS.items():
+            with self.subTest(task=name):
+                text = norm(text_of(self.page[name]))
+                self.assertIn(short, text)
+                self.assertIn("times the latency in cycles × the register-to-register clock period in ns", text)
+                for wrong in ("one decision per cycle", "critical-path delay", kind, "preview", "Not ranked yet"):
+                    self.assertNotIn(wrong, text)
+                for big in ("Par", "Record", "Under par"):
+                    self.assertIn(big, text_of(section(self.page[name], "numbers")))
+                at = text.index("banned run-time operators")
+                self.assertTrue(text[at:at + 40].replace(" ", "").startswith("bannedrun-timeoperators/%**"),
+                                text[at:at + 40])
+
+    def test_how_to_submit_uses_the_clocked_flow_and_the_latency_skeleton(self):
+        proving = read_text_file("PROVING.md")
+        anchor = build.md.Slugger().slug(re.search(rf"^## ({build.SEQ_SECTION_NO}\. .+)$", proving, re.M).group(1))
+        for name, (kind, _, reduction) in self.TASKS.items():
+            with self.subTest(task=name):
+                t = self.t[name]
+                part = text_of(section(self.page[name], "submit"))
+                skeleton = build.solution_skeleton(t)
+                self.assertIn(skeleton, part)
+                self.assertIn("--seq --path", part)
+                self.assertNotIn("--no-mapped", part)
+                self.assertNotIn("SvGolf.Comb", part)
+                # the header line is check.py's, and its number is par's latency at the scoring point
+                par_lean = build.read_text(t.par["lean"])
+                n = self.checkpy.parse_latency(par_lean, kind)
+                self.assertEqual(self.checkpy.parse_latency(skeleton, kind), n)
+                self.assertIn(f"-- svgolf-latency: {n}\n", skeleton)
+                # step 1, the --unproved run, claims par's latency: check.py refuses it without --latency
+                self.assertIn(f"python3.12 check.py tasks/{name} solution.sv --unproved \\\n    --latency {n}\n", part)
+                self.assertEqual(build.unproved_latency(t), str(n))
+                lat_def = next(ln for ln in par_lean.split("\n") if ln.startswith("def lat "))
+                self.assertIn(lat_def + "\n", skeleton)
+                for phrase in ("import SvGolf.SeqV2", "theorem solution : Goal lat := by",
+                               "`theorem Submission.solution : Submission.Goal Submission.lat`",
+                               "refine ⟨fun p hp => ?_, rfl⟩", reduction, "combDeps_of_ffOnly", "XSafe",
+                               f"tasks/{name}/reference/{t.par['stem']}.lean"):
+                    self.assertIn(phrase, skeleton)
+                p0 = " ".join(str(t.point[p["name"]]) for p in t.task["parameters"])
+                self.assertIn(f"{t.task['statement']['constant']} Submission.design.sem lat ∧ lat {p0} = n", part)
+                self.assertIn("exactly one line -- svgolf-latency: n", part)
+                self.assertIn(f'href="../../proving.html#{anchor}"', section(self.page[name], "submit"))
+
+    def test_the_new_design_card_names_the_phase_route(self):
+        for name, (kind, _, _) in self.TASKS.items():
+            with self.subTest(task=name):
+                card = norm(text_of(section(self.page[name], "new-design")))
+                for word in build.NEW_DESIGN_ROUTE[kind]:
+                    self.assertIn(word, card)
+                self.assertNotIn("--tactics solution", card)
+
+    def test_the_detail_page_draws_the_display_instance_and_prices_the_cycles(self):
+        display = json.loads(read_text_file("site/schematics/display.json"))["tasks"]
+        for name in self.TASKS:
+            with self.subTest(task=name):
+                t = self.t[name]
+                text = norm(text_of(self.detail(name)))
+                small, scored = build.point_text(display[name]["params"]), build.point_text(t.point)
+                self.assertIn(f"Drawn at {small}, a display instance; scored at {scored}.", text)
+                self.assertIn(f"The register-to-register critical path at {small}", text)
+                m = build.par_design(t)["m"]
+                self.assertIn(norm(f"{m['cycles']} cycles × {build.thin(m['period_ps'])} ps; the period is the latest "
+                                   "D arrival plus setup"), text)
+                self.assertEqual(m["time_ps"], m["cycles"] * m["period_ps"])
+                self.assertNotIn("one decision per cycle", text)
+                self.assertNotIn("not computed yet", text)
+                self.assertNotIn("stale:", text)
+
+    def test_the_record_page_shows_the_latency_of_each_point(self):
+        """F8: a latency kind checks each post-synthesis point against its own latency, the solution's `lat` there
+        (the record's `latency` per point, from check.py's `latency_at`); the post-synthesis card's table shows it,
+        beside the point."""
+        for name in self.TASKS:
+            with self.subTest(task=name):
+                t = self.t[name]
+                self.assertTrue(t.par["record_hash"])
+                rec = next(r for r in t.records if r["record_hash"] == t.par["record_hash"])
+                card = section(self.detail(name), "postsynth")
+                rows = table_rows(card)
+                self.assertIn(["point", "latency (cycles)", "seeds", "clock cycles", "transactions", "mismatches",
+                               "netlist sha256"], rows)
+                self.assertIn("Each point ran against its own latency, the solution's lat at that point",
+                              norm(text_of(card)))
+                points = rec["postsynth"]["points"]
+                self.assertGreaterEqual(len({pt["latency"] for pt in points}), 2)     # the points differ (F8)
+                for pt in points:
+                    self.assertIn([norm(build.point_text(pt["params"])), str(pt["latency"]), str(len(pt["seeds"]))],
+                                  [r[:3] for r in rows])
+
+    def test_the_mit_reference_says_it_is_adapted_from_licensed_code(self):
+        """The sorter's reference carries the MIT notice of andrewpeck/cell-sort in full, with no SPDX identifier: its
+        sources card says it is adapted from licensed code, as an SPDX-marked design's does; matmul's own code does
+        not. A notice counts only in full (the MIT grant without its condition is MIT-0's)."""
+        sources = {n: norm(text_of(section(self.detail(n), "sources"))) for n in self.TASKS}
+        self.assertNotIn("SPDX-License-Identifier", build.read_text(self.t["sorter"].par["sv"]))
+        self.assertIn("Adapted from licensed code (MIT): the copyright, provenance and licence notices and the list "
+                      "of changes are kept in the design file, shown in full below.", sources["sorter"])
+        self.assertNotIn("Adapted from licensed code", sources["matmul"])
+        grant, condition = build.LICENCE_NOTICES["MIT"]
+        self.assertEqual(build.licence_ids(f"// {grant[:60]}\n//   {grant[60:]}\n/* {condition} */\n"), ["MIT"])
+        self.assertEqual(build.licence_ids(f"// {grant}\n"), [])
+        self.assertEqual(build.licence_ids(f"// SPDX-License-Identifier: Apache-2.0\n// {grant} {condition}\n"),
+                         ["Apache-2.0", "MIT"])
 
 if __name__ == "__main__":
     unittest.main()

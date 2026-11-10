@@ -2,7 +2,7 @@ import SvGolf.TaskSeq
 
 /-!
 # Task `sorter`: a streaming sorter of N unsigned W-bit values
-# (DRAFT of TRUSTED text, for review, 2026-11-04; contract C8 of `design/sequential/CONTRACT.md`)
+# (TRUSTED text, final, decided 2026-11-08, amended 2026-11-09; written 2026-11-04; contract C8 of `design/sequential/CONTRACT.md`)
 
 Module (port order as written; `N`, `W` are the module's parameters, in this order):
 
@@ -29,16 +29,16 @@ are the input values sorted ascending as unsigned numbers, duplicates kept. `out
 about only where `out_valid` = 1; the valid cycles may have gaps.
 
 The declared latency `lat` is the submission's; the checker pins its value at the scoring point and
-the score uses it. Run-time operators are not banned.
+the score uses it. Run-time `/ % **` are banned, as in every task (`task.json`).
 
 **Range.** `N, W ≥ 1` and `N·W < 2^31`: the parameters are `int`, and a design that buffers the whole
 stream declares `N·W` bits; every such width must stay in the 32-bit range, where a real elaboration
 and ls-sv's unbounded constant tier agree (`PDesign.int32Agrees`; Task v2 decision 1).
 
-**txtask-v2 (DRAFT, 2026-11-05).** `Statement` is the v2
+**txtask-v2 (2026-11-05; final, decided 2026-11-08, amended 2026-11-09).** `Statement` is the v2
 statement `StreamTask.StatementV2`: txtask-v1's interface, clock discipline and latency bound; its
 claims and termination from EVERY power-up state on every known stimulus (rule 2); Moore outputs
-(`MooreOutDep`, rule 1, with `rst` exempt: no combinational path from `start`, `in_valid` or
+(`MooreOutDep`, rule 1, nothing exempt: no combinational path from `rst`, `start`, `in_valid` or
 `in_data` to `out_valid` or `out_data`); and no construct that creates an `x` from known operands
 (`XSafe`, rule 3). `SvGolf/TaskSeq.lean`, last section, and `design/soundness/TXTASK-V2-REVIEW.md`.
 -/

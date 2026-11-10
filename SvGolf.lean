@@ -29,12 +29,13 @@ import LeanModels.Sv.SeqProfile
 
 * `SvGolf.Task` — the TRUSTED task-statement helpers (`CombTask`,
   `CombTask.Statement`): what every challenge statement is built from.
-* `SvGolf.TaskSeq` — TRUSTED text in two parts (its Status lists them): FINAL
+* `SvGolf.TaskSeq` — TRUSTED text (its Status lists the parts): FINAL
   (decided 2026-11-07), the primitives the reactive kind shares (the clock
   discipline `ClockedBy`, the reset release, txtask-v2's power-up runs and
-  rule 3, `XSafe`); a DRAFT, the cycle-exact `SeqTask`, the transaction
-  statement `TxTask` and `StreamTask` of the sequential tasks, and txtask-v2's
-  tx/stream half.
+  rule 3, `XSafe`); FINAL (decided 2026-11-08, amended 2026-11-09), the
+  transaction statement `TxTask` and `StreamTask` of the sequential tasks with
+  txtask-v2's tx/stream half (their v2 statements, rule 1); a DRAFT, the
+  cycle-exact `SeqTask` (the counter fixture only).
 * `SvGolf.TaskReact` — TRUSTED text, final (decided 2026-11-07; written 2026-11-05): the
   reactive kind `ReactTask` (a controller that runs for ever: a safety monitor and bounded
   response over the whole input trace, Moore outputs; since 2026-11-06 txtask-v2's rules 2 and 3:
@@ -43,7 +44,7 @@ import LeanModels.Sv.SeqProfile
 * `SvGolf.Comb` — untrusted, kernel-checked proof helpers: the reduction of a
   statement to one settled-state lemma for comb designs, the non-vacuity
   theorem, and refutation by a concrete counterexample run.
-* `SvGolf.Seq` — untrusted, kernel-checked proof helpers for the DRAFT
+* `SvGolf.Seq` — untrusted, kernel-checked proof helpers for the
   sequential statements: the reduction to one-cycle lemmas
   (`SeqTask.satisfiedAt_of_cycle`) and `CombTask` as `SeqTask`'s
   one-point-state case.

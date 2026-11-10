@@ -6,6 +6,7 @@
   "missing_else": "A cell's second test lost its `else`: when the input beats both its neighbour and its own value, it is copied into several cells and the neighbour's value is lost.",
   "push_own_value": "The neighbour-push test compares the input with the cell's own value instead of its upper neighbour's, so the input is never stored below the top cell.",
   "reset_keeps_cells": "The reset clears the tokens and the top cell but not the other cells: the first transaction after a reset sorts in whatever they held.",
+  "rst_gate": "The outputs are registered, but `out_valid` is gated by the reset (`assign out_valid = ov_q & ~rst`): no output may read an input combinationally, the reset included, so the last output before a reset cannot vanish from the wire.",
   "signed_order": "The comparisons are signed, so values with the top bit set sort below the padding 0 and are lost.",
   "token_self": "Each cell's token shift reads its own token instead of its neighbour's: the tokens never move and no value is emitted.",
   "top_not_drained": "The drain does not clear the top cell: it keeps the transaction's maximum, and the next transaction's values never reach the top."

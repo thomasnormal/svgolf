@@ -5,8 +5,9 @@ hardware. For each task you:
 
 1. write a circuit in SystemVerilog;
 2. prove in Lean that it meets the task's **trusted statement**, under the
-   ls-sv semantics of [lean-surfaces](https://github.com/thomasnormal/lean-surfaces/tree/bb5e58e00a6373562e7e31aed059b30befeca461) (the sv-0.2 tier: `load_design_sv2`,
-   `run2`, the `⊨₂` judgment and `Terminates2`);
+   ls-sv semantics of [proglib](https://github.com/thomasnormal/proglib/tree/bb5e58e00a6373562e7e31aed059b30befeca461)
+   (formerly lean-surfaces; the sv-0.2 tier: `load_design_sv2`, `run2`, the
+   `⊨₂` judgment and `Terminates2`);
 3. get scored by a pinned synthesis flow, weighed on the sky130 standard
    cells (flow A0'). The one ranked number is **area x time**: the cell area
    in um^2 times the critical-path delay (on a clocked task, cycles x the
@@ -31,7 +32,7 @@ statement; "Checker v0 limits" below says what is not covered yet.
 Every refusal the checker makes, why, what you can write instead, which
 refusals are meant to be lifted later (and what has to exist first) and
 which never will be: [REFUSALS.md](REFUSALS.md) (generated from
-`docs/sv-refusals.json` of lean-surfaces by `tools/gen_sv_refusals.py`).
+`docs/sv-refusals.json` of proglib by `tools/gen_sv_refusals.py`).
 
 ## Quick start
 
@@ -46,7 +47,7 @@ python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty (12.
 ```
 
 The first `lake build` of a clone of the public repository takes about 6 minutes and 1 GB: Lake clones
-lean-surfaces and its packages from github.com (it needs network access there) and builds the
+proglib and its packages from github.com (it needs network access there) and builds the
 `LeanModels.Sv` modules svGolf uses; Mathlib is cloned, never built. Before it, `check.py` stops with an
 infrastructure error that names the missing extractor.
 
@@ -257,7 +258,11 @@ proof.
   task's README gives the reasons):
   * one clock, the task's `clock`, on its rising edge, and a synchronous reset,
     the task's `reset` port. The source gate refuses an asynchronous reset, a
-    `negedge` clock and an `iff` guard, which the loader would drop;
+    `negedge` clock and an `iff` guard; past it, the pinned loader refuses the
+    last two itself and keeps an asynchronous reset (as `alwaysFFR`), which the
+    statement's clock discipline (`ClockedBy clk none`) refuses (a comment in
+    `SvGolf/TaskReact.lean` still says the loader drops the three; it is out of
+    date, and the next round that edits the trusted text corrects it);
   * Moore outputs (`MooreOut`): no combinational path from an input port, the
     reset included, to an output port, so register every output. What a
     snapshot shows is on the wire for the whole next clock period;
@@ -279,6 +284,57 @@ proof.
     equals ls-sv from the all-zeros start, every grant meets the guarantee on
     the netlist at every seed, and the outputs sampled before each rising edge
     equal the previous snapshot (the Moore sample).
+* **A clocked task with a latency (`kind` `tx-family`: `matmul`; `stream-family`:
+  the `sorter`)** has the reactive task's clock rules and these (the statements
+  `TxTask.StatementV2` and `StreamTask.StatementV2`, txtask-v2, in
+  `SvGolf/TaskSeq.lean`, final since 2026-11-08 and amended 2026-11-09 before
+  any record of these tasks was published; the tasks' READMEs give the
+  handshakes; some comments of the trusted text predate the amendment and are
+  out of date: `SvGolf/TaskSeq.lean` twice calls everything before its v2
+  section txtask-v1, unchanged but for the distinct names, and it and both
+  tasks' `Spec.lean` call the v2 clock discipline v1's, which is now `ClockedBy
+  clk none`; the next round that edits the trusted text corrects them):
+  * the latency line: `Solution.lean` declares its latency in exactly one header
+    line `-- svgolf-latency: n` (a decimal number of cycles, 1 to 999999999) and
+    defines `Submission.lat`, one `Nat` per parameter; the goal is the task's
+    `Statement design.sem lat ∧ lat p0 = n` at the scoring point `p0`. At other
+    points `lat` need only be a bound the proof establishes, but at each point
+    of the post-synthesis check the kernel must reduce it to a number (1 to
+    999999999), which the check uses there (decided 2026-11-08; `check.py` and
+    the tests call this rule F8; without a proof,
+    `check.py --unproved --latency n --latency-at POINT:m`);
+  * the time is `n` x the register-to-register period of the clocked flow
+    (`score/svgolf_seq.ys`, `score/ppa.py --seq`), the area includes the
+    flip-flops, and the ranked number is area x (cycles x period) ("Scoring");
+    one submission declares one latency;
+  * one clock on its rising edge and a synchronous reset `rst`; no asynchronous
+    process (the source gate refuses an asynchronous reset, a `negedge` clock,
+    an `iff` guard, `initial`, initializers on state and `always_latch`; the
+    statement itself refuses an asynchronous reset, `ClockedBy clk none`, as
+    for the reactive kind, decided 2026-11-09);
+  * Moore outputs (rule 1, `MooreOutDep`): no combinational path from an input
+    port, `rst` included, to an output port, so register every output (decided
+    2026-11-09: no input is exempt). This kind has no early Moore check; the
+    proof refuses a Mealy output;
+  * every power-up state (rule 2) and no x-creating construct (rule 3, `XSafe`,
+    checked before the proof by the `clocked_rules` stage), as for the reactive
+    kind; a never-loaded register is refused at the `score` stage;
+  * the post-synthesis check runs transactions: at each of the task's
+    post-synthesis points, per seed, the scored netlist starts from a random
+    power-up state, takes one reset cycle and then the task oracle's
+    transactions, and it rejects unless every transaction finishes within that
+    point's latency, the task's oracle (`good`) accepts every payload, and,
+    where the netlist and ls-sv start from the same state (seed 0, all zeros),
+    the netlist equals ls-sv on the flag (`done`, `out_valid`) at every cycle and
+    on the payload where it is claimed; from different power-up states ls-sv's
+    own run must meet the statement's claims (L5 of the two tasks' REVIEW.md,
+    fixed 2026-11-08), so a correct
+    design whose flag timing within the latency depends on an unreset register
+    is not refused;
+  * the loader expands one generate loop to at most `(s + 2)² + 64` iterations
+    at a point, `s` the sum of the parameter values (`PDesign.surfaceFuel`):
+    nest one loop per index rather than one flat loop over a product of the
+    parameters, or `design.sem` is the error design at the points beyond it.
 * **No other restrictions.** Any SystemVerilog that passes these rules and
   that ls-sv and Yosys accept is fair game. Where ls-sv and Yosys disagree on
   what the same text means, that is a bug report we want, not an exploit.
@@ -401,7 +457,7 @@ proof.
 
 ```
 svgolf/
-  lakefile.toml, lean-toolchain     the svGolf Lake project (requires lean-surfaces)
+  lakefile.toml, lean-toolchain     the svGolf Lake project (requires proglib)
   SvGolf/Task.lean                  TRUSTED: the task-statement helpers (CombTask)
   SvGolf/Comb.lean                  proof helpers (untrusted, kernel-checked)
   SvGolf/LoadSv.lean                `load_sv`: load a design from its .sv (extracted at
@@ -509,7 +565,7 @@ tasks/<name>/
                    (module `tasks.fdivp.IEEE754`)
   spec_validate/   `fdivp` only: the spec's differential validation (untrusted tooling)
   (no proof library: a task ships no proved facts about designs; reusable proof code goes to
-  lean-surfaces' `LeanModels/Sv/Lib` (`LeanModels.Sv.Lib`), the rest into the
+  proglib's `LeanModels/Sv/Lib` (`LeanModels.Sv.Lib`), the rest into the
   task's reference proof)
 ```
 
@@ -621,7 +677,7 @@ at elaboration time and caches the envelopes under `.lake/envelopes/` (set
 file under `tasks/` and `tests/`, every `task.json` (a design's top and probe
 points come from its task), the extractor and the extraction scripts
 (`lakefile.toml`), so changing a design re-elaborates the refutations, as
-lean-surfaces' own `lakefile.toml` does for its envelopes. `lake build SvGolf
+proglib's own `lakefile.toml` does for its envelopes. `lake build SvGolf
 tasks svgolf-eval` (what the checker builds) needs no Python.
 
 **Three refutations wait for the int32 port round.** `tests/add`, `tests/mul` and
@@ -633,6 +689,12 @@ modules do not build at the pin. `tests.lean` does not import them, so the defau
 builds each one alone (`lake build tests.add.negative.Refute`) and checks that it
 fails with that refusal (`PENDING_REFUTES`); one that builds fails the step until
 it is imported again. The int32 port round brings them back into `tests.lean`.
+The same refusal stops `check.py` on the three `only_n16.sv` at the `design`
+stage, before the proof whose failure `tests/expected.json` records for them
+(`solution`), so the `negatives` step pins the design-stage refusal for those
+three rows until that round (`PENDING_STAGES`), and checks their scores as
+before; a row rejected at its `tests/expected.json` stage fails the step until
+its entry is dropped.
 
 `svgolf-eval` (`check/SvEval.lean`, a `lean_exe`) is compiled to native code:
 building it compiles the C of the `LeanModels.Sv` modules it imports into the
@@ -706,7 +768,7 @@ proves the same without tactics: it walks the design's instantiation
 symbolically, proves the comb profile and acyclicity, and reduces the rest to
 one settled-state lemma.
 
-`LeanModels.Sv.*` includes lean-surfaces' `sv_comb` tactic library
+`LeanModels.Sv.*` includes proglib's `sv_comb` tactic library
 (`sv_structure`, `sv_equations`, `sv_cover`, `sv_bridge` and the plain-Lean library
 `LeanModels.Sv.CombLib`: `CombView`, `CombViewThm`, `CombViewSound`,
 `CombViewMain`, `CombViewDiag`, `CombViewTactic`, `CombViewArith`, `CombViewPlain`,
@@ -964,7 +1026,7 @@ refuses it (decided 2026-11-06; "Leaderboard"). The stages, in order:
 |---|---|
 | `imports` | the Lean file's imports are on the allowlist (`IMPORT_ALLOW` in `check.py`: `Init`, `Std`, `Lean`, `LeanModels.Sv.*`, which includes the whole sv_comb tactic library, `SvGolf.*`, `tasks.*`, `Submission.Design`, and the eight module roots of Mathlib's package closure, `PACKAGE_ROOTS`; tested by `tests/imports/test_allowlist.py`, which recomputes that closure from the package sources) and include `Submission.Design`; comments are whitespace, so a comment between two imports on one line does not hide the second. For a solution that imports one of the packages, the `trusted` stage ends with a PROBE (`stages.packages`, with the revisions of the package checkouts): the generated `Submission.ImportProbe`, the package imports and nothing else, compiled alone. A module the player named that no package has a source for (a stale name) is rejected here; a package or module missing from the machine (not built, on no search-path entry, a checkout not at the revision the manifest pins) is an infrastructure error (exit 2), never a rejection ("Mathlib in submissions"). Checked AGAIN after the comparator against the imports Lean recorded in the compiled solution: a header the checker read differently from Lean is rejected here |
 | `source` | `score/srcgate.py` (see "Rules"): no directives, attributes, pragma comments, `unique`/`priority`, x/z literal digits outside a casez/casex item wildcard, or host access (`$readmemh`, `$fopen`, `$system`, `$value$plusargs`, `$dumpfile`, DPI, ...); every later stage reads the gate's comment-free canonical text, never the submitted file |
-| `extract` | the pinned lean-surfaces extractor (`extractors/sv/extract.py --top <top> --probe-points ...`, run through `check/envelope.py`, the one extraction path `load_sv` uses too) writes the envelope and the multi-point cross-check sidecar; a player's `.json` is never read. The probe points always include the scoring point (an extractor without `--probe-points` is an infrastructure error, not a skipped check). The top must have exactly the task's (non-local) parameters, by name, and (since 2026-11-07, every kind) exactly the task's ports at every probe point (at the defaults when the task has none): the input ports in declaration order with their widths are task.json's `ports.inputs`, the output ports its `ports.outputs`, and no port has another direction (`port_problems`: the statement's `Interface` at those points, before any proof; a port the extractor cannot read is left to `design`). |
+| `extract` | the pinned proglib extractor (`extractors/sv/extract.py --top <top> --probe-points ...`, run through `check/envelope.py`, the one extraction path `load_sv` uses too) writes the envelope and the multi-point cross-check sidecar; a player's `.json` is never read. The probe points always include the scoring point (an extractor without `--probe-points` is an infrastructure error, not a skipped check). The top must have exactly the task's (non-local) parameters, by name, and (since 2026-11-07, every kind) exactly the task's ports at every probe point (at the defaults when the task has none): the input ports in declaration order with their widths are task.json's `ports.inputs`, the output ports its `ports.outputs`, and no port has another direction (`port_problems`: the statement's `Interface` at those points, before any proof; a port the extractor cannot read is left to `design`). |
 | `banlist` | `score/banlist.py`: pyslang front check (which also reads the errors of slang's analysis pass, `score/slangdriver.py`) and Yosys backstop |
 | `fourstate` | `score/fourstate.py` at every point the checker probes, the scoring point first, then the task's probe and backstop points (see "Rules"; at the scoring point only before 2026-11-06), stopping at the first point that fails: no parameter or constant expression with unknown bits, no constant or run-time select that can leave its declared range, no undriven or conflicting net or logic loop (Yosys `check -assert` after `proc; flatten`), and no error of slang's analysis pass (`score/slangdriver.py`). `stages.fourstate.points` has each point's verdict and time, `failed_point` the one that failed. A point nobody probes is not checked: this narrows, and does not close, the gap to a statement over every `N` ("Checker v0 limits"). Measured (standalone, all points, 2026-11-06, the proved references): `_example` 0.08 s (4 points), `add` 0.22 s (6), `clmul` 1.2 s (8), `fdivp` 0.5 to 1.0 s (8), `aes_sbox` 0.04 s (1), `mul` 3.3 to 15.0 s (7; `mul_tree` the most, 2.6 s of it at the scoring point), `matmul` 0.18 s (4), `sorter` 0.23 s (8); at the scoring point alone they were 0.02 to 2.6 s |
 | `trusted` | `lake build SvGolf tasks svgolf-eval` (not timed) |
@@ -1284,7 +1346,7 @@ environment variable, option or task key reads the constant (a test pins that).
   (a stray `.olean` in a package's build directory, say), and the next run's
   snapshot starts from that state. For the package oleans this is why the
   comparator replays the closure it uses instead of trusting the files.
-  A concurrent build of lean-surfaces' `LeanModels.Sv` oleans during a check
+  A concurrent build of proglib's `LeanModels.Sv` oleans during a check
   trips it (the check rejects; rerun it).
 * **Frontends.** ls-sv reads the design through slang (pyslang 11); Yosys
   through its own `read_verilog -sv`. The source gate makes them read the
@@ -1361,10 +1423,11 @@ environment variable, option or task key reads the constant (a test pins that).
   `always_comb` block writes (ls-sv's alias guard refuses a continuous copy, at the probed points only,
   and admits a separate `always_comb` copy at every point). The power-up value of a combinational loop
   was a second one until 2026-11-06; the statement's `LoopFree` conjunct now refuses every loop and every
-  latch, at every `N`. For the CLOCKED kinds (draft
-  statements), the power-up state of an unreset register is not covered: ls-sv starts a 2-state register at
-  IEEE's 0 and a 4-state one at x, and turns that x into a known value at a 2-state target, at `===` and at a
-  write with an x index, where the silicon has one arbitrary power-up value per register. Run-time `/ % **`
+  latch, at every `N`. The CLOCKED kinds leave no choice at power-up
+  (their statements are final: the arbiter's since 2026-11-07, matmul's and the sorter's since 2026-11-08):
+  the claims hold from every 0/1 power-up value of every register and variable, 2-state ones included
+  ("Rules", every power-up state), so ls-sv's own start (IEEE's 0 for a 2-state register, x for a 4-state one)
+  plays no part, and no construct may create an `x` from known operands (`XSafe`). Run-time `/ % **`
   are no longer a gap: every task bans them ("Rules").
 * **The parameter's declared type is not pinned.** The statement covers
   `sem N` for every `N` in range, in ls-sv's unbounded constant tier; a
@@ -1855,7 +1918,8 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks,
   `.lean` copied next to it. It holds the player handle, `assisted_by`, the
   sha256 of both files and of the source gate's canonical text, the GE
   columns (`score`: `area_mge` in integer milli-GE, depth, gate counts, scoring point), the
-  checker's identity (svgolf and lean-surfaces revisions, Lean toolchain, Yosys
+  checker's identity (the svgolf and proglib revisions, `svgolf_revision` and
+  `lean_surfaces_revision`, Lean toolchain, Yosys
   and Verilator versions, the sha256 of the two scripts, the GE table and the
   checker's files), the proof's facts (axioms, build seconds, code lines,
   imports, tactics), the optional `ppa` object (check.py's sky130 columns, flow A0', THE RANKED SCORE, and inside it the
@@ -2018,7 +2082,7 @@ summary table (step, checks, failures, time):
   `LeanModels.Python.*`, `LeanModels.Core.*`, another submission, `Lake`, `Cli`
   and lookalikes (`Mathlib2`) refused; header parsing; the import closure of the
   tactic library, 44 modules, inside the list, so a later change of
-  lean-surfaces that made a tactic module import something off the list fails
+  proglib that made a tactic module import something off the list fails
   here, not in every reference proof; and the import closure of `Mathlib`,
   8,643 package modules in eight roots, recomputed from the package sources, so a
   Mathlib bump that reaches a package the checker does not admit fails here; the
@@ -2078,8 +2142,9 @@ summary table (step, checks, failures, time):
   reference proof, rejected at its expected stage (`banlist` for the banned
   operators, `fourstate` for the two that read an undriven net, `solution`
   for the rest; every refutation is in the `tests` library), and its quoted
-  scores; and each refutation that waits for the int32 port round, built alone,
-  failing with its pinned refusal;
+  scores (but the three `only_n16.sv`, rejected at `design` with the loader's
+  pinned refusal until the int32 port round, "Building"); and each refutation
+  that waits for that round, built alone, failing with its pinned refusal;
 * `baselines`: every baseline scored (`score.py` applies no banlist, so a
   banned-operator baseline is scored "with the banlist lifted"), the
   banlist's verdict as expected, token identity where claimed, the 4-state
@@ -2225,5 +2290,5 @@ outside `nightly/`.
 | `aes_sbox` | the AES S-box (FIPS 197 Section 5.1.1), `y = S(x)` on 8 bits, defined algebraically (inverse in GF(2^8), then the affine map), fixed size; NO operator banned; the post-synthesis check is exhaustive (all 256 inputs) | Boyar-Peralta 113-gate circuit, validated (Verilator, all 256 inputs; gate for gate against the authors' netlist file), scored and **proved** (113 plain sites: `sv_structure` and `sv_equations` decide the obligations of a flat netlist instead of normalising them, `PROVING.md` section 12); a 256-entry `case` table and the depth-16 Boyar-Peralta circuit by simulation (`tests/aes_sbox/baselines`) | 892.1056 um^2, 4297 ps; 200.986 GE, depth 21 (fixed size). `case` table 3445.8048, 2288; 786.894, 11. Depth-16 circuit 952.1632, 3670; 216.322, 18 |
 | `clmul` | N-bit carry-less multiplier (product of polynomials over GF(2)), `p = a (x) b` on `2N-1` bits; bans run-time `+ - *` | the N x N AND/XOR array (`mul_n`'s shape without carries), validated (Verilator, exhaustive to `N = 8`; the Lean spec equals the oracle on every pair to `N = 7`), scored and **proved** for every `N` (`sv_structure`/`sv_equations`/`sv_cover`/`sv_bridge`, 206 code lines, `solution` stage 7.7 s); schoolbook and Karatsuba baselines by simulation (`tests/clmul/baselines`); 18 real-world styles under `tests/clmul/attacks` (`tasks/clmul/README.md`, "How people write clmul") | 3429.5392 um^2, 1114 ps; 772.267 GE, depth 6 at `N = 16`; Karatsuba (4-bit base, generated) 2756.4, 1807; 621.959, 8 |
 | `arbiter` | a fair N-client arbiter, CLOCKED and REACTIVE (`ReactTask`, kind `react-family`): per cycle at most one grant, only to a requester, someone whenever anyone requests (G1 to G3), no grant out of reset (G0), and a client that requests `N` cycles in a row granted within them (G4, `K = N - 1`, tight), from every power-up state, Moore outputs, no environment assumption; every `N >= 1` with `N*N < 2^31`; bans `/ % **` | a registered mask round-robin (own code), **proved** for every `N` through `ReactTask.satisfiedAt_of_rank` (an invariant and a rank: `PROVING.md` section 20); the adapted OpenTitan `prim_arbiter_tree` behind an output register and a rotating priority by simulation (`tests/arbiter/designs`); 17 attacks (`tests/arbiter/attacks`); listed and ranked, par the reference's record (`tasks/arbiter/README.md`) | 769.488 um^2, 2826 ps (the register-to-register period, one decision per cycle; 16 flops); 188.979 GE, depth 17 at `N = 8`. OpenTitan tree 668.1 um^2, 1454 ps (an earlier flow version, not proved) |
-| `matmul` | **Preview, not ranked yet: the statement is being revised to cover the outputs on the wire and unknown values at reset; submissions are not ranked until then.** N x N signed matrix multiplication, clocked, `C = A * B` wrapping at `AccW` bits behind a start/done handshake (`tasks/matmul/README.md`) | N x N parallel multiply-accumulate units and a step counter, latency N, proved for every `N, W, AccW` | not ranked (a preview) |
-| `sorter` | **Preview, not ranked yet: the statement is being revised to cover the outputs on the wire and unknown values at reset; submissions are not ranked until then.** A streaming sorter of N unsigned W-bit values, clocked, one value per cycle in and out (`tasks/sorter/README.md`) | an insertion-cell array adapted from andrewpeck/cell-sort (MIT), latency 2N, proved for every `N, W` | not ranked (a preview) |
+| `matmul` | N x N signed matrix multiplication, CLOCKED with a declared latency (`TxTask`, kind `tx-family`): `C = A * B` over `W`-bit two's-complement entries, every sum wrapping at `AccW` bits, behind a start/done handshake, from every power-up state, Moore outputs; every `N, W, AccW >= 1` with `N*N*W < 2^31`, `N*N*AccW < 2^31`; bans `/ % **` | `N*N` parallel multiply-accumulate units and one step counter (own code), latency `N`, **proved** for every point through `TxTask.satisfiedAtV2_of_phases` (a phase model: `PROVING.md` section 19); 7 attacks (`tests/matmul/attacks`); listed and ranked (decided 2026-11-08), par the reference's record (`tasks/matmul/README.md`) | 87173.6064 um^2, 4 x 10696 ps = 42784 ps (the latency in cycles x the register-to-register period; 802 flops); 20783.15 GE, depth 61 at `(N, W, AccW) = (4, 8, 32)` |
+| `sorter` | a streaming sorter of N unsigned W-bit values, CLOCKED with a declared latency (`StreamTask`, kind `stream-family`): the values in on `N` consecutive `in_valid` cycles, the same values out ascending (duplicates kept) on `N` `out_valid` cycles, from every power-up state, Moore outputs; every `N, W >= 1` with `N*W < 2^31`; bans `/ % **` | an insertion-cell array adapted from andrewpeck/cell-sort (MIT), latency `2N`, **proved** for every point through `StreamTask.satisfiedAtV2_of_phases` (`PROVING.md` section 19); 8 attacks (`tests/sorter/attacks`); listed and ranked (decided 2026-11-08), par the reference's record (`tasks/sorter/README.md`) | 5512.7872 um^2, 16 x 2523 ps = 40368 ps (81 flops); 1288.819 GE, depth 15 at `(N, W) = (8, 8)` |

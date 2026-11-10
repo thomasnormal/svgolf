@@ -2797,7 +2797,7 @@ class ClockedRecordTest(Tmp):
                                                  "0 to 2"),
             (lambda r: pts(r)[1]["seeds"][0].pop("cycles"), "seed 0 does not record its cycles"),
             (lambda r: pts(r)[1]["seeds"][0].pop("segments"), "points['N=5'] seed 0 does not record its segments"),
-            (lambda r: pts(r)[0].update(latency=3), "checked the latency 3, not the declared None"),
+            (lambda r: pts(r)[0].update(latency=3), "checked the latency 3, not the point's None"),
             (lambda r: pts(r)[0].pop("netlist_sha256"), "has no netlist sha256"),
             (lambda r: r["stages"]["postsynth"].update(netlist_sha256=pts(r)[0]["netlist_sha256"]),
              "not the netlist checked at the scoring point"),
@@ -2851,6 +2851,88 @@ class ClockedRecordTest(Tmp):
                     self.assertIn(f"seed 0 does not record its {unit}",
                                   " | ".join(lb.acceptance_problems(res, task, SV_SHA)))
 
+    def test_each_point_is_held_to_its_own_latency(self):
+        """F8 (decided 2026-11-08): check.py has the kernel evaluate the proved latency function at every clocked point
+        (`latency_at`) and checks each point at its own `lat p`; acceptance holds every point to that value and the
+        scoring point's to the declared n, the record keeps each point's, validation holds the scoring point's to
+        `score.cycles` (the others only the kernel gives), and `verify --full` holds each to a fresh check's. A result
+        without `latency_at` (an older checker) is held to the declared n at every point, as before."""
+        task = clocked_task()                                   # tx-family, points N=2 and N=16 (the scoring point)
+        base = fake_clocked_result(task, latency=4)
+        base["latency_at"] = {"N=2": 2, "N=16": 4}
+        base["stages"]["postsynth"]["points"][0]["latency"] = 2
+
+        def problems(change):
+            res = copy.deepcopy(base)
+            change(res)
+            return " | ".join(lb.acceptance_problems(res, task, SV_SHA))
+        self.assertEqual(problems(lambda r: None), "")
+        for change, frag in (
+                (lambda r: r.pop("latency_at"), "points['N=2'] checked the latency 2, not the point's 4"),
+                (lambda r: r["latency_at"].update({"N=2": 3}), "points['N=2'] checked the latency 2, not the point's 3"),
+                (lambda r: r["latency_at"].update({"N=16": 5}), "latency_at gives the scoring point 5, not the "
+                                                                 "declared 4"),
+                (lambda r: r["latency_at"].pop("N=2"), "does not give a latency for each clocked point"),
+                (lambda r: r["latency_at"].update({"N=3": 6}), "does not give a latency for each clocked point"),
+                (lambda r: r["latency_at"].update({"N=2": 0}), "does not give a latency for each clocked point"),
+                (lambda r: r["stages"]["postsynth"]["points"][1].update(latency=2),
+                 "points['N=16'] checked the latency 2, not the point's 4")):
+            self.assertIn(frag, problems(change), frag)
+        # the record keeps each point's latency; the score counts the scoring point's
+        rec = make_record(task, "p", res=base)
+        self.assertEqual(lb.validate_record(rec), [])
+        self.assertEqual([(q["point"], q["latency"]) for q in rec["postsynth"]["points"]], [("N=2", 2), ("N=16", 4)])
+        self.assertEqual((rec["score"]["cycles"], rec["score"]["time_ps"]), (4, 4000))
+
+        def invalid(change):
+            bad = copy.deepcopy(rec)
+            change(bad["postsynth"]["points"])
+            return " | ".join(lb.validate_record(bad))
+        self.assertIn("score.cycles 4 is not the latency the check used at ['N=16']",
+                      invalid(lambda q: q[1].update(latency=2)))
+        self.assertIn("declare a latency at some points and none at others", invalid(lambda q: q[0].update(latency=None)))
+        self.assertEqual(invalid(lambda q: q[0].update(latency=7)), "")      # another point's is the kernel's to say
+        # verify --full: each point's latency against the fresh check's, whatever the flow
+        path = self.store(rec)
+        r = lb.verify_record(path, rec, task, flow=SEQ, recheck=lambda sv, lean: base)
+        self.assertEqual((r.status, r.fails), ("ok", []))
+        self.assertIn("rechecked: accepted, same canonical text and axioms", r.notes)
+        other = copy.deepcopy(base)
+        other["stages"]["postsynth"]["points"][0]["latency"] = 3
+        for flow in (SEQ, dict(SEQ, script_sha256="9" * 64)):
+            r = lb.verify_record(path, rec, task, flow=flow, recheck=lambda sv, lean: other)
+            self.assertIn("recheck: the latency at N=2 recorded 2, now 3", r.fails)
+        other["stages"]["postsynth"]["points"].pop(0)
+        r = lb.verify_record(path, rec, task, flow=SEQ, recheck=lambda sv, lean: other)
+        self.assertIn("recheck: no post-synthesis check at N=2", r.fails)
+
+    def test_a_stored_record_of_several_parameters_stays_valid(self):
+        """check.py names a point in the task's parameter order (matmul: `N=2,W=4,AccW=8`) and the record file is
+        written with sorted keys, so a reloaded point's params come back as {AccW, N, W}: the point is still named
+        after them (found seeding matmul's reference, 2026-11-08: its record was valid in memory and malformed on
+        disk)."""
+        task = clocked_task(scoring={"params": {"N": 4, "W": 8, "AccW": 32}, "depth_budget": None},
+                            postsynth={"points": [{"N": 2, "W": 4, "AccW": 8}, {"N": 4, "W": 8, "AccW": 32}], "seeds": 2})
+        res = fake_clocked_result(task, latency=4)
+        res["latency_at"] = {"N=2,W=4,AccW=8": 2, "N=4,W=8,AccW=32": 4}
+        res["stages"]["postsynth"]["points"][0]["latency"] = 2
+        self.assertEqual(lb.acceptance_problems(res, task, SV_SHA), [])
+        rec = make_record(task, "p", res=res)
+        self.assertEqual(lb.validate_record(rec), [])
+        path = self.store(rec)
+        with open(path) as fh:
+            back = json.load(fh)
+        self.assertEqual([(q["point"], list(q["params"])) for q in back["postsynth"]["points"]],
+                         [("N=2,W=4,AccW=8", ["AccW", "N", "W"]), ("N=4,W=8,AccW=32", ["AccW", "N", "W"])])
+        self.assertEqual(lb.validate_record(back), [])
+        self.assertEqual(lb.verify_record(path, back, task, flow=SEQ).status, "ok")
+        # still refused: a name of other values, or of a parameter fewer or more
+        for name in ("N=2,W=4,AccW=9", "N=2,W=4", "N=2,W=4,AccW=8,K=1", "AccW=8,N=2,W=4,N=2"):
+            bad = copy.deepcopy(back)
+            bad["postsynth"]["points"][0]["point"] = name
+            self.assertIn(f"postsynth.points[0].point {name!r} is not the name of its params",
+                          " | ".join(lb.validate_record(bad)), name)
+
     def test_the_record_is_held_together(self):
         """validate_record (no task needed): the points, their seeds and the record's own score and `ppa` block."""
         rec = arbiter_record()
@@ -2882,7 +2964,10 @@ class ClockedRecordTest(Tmp):
             (lambda r: r["postsynth"].update(netlist_sha256=pts(r)[0]["netlist_sha256"]),
              "postsynth.netlist_sha256 is not the netlist checked at the scoring point"),
             (lambda r: r["ppa"].update(netlist_sha256="0" * 64), "the sky130 columns weighed another netlist"),
-            (lambda r: pts(r)[0].update(latency=2), "score.cycles 1 is not the latency the check used at ['N=3']"),
+            (lambda r: pts(r)[2].update(latency=2), "score.cycles 1 is not the latency the check used at ['N=8']"),
+            # F8 (2026-11-08): another point's latency is its own `lat p`, but a kind declares one at every point or none
+            (lambda r: pts(r)[0].update(latency=2), "declare a latency at some points and none at others: N=3: 2, "
+                                                    "N=5: None, N=8: None"),
         ]
         for change, frag in cases:
             self.assertIn(frag, problems(change), frag)

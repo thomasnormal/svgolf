@@ -67,29 +67,35 @@ _PY = {}
 
 
 def python_probe(python):
-    """(sys.base_prefix, [stdlib dirs], pyslang's site directory or None) of an interpreter, asked of
-    the interpreter itself once. Trusted code, no submission in reach."""
+    """(sys.base_prefix, [stdlib dirs], pyslang's site directory or None, [sys.prefix, sys.base_prefix,
+    sys.exec_prefix]) of an interpreter, asked of the interpreter itself once. Trusted code, no submission in
+    reach."""
     if python not in _PY:
         code = ("import json,sys,sysconfig,os\n"
                 "try:\n import pyslang; site=os.path.dirname(os.path.dirname(pyslang.__file__))\n"
                 "except Exception: site=None\n"
-                "print(json.dumps([sys.base_prefix,[sysconfig.get_path('stdlib'),sysconfig.get_path('platstdlib')],site]))")
+                "print(json.dumps([sys.base_prefix,[sysconfig.get_path('stdlib'),sysconfig.get_path('platstdlib')],site,"
+                "[sys.prefix,sys.base_prefix,sys.exec_prefix]]))")
         out = subprocess.run([python, "-B", "-c", code], capture_output=True, text=True, timeout=60,
                              env=scrubbed_env()).stdout.strip().splitlines()
-        _PY[python] = json.loads(out[-1]) if out else [sys.base_prefix, [], None]
+        _PY[python] = json.loads(out[-1]) if out else [sys.base_prefix, [], None, []]
     return _PY[python]
 
 
 def python_spec(python, script_dir, read=(), write=(), label="python"):
     """(Spec, extra environment) for `python -s -B script ...`: the interpreter, its standard library and
     the directory pyslang lives in (reached through PYTHONPATH, so the user site of a HOME the sandbox
-    does not give is not needed)."""
+    does not give is not needed). The interpreter may READ its own prefixes, `sys.prefix`, `sys.base_prefix`
+    and `sys.exec_prefix` (a venv's `pyvenv.cfg` is in its `sys.prefix`, which may be anywhere: a venv under
+    a temporary directory failed at startup, "init_import_site", 2026-11-08), but not the root or `/usr` as a
+    whole; it may EXECUTE only inside its base prefix, as before."""
     exe = real(subprocess.run(["which", python], capture_output=True, text=True,
                               env=scrubbed_env()).stdout.strip() or python)
-    prefix, libs, site = python_probe(python)
+    prefix, libs, site, prefixes = python_probe(python)
     prefix = real(prefix)
     private = prefix not in (os.sep, "/usr")
     reads = list(read) + [real(l) for l in libs if l] + [real(script_dir)] + ([prefix] if private else [])
+    reads += [p for p in dict.fromkeys(real(x) for x in prefixes if x) if p not in (os.sep, "/usr") and p not in reads]
     if site:
         reads.append(real(site))
     # a venv interpreter (reached through PATH, or named by path in SVGOLF_PYTHON) reads its pyvenv.cfg

@@ -1236,20 +1236,24 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
 # netlist's own start; every other seed from ls-sv's seeded random power-up (`--start seed:<n>`),
 # which need not be the netlist's (its flops are not named after the registers): a design whose
 # claims hold from every power-up and FIX the cared outputs shows the same cared outputs from both
-# (seq-family's claim fixes every output; a tx/stream design whose `done`/`out_valid` timing within
-# the latency depends on an unreset register can be correct and differ between two power-ups: an
-# over-rejection recorded in design/soundness/TXTASK-V2-REVIEW.md section 12, not changed here; the
-# reactive check, below, compares bit for bit only from the same state).
+# (seq-family's claim fixes every output, so seq-family compares bit for bit at every seed). A
+# tx/stream design whose `done`/`out_valid` timing within the latency depends on an unreset register
+# can be correct and differ between two power-ups (design/soundness/TXTASK-V2-REVIEW.md section 12.2,
+# L5), so since 2026-11-08 the transaction kinds compare bit for bit only from the SAME state, as the
+# reactive check below does: seed 0 when `zero_starts_agree`; from different power-ups ls-sv's run is
+# held to the statement's claims on its own (`lssv_claims`, L5 below).
 # Before 2026-11-05 ls-sv ran from `initState2` (declaration initializers, all else x), which
 # rejected an x-pessimistic design that is correct from every concrete start (`y = u ^ u`, u
 # unreset: x there, 0 in every run).
 # Binding, either failing rejects: (i) on the CARED outputs of every cycle the
 # netlist equals ls-sv (under σ_src, which must equal σ_rev), and ls-sv's value is known (an x or z
-# there would be some 0/1 in the 2-state netlist); (ii) the netlist's claimed payload is the task's
+# there would be some 0/1 in the 2-state netlist), where the two start from the same state (tx/stream:
+# from different states, ls-sv's run meets the guarantee up to its rely horizon, `lssv_claims`); (ii) the netlist's claimed payload is the task's
 # evaluator's, oracle.py `good(params, txn, result)` (tx-family; stream-family with result
 # `{"out": the values emitted from the start to the next}`) / `expect(params, entries)` (seq-family:
-# the outputs per entry). Cared (C4, C5): tx-family `done` at every cycle from the release, and the
-# payload from a transaction's first `done` to the next start, where `done` must stay 1 (the hold);
+# the outputs per entry). Cared (C4, C5): tx-family `done` at every cycle from the release, 0 before the first
+# start (since 2026-11-09), and the payload from a transaction's first `done` to the next start, where `done` must
+# stay 1 (the hold);
 # stream-family `out_valid` at every cycle from the release, 0 before the first start, and
 # `out_data` where `out_valid` = 1; seq-family every output from the first reset entry (SeqTask's
 # claim). The latency (C3): `done` shows 1 / every `out_valid` = 1 is at most `n` cycles after the
@@ -1588,8 +1592,156 @@ def react_seed(task, mod, point, point_s, seed, cfg, envl, exe, nports, work, de
     return rec, sorted(bad)
 
 
-def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports, work, deadline):
-    """One seed: (the record, the failures [(cycle, why)])."""
+# L5 (TXTASK-V2-REVIEW.md section 12.2; fixed 2026-11-08, the react kind's rule F4 for the transaction kinds): a
+# tx/stream statement fixes the payload / the emitted values and bounds WHEN `done` / `out_valid` show them (within the
+# latency), but not the cycle itself, so a correct design whose timing within the latency depends on an unreset register
+# can show `done` at one cycle from one power-up and at another from another. Check (i) therefore compares the netlist
+# with ls-sv bit for bit only where the two start from the SAME state (seed 0, when `zero_starts_agree`); from different
+# power-ups it holds ls-sv's own run to what the statement claims of it (`lssv_claims`), while (ii) holds the netlist's
+# run to the task's evaluator as before. ls-sv's claims are its guarantee up to its rely horizon: the stimulus is
+# realized against the NETLIST's `done` / `out_valid` (the hold and the waits end when the netlist's do), so where
+# ls-sv's run is slower the environment stops honouring ls-sv's rely (operands changed before ls-sv's `done` rose, a
+# start before ls-sv showed its outputs), and the statement claims nothing from that entry on.
+
+
+def _lssv_known(lrows, c, o):
+    """The failure for ls-sv's output `o` at snapshot `c` (σ_src and σ_rev disagree, or x/z), or None."""
+    src, rev = lrows[c]
+    if src.get(o) != rev.get(o):
+        return f"ls-sv: σ_src and σ_rev disagree on {o}"
+    if has_xz(src.get(o, "x")):
+        return f"ls-sv: {o} is x/z in a claimed snapshot ({o} = {src.get(o)}, MSB first)"
+    return None
+
+
+def tx_rely_horizon(proto, stim, ltr, R):
+    """(h, why): the first entry from the release `R` at which the environment leaves TxTask.Rely for the snapshots
+    `ltr` (`TraceBit tr c done true` = `ltr[c][done] == "1"`), or len(stim) and None. Rely at c: a start only when
+    Idle (every earlier start was followed, before c, by a snapshot showing done = 1), and the operands of a start held
+    at every entry until the first snapshot (from the start's own on) that shows done = 1."""
+    st, done, ops = proto["start"], proto["done"], list(proto["operands"])
+    open_s = None          # the start whose done has not been shown at a snapshot in [s, c)
+    for c in range(R, len(stim)):
+        if open_s is not None:
+            if stim[c][st] == 1:
+                return c, f"the start at entry {c} comes before ls-sv's done rose for the start at entry {open_s}"
+            if any(stim[c][o] != stim[open_s][o] for o in ops):
+                return c, f"the operands change at entry {c} before ls-sv's done rose for the start at entry {open_s}"
+        if stim[c][st] == 1:
+            open_s = c
+        if open_s is not None and ltr[c].get(done) == "1":
+            open_s = None
+    return len(stim), None
+
+
+def stream_rely_horizon(proto, count, stim, ltr, R):
+    """(h, why) as `tx_rely_horizon`, for StreamTask.Rely: a start only when Idle (every earlier start has shown its
+    `count` outputs at snapshots before c, each with out_valid known and out_data known where valid: `Shows`), and
+    in_valid = 1 exactly at the `count` entries after each start."""
+    st, iv, ov, od = proto["start"], proto["in_valid"], proto["out_valid"], proto["out_data"]
+    open_s, shown, broken = None, 0, False
+    for c in range(R, len(stim)):
+        if stim[c][st] == 1 and open_s is not None:
+            return c, (f"the start at entry {c} comes before ls-sv showed the {count} outputs of the start at entry "
+                       f"{open_s} ({shown} shown" + (", then an unknown observation" if broken else "") + ")")
+        want = any(stim[s][st] == 1 for s in range(max(R, c - count), c))
+        if stim[c][iv] != int(want):
+            return c, f"in_valid is {stim[c][iv]} at entry {c}, not {int(want)}"
+        if stim[c][st] == 1:
+            open_s, shown, broken = c, 0, False
+        if open_s is not None and not broken and shown < count:
+            v = ltr[c].get(ov)
+            if v not in ("0", "1") or (v == "1" and has_xz(ltr[c].get(od, "x"))):
+                broken = True
+            else:
+                shown += v == "1"
+        if open_s is not None and not broken and shown >= count:
+            open_s = None
+    return len(stim), None
+
+
+def lssv_claims(task, mod, point, stim, lrows, items, R, latency):
+    """ls-sv's run (`lrows`, from a power-up other than the netlist's) against what the task's statement claims of
+    it (L5, above): (h, why the rely ends or None, the failures [(cycle, why)]). Up to its rely horizon h: `done` /
+    `out_valid` known at every snapshot from the release; tx-family: done = 0 before the first start, every start s
+    with s + lat < h shows done = 1 at a snapshot in [s, s + lat], and from the first snapshot (from s on) showing
+    done = 1 to the next start (or h) done stays 1 with the payload oracle.py's `good` result (TxTask.Guar);
+    stream-family: out_valid = 0 before the first start, and every start s with s + lat < h emits, from s to the
+    next start (or h), exactly oracle.py's values, none after s + lat, out_data known where valid
+    (StreamTask.Guar). The claimed bits also need σ_src = σ_rev."""
+    proto, kind = task["protocol"], task["kind"]
+    ltr = [src for src, _ in lrows]
+    starts = [c for c in range(R, len(stim)) if stim[c][proto["start"]] == 1]
+    bad = []
+    if kind == "tx-family":
+        done, payload = proto["done"], list(proto["payload"])
+        h, why = tx_rely_horizon(proto, stim, ltr, R)
+        for c in range(R, h):
+            w = _lssv_known(lrows, c, done)
+            if w:
+                bad.append((c, w))
+            elif ltr[c][done] == "1" and not (starts and starts[0] <= c):
+                bad.append((c, f"ls-sv: done is 1 at cycle {c}, before the first start"))
+        for k, s in enumerate(starts):
+            if s >= h:
+                break
+            end = min(starts[k + 1] if k + 1 < len(starts) else len(stim), h)
+            fd = next((c for c in range(s, end) if ltr[c].get(done) == "1"), None)
+            if s + latency < h and (fd is None or fd > s + latency):
+                bad.append((s, f"ls-sv: transaction {k} ({items[k].get('tag')}): done did not rise within the "
+                            f"declared latency {latency} of its start entry (cycle {s})"))
+                continue
+            for c in range(fd if fd is not None else end, end):
+                if _lssv_known(lrows, c, done):
+                    continue                    # reported above
+                ws = [w for w in (_lssv_known(lrows, c, p) for p in payload) if w]
+                if ws:
+                    bad.append((c, ws[0]))
+                elif ltr[c][done] != "1":
+                    bad.append((c, f"ls-sv: transaction {k}: done fell at cycle {c}, before the next start"))
+                else:
+                    res = {p: int(ltr[c][p], 2) for p in payload}
+                    if not mod.good(dict(point), items[k], res):
+                        why_ = getattr(mod, "mismatch", lambda *a: None)(dict(point), items[k], res)
+                        bad.append((c, f"ls-sv: transaction {k}: the payload is not the task's result: {why_ or res}"))
+        return h, why, bad
+    ov, od, count = proto["out_valid"], proto["out_data"], int(point[proto["count"]])
+    h, why = stream_rely_horizon(proto, count, stim, ltr, R)
+    for c in range(R, h):
+        w = _lssv_known(lrows, c, ov)
+        if w:
+            bad.append((c, w))
+        elif ltr[c][ov] == "1" and not (starts and starts[0] <= c):
+            bad.append((c, f"ls-sv: out_valid is 1 at cycle {c}, before the first start"))
+    for k, s in enumerate(starts):
+        if s + latency >= h:
+            break
+        if s + count >= len(stim):        # the values are not all in the stimulus: nothing is claimed
+            continue
+        end = min(starts[k + 1] if k + 1 < len(starts) else len(stim), h)
+        tag, vals, ok = items[k].get("tag"), [], True
+        for c in range(s, end):
+            w = _lssv_known(lrows, c, ov) or (_lssv_known(lrows, c, od) if ltr[c][ov] == "1" else None)
+            if w:
+                bad.append((c, w))
+                ok = False
+                break
+            if ltr[c][ov] == "1":
+                if c - s > latency:
+                    bad.append((c, f"ls-sv: transaction {k} ({tag}): out_valid is 1 at cycle {c}, {c - s} cycles "
+                                f"after its start entry (cycle {s}): beyond the declared latency {latency}"))
+                    ok = False
+                    break
+                vals.append(int(ltr[c][od], 2))
+        if ok and not mod.good(dict(point), items[k], {"out": vals}):
+            why_ = getattr(mod, "mismatch", lambda *a: None)(dict(point), items[k], {"out": vals})
+            bad.append((s, f"ls-sv: transaction {k} ({tag}): the emitted values are not the task's: {why_ or vals}"))
+    return h, why, bad
+
+
+def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports, work, deadline, zeros_agree=True):
+    """One seed: (the record, the failures [(cycle, why)]). `zeros_agree`: `zero_starts_agree` of the scored record
+    (seed 0 then starts the netlist and ls-sv from the same state)."""
     clk, kind, R = task["clock"], task["kind"], cfg["reset_cycles"]
     ins = sorted((n, w) for d, n, w in nports if d == "input")
     outs = sorted((n, w) for d, n, w in nports if d == "output")
@@ -1606,6 +1758,11 @@ def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nport
     rec = {"seed": seed, "seed_sha256": draw["seed_sha256"], "salted": draw["salted"], "reset_cycles": R,
            "cycles": len(stim), "late": late, "t_netlist_run_s": round(el, 3),
            "netlist_randreset": start[0], "netlist_randseed": draw["vl_seed"], "lssv_start": start[1]}
+    # L5 (above): bit for bit only from the same state; seq-family's claim fixes every output, so it compares always
+    same = kind not in LATENCY_KINDS or (seed == 0 and zeros_agree)
+    if kind in LATENCY_KINDS:
+        rec["compared"] = ("the netlist with ls-sv, bit for bit on the cared outputs (the same all-zeros start)" if same
+                           else "each run with the guarantee (the netlist and ls-sv start from different power-ups)")
     lports, lrows, _, _, el = lssv_eval(envl, point_s, ins, [{clk: 0, **e} for e in stim], cfg["fuel"],
                                         work, deadline, trace=True, start=start[1])
     rec["t_lssv_s"] = round(el, 2)
@@ -1619,9 +1776,11 @@ def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nport
     if kind == "tx-family":
         proto, done = task["protocol"], task["protocol"]["done"]
         payload = list(proto["payload"])
+        starts = [c for c in range(R, len(stim)) if stim[c][proto["start"]] == 1]
         for c in range(R, len(stim)):
             cares[c].add(done)
-        starts = [c for c in range(R, len(stim)) if stim[c][proto["start"]] == 1]
+            if net[c][done] == "1" and not (starts and starts[0] <= c):
+                bad.append((c, f"done is 1 at cycle {c}, before the first start"))
         rec["transactions"] = log = []
         for k, s in enumerate(starts):
             nxt = starts[k + 1] if k + 1 < len(starts) else len(stim)
@@ -1674,6 +1833,12 @@ def clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nport
             got = {o: int(net[c][o], 2) for o in exp[c]}
             if got != exp[c]:
                 bad.append((c, f"the outputs {got} are not the task's {exp[c]}"))
+    if not same:
+        # (i) from different power-ups: ls-sv's run against what the statement claims of it (L5, `lssv_claims`)
+        h, why, lbad = lssv_claims(task, mod, point, stim, lrows, items, R, latency)
+        rec["lssv_claimed_to"] = h
+        rec["lssv_rely_ends"] = why
+        return rec, sorted(bad + lbad)
     for c, (src, rev) in enumerate(lrows):
         for o in sorted(cares[c]):
             if src.get(o) != rev.get(o):
@@ -1734,7 +1899,7 @@ def run_clocked(task, envl, netlist, sres, work, mod, point, latency=None, mode=
                                         zeros_agree=zero_starts_agree(sres))
             else:
                 srec, sbad = clocked_seed(task, mod, point, point_s, seed, cfg, latency, envl, exe, nports,
-                                          work, deadline)
+                                          work, deadline, zeros_agree=zero_starts_agree(sres))
             rec["seeds"].append(srec)
             bad += [(seed, c, why) for c, why in sbad]
         rec["mismatches"] = len(bad)

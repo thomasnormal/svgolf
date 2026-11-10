@@ -6,7 +6,7 @@
     "decl": "SvGolf.Tasks.Matmul.Statement",
     "file": "svgolf/tasks/matmul/Spec.lean"
   },
-  "summary": "A design and its declared latency meet the trusted statement exactly when, for every (N, W, AccW) in range, they have all of the properties below. The last four are guarantees the design owes an environment that follows the protocol: after a reset is released, start is raised only while the design is idle, and A and B are held from start until done rises. Lean checks that, together, the properties say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
+  "summary": "A design and its declared latency meet the trusted statement exactly when, for every (N, W, AccW) in range, they have all of the properties below. The last five are guarantees the design owes an environment that follows the protocol: after a reset is released, start is raised only while the design is idle, and A and B are held from start until done rises. Lean checks that, together, the properties say exactly what the statement says, nothing less and nothing more (the theorem statement_iff_properties).",
   "properties": [
     {
       "name": "PARAMS_IN_RANGE",
@@ -27,7 +27,7 @@
       "decl": "SvGolf.Tasks.Matmul.Properties.ClockDiscipline",
       "file": "svgolf/tasks/matmul/Properties.lean",
       "kind": "property",
-      "text": "The clock is the input clk: every register is clocked by it, an asynchronous reset (if the design has one) can only be rst, and no logic reads clk as a data signal. Together these make one cycle of Lean's model exactly one rising edge of clk in the real circuit: a clock that is gated, derived from logic, tied off or never driven is ruled out. One consequence to know: the registers have to sit in the top module, because connecting clk to a child instance copies it as data."
+      "text": "The clock is the input clk: every register is clocked by it, no register has an asynchronous reset (rst is synchronous, read inside the clocked processes), and no logic reads clk as a data signal. Together these make one cycle of Lean's model exactly one rising edge of clk in the real circuit: a clock that is gated, derived from logic, tied off or never driven is ruled out. One consequence to know: the registers have to sit in the top module, because connecting clk to a child instance copies it as data."
     },
     {
       "name": "TERMINATES",
@@ -48,14 +48,14 @@
       "decl": "SvGolf.Tasks.Matmul.Properties.MooreOutputs",
       "file": "svgolf/tasks/matmul/Properties.lean",
       "kind": "property",
-      "text": "No combinational path leads from start, A and B to done and C: the outputs are functions of the registers only (rst may gate them). The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another (txtask-v2 rule 1, DRAFT for review)."
+      "text": "No combinational path leads from any input, rst included, to done and C: the outputs are functions of the registers only. The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another; an output gated by rst could hide a transaction's last value from a consumer when a reset follows (txtask-v2 rule 1)."
     },
     {
       "name": "NO_X_CREATING",
       "decl": "SvGolf.Tasks.Matmul.Properties.NoXCreating",
       "file": "svgolf/tasks/matmul/Properties.lean",
       "kind": "property",
-      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (txtask-v2 rule 3, DRAFT for review)."
+      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (txtask-v2 rule 3)."
     },
     {
       "name": "DONE_KNOWN",
@@ -63,6 +63,13 @@
       "file": "svgolf/tasks/matmul/Properties.lean",
       "kind": "property",
       "text": "As long as the environment follows the protocol, done is a known bit, 0 or 1, in every cycle from the release of the reset on. The environment decides when to start the next transaction by watching done, so done must mean something in every cycle; never x."
+    },
+    {
+      "name": "DONE_LOW_BEFORE_FIRST_START",
+      "decl": "SvGolf.Tasks.Matmul.Properties.DoneLowBeforeFirstStart",
+      "file": "svgolf/tasks/matmul/Properties.lean",
+      "kind": "property",
+      "text": "As long as the environment follows the protocol, done is 0 in every cycle after the release of the reset and before the first start. done = 1 claims a result, and before the first start there is none: a design that raises done too soon fails here, whatever C shows."
     },
     {
       "name": "DONE_WITHIN_LATENCY",
@@ -127,7 +134,7 @@
       "name": "TxTask.Guar",
       "decl": "SvGolf.TxTask.Guar",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "The trusted guarantee, one conjunction; DONE_KNOWN, DONE_WITHIN_LATENCY, DONE_HELD and RESULT_IS_PRODUCT are its parts."
+      "text": "The trusted guarantee, one conjunction; DONE_KNOWN, DONE_LOW_BEFORE_FIRST_START, DONE_WITHIN_LATENCY, DONE_HELD and RESULT_IS_PRODUCT are its parts."
     },
     {
       "name": "Statement",
@@ -223,7 +230,7 @@
       "name": "MooreOutDep",
       "decl": "SvGolf.MooreOutDep",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "The trusted rule 1 of txtask-v2 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list, is closed along every combinational dependency and holds no output port."
+      "text": "The trusted rule 1 of txtask-v2 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list (here the list is empty: every input port, rst included), is closed along every combinational dependency and holds no output port."
     },
     {
       "name": "combDeps",

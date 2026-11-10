@@ -271,8 +271,8 @@ python3.12 check.py tasks/mul solution.sv Solution.lean
 `pp[i][j] = a[j] & b[i]`, then `N - 1` rows of `N`-bit ripple-carry adders
 built from full adders in generate loops (row `i` adds the upper `N` bits of
 row `i - 1` to `pp[i]`); output bit `i < N` is bit 0 of row `i`, the top
-`N` bits are the upper bits of the last row. It is the `mul2d` design of
-lean-surfaces (`Examples/system-verilog/mul2d`) under the task's header.
+`N` bits are the upper bits of the last row. It is the `mul2d` design
+`Examples/system-verilog/mul2d` of proglib (formerly lean-surfaces) under the task's header.
 
 The statement is proved **for every `N ≥ 1`** (standard axioms only; nothing
 unrolled, nothing bit-blasted) twice for this design, and once more for each of two
@@ -282,7 +282,7 @@ multiplier's two proofs are for the same design
 that goes with the by-hand proof; `tests/run.py` checks the bytes):
 
 * `reference/mul_n.lean` (70 code lines, 213 before WP-P3/P4) uses the `sv_comb` tactics of
-  lean-surfaces: `sv_structure` (`CombDesign ∧ Acyclic` in one theorem, goals closed by
+  proglib: `sv_structure` (`CombDesign ∧ Acyclic` in one theorem, goals closed by
   `intros; sv_rowmajor; omega`, from a 12-line lexicographic key `(row, column, phase)`
   and `maxHeartbeats 400000`), `sv_interface` (the ports), `sv_equations` (the eleven equations of the 2-D
   netlist, one `eq_*` per group of assigns, and their knownness), and the

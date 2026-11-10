@@ -147,7 +147,8 @@ class DetailTest(unittest.TestCase):
         """A preview ranks nothing: no record page, no reference page; the task page's references, its charts' marks
         and its data link each reference to its own row there (`#ref-<stem>`), and no page of the task says it is
         ranked."""
-        self.assertTrue(self.previews, "config.json lists previews")
+        if not self.previews:                       # none since matmul and the sorter rank (2026-11-08)
+            self.skipTest("config.json lists no preview")
         for t in self.previews:
             with self.subTest(task=t):
                 task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)

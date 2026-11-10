@@ -680,7 +680,7 @@ def model (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) (hNW 
   Fin x st := FinAt N W AccW x.1 x.2.1 st
   ready_done := by
     rintro st ⟨ck, r, s, a, b, c, k, ash, bsh, rfl⟩
-    exact ⟨false, by simp [BitIs, Tasks.Matmul.task, MS, SvState.lookup]⟩
+    simp [BitIs, Tasks.Matmul.task, MS, SvState.lookup]
   busy_done := by
     rintro x m st ⟨t, -, ck, r, s, a, b, rfl⟩
     simp [BitIs, Tasks.Matmul.task, MS, SvState.lookup]
@@ -759,7 +759,7 @@ termination from every power-up (`mm_terminatesPU`). Rule 1: every process is an
 
 /-- **Rule 1.** -/
 theorem mm_moore (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW) :
-    MooreOutDep (design.sem N W AccW) [Tasks.Matmul.task.rst] := by
+    MooreOutDep (design.sem N W AccW) [] := by
   rw [mm_sem_eq N W AccW hN hW hA]
   exact MooreOutDep.of_noComb (combDeps_of_ffOnly (FFOnly.ofProfile (mm_profile N W AccW)))
     (by simp [mmD, mmDecls, Design2.outputNames, Design2.inputNames])
