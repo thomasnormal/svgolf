@@ -1,0 +1,377 @@
+{
+  "assisted_by": [
+    "Claude Sonnet 5.5"
+  ],
+  "canonical_sha256": "e429dd71608c3cda7053f0affbed59afe39dd283e92e5e3406ba14615129bce4",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "b0c939438a765c2ffeb679721c83ced6213c0a96bfef84759948d3857db9f431",
+      "check/Comparator.lean": "936f97636d6256374eaa4435d03321eeff29e22f808a72c7781375ab648600e8",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "dd89805f9e8335ab15d6bb753eea76865bce47e84ccffa7e7280c91da8131d23",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "f18c14c23a14d55db63e202f42cc424dc84c1dd1c337f132ad60859dc9d5d33a",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "95332451ae3754226fb87b46027385b46a91121e7eb9ae25b302bce756d90475",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "flow": "seq",
+    "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+    "lean_surfaces_revision": "892ba94b00e36c0f83e15b4acf3641cee47d43c8",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "SvGolf/TaskSeq.lean": "2c1fdc15996716bea71f6e28129b7092834d2fcc0ee1a524f56457c46b155a08",
+      "tasks/matmul/Spec.lean": "2e8ec32ea0608307b4eed680ac8260b565bfa05f419ca4410a53a28ce85b26ef"
+    },
+    "svgolf_revision": "892ba94b00e36c0f83e15b4acf3641cee47d43c8",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "S10.lean",
+      "sha256": "fd011cd83585c5b32067fbe5f0f792324c6494ce5771f7e3cb84ea82aa1a98f8"
+    },
+    "sv": {
+      "name": "f10.sv",
+      "sha256": "73385c65005d82ccb977d186be60dc1b7facf38d205672c688dbc4eef384cca4"
+    }
+  },
+  "notes": "reference architecture with free-running operand shifters, step counter and accumulators (no hold mux; C holds because b_sh is shifted out); only busy and done are controlled; latency N",
+  "player": "vacuity-check",
+  "postsynth": {
+    "mismatches": 0,
+    "mode": "full",
+    "netlist_sha256": "162dd944a1d8897a4404380b5e64d49bc17c89ef7e0cbcb9ae2b4832f3f5044b",
+    "points": [
+      {
+        "latency": 2,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "de575d31fdb1474f94695f1420331019807a746eaec92fbbb018c55171a1a9e1",
+        "params": {
+          "AccW": 8,
+          "N": 2,
+          "W": 4
+        },
+        "point": "N=2,W=4,AccW=8",
+        "seeds": [
+          {
+            "cycles": 109,
+            "lssv_start": "zeros",
+            "netlist_randseed": 303973935,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "4ed5c6f8253aa2ccebcac64a7a0a386b600257f7452a5b697e54d91ed2eaf605",
+            "transactions": 24
+          },
+          {
+            "cycles": 109,
+            "lssv_start": "seed:6761245804292904090",
+            "netlist_randseed": 1195438325,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "82e6921a1035266198a8a19b7db3802de6c1774db6bc6871f38788da1c463941",
+            "transactions": 24
+          },
+          {
+            "cycles": 112,
+            "lssv_start": "seed:845291531553475423",
+            "netlist_randseed": 391528801,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "2b060ddd6dc02ac106b5c3a42b351bce94017582ddeb0ace5845776e13986d5e",
+            "transactions": 24
+          },
+          {
+            "cycles": 97,
+            "lssv_start": "seed:5147191549726746004",
+            "netlist_randseed": 1397868753,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "37b381d742d38096380bc51aa3d54fb5394c4cbd815b57e65e8b290f662a91e1",
+            "transactions": 24
+          },
+          {
+            "cycles": 96,
+            "lssv_start": "seed:3814886047666414678",
+            "netlist_randseed": 1168828466,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "93e4b866922d25bbca772983de8dd0d895c1a977637814d34608635480a42fc6",
+            "transactions": 24
+          },
+          {
+            "cycles": 102,
+            "lssv_start": "seed:3507955749274142316",
+            "netlist_randseed": 192587499,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "8c2d8181b84093b6b684d544b423cd3dd4146ac5d6764108c6e52ddb8988d303",
+            "transactions": 24
+          },
+          {
+            "cycles": 101,
+            "lssv_start": "seed:9665391063568079335",
+            "netlist_randseed": 688604025,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "7c2b8adaae809812a664e1841857896fa84b3efc270bc9a44e303f43245bb218",
+            "transactions": 24
+          },
+          {
+            "cycles": 102,
+            "lssv_start": "seed:11035912927779587285",
+            "netlist_randseed": 825733514,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "1db8b9c4c23cd0ea5671545153ca4e2bcd0132d0776a93bb06a43e970cf9d41f",
+            "transactions": 24
+          }
+        ]
+      },
+      {
+        "latency": 4,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "162dd944a1d8897a4404380b5e64d49bc17c89ef7e0cbcb9ae2b4832f3f5044b",
+        "params": {
+          "AccW": 32,
+          "N": 4,
+          "W": 8
+        },
+        "point": "N=4,W=8,AccW=32",
+        "seeds": [
+          {
+            "cycles": 151,
+            "lssv_start": "zeros",
+            "netlist_randseed": 1946689348,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "e3ef9e3638b59686ddad464c18d55cc4689e1f6f645c6420927ecd11e207effe",
+            "transactions": 24
+          },
+          {
+            "cycles": 168,
+            "lssv_start": "seed:9734188592010554240",
+            "netlist_randseed": 1063280839,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "2132be692d56dbab8d92de4ff8fbad7373f28dc1b4ef1603097f813e105f4774",
+            "transactions": 24
+          },
+          {
+            "cycles": 160,
+            "lssv_start": "seed:6594409222167094000",
+            "netlist_randseed": 88936619,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "0371e783230da20b644d641cfc6a766d5fb3b725f8be6639856775379661ffe3",
+            "transactions": 24
+          },
+          {
+            "cycles": 151,
+            "lssv_start": "seed:15091031972466303227",
+            "netlist_randseed": 590535838,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "ed721e3e3e1804e90a21ed159beabb253edb477280ce72069c119ce05945edd5",
+            "transactions": 24
+          },
+          {
+            "cycles": 162,
+            "lssv_start": "seed:17087008212923660376",
+            "netlist_randseed": 707745727,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "fcdbab7c930508992e898aa3fbb76c62ada7cebea09d946db533b4d6744e4b53",
+            "transactions": 24
+          },
+          {
+            "cycles": 152,
+            "lssv_start": "seed:13568177433463839254",
+            "netlist_randseed": 834142182,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "ccccf631a1d29013c6898031e5e5c8542c6b80ebdcdbcf1e72c32d6784191a48",
+            "transactions": 24
+          },
+          {
+            "cycles": 162,
+            "lssv_start": "seed:2839497944125262158",
+            "netlist_randseed": 1252134952,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "f1dc560f77673c053e8d81e29efa08c4857f6676feb8eefc39c3d0873c27fc5a",
+            "transactions": 24
+          },
+          {
+            "cycles": 151,
+            "lssv_start": "seed:8076188500603944899",
+            "netlist_randseed": 547904091,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "831e3fb7b1cd852ac414ce5261819f6bf070d0fba0d21a5d871ab970bc999967",
+            "transactions": 24
+          }
+        ]
+      }
+    ]
+  },
+  "ppa": {
+    "area_e4um2_sky130": 797001888,
+    "area_um2_sky130": 79700.1888,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 2569,
+      "buf_4": 4,
+      "dfxtp_1": 802,
+      "inv_1": 10,
+      "mux2_1": 274,
+      "nand2_1": 3592,
+      "nand2b_1": 164,
+      "nor2_1": 721,
+      "nor2b_1": 205,
+      "or2_1": 512,
+      "xnor2_1": 811,
+      "xor2_1": 1783
+    },
+    "cells_sky130": 11447,
+    "constants": false,
+    "critical": {
+      "cells": 58,
+      "edge": "f",
+      "output": "D:_00399_"
+    },
+    "delay_ps_sky130": 10689,
+    "flops": 802,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.967,
+      "worst_transition_ratio": 0.974
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "netlist_sha256": "162dd944a1d8897a4404380b5e64d49bc17c89ef7e0cbcb9ae2b4832f3f5044b",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 4,
+      "cells_before": 11443,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "56933abd2f8ba210d2a582509cdc956dfa76a7d0ce85edef6ad1c27764d46336",
+      "nets_buffered": 1,
+      "rounds": 2,
+      "tie_cells": 0
+    },
+    "sequential": true,
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 59
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 8.05,
+    "imports": [
+      "Submission.Design",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.SeqProfile",
+      "LeanModels.Sv.SeqFamily",
+      "LeanModels.Sv.Known2",
+      "LeanModels.Sv.Lib.BitVecArith",
+      "LeanModels.Sv.CombViewArith",
+      "LeanModels.Sv.Mono2",
+      "SvGolf.SeqV2"
+    ],
+    "lines": 722,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": true
+  },
+  "record_hash": "9fdf50f9ae02743512989dd85fb239f25cb535cbcfa873e9a6f01f678b3b5316",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 19022.828,
+    "area_mge": 19022828,
+    "area_um2": 79700.1888,
+    "cycles": 4,
+    "depth": 59,
+    "ffs": 802,
+    "gates": {
+      "AND": 2569,
+      "ANDNOT": 205,
+      "DFF_P": 802,
+      "MUX": 274,
+      "NAND": 3592,
+      "NOR": 721,
+      "NOT": 10,
+      "OR": 512,
+      "ORNOT": 164,
+      "XNOR": 811,
+      "XOR": 1783
+    },
+    "num_gates": 11443,
+    "period_ps": 10689,
+    "rtlil_sha256": "8ef35b30d0f52e3159cc8c02622c0dcbb64f74a66a788c7a644290f222b2e066",
+    "scoring_point": {
+      "AccW": 32,
+      "N": 4,
+      "W": 8
+    },
+    "time_ps": 42756,
+    "top": "matmul"
+  },
+  "submitted_at": "2026-11-10",
+  "task": "matmul"
+}

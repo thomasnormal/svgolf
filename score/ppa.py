@@ -62,6 +62,23 @@ Study and measurements: design/ppa/sky130.md (WP-X1). What the numbers claim and
 The liberty (12.8 MB) is NOT vendored: it is fetched at a pinned sha256 (--fetch-liberty) into score/lib/ (git-ignored)
 or taken from $SVGOLF_SKY130_LIB or --liberty. A missing file or a hash mismatch is an error, never a silent fallback.
 
+ASAP7 (`--pdk asap7`, an ALTERNATIVE library beside sky130, which stays the default and unchanged): the same two flows
+and the same principles (the scored netlist re-expressed cell by cell, repaired by buffering only, illegal netlists
+rejected with the nets named, no extrapolation above a table's grid, bit-exact run to run) on asap7sc7p5t rev 28, RVT, TT
+(0.70 V, 25 C), pinned in score/ppa_pins_asap7.json (flow A0', `asap7_a0_v1`) and score/ppa_mapped_pins_asap7.json +
+score/ppa_mapped_asap7.ys (flow A1', `asap7_a1_v1`). Its columns carry their own names (`area_um2_asap7`,
+`area_e5um2_asap7`, `delay_ps_asap7`, `cells_asap7`, `cell_hist_asap7`; A1': `area_um2_asap7_mapped_v1`, ...), never
+the sky130 ones. What the library forces, each a pinned choice (the pins file says why): five liberty files instead of
+one (fetched gzipped from ORFS at a pinned commit, both hashes checked; $SVGOLF_ASAP7_LIB or --liberty name a directory
+holding them), ps/fF units (converted to ns/pF when read: every internal number is in the sky130 units), 5-decimal areas
+(integers in 1e-5 um^2), cell names with a suffix, a Yosys gate that is two cells (MUX, ANDNOT, ORNOT: the library has
+no such cell), a QN-only flop (an inverter forms Q), separate TIEHI/TIELO cells without a max_capacitance (the pins
+state one), and table grids whose smallest load lies above many single pins: a read BELOW a grid (a load or an input
+transition smaller than the library characterizes) is read at the grid's floor in that dimension and counted in
+`legality.table_reads_floored` (MEASURED over every asap7 table the flow reads: the delays rise from their first point
+along both axes, so a floored delay errs slow; the transitions rise along the load and are flat, within 0.39 ps, along
+the input transition); above a grid the rule is sky130's (the repair buffers, else the netlist is rejected).
+
 Usage:
   python3.12 score/ppa.py SOLUTION.sv --top TOP [--param N=16 ...]     # pinned flow, then weigh its netlist (A0') and map it (A1')
   python3.12 score/ppa.py SOLUTION.sv --task tasks/<name>               # top + scoring point from task.json
@@ -75,7 +92,10 @@ Options:
   --repaired-netlist OUT also write the repaired A0' netlist (structural Verilog: the buffer trees and tie cells) to OUT
   --no-mapped      A0' only: skip the mapping (no second Yosys run)
   --liberty PATH   the liberty file (default $SVGOLF_SKY130_LIB, else score/lib/<pinned name>); with
-                   --fetch-liberty, where to put the download
+                   --fetch-liberty, where to put the download. With --pdk asap7: the DIRECTORY of the pinned files
+                   (default $SVGOLF_ASAP7_LIB, else score/lib/asap7/)
+  --pdk NAME       sky130 (the default: score/ppa_pins.json, the ranked columns) or asap7 (score/ppa_pins_asap7.json,
+                   score/ppa_mapped_pins_asap7.json, score/ppa_mapped_asap7.ys: the asap7 columns)
   --pins PATH      a pins file (research and tests only: the result records its sha256)
   --path           also report the critical path (net names; and per node the driving cell, arrival and transition)
   --yosys PATH, --repeat K, --no-gate   as in score.py
@@ -109,6 +129,23 @@ LIB_ENV = "SVGOLF_SKY130_LIB"
 REPAIR_METHOD = "buffer_trees_v1"          # the repair this file implements (pins: repair.method)
 TIE_POLICY = "replicated_within_max_capacitance"     # the constants policy it implements (pins: constants.policy)
 NAND2_E4 = 37536     # sky130_fd_sc_hd__nand2_1 = 3.7536 um^2, the library's NAND2 (reported by the validation only)
+# The libraries this file weighs on: (A0' pins, A1' pins, A1' script, the liberty's environment variable, its default
+# location under score/lib/). sky130 is the default and the ranked one; asap7 is the alternative of `--pdk asap7`.
+PDKS = {
+    "sky130": ("ppa_pins.json", "ppa_mapped_pins.json", "ppa_mapped.ys", "SVGOLF_SKY130_LIB", None),
+    "asap7": ("ppa_pins_asap7.json", "ppa_mapped_pins_asap7.json", "ppa_mapped_asap7.ys", "SVGOLF_ASAP7_LIB", "asap7"),
+}
+# liberty unit -> the divisor that brings a number in it to the internal unit (ns, pF: sky130's own)
+TIME_UNITS = {"1ns": 1, "1ps": 1000}
+CAP_UNITS = {"pf": 1, "ff": 1000}
+
+
+def pdk_paths(pdk):
+    """(A0' pins path, A1' pins path, A1' script path) of the library `pdk` (PDKS)."""
+    if pdk not in PDKS:
+        raise PpaError(f"unknown pdk {pdk!r} (one of {', '.join(PDKS)})")
+    a, b, c = PDKS[pdk][:3]
+    return os.path.join(HERE, a), os.path.join(HERE, b), os.path.join(HERE, c)
 
 
 class PpaError(Exception):
@@ -147,22 +184,59 @@ class Pins:
         self.sha256 = sha256_file(path)
         try:
             self.version = raw["ppa_version"]
+            # the library (sky130 when the pins name none: score/ppa_pins.json predates the key) and the names its columns
+            # carry: area_um2_<col>, delay_ps_<col>, ... (the integer area in 1e-<area_decimals> um^2)
+            self.pdk = raw.get("pdk", "sky130")
+            self.col = raw.get("column_suffix", "sky130")
+            self.area_decimals = int(raw.get("area_decimals", 4))
             self.lib = dict(raw["liberty"])
             self.prefix = self.lib["cell_prefix"]
+            self.suffix = self.lib.get("cell_suffix", "")
+            # one liberty file (sky130: `file`, `sha256`, ...) or several (`files`, each with its own name and hashes)
+            if "files" in self.lib:
+                self.lib_files = [dict(f) for f in self.lib["files"]]
+                for f in self.lib_files:
+                    f["file"], f["sha256"], f["bytes"] = str(f["file"]), str(f["sha256"]), int(f["bytes"])
+                self.multi = True
+            else:
+                self.lib_files = [{"file": self.lib["file"], "sha256": self.lib["sha256"],
+                                   "bytes": self.lib.get("bytes"), "url": self.lib.get("url")}]
+                self.multi = False
             t = raw["timing"]
             # ps -> ns and fF -> pF by one correctly-rounded division: identical to the literals 0.05 and 0.010
-            self.pi_slew_ns = int(t["pi_slew_ps"]) / 1000
-            self.po_load_pf = int(t["po_load_ff"]) / 1000
+            self.pi_slew_ns = _per_1000(t["pi_slew_ps"], "timing.pi_slew_ps")
+            self.po_load_pf = _per_1000(t["po_load_ff"], "timing.po_load_ff")
+            self.pi_slew_ps, self.po_load_ff = t["pi_slew_ps"], t["po_load_ff"]       # as pinned, for the records
+            # a timing-table read below the grid (a load or an input transition smaller than the library characterizes):
+            # "reject" (sky130, where no single pin is below a grid) or "floor" (read at the grid's floor in that dimension)
+            self.below_grid = t.get("below_grid", "reject")
             # the cell that drives every primary input (and whose limits the repair budgets): the task's `input_drive`
             # (task.json), one of `allowed`, else `default` (sky130_a0_v3)
             d = t["input_drive"]
             self.input_drive_default = d["default"]
             self.input_drives = list(d["allowed"])
+            self.input_drive_shape = d.get("shape", r"(buf|inv)_\d+|" + FLOP_CELL)
             self.gates = {k: v for k, v in raw["gates"].items() if not k.startswith("_")}
-            self.tie_cell = raw["constants"]["cell"]
-            self.tie_policy = raw["constants"]["policy"]
+            self.gate_cells = {k: _gate_cells(k, v) for k, v in self.gates.items()}
+            c = raw["constants"]
+            # one tie cell with both constants (sky130's conb_1: `cell`) or one cell per constant (`cells`: {"0", "1"})
+            self.tie_cell = c.get("cell")
+            self.tie_cells = ({"0": self.tie_cell, "1": self.tie_cell} if self.tie_cell is not None
+                              else {"0": c["cells"]["0"], "1": c["cells"]["1"]})
+            # the load a tie output may carry where its cell declares no max_capacitance (fF in the pins)
+            self.tie_max_cap_pf = (_per_1000(c["max_capacitance_ff"], "constants.max_capacitance_ff")
+                                   if "max_capacitance_ff" in c else None)
+            self.tie_policy = c["policy"]
             if self.tie_policy != TIE_POLICY:
                 raise PpaError(f"only the constants policy {TIE_POLICY!r} is implemented")
+            # the clocked flow's one flop ($_DFF_P_); sky130's when the pins name none. `q_inverter`: the cell that forms
+            # Q from a flop that has only an inverted output (asap7's DFFHQNx1)
+            fl = raw.get("flop", {"cell": FLOP_CELL, "clock": "CLK", "d": "D", "q": "Q"})
+            self.flop = {"cell": fl["cell"], "clock": fl["clock"], "d": fl["d"], "q": fl["q"],
+                         "q_inverter": dict(fl["q_inverter"]) if fl.get("q_inverter") else None}
+            self.flop_cell = self.flop["cell"]
+            # the cell classes (`cell_class`): only class "logic" may appear in a weighed netlist
+            self.policy = [tuple(x) for x in raw["cell_policy"]] if "cell_policy" in raw else POLICY
             r = raw["repair"]
             self.repair_method = r["method"]
             self.repair_buffers = list(r["buffers"])
@@ -171,6 +245,14 @@ class Pins:
             self.repair_seed = r["equivalence"]["seed"]
         except (KeyError, TypeError, ValueError) as e:
             raise PpaError(f"pins file {path}: missing or malformed key {e}")
+        units = self.lib.get("units") if isinstance(self.lib.get("units"), dict) else {}
+        if units.get("time") not in TIME_UNITS or units.get("capacitance") not in CAP_UNITS:
+            raise PpaError(f"pins file {path}: liberty.units must name a time unit of {sorted(TIME_UNITS)} and a "
+                           f"capacitance unit of {sorted(CAP_UNITS)}")
+        if self.below_grid not in ("reject", "floor"):
+            raise PpaError(f"pins file {path}: timing.below_grid must be \"reject\" or \"floor\"")
+        if self.area_decimals < 0 or self.area_decimals > 9:
+            raise PpaError(f"pins file {path}: area_decimals must be 0 to 9")
         if self.repair_method != REPAIR_METHOD:
             raise PpaError(f"pins file {path}: repair.method {self.repair_method!r} is not this ppa.py's {REPAIR_METHOD!r}")
         if not self.repair_buffers or len(set(self.repair_buffers)) != len(self.repair_buffers):
@@ -179,15 +261,61 @@ class Pins:
             raise PpaError(f"pins file {path}: repair.equivalence.vectors must be a positive multiple of 256 and "
                            "repair.max_rounds positive")
         shapes = [c for c in self.input_drives if not (isinstance(c, str) and c.startswith(self.prefix)
-                  and re.fullmatch(r"(buf|inv)_\d+|" + FLOP_CELL, c[len(self.prefix):]))]
+                  and c.endswith(self.suffix) and re.fullmatch(self.input_drive_shape, self.short(c)))]
         if (not self.input_drives or len(set(self.input_drives)) != len(self.input_drives) or shapes
                 or self.input_drive_default not in self.input_drives):
             raise PpaError(f"pins file {path}: timing.input_drive.allowed must name each cell once, every one a "
-                           f"{self.prefix}buf_N, {self.prefix}inv_N or {self.prefix}{FLOP_CELL} (its Q), and contain "
+                           f"{self.full('<' + self.input_drive_shape + '>')} cell, and contain "
                            "timing.input_drive.default")
 
     def lib_file(self):
-        return self.lib["file"]
+        """The liberty's file name (several libraries: their names joined by `+`, for messages and records)."""
+        return self.lib["file"] if not self.multi else "+".join(f["file"] for f in self.lib_files)
+
+    def full(self, short):
+        """The liberty name of a cell the pins name short: `inv_1` -> `sky130_fd_sc_hd__inv_1`, `INVx1` ->
+        `INVx1_ASAP7_75t_R`."""
+        return self.prefix + short + self.suffix
+
+    def short(self, name):
+        """The pins' short name of a liberty cell (the inverse of `full`; a name of another shape is returned as it is)."""
+        if name.startswith(self.prefix) and name.endswith(self.suffix) and len(name) > len(self.prefix) + len(self.suffix):
+            return name[len(self.prefix):len(name) - len(self.suffix)]
+        return name
+
+
+def _per_1000(x, what):
+    """A pinned ps or fF number as ns or pF: one correctly-rounded division by 1000 (an integer pin, as sky130's 50 and 10,
+    gives exactly what it always gave)."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)) or not x > 0:
+        raise PpaError(f"pins: {what} must be a positive number")
+    return x / 1000
+
+
+def _gate_cells(gate, ent):
+    """A gate-table entry as the list of cells that build the Yosys gate, [(cell, {cell input pin: signal}, cell output
+    pin, output signal)], in order; a signal is a pin of the generic gate (A, B, S) or the output of an earlier cell of
+    the list, and the last cell drives Y. One cell (sky130, `{"cell", "pins": {gate pin: cell pin}, "out"}`) or a short
+    list (`{"cells": [{"cell", "conn": {cell input pin: signal}, "out": {cell output pin: signal}}, ...]}`, for a library
+    without a one-cell build of the gate)."""
+    if gate not in GATE_SEMANTICS:
+        raise PpaError(f"pins: gate {gate} is not a Yosys abc -g gate")
+    if "cells" not in ent:
+        return [(ent["cell"], {cp: gp for gp, cp in ent["pins"].items()}, ent["out"], "Y")]
+    out, defined = [], set()
+    ins = set(GATE_SEMANTICS[gate][0])
+    for k, c in enumerate(ent["cells"]):
+        (op, sig), = c["out"].items()
+        bad = [s for s in c["conn"].values() if s not in ins and s not in defined]
+        if bad or sig in ins or sig in defined or (sig == "Y") != (k == len(ent["cells"]) - 1):
+            raise PpaError(f"pins: gate {gate}: cell {k} ({c['cell']}) reads an undefined signal {bad} or defines "
+                           f"{sig!r} out of order (internal signals once each, before use; Y by the last cell only)")
+        defined.add(sig)
+        out.append((c["cell"], dict(c["conn"]), op, sig))
+    used = {s for _, conn, _, _ in out for s in conn.values()}
+    if not ins <= used or not (defined - {"Y"}) <= used:
+        raise PpaError(f"pins: gate {gate}: every input of the gate and every internal signal must be read")
+    return out
 
 
 class TaskConfigError(PpaError):
@@ -213,8 +341,13 @@ def check_input_drive(name, pins, what="input_drive"):
 
 # ------------------------------------------------------------------------------------------------ liberty
 _TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|[A-Za-z_][\w.\[\]$]*|-?[\d.]+(?:[eE][-+]?\d+)?|[{}():;,]')
-_CELL_RE = re.compile(r'^[ \t]*cell[ \t]*\([ \t]*"([^"]*)"[ \t]*\)[ \t]*\{', re.M)
+# `cell ("name") {` (sky130) or `cell (name) {` (asap7)
+_CELL_RE = re.compile(r'^[ \t]*cell[ \t]*\([ \t]*(?:"([^"]*)"|([A-Za-z_][\w$]*))[ \t]*\)[ \t]*\{', re.M)
 _BRACE_RE = re.compile(r'"(?:[^"\\]|\\.)*"|[{}]')
+# a simple attribute alone on its line without its closing semicolon (`area : 0.04374`: all 37 cells of asap7's INVBUF
+# files, five of its SEQ file): the line end closes it, as Yosys and OpenSTA read it. sky130 has no such line, so its
+# reading is unchanged (test_ppa_asap7.py checks the count is 0 there).
+_NOSEMI_RE = re.compile(r'^([ \t]*[A-Za-z_]\w*[ \t]*:[ \t]*[^;{}\n]*[^;{}\s])[ \t]*$', re.M)
 
 
 class _Group:
@@ -268,7 +401,7 @@ def _group_body(toks, pos, g):
 
 def _parse_group_text(text):
     """The single group `name ( args ) { ... }` that `text` consists of."""
-    toks = _TOKEN.findall(re.sub(r"\\\s*\n", " ", text))
+    toks = _TOKEN.findall(_NOSEMI_RE.sub(r"\1;", re.sub(r"\\\s*\n", " ", text)))
     if len(toks) < 4 or toks[1] != "(":
         raise PpaError("liberty: malformed group")
     pos = 2
@@ -284,21 +417,33 @@ def _parse_group_text(text):
     return g
 
 
+def _num(x, div):
+    """A liberty number in the internal unit: `div` is the divisor of its unit (TIME_UNITS, CAP_UNITS; 1 for sky130, whose
+    numbers are read exactly as before)."""
+    return float(x) if div == 1 else float(x) / div
+
+
 class Table:
-    """A 2-D NLDM table: index_1 = input transition (ns), index_2 = output load (pF)."""
+    """A 2-D NLDM table: index_1 = input transition (ns), index_2 = output load (pF). `d1`, `d2`, `dv`: the divisors that
+    bring index_1, index_2 and the values from the liberty's units to ns and pF (`_num`). `transpose`: the table is stored
+    the other way round (asap7's setup tables: index_1 the constrained pin's transition, index_2 the clock's), so that i1 is
+    always what the caller reads first."""
     __slots__ = ("i1", "i2", "v")
 
-    def __init__(self, g, what):
+    def __init__(self, g, what, d1=1, d2=1, dv=1, transpose=False):
         if "index_1" not in g.attrs or "index_2" not in g.attrs:
             raise PpaError(f"liberty: {what} is not a 2-D table (the A0' timing needs index_1 and index_2)")
-        self.i1 = [float(x) for x in g.attrs["index_1"][0].split(",")]
-        self.i2 = [float(x) for x in g.attrs["index_2"][0].split(",")]
+        self.i1 = [_num(x, d1) for x in g.attrs["index_1"][0].split(",")]
+        self.i2 = [_num(x, d2) for x in g.attrs["index_2"][0].split(",")]
         rows = g.attrs["values"]
-        self.v = [[float(x) for x in row.split(",")] for row in rows]
+        self.v = [[_num(x, dv) for x in row.split(",")] for row in rows]
         if (len(self.v) != len(self.i1) or any(len(r) != len(self.i2) for r in self.v)
                 or len(self.i1) < 2 or len(self.i2) < 2
                 or self.i1 != sorted(self.i1) or self.i2 != sorted(self.i2)):
             raise PpaError(f"liberty: {what} has inconsistent indices and values")
+        if transpose:
+            self.i1, self.i2 = self.i2, self.i1
+            self.v = [list(col) for col in zip(*self.v)]
 
     def covers(self, x1, x2):
         """The point lies inside the characterized grid (bounds included)."""
@@ -341,7 +486,7 @@ class Arc:
     """A timing arc related_pin -> output pin with its four tables."""
     __slots__ = ("related", "sense", "tbl")
 
-    def __init__(self, g, cell, pin, templates):
+    def __init__(self, g, cell, pin, templates, tdiv=1, cdiv=1):
         self.related = g.attrs.get("related_pin")
         self.sense = g.attrs.get("timing_sense", "non_unate")
         what = f"{cell} arc {self.related}->{pin}"
@@ -351,32 +496,40 @@ class Arc:
             raise PpaError(f"liberty: {what}: timing_type {g.attrs['timing_type']!r} is not combinational")
         if self.sense not in ("positive_unate", "negative_unate", "non_unate"):
             raise PpaError(f"liberty: {what}: unknown timing_sense {self.sense!r}")
-        self.tbl = {}
-        for k in _TABLES:
-            found = g.find(k)
-            if len(found) != 1:
-                raise PpaError(f"liberty: {what}: expected one {k} table, found {len(found)}")
-            tg = found[0]
-            tpl = templates.get(tg.args[0] if tg.args else None)
-            if tpl != ("input_net_transition", "total_output_net_capacitance"):
-                raise PpaError(f"liberty: {what}: table {k} has template {tg.args} whose variables are "
-                               f"{tpl}, not (input_net_transition, total_output_net_capacitance)")
-            self.tbl[k] = Table(tg, f"{what} {k}")
+        self.tbl = delay_tables(g, what, templates, tdiv, cdiv)
 
 
-def edge_caps(p):
+def delay_tables(g, what, templates, tdiv=1, cdiv=1):
+    """{table name: Table} of the four delay and transition tables of timing group `g`, each on the template
+    (input_net_transition, total_output_net_capacitance), read in ns and pF."""
+    tbl = {}
+    for k in _TABLES:
+        found = g.find(k)
+        if len(found) != 1:
+            raise PpaError(f"liberty: {what}: expected one {k} table, found {len(found)}")
+        tg = found[0]
+        tpl = templates.get(tg.args[0] if tg.args else None)
+        if tpl != ("input_net_transition", "total_output_net_capacitance"):
+            raise PpaError(f"liberty: {what}: table {k} has template {tg.args} whose variables are "
+                           f"{tpl}, not (input_net_transition, total_output_net_capacitance)")
+        tbl[k] = Table(tg, f"{what} {k}", tdiv, cdiv, tdiv)
+    return tbl
+
+
+def edge_caps(p, cdiv=1):
     """{"r": rise_capacitance, "f": fall_capacitance} of a liberty input pin group (its `capacitance` where one is not
-    declared). A load pin presents its rise_capacitance to a rising transition and its fall_capacitance to a falling one,
-    as OpenSTA reads them; sky130_fd_sc_hd's `capacitance` is about their mean (rise about 4.7% above it, fall 4.7% below,
-    at most 9%), and timing at it was 0.5% to 2.8% off OpenSTA on the references (MEASURED 11/04, test_ppa_opensta.py)."""
-    c = float(p.attrs.get("capacitance", 0.0))
-    return {"r": float(p.attrs.get("rise_capacitance", c)), "f": float(p.attrs.get("fall_capacitance", c))}
+    declared), in pF. A load pin presents its rise_capacitance to a rising transition and its fall_capacitance to a falling
+    one, as OpenSTA reads them; sky130_fd_sc_hd's `capacitance` is about their mean (rise about 4.7% above it, fall 4.7%
+    below, at most 9%), and timing at it was 0.5% to 2.8% off OpenSTA on the references (MEASURED 11/04,
+    test_ppa_opensta.py)."""
+    c = p.attrs.get("capacitance", 0.0)
+    return {"r": _num(p.attrs.get("rise_capacitance", c), cdiv), "f": _num(p.attrs.get("fall_capacitance", c), cdiv)}
 
 
 class Cell:
-    def __init__(self, g, templates):
+    def __init__(self, g, templates, tdiv=1, cdiv=1, decimals=4):
         self.name = g.args[0]
-        self.area_e4 = _area_e4(g.attrs.get("area"), self.name)
+        self.area_e4 = _area_e4(g.attrs.get("area"), self.name, decimals)    # in 1e-<decimals> um^2 (sky130: 1e-4)
         self.pin_cap, self.inputs, self.outputs = {}, [], []
         self.pin_cap_e = {}                        # {pin: {"r": rise_capacitance, "f": fall_capacitance}}: what timing reads
         self.function, self.arcs = {}, {}
@@ -384,134 +537,217 @@ class Cell:
         for p in g.find("pin"):
             pn, direction = p.args[0], p.attrs.get("direction")
             if "max_transition" in p.attrs:
-                self.max_trans[pn] = float(p.attrs["max_transition"])
+                self.max_trans[pn] = _num(p.attrs["max_transition"], tdiv)
             if direction == "input":
                 self.inputs.append(pn)
-                self.pin_cap[pn] = float(p.attrs.get("capacitance", 0.0))
-                self.pin_cap_e[pn] = edge_caps(p)
+                self.pin_cap[pn] = _num(p.attrs.get("capacitance", 0.0), cdiv)
+                self.pin_cap_e[pn] = edge_caps(p, cdiv)
             elif direction == "output":
                 self.outputs.append(pn)
                 self.function[pn] = p.attrs.get("function")
-                self.arcs[pn] = [Arc(t, self.name, pn, templates) for t in p.find("timing")]
+                self.arcs[pn] = [Arc(t, self.name, pn, templates, tdiv, cdiv) for t in p.find("timing")]
                 if "max_capacitance" in p.attrs:
-                    self.max_cap[pn] = float(p.attrs["max_capacitance"])
+                    self.max_cap[pn] = _num(p.attrs["max_capacitance"], cdiv)
 
 
-def _area_e4(s, name):
+def _area_e4(s, name, decimals=4):
+    """A cell's area as an integer in 1e-`decimals` um^2 (sky130: 1e-4, asap7: 1e-5), refused if it has more decimals."""
     try:
-        d = Decimal(s) * 10000
+        d = Decimal(s) * (10 ** decimals)
     except Exception:
         raise PpaError(f"liberty: cell {name}: no usable area ({s!r})")
     if d != d.to_integral_value():
-        raise PpaError(f"liberty: cell {name}: area {s} has more than 4 decimals")
+        raise PpaError(f"liberty: cell {name}: area {s} has more than {decimals} decimals")
     return int(d)
 
 
+def lib_env(pins):
+    """The environment variable naming the liberty of `pins`' library ($SVGOLF_SKY130_LIB, $SVGOLF_ASAP7_LIB)."""
+    return PDKS.get(pins.pdk, PDKS["sky130"])[3]
+
+
+def default_liberty(pins):
+    """Where --fetch-liberty puts the pinned liberty and where it is looked for by default: score/lib/<file> (one file) or
+    score/lib/<pdk>/ (several, a directory)."""
+    if pins.multi:
+        return os.path.join(LIB_DIR, PDKS.get(pins.pdk, (None,) * 5)[4] or pins.pdk)
+    return os.path.join(LIB_DIR, pins.lib_file())
+
+
 def find_liberty(explicit=None, pins=None):
-    """The liberty path to use (it need not exist): explicit > $SVGOLF_SKY130_LIB > score/lib/<pinned name>."""
+    """The liberty path to use (it need not exist): explicit > $SVGOLF_SKY130_LIB ($SVGOLF_ASAP7_LIB) > score/lib/<pinned
+    name> (score/lib/asap7/, a directory, for a library of several files)."""
     if explicit:
         return explicit
-    env = os.environ.get(LIB_ENV)
+    pins = pins or Pins()
+    env = os.environ.get(lib_env(pins))
     if env:
         return env
-    pins = pins or Pins()
-    return os.path.join(LIB_DIR, pins.lib_file())
+    return default_liberty(pins)
+
+
+def set_sha256(files):
+    """The identity of a library of several files: SHA-256 over `<file name> <sha256>\\n` per file, in the pins' order."""
+    return sha256_bytes("".join(f"{f['file']} {f['sha256']}\n" for f in files).encode())
 
 
 class Liberty:
     """The pinned liberty: sha256 verified at load, cells parsed lazily (the 12.8 MB file is scanned once for the
-    cell spans, about 0.1 s; a cell is tokenized only when asked for)."""
+    cell spans, about 0.1 s; a cell is tokenized only when asked for). A library of several files (asap7: `path` is the
+    directory holding them) is read file by file, each verified against its own pinned sha256, its own header (units,
+    templates, default_max_transition) applying to its own cells; cell names are unique across the files."""
 
     def __init__(self, path, pins):
         self.path, self.pins = path, pins
-        if not os.path.isfile(path):
-            raise PpaError(f"liberty not found: {path}\n  fetch the pinned file with `python3.12 score/ppa.py "
-                           f"--fetch-liberty` (into score/lib/), or point ${LIB_ENV} / --liberty at a copy "
-                           f"(sha256 {pins.lib['sha256']})")
-        try:
-            with open(path, "rb") as fh:
-                data = fh.read()
-        except OSError as e:     # a file that exists but cannot be read (permissions, I/O error): a PpaError, not a traceback
-            raise PpaError(f"liberty {path}: cannot be read: {e}")
-        got = sha256_bytes(data)
-        if got != pins.lib["sha256"]:
-            raise PpaError(f"liberty {path}: sha256 {got} is not the pinned {pins.lib['sha256']}")
-        self.sha256 = got
-        try:
-            text = re.sub(r"/\*.*?\*/", "", data.decode("ascii"), flags=re.S)
-        except UnicodeDecodeError as e:
-            raise PpaError(f"liberty {path}: not an ASCII file ({e})")
-        spans = [(m.start(), m.group(1)) for m in _CELL_RE.finditer(text)]
-        if not spans:
-            raise PpaError(f"liberty {path}: no cell groups found")
-        names = [n for _, n in spans]
-        if len(set(names)) != len(names):
-            raise PpaError(f"liberty {path}: duplicate cell names")
-        self._text = text
-        self._start = dict((n, s) for s, n in spans)
+        if pins.multi:
+            if not os.path.isdir(path):
+                raise PpaError(f"liberty directory not found: {path}\n  fetch the pinned files with `python3.12 "
+                               f"score/ppa.py --pdk {pins.pdk} --fetch-liberty` (into {default_liberty(pins)}), or "
+                               f"point ${lib_env(pins)} / --liberty at a directory holding them")
+            self.paths = [os.path.join(path, f["file"]) for f in pins.lib_files]
+        else:
+            self.paths = [path]
+        self.tdiv = TIME_UNITS[pins.lib["units"]["time"]]
+        self.cdiv = CAP_UNITS[pins.lib["units"]["capacitance"]]
+        self.decimals = pins.area_decimals
+        self._texts, self._start, self._templates, self.dmts, self.file_of = [], {}, [], [], {}
+        names = []
+        for k, (p, f) in enumerate(zip(self.paths, pins.lib_files)):
+            if not os.path.isfile(p):
+                raise PpaError(f"liberty not found: {p}\n  fetch the pinned file with `python3.12 score/ppa.py "
+                               + ("" if pins.pdk == "sky130" else f"--pdk {pins.pdk} ")
+                               + f"--fetch-liberty` (into score/lib/), or point ${lib_env(pins)} / --liberty at a copy "
+                               f"(sha256 {f['sha256']})")
+            try:
+                with open(p, "rb") as fh:
+                    data = fh.read()
+            except OSError as e:     # a file that exists but cannot be read: a PpaError, not a traceback
+                raise PpaError(f"liberty {p}: cannot be read: {e}")
+            got = sha256_bytes(data)
+            if got != f["sha256"]:
+                raise PpaError(f"liberty {p}: sha256 {got} is not the pinned {f['sha256']}")
+            try:
+                text = re.sub(r"/\*.*?\*/", "", data.decode("ascii"), flags=re.S)
+            except UnicodeDecodeError as e:
+                raise PpaError(f"liberty {p}: not an ASCII file ({e})")
+            spans = [(m.start(), m.group(1) if m.group(1) is not None else m.group(2)) for m in _CELL_RE.finditer(text)]
+            if not spans:
+                raise PpaError(f"liberty {p}: no cell groups found")
+            fnames = [n for _, n in spans]
+            if len(set(fnames)) != len(fnames) or set(fnames) & set(names):
+                raise PpaError(f"liberty {p}: duplicate cell names")
+            names += fnames
+            self._texts.append(text)
+            for s, n in spans:
+                self._start[n] = s
+                self.file_of[n] = k
+            header = _parse_group_text(text[:spans[0][0]] + "}")
+            self._check_units(header, p)
+            dmt = header.attrs.get("default_max_transition")
+            self.dmts.append(_num(dmt, self.tdiv) if dmt is not None else None)    # a pin without its own max_transition
+            self._templates.append({t.args[0]: (t.attrs.get("variable_1"), t.attrs.get("variable_2"))
+                                    for t in header.find("lu_table_template")})
+        # one file: its sha256 (sky130, as always); several: the set's identity (`set_sha256`), each file's in `file_sha256`
+        self.file_sha256 = {f["file"]: f["sha256"] for f in pins.lib_files}
+        self.sha256 = pins.lib_files[0]["sha256"] if not pins.multi else set_sha256(pins.lib_files)
         self.cell_names = sorted(names)
-        header = _parse_group_text(text[:spans[0][0]] + "}")
-        self._check_units(header)
-        dmt = header.attrs.get("default_max_transition")
-        self.default_max_transition = float(dmt) if dmt is not None else None    # a pin without its own max_transition
-        self.templates = {t.args[0]: (t.attrs.get("variable_1"), t.attrs.get("variable_2"))
-                          for t in header.find("lu_table_template")}
+        # one file: its text and templates as single values (energy.py, derive_seq_prices.py and the tests read them)
+        self._text = self._texts[0] if not pins.multi else None
+        self.templates = self._templates[0] if not pins.multi else None
+        # the library's default_max_transition: its file's (one file), else the SMALLEST the files declare. asap7 declares
+        # 320 ps in four files and 4000 ps in SIMPLE_RVT_TT (a characterization artifact: the same file's FF
+        # re-characterization says 320, every input pin of every file declares max_transition 320 and every table's
+        # transition axis ends at 320), so its limit is 320 ps for every cell.
+        declared = [x for x in self.dmts if x is not None]
+        self.default_max_transition = (self.dmts[0] if not pins.multi else (min(declared) if declared else None))
         self._cache = {}
 
-    def _check_units(self, g):
+    def _check_units(self, g, path=None):
         want = self.pins.lib["units"]
         cap = g.attrs.get("capacitive_load_unit")
         got = {"time": g.attrs.get("time_unit"), "voltage": g.attrs.get("voltage_unit"),
                "capacitance": (cap[1].lower() if isinstance(cap, list) and len(cap) == 2
                                and float(cap[0]) == 1.0 else None)}
         if got != want:
-            raise PpaError(f"liberty units {got} differ from the pinned {want}")
+            raise PpaError(f"liberty units {got} differ from the pinned {want}"
+                           + (f" ({os.path.basename(path)})" if self.pins.multi and path else ""))
 
     def has(self, name):
         return name in self._start
 
+    def group(self, name):
+        """The parsed liberty group of cell `name`."""
+        if name not in self._start:
+            raise PpaError(f"the liberty has no cell {name}")
+        text = self._texts[self.file_of[name]]
+        start = self._start[name]
+        depth = 0
+        end = None
+        for m in _BRACE_RE.finditer(text, text.index("{", start)):
+            c = m.group(0)
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    end = m.end()
+                    break
+        if end is None:
+            raise PpaError(f"liberty: unbalanced braces in cell {name}")
+        return _parse_group_text(text[start:end])
+
+    def templates_of(self, name):
+        """The lu_table_templates of the file that holds cell `name`."""
+        return self._templates[self.file_of[name]]
+
     def cell(self, name):
         if name not in self._cache:
-            if name not in self._start:
-                raise PpaError(f"the liberty has no cell {name}")
-            text = self._text
-            start = self._start[name]
-            depth = 0
-            end = None
-            for m in _BRACE_RE.finditer(text, text.index("{", start)):
-                c = m.group(0)
-                if c == "{":
-                    depth += 1
-                elif c == "}":
-                    depth -= 1
-                    if depth == 0:
-                        end = m.end()
-                        break
-            if end is None:
-                raise PpaError(f"liberty: unbalanced braces in cell {name}")
-            self._cache[name] = Cell(_parse_group_text(text[start:end]), self.templates)
+            self._cache[name] = Cell(self.group(name), self.templates_of(name), self.tdiv, self.cdiv, self.decimals)
         return self._cache[name]
 
 
 def fetch_liberty(dest=None, pins=None):
-    """Download the pinned liberty to `dest` (default score/lib/<pinned name>), verifying size and sha256 before the
-    file is moved into place. Returns the path. An existing file with the right hash is left alone."""
+    """Download the pinned liberty to `dest` (default score/lib/<pinned name>; a library of several files: the directory
+    score/lib/<pdk>/), verifying size and sha256 before each file is moved into place (a file pinned with a `gz_url` is
+    fetched gzipped, its compressed size and sha256 checked, then decompressed and checked again). Returns the path. An
+    existing file with the right hash is left alone."""
     pins = pins or Pins()
-    dest = dest or os.path.join(LIB_DIR, pins.lib_file())
-    if os.path.isfile(dest) and sha256_file(dest) == pins.lib["sha256"]:
+    dest = dest or default_liberty(pins)
+    if not pins.multi:
+        _fetch_one(pins.lib_files[0], dest)
+        return dest
+    os.makedirs(dest, exist_ok=True)
+    for f in pins.lib_files:
+        _fetch_one(f, os.path.join(dest, f["file"]))
+    return dest
+
+
+def _fetch_one(f, dest):
+    import gzip
+    if os.path.isfile(dest) and sha256_file(dest) == f["sha256"]:
         return dest
     os.makedirs(os.path.dirname(os.path.abspath(dest)), exist_ok=True)
     fd, part = tempfile.mkstemp(prefix=os.path.basename(dest) + ".", suffix=".part", dir=os.path.dirname(os.path.abspath(dest)))
     try:
-        print(f"downloading {pins.lib['url']}", file=sys.stderr)
-        with urllib.request.urlopen(pins.lib["url"], timeout=120) as resp, os.fdopen(fd, "wb") as out:
+        url = f.get("gz_url") or f["url"]
+        print(f"downloading {url}", file=sys.stderr)
+        with urllib.request.urlopen(url, timeout=120) as resp, os.fdopen(fd, "wb") as out:
             shutil.copyfileobj(resp, out)
-        if os.path.getsize(part) != pins.lib["bytes"] or sha256_file(part) != pins.lib["sha256"]:
+        if f.get("gz_url"):
+            if os.path.getsize(part) != f["gz_bytes"] or sha256_file(part) != f["gz_sha256"]:
+                raise PpaError(f"the downloaded file is not the pinned {os.path.basename(url)} (size "
+                               f"{os.path.getsize(part)}, sha256 {sha256_file(part)}; pinned {f['gz_bytes']} bytes, "
+                               f"{f['gz_sha256']})")
+            with open(part, "rb") as fh:
+                raw = gzip.decompress(fh.read())
+            with open(part, "wb") as fh:
+                fh.write(raw)
+        if os.path.getsize(part) != f["bytes"] or sha256_file(part) != f["sha256"]:
             raise PpaError(f"the downloaded file is not the pinned liberty (size {os.path.getsize(part)}, "
-                           f"sha256 {sha256_file(part)}; pinned {pins.lib['bytes']} bytes, {pins.lib['sha256']})")
+                           f"sha256 {sha256_file(part)}; pinned {f['bytes']} bytes, {f['sha256']})")
         os.chmod(part, 0o644)
         os.replace(part, dest)
-    except OSError as e:
+    except (OSError, EOFError) as e:
         raise PpaError(f"cannot fetch the liberty: {e}")
     finally:
         if os.path.exists(part):
@@ -608,25 +844,33 @@ GATE_SEMANTICS = {
 def check_gate_cell(lib, pins, gate):
     """The liberty cell chosen for Yosys gate `gate` computes that gate (truth table over all inputs), through the
     pin map of the pins file. Raises PpaError otherwise: a wrong pin map would silently change every number."""
-    ent = pins.gates[gate]
     ins, sem = GATE_SEMANTICS[gate]
-    cell = lib.cell(pins.prefix + ent["cell"])
-    fn = cell.function.get(ent["out"])
-    if fn is None:
-        raise PpaError(f"liberty cell {cell.name} has no function on output {ent['out']}")
     n = len(ins)
     rows = 1 << n
     mask = (1 << rows) - 1
     vec = {p: sum(1 << r for r in range(rows) if (r >> i) & 1) for i, p in enumerate(ins)}
     want = sem([vec[p] for p in ins], mask)
-    env = {ent["pins"][p]: vec[p] for p in ins}
-    try:
-        got = eval_function(fn, env, mask)
-    except KeyError as e:
-        raise PpaError(f"liberty cell {cell.name}: function {fn!r} reads pin {e}, not in the pin map of {gate}")
-    if got != want:
-        raise PpaError(f"liberty cell {cell.name} (function {fn!r}) does not compute the Yosys gate ${gate}$ "
-                       f"through the pin map {ent['pins']}")
+    sig = dict(vec)                     # signal -> truth table: the gate's inputs, then each cell's output (a 2-cell build)
+    names = []
+    for cname, cpins, out, osig in pins.gate_cells[gate]:
+        cell = lib.cell(pins.full(cname))
+        names.append(cell.name)
+        fn = cell.function.get(out)
+        if fn is None:
+            raise PpaError(f"liberty cell {cell.name} has no function on output {out}")
+        if set(cpins) != set(cell.inputs):
+            raise PpaError(f"liberty cell {cell.name}: the pin map of {gate} connects {sorted(cpins)}, the cell's inputs "
+                           f"are {sorted(cell.inputs)}")
+        env = {cp: sig[s] for cp, s in cpins.items()}
+        try:
+            sig[osig] = eval_function(fn, env, mask)
+        except KeyError as e:
+            raise PpaError(f"liberty cell {cell.name}: function {fn!r} reads pin {e}, not in the pin map of {gate}")
+    if sig["Y"] != want:
+        ent = pins.gates[gate]
+        fns = " ; ".join(repr(lib.cell(x).function.get(o)) for x, (_, _, o, _) in zip(names, pins.gate_cells[gate]))
+        raise PpaError(f"liberty cell {' + '.join(names)} (function {fns}) does not compute the Yosys gate ${gate}$ "
+                       f"through the pin map {ent.get('pins', ent.get('cells'))}")
 
 
 # The cell policy of the study (sky130.md section 4): only class "logic" may appear in a weighed netlist.
@@ -643,12 +887,23 @@ POLICY = [
 ]
 
 
-def cell_class(name, prefix="sky130_fd_sc_hd__"):
+def cell_class(name, prefix="sky130_fd_sc_hd__", policy=None, suffix=""):
+    """The class of liberty cell `name` under `policy` (the pins' `cell_policy`; sky130's POLICY by default), matched on
+    the name without the library's prefix and suffix."""
     n = name[len(prefix):] if name.startswith(prefix) else name
-    for pat, cls in POLICY:
+    if suffix and n.endswith(suffix):
+        n = n[:-len(suffix)]
+    for pat, cls in (POLICY if policy is None else policy):
         if re.search(pat, n):
             return cls
     return "logic"
+
+
+def pins_class(name, pins):
+    """`cell_class` under the pins' library: its prefix, suffix and cell policy (sky130's: the call as it always was)."""
+    if pins.policy is POLICY and not pins.suffix:
+        return cell_class(name, pins.prefix)
+    return cell_class(name, pins.prefix, pins.policy, pins.suffix)
 
 
 # ------------------------------------------------------------------------------------------------ netlist
@@ -668,6 +923,7 @@ class Netlist:
         self.pi = []           # primary input bits
         self.po = []           # (port, bit, net)
         self.ranges = {}       # vector port -> (hi, lo) as declared
+        self.aux = set()       # instances that are not gates of the scored netlist (a 2-cell build's helper, a Q inverter)
 
     def port_bit(self, port, k):
         """The Verilog name of bit `k` (counted from the LSB, as `po` counts) of `port`: `y[3]`, or `z` for a scalar port."""
@@ -826,14 +1082,61 @@ def expand_a0(nl, pins):
     if bad:
         raise PpaError(f"the netlist has cells outside the A0' table (only the gates of `abc -g` are weighed): "
                        f"{dict(sorted(bad.items()))}")
+    fresh = Fresh(nl, "svgm")
     for g in nl.gates:
-        ent = pins.gates[re.fullmatch(r"\$_(\w+?)_", g.kind).group(1)]
-        want = set(ent["pins"]) | {"Y"}
+        gate = re.fullmatch(r"\$_(\w+?)_", g.kind).group(1)
+        want = set(GATE_SEMANTICS[gate][0]) | {"Y"}
         if set(g.pins) != want:
             raise PpaError(f"gate {g.inst} ({g.kind}) has pins {sorted(g.pins)}, expected {sorted(want)}")
-        cp = {ent["pins"][p]: n for p, n in g.pins.items() if p != "Y"}
-        cp[ent["out"]] = g.pins["Y"]
-        out.gates.append(Gate(pins.prefix + ent["cell"], g.inst, cp))
+        cells = pins.gate_cells[gate]
+        sig = {p: n for p, n in g.pins.items()}
+        for k, (cname, conn, op, osig) in enumerate(cells):
+            last = k == len(cells) - 1
+            # the cell that drives Y keeps the gate's instance name; a cell before it (a 2-cell build) is a helper, whose
+            # instance and output net get fresh names and which the unit depth does not count (`Netlist.aux`)
+            inst = g.inst if last else fresh.name()
+            if not last:
+                sig[osig] = inst + "_n"
+                out.aux.add(inst)
+            cp = {p: sig[s] for p, s in conn.items()}
+            cp[op] = sig[osig]
+            out.gates.append(Gate(pins.full(cname), inst, cp))
+    return out
+
+
+class Fresh:
+    """Fresh instance names `<prefix><k>` (their nets `<prefix><k>_n`) that no net, instance or port of `nl` starts with
+    (the prefix grows by `_` until none does)."""
+
+    def __init__(self, nl, prefix, extra=()):
+        names = set(nl.pi) | {g.inst for g in nl.gates} | {n for g in nl.gates for n in g.pins.values() if n} \
+            | set(nl.alias) | set(nl.alias.values()) | {p for p, _, _ in nl.ports} | {n for _, _, n in nl.po} | set(extra)
+        while any(x.lstrip("\\").startswith(prefix) for x in names):
+            prefix += "_"
+        self.prefix, self.k = prefix, 0
+
+    def name(self):
+        self.k += 1
+        return f"{self.prefix}{self.k - 1}"
+
+
+def invert_flop_q(nl, flops, pins):
+    """A library flop with only an inverted output (asap7's DFFHQNx1: QN = !D of the last clock edge) as the clocked flow's
+    $_DFF_P_: each flop's output becomes a fresh net (the cell's QN) and the pins' `q_inverter` (an inverter of the
+    library, a real cell weighed like any other, its input that net) drives the scored netlist's Q net. The flops with their
+    Q pins moved; the inverters are appended to `nl.gates` and are helpers (`Netlist.aux`: the unit depth counts the
+    scored netlist's gates only). No change when the library's flop has Q."""
+    inv = pins.flop["q_inverter"]
+    if not inv or not flops:
+        return flops
+    fresh = Fresh(nl, "svgq", [x for f in flops for x in f.pins.values()] + [f.inst for f in flops])
+    out = []
+    for f in flops:
+        inst = fresh.name()
+        qn = inst + "_n"
+        nl.gates.append(Gate(pins.full(inv["cell"]), inst, {inv["in"]: qn, inv["out"]: f.pins["Q"]}))
+        nl.aux.add(inst)
+        out.append(Gate(f.kind, f.inst, {**f.pins, "Q": qn}))
     return out
 
 
@@ -846,9 +1149,12 @@ class Audit:
     Table reads are counted one by one and reported per cell (its worst read). A net whose tables were left has no known
     transition (nothing is extrapolated): its transition violations, if any, are hidden behind its table violation."""
 
-    def __init__(self):
+    def __init__(self, floor=False):
         self.cap, self.trans = [], []
         self.table, self.table_reads = {}, 0           # (cell, instance, net) -> (worst ratio, text); every read counted
+        # the pins' timing.below_grid = "floor" (asap7): a read below a grid in a dimension, and not above it in the other,
+        # is read at the grid's floor and only counted (`floored`); "reject" (sky130): it is a violation like any other
+        self.floor, self.floored = floor, 0
         self.worst_load = self.worst_trans = 0.0       # the largest ratios seen, violations or not (the headroom)
         # net -> the kinds of violation it is the cause of, for the repair (`repair`): "cap" (load over max_capacitance),
         # "load" (a table read past the grid's largest load), "trans" (transition over max_transition, or past the largest
@@ -867,6 +1173,8 @@ class Audit:
             if x < lo:
                 return lo / x if x > 0 else float("inf")
             return 1.0
+        if self.floor:          # below a grid is read at its floor: only the dimension past the top is a violation
+            x1, x2 = max(x1, tbl.i1[0]), max(x2, tbl.i2[0])
         r = max(beyond(x1, tbl.i1[0], tbl.i1[-1]), beyond(x2, tbl.i2[0], tbl.i2[-1]))
         if x1 < tbl.i1[0] or x2 < tbl.i2[0]:
             self.blame[net].add("low")
@@ -894,9 +1202,17 @@ class Audit:
         return ". ".join(parts)
 
     def summary(self):
-        return {"worst_load_ratio": round(self.worst_load, 3), "worst_transition_ratio": round(self.worst_trans, 3),
-                "over_max_capacitance": len(self.cap), "over_max_transition": len(self.trans),
-                "cells_outside_tables": len(self.table), "table_reads_outside": self.table_reads}
+        out = {"worst_load_ratio": round(self.worst_load, 3), "worst_transition_ratio": round(self.worst_trans, 3),
+               "over_max_capacitance": len(self.cap), "over_max_transition": len(self.trans),
+               "cells_outside_tables": len(self.table), "table_reads_outside": self.table_reads}
+        if self.floor:
+            out["table_reads_floored"] = self.floored
+        return out
+
+
+def new_audit(pins):
+    """An Audit under the pins' below-grid rule (timing.below_grid)."""
+    return Audit(floor=pins.below_grid == "floor")
 
 
 def _short(cell):
@@ -915,6 +1231,11 @@ def _read(tbl, x1, x2, audit, where):
         return tbl._bilinear(x1, x2)
     if audit is None or tbl.covers(x1, x2):
         return tbl.at(x1, x2)
+    if audit.floor and x1 <= tbl.i1[-1] and x2 <= tbl.i2[-1]:
+        # below the grid only (timing.below_grid = "floor"): read at the floor (asap7's delay tables rise from their first
+        # point along both axes, so the floor errs slow: MEASURED, test_ppa_asap7.py), counted, not a violation
+        audit.floored += 1
+        return tbl.at(*tbl.clamp(x1, x2))
     audit.out_of_table(where, tbl, x1, x2)
     return tbl.at(*tbl.clamp(x1, x2))
 
@@ -943,13 +1264,14 @@ class Design:
 
     def __init__(self, nl, lib, pins):
         self.nl, self.lib = nl, lib
+        self.aux = set(getattr(nl, "aux", ()))     # helper cells: not counted by the unit depth
         self.cells, self.ins, self.outs, self.names = [], [], [], []
         self.driver = {}
         pi = set(nl.pi)
         if len(pi) != len(nl.pi):
             raise PpaError("netlist: duplicate primary-input bits")
         for g in nl.gates:
-            cls = cell_class(g.kind, pins.prefix)
+            cls = pins_class(g.kind, pins)
             if cls != "logic":
                 raise PpaError(f"cell {g.kind} (instance {g.inst}) is of class {cls!r}, not an ordinary combinational cell")
             c = lib.cell(g.kind)
@@ -1129,7 +1451,8 @@ class Design:
         that of every pin it reaches (the library's default_max_transition where a pin declares none). `sources`: the drivers
         outside the gate graph, [(net, cell, label, max_capacitance, max_transition)] (the driving cell of the primary inputs,
         the flops' Q); `sink_trans`: {net: [max_transition of a pin outside the gate graph]} (the flops' D); `ties`: the tie
-        cells' outputs, [(instance, pin, net label, load, max_capacitance, sinks text)] (no timing arcs: the load only).
+        cells' outputs, [(instance, cell, pin, net label, load, max_capacitance, sinks text)] (no timing arcs: the load
+        only).
         Every violation is also recorded in `audit.blame` under its net."""
         sink_trans = sink_trans or {}
         unknown = {net for _, _, net in audit.table}      # its driver's tables were left: its transition is not known
@@ -1165,7 +1488,7 @@ class Design:
             c = self.cells[i]
             for op, onet in self.outs[i].items():
                 check(onet, c.name, self.names[i], c.max_cap.get(op), c.max_trans.get(op))
-        for inst, pin, label, load, mc, sinks in ties:
+        for inst, _, pin, label, load, mc, sinks in ties:
             r = load / mc
             audit.worst_load = max(audit.worst_load, r)
             if r > 1.0:
@@ -1174,9 +1497,11 @@ class Design:
                 audit.blame[label].add("cap")
 
     def unit_depth(self, ends=()):
+        """Gates on the longest path, counting the scored netlist's gates only (a helper cell, `Netlist.aux`, counts 0: a
+        2-cell build of one gate is one level, a flop's Q inverter none)."""
         lv = {}
         for i in self.order:
-            l = 1 + max([lv.get(n, 0) for n in self.ins[i].values()] or [0])
+            l = (0 if self.names[i] in self.aux else 1) + max([lv.get(n, 0) for n in self.ins[i].values()] or [0])
             for onet in self.outs[i].values():
                 lv[onet] = l
         return max(lv.get(n, 0) for n in self.po_nets + [n for n, _ in ends])
@@ -1213,42 +1538,91 @@ class FlopTiming:
     limits of its Q (max_capacitance, max_transition) and D (max_transition) pins."""
 
     def __init__(self, lib, pins):
-        name = pins.prefix + FLOP_CELL
+        fp = pins.flop
+        name = pins.full(fp["cell"])
         if not lib.has(name):
             raise PpaError(f"the liberty has no {name}, the cell of the clocked flow's $_DFF_P_")
-        text, start, depth = lib._text, lib._start[name], 0
-        for m in _BRACE_RE.finditer(text, text.index("{", start)):
-            depth += {"{": 1, "}": -1}.get(m.group(0), 0)
-            if depth == 0:
-                break
-        g = _parse_group_text(text[start:m.end()])
+        g = lib.group(name)
+        tdiv, cdiv = lib.tdiv, lib.cdiv
+        templates = lib.templates_of(name)
         self.name = name
-        self.area_e4 = _area_e4(g.attrs.get("area"), name)
+        self.area_e4 = _area_e4(g.attrs.get("area"), name, lib.decimals)
         self.cq = self.setup = None
         self.q_max_cap = self.q_max_trans = self.d_max_trans = None
+        self.q_pin, self.d_pin, self.clock_pin = fp["q"], fp["d"], fp["clock"]
         for p in g.find("pin"):
-            if p.args[0] == "D":
-                self.d_cap = float(p.attrs["capacitance"])
-                self.d_cap_e = edge_caps(p)
-                self.d_max_trans = float(p.attrs["max_transition"]) if "max_transition" in p.attrs else None
-            if p.args[0] == "Q":
-                self.q_max_cap = float(p.attrs["max_capacitance"]) if "max_capacitance" in p.attrs else None
-                self.q_max_trans = float(p.attrs["max_transition"]) if "max_transition" in p.attrs else None
+            if p.args[0] == fp["d"]:
+                self.d_cap = _num(p.attrs["capacitance"], cdiv)
+                self.d_cap_e = edge_caps(p, cdiv)
+                self.d_max_trans = _num(p.attrs["max_transition"], tdiv) if "max_transition" in p.attrs else None
+            if p.args[0] == fp["q"]:
+                self.q_max_cap = _num(p.attrs["max_capacitance"], cdiv) if "max_capacitance" in p.attrs else None
+                self.q_max_trans = _num(p.attrs["max_transition"], tdiv) if "max_transition" in p.attrs else None
+                self.q_function = p.attrs.get("function")
             for t in p.find("timing"):
                 tt = t.attrs.get("timing_type")
-                if p.args[0] == "Q" and tt == "rising_edge":
-                    self.cq = {k: Table(t.find(k)[0], f"{name} CLK->Q {k}") for k in _TABLES}
-                elif p.args[0] == "D" and tt == "setup_rising":
-                    self.setup = {k: Table(t.find(k)[0], f"{name} setup {k}") for k in ("rise_constraint", "fall_constraint")}
+                if p.args[0] == fp["q"] and tt == "rising_edge" and t.attrs.get("related_pin") == fp["clock"]:
+                    self.cq = delay_tables(t, f"{name} {fp['clock']}->{fp['q']}", templates, tdiv, cdiv)
+                elif p.args[0] == fp["d"] and tt == "setup_rising":
+                    self.setup = {k: _constraint_table(t, k, templates, tdiv, f"{name} setup {k}")
+                                  for k in ("rise_constraint", "fall_constraint")}
         if self.cq is None or self.setup is None:
-            raise PpaError(f"liberty: {name} has no rising_edge CLK->Q arc or no setup_rising constraint")
+            raise PpaError(f"liberty: {name} has no rising_edge {fp['clock']}->{fp['q']} arc or no setup_rising constraint")
+        self._check_function(g, lib, pins)
+
+    def _check_function(self, g, lib, pins):
+        """The cell is a positive-edge flop on the pins' clock whose output is D of the last edge (no `q_inverter`) or its
+        complement (a `q_inverter` forms Q, which must then be an inverter of the library): from its `ff` group, read as the
+        liberty states it (the state variable takes next_state at clocked_on; the output's function names the state
+        variable, its complement variable, or the negation of one of them)."""
+        ffs = g.find("ff")
+        fp = pins.flop
+        if len(ffs) != 1 or len(ffs[0].args) != 2:
+            raise PpaError(f"liberty: {self.name} has no single ff group")
+        var, nvar = ffs[0].args
+        clk = re.sub(r"[\s()\"]", "", ffs[0].attrs.get("clocked_on") or "")
+        ns = re.sub(r"[\s()\"]", "", ffs[0].attrs.get("next_state") or "")
+        fn = re.sub(r"[\s()\"]", "", self.q_function or "")
+        pol = {fp["d"]: 1, "!" + fp["d"]: -1}.get(ns)
+        out = {var: 1, nvar: -1, "!" + var: -1, "!" + nvar: 1}.get(fn)
+        if clk != fp["clock"] or pol is None or out is None:
+            raise PpaError(f"liberty: {self.name} is not a positive-edge flop of {fp['clock']} and {fp['d']} "
+                           f"(clocked_on {clk!r}, next_state {ns!r}, {fp['q']} = {fn!r})")
+        inverted = pol * out < 0
+        if inverted != bool(fp["q_inverter"]):
+            raise PpaError(f"liberty: {self.name} {fp['q']} = {'!' if inverted else ''}D of the last clock edge, and the "
+                           "pins " + ("form no Q from it (flop.q_inverter)" if inverted else "invert it (flop.q_inverter)"))
+        if inverted:
+            inv = fp["q_inverter"]
+            c = lib.cell(pins.full(inv["cell"]))
+            fn = re.sub(r"[\s()]", "", c.function.get(inv["out"]) or "")
+            if (c.inputs != [inv["in"]] or c.outputs != [inv["out"]] or fn != "!" + inv["in"]
+                    or pins_class(c.name, pins) != "logic"):
+                raise PpaError(f"pins: flop.q_inverter {inv['cell']} is not a one-input logic inverter {inv['in']} -> "
+                               f"{inv['out']} of the liberty")
+
+
+def _constraint_table(t, k, templates, tdiv, what):
+    """The setup table `k` of timing group `t` as a Table whose first index is the clock's transition and whose second is
+    the constrained (D) pin's, whichever way the liberty stores it (sky130: related_pin_transition first; asap7:
+    constrained_pin_transition first, transposed here)."""
+    found = t.find(k)
+    if len(found) != 1:
+        raise PpaError(f"liberty: {what}: expected one {k} table, found {len(found)}")
+    tg = found[0]
+    tpl = templates.get(tg.args[0] if tg.args else None)
+    if tpl == ("related_pin_transition", "constrained_pin_transition"):
+        return Table(tg, what, tdiv, tdiv, tdiv)
+    if tpl == ("constrained_pin_transition", "related_pin_transition"):
+        return Table(tg, what, tdiv, tdiv, tdiv, transpose=True)
+    raise PpaError(f"liberty: {what}: template {tg.args} has variables {tpl}, not the clock's and the D pin's transitions")
 
 
 class _FlopArc:
     __slots__ = ("related", "sense", "tbl")
 
-    def __init__(self, tbl):
-        self.related, self.sense, self.tbl = "CLK", "non_unate", tbl
+    def __init__(self, tbl, related="CLK"):
+        self.related, self.sense, self.tbl = related, "non_unate", tbl
 
 
 class FlopDrive:
@@ -1259,17 +1633,20 @@ class FlopDrive:
 
     def __init__(self, ft):
         self.name = ft.name
-        self.inputs, self.outputs = ["CLK"], ["Q"]
-        self.arcs = {"Q": [_FlopArc(ft.cq)]}
-        self.max_cap = {"Q": ft.q_max_cap} if ft.q_max_cap else {}
-        self.max_trans = {"Q": ft.q_max_trans} if ft.q_max_trans else {}
+        self.inputs, self.outputs = [ft.clock_pin], [ft.q_pin]
+        self.arcs = {ft.q_pin: [_FlopArc(ft.cq, ft.clock_pin)]}
+        self.max_cap = {ft.q_pin: ft.q_max_cap} if ft.q_max_cap else {}
+        self.max_trans = {ft.q_pin: ft.q_max_trans} if ft.q_max_trans else {}
 
 
 def input_drive_cell(lib, pins, name):
     """The driver of every primary input (`name`, from `input_drive_of`): a buffer or inverter of the liberty (one input,
     one output, one arc, function A or !A), or the flop's Q (`FlopDrive`). PpaError otherwise."""
     check_input_drive(name, pins)
-    if name == pins.prefix + FLOP_CELL:
+    if name == pins.full(pins.flop_cell):
+        if pins.flop["q_inverter"]:
+            raise PpaError(f"the input drive {name} has no Q output (its Q is formed by an inverter, flop.q_inverter): "
+                           "it cannot drive the inputs")
         return FlopDrive(FlopTiming(lib, pins))
     c = lib.cell(name)
     fn = re.sub(r"[\s()]", "", c.function.get(c.outputs[0]) or "") if len(c.outputs) == 1 else ""
@@ -1298,16 +1675,18 @@ def weigh_cells(nl, q, dn, nflops, lib, pins, drive=None, audit=None, ties=None)
     load over max_capacitance, every transition over max_transition, every tie cell output over its max_capacitance); None: a
     read outside a table raises TableRange.
 
-    Constants are the nets "0" and "1" (no arrival, no delay effect). `ties`: the tie cells that drive them, (number of tie
-    cells, [(instance, output pin, constant, load in pF, what it drives)] for every output that drives something) as
-    `read_repaired` finds them in a repaired netlist; None: ONE tie cell per module if any constant is read, its LO driving
-    every "0" load and its HI every "1" load (the unrepaired netlist). Each tie output's load is audited against its pin's
-    max_capacitance (it has no timing arcs, so nothing else).
+    Constants are the nets "0" and "1" (no arrival, no delay effect). `ties`: the tie cells that drive them, ([the pins' short
+    name of each tie cell instance], [(instance, tie cell short name, output pin, constant, load in pF, what it drives)] for
+    every output that drives something) as `read_repaired` finds them in a repaired netlist; None: ONE tie cell per module
+    if any constant is read (sky130's conb_1: its LO driving every "0" load and its HI every "1" load), one per constant used
+    where the library has a cell per constant (asap7: TIELO, TIEHI) (the unrepaired netlist). Each tie output's load is
+    audited against its pin's max_capacitance, or the pins' constants.max_capacitance_ff where the cell declares none (it
+    has no timing arcs, so nothing else).
 
-    Clocked: each flop is a dfxtp_1 cell (its area counts) and cuts the timing graph. Paths start at the inputs and at every
-    Q (clock-to-Q at the ideal clock edge, the clock's transition pi_slew, at the Q net's real load) and end at the outputs
-    and at every D (arrival + setup): T is the register-to-register period (decided 11/03: the liberty's own clock-to-Q and
-    setup)."""
+    Clocked: each flop is the pins' flop cell (dfxtp_1; its area counts) and cuts the timing graph. Paths start at the inputs
+    and at every Q (clock-to-Q at the ideal clock edge, the clock's transition pi_slew, at the Q net's real load) and end at
+    the outputs and at every D (arrival + setup): T is the register-to-register period (decided 11/03: the liberty's own
+    clock-to-Q and setup)."""
     d = Design(nl, lib, pins)
     s, po = pins.pi_slew_ns, pins.po_load_pf
     starts, ends, sources, sink_trans = {}, [], [], {}
@@ -1336,36 +1715,38 @@ def weigh_cells(nl, q, dn, nflops, lib, pins, drive=None, audit=None, ties=None)
     a.t_ns, a.path = d.sta(s, po, starts, ends, drive, audit)
     if ties is None:
         used = [k for k in "01" if k in d.fanout or k in d.po_count or k in d.extra_load]
-        tp = tie_pins(lib.cell(pins.prefix + pins.tie_cell)) if used else {}
-        ties = (1 if used else 0,
-                [(pins.tie_cell, tp[k], k, d.load_max_pf(k, po), d.sinks_text(k, len(sink_trans.get(k, ())))) for k in used])
-    a.ties = ties[0]
-    tie = lib.cell(pins.prefix + pins.tie_cell) if a.ties else None
+        kinds = list(dict.fromkeys(pins.tie_cells[k] for k in used))       # one cell per distinct tie cell used
+        ties = (kinds, [(pins.tie_cells[k], pins.tie_cells[k], tie_pins(lib.cell(pins.full(pins.tie_cells[k])), k)[k], k,
+                         d.load_max_pf(k, po), d.sinks_text(k, len(sink_trans.get(k, ())))) for k in used])
+    a.ties = len(ties[0])
     if isinstance(audit, Audit):
         if drive is not None:
             op = drive.outputs[0]
             qs = set(starts)
             sources += [(n, drive.name, "(input driver)", drive.max_cap.get(op), drive.max_trans.get(op))
                         for n in nl.pi if n not in qs]
-        tie_checks = [(inst, pin, k, load, tie.max_cap[pin], what) for inst, pin, k, load, what in ties[1]
-                      if tie is not None and tie.max_cap.get(pin)]
+        tie_checks = []
+        for inst, cname, pin, k, load, what in ties[1]:
+            mc = tie_max_cap(lib.cell(pins.full(cname)), pin, pins)
+            if mc:
+                tie_checks.append((inst, cname, pin, k, load, mc, what))
         d.legality(po, audit, lib.default_max_transition, sources, sink_trans, tie_checks)
         a.audit = audit
     a.unit_depth = d.unit_depth(ends)
     a.area_e4 = sum(c.area_e4 for c in d.cells)
     hist = defaultdict(int)
     for c in d.cells:
-        hist[c.name[len(pins.prefix):] if c.name.startswith(pins.prefix) else c.name] += 1
+        hist[pins.short(c.name)] += 1
     a.cells, a.constants = len(d.cells), d.uses_constant or a.ties > 0
     if nflops:
         a.area_e4 += nflops * ft.area_e4
-        hist[FLOP_CELL] += nflops
+        hist[pins.flop_cell] += nflops
         a.cells += nflops
         a.flops = nflops
-    if a.ties:                 # constants policy: the tie cells (no delay effect)
-        a.area_e4 += a.ties * tie.area_e4
-        a.cells += a.ties
-        hist[pins.tie_cell] += a.ties
+    for k in ties[0]:          # constants policy: the tie cells (no delay effect)
+        a.area_e4 += lib.cell(pins.full(k)).area_e4
+        a.cells += 1
+        hist[k] += 1
     a.hist = dict(sorted(hist.items()))
     if a.path:
         net, a.crit_edge = a.path[-1][0], a.path[-1][1]
@@ -1400,16 +1781,24 @@ class RepairDefect(PpaError):
     under `require`, as MappedDefect)."""
 
 
-def tie_pins(cell):
-    """{"0": the tie cell's constant-0 output pin, "1": its constant-1 output pin} (conb_1: LO and HI), from the liberty."""
+def tie_pins(cell, need="01"):
+    """{"0": the tie cell's constant-0 output pin, "1": its constant-1 output pin} (conb_1: LO and HI; asap7's TIELOx1 has
+    only "0": L, its TIEHIx1 only "1": H), from the liberty; `need`: the constants the cell must have."""
     out = {}
     for p in cell.outputs:
-        fn = (cell.function.get(p) or "").replace("(", "").replace(")", "").strip()
+        fn = (cell.function.get(p) or "").replace("(", "").replace(")", "").replace('"', "").strip()
         if fn in ("0", "1"):
             out[fn] = p
-    if set(out) != {"0", "1"} or cell.inputs:
-        raise PpaError(f"liberty: the tie cell {cell.name} has no constant-0 and constant-1 outputs")
+    if not set(need) <= set(out) or not out or cell.inputs:
+        raise PpaError(f"liberty: the tie cell {cell.name} has no " + " and ".join(f"constant-{k}" for k in need)
+                       + (" outputs" if len(need) > 1 else " output"))
     return out
+
+
+def tie_max_cap(cell, pin, pins):
+    """The load the tie cell's output `pin` may carry: its max_capacitance, else the pins' constants.max_capacitance_ff
+    (asap7's TIEHI/TIELO declare none), else None (no limit)."""
+    return cell.max_cap.get(pin) or pins.tie_max_cap_pf
 
 
 def _count(k, word):
@@ -1462,9 +1851,9 @@ class Budgets:
         self._cache = {}
         self.buffers = []          # (area_e4, short name, Cell, budget), by area then name
         for b in pins.repair_buffers:
-            c = lib.cell(pins.prefix + b)
+            c = lib.cell(pins.full(b))
             fn = (c.function.get(c.outputs[0]) or "").replace("(", "").replace(")", "").strip() if c.outputs else ""
-            if cell_class(c.name, pins.prefix) != "logic" or len(c.inputs) != 1 or len(c.outputs) != 1 or fn != c.inputs[0]:
+            if pins_class(c.name, pins) != "logic" or len(c.inputs) != 1 or len(c.outputs) != 1 or fn != c.inputs[0]:
                 raise PpaError(f"pins: repair.buffers names {b}, which is not a one-input, one-output logic buffer")
             self.buffers.append((c.area_e4, b, c, self.cell(c, c.outputs[0])))
         self.buffers.sort(key=lambda x: (x[0], x[1]))
@@ -1599,11 +1988,11 @@ class Repair:
         base = self.base
         if net in base.driver:
             i, p = base.driver[net]
-            return self.budgets.cell(base.cells[i], p), f"{_short(base.cells[i].name)} {base.names[i]}"
+            return self.budgets.cell(base.cells[i], p), f"{self.pins.short(base.cells[i].name)} {base.names[i]}"
         if net in self.qset:
             f = self.flops[self.q.index(net)]
             return self.budgets.q(), f"the Q of flop {f.inst}"
-        return self.budgets.pi(), f"input {net} (driven by {self.drive.name[len(self.pins.prefix):]})"
+        return self.budgets.pi(), f"input {net} (driven by {self.pins.short(self.drive.name)})"
 
     def describe(self, net):
         """An original net in the design's own words, for a message: what drives it and what it drives."""
@@ -1661,9 +2050,9 @@ class Repair:
         return nl, dn, owner, trees
 
     def reject(self, why, audit=None):
-        return ("the sky130 netlist is electrically illegal and the repair (buffer trees, replicated tie cells) cannot make it "
-                f"legal: {why}" + (". " + audit.report() if audit is not None else "")
-                + f". The ranked sky130 score ({self.pins.version}) is taken on a legal netlist only (no timing table is "
+        return (f"the {self.pins.pdk} netlist is electrically illegal and the repair (buffer trees, replicated tie cells) "
+                f"cannot make it legal: {why}" + (". " + audit.report() if audit is not None else "")
+                + f". The {score_name(self.pins)} ({self.pins.version}) is taken on a legal netlist only (no timing table is "
                 "extrapolated), so the design is rejected")
 
     def run(self):
@@ -1672,8 +2061,8 @@ class Repair:
         roots = {}
         for rnd in range(1, self.pins.repair_max_rounds + 1):
             nl, dn, owner, trees = self.build(roots)
-            audit = Audit()
-            a = weigh_cells(nl, self.q, dn, len(self.flops), self.lib, self.pins, self.drive, audit, ties=(0, []))
+            audit = new_audit(self.pins)
+            a = weigh_cells(nl, self.q, dn, len(self.flops), self.lib, self.pins, self.drive, audit, ties=([], []))
             blame = {n: k for n, k in audit.blame.items() if n not in ("0", "1")}
             if not blame:
                 return nl, dn, trees, rnd
@@ -1704,31 +2093,36 @@ class Repair:
                              audit.summary())
 
     def ties(self):
-        """The tie cells: [{"0": group of loads, "1": group}] with as few cells as hold every constant load within the max_capacitance
-        of the output that drives it, the loads split as the trees' are (`_groups`)."""
+        """The tie cells: [(Cell, {constant: (its output pin, group of loads)})], as few as hold every constant load within
+        the max_capacitance of the output that drives it (`tie_max_cap`), the loads split as the trees' are (`_groups`). A
+        tie cell with both constants (sky130's conb_1) serves the j-th group of each; a library with a cell per constant
+        (asap7's TIELOx1, TIEHIx1) has one cell per group."""
         if not (self.sinks.get("0") or self.sinks.get("1")):
-            return None, {}, []
-        tie = self.lib.cell(self.pins.prefix + self.pins.tie_cell)
-        tp = tie_pins(tie)
-        groups = {}
+            return []
+        pins, groups = self.pins, {}
         for k in "01":
             items = self.sinks.get(k, [])
             if items:
-                mc = tie.max_cap.get(tp[k]) or float("inf")
-                groups[k] = _groups(items, mc)
-                if groups[k] is None:
+                cell = self.lib.cell(pins.full(pins.tie_cells[k]))
+                pin = tie_pins(cell, k)[k]
+                gs = _groups(items, tie_max_cap(cell, pin, pins) or float("inf"))
+                if gs is None:
                     raise IllegalNetlist(self.reject(f"one load of the constant {k} alone is over the max_capacitance of "
-                                                     f"{self.pins.tie_cell} {tp[k]}"))
-        n = max([len(g) for g in groups.values()] or [0])
-        return tie, tp, [{k: groups[k][j] for k in groups if j < len(groups[k])} for j in range(n)]
+                                                     f"{pins.tie_cells[k]} {pin}"))
+                groups[k] = (cell, pin, gs)
+        if pins.tie_cells["0"] == pins.tie_cells["1"]:
+            cell = next(iter(groups.values()))[0]
+            n = max(len(g[2]) for g in groups.values())
+            return [(cell, {k: (groups[k][1], groups[k][2][j]) for k in groups if j < len(groups[k][2])}) for j in range(n)]
+        return [(groups[k][0], {k: (groups[k][1], g)}) for k in "01" if k in groups for g in groups[k][2]]
 
     def write(self, nl, dn, trees):
         """The repaired netlist as structural Verilog: the ports as declared, every A0' cell, the buffer trees (a comment each
         naming the net, its driver and its loads), the tie cells, the flops (dfxtp_1), an `assign` per output bit. Nets keep
         their names (a net named as the output bit it drives is that port bit; a name that is not a plain identifier is
         escaped; one that would clash with a port, e.g. an output bit's name when the bit now hangs off a buffer, gets a `$`)."""
-        pins, prefix = self.pins, self.pins.prefix
-        tie, tp, ties = self.ties()
+        pins = self.pins
+        ties = self.ties()
         inputs = set(self.inputs)
         port_names = {p for p, _, _ in nl.ports}
         # a net named as the output bit it drives (Yosys's own naming) IS that port bit, as in the scored netlist
@@ -1757,13 +2151,13 @@ class Repair:
         # the tie cells' nets, and where each constant load goes
         tie_net = {}
         tie_gates = []
-        for j, grp in enumerate(ties):
+        for j, (tie, grp) in enumerate(ties):
             inst = f"{self.prefix}t{j}"
             pn = {p: f"{self.prefix}t{j}_{p.lower()}" for p in tie.outputs}
             tie_gates.append(Gate(tie.name, inst, pn))
-            for k, items in grp.items():
+            for k, (pin, items) in grp.items():
                 for _, _, ref in items:
-                    tie_net[ref] = pn[tp[k]]
+                    tie_net[ref] = pn[pin]
 
         def inp(i, p, n):              # a cell input: a constant becomes its tie cell's output
             return tie_net[("cell", i, p)] if n in ("0", "1") else n
@@ -1799,8 +2193,14 @@ class Repair:
                 (pa, a), (px, x) = list(g.pins.items())
                 wires.append(x)
                 body.append(inst_line(g, [(pa, w(a)), (px, w(x))]))
-        if tie_gates:
+        if tie_gates and pins.tie_cell is not None:
             body.append(f"  /* constants: {len(tie_gates)} {pins.tie_cell} tie cell{'s' if len(tie_gates) > 1 else ''} */")
+        elif tie_gates:
+            kinds = defaultdict(int)
+            for g in tie_gates:
+                kinds[pins.short(g.kind)] += 1
+            body.append("  /* constants: " + " + ".join(f"{n} {c}" for c, n in sorted(kinds.items()))
+                        + f" tie cell{'s' if len(tie_gates) > 1 else ''} */")
         for g in tie_gates:
             for n in g.pins.values():
                 wires.append(n)
@@ -1810,8 +2210,9 @@ class Repair:
             d = tie_net[("d", f)] if d in ("0", "1") else d
             q = self.q[f]
             wires.append(q)
-            body.append(inst_line(Gate(prefix + FLOP_CELL, g.inst, {}),
-                                  [("CLK", w(self.base.nl.resolve(g.pins["C"]))), ("D", w(d)), ("Q", w(q))]))
+            fp = pins.flop
+            body.append(inst_line(Gate(pins.full(pins.flop_cell), g.inst, {}),
+                                  [(fp["clock"], w(self.base.nl.resolve(g.pins["C"]))), (fp["d"], w(d)), (fp["q"], w(q))]))
         assigns = []
         for j, (p, k, n) in enumerate(nl.po):
             n = tie_net[("po", j)] if n in ("0", "1") else n
@@ -1845,31 +2246,35 @@ def repair(base, inputs, q, dn, flops, lib, pins, drive):
 
 def read_repaired(text, lib, pins):
     """A repaired netlist (`Repair.write`) as the weighing reads it: its tie cells become the constants they drive (each
-    output's load recorded for the audit), its dfxtp_1 flops $_DFF_P_ gates (pins C, D, Q) to be cut out as in the scored
-    netlist. Returns (Netlist, flops, ties as weigh_cells takes them, the input bits)."""
+    output's load recorded for the audit), its flops (the pins' flop cell: dfxtp_1) $_DFF_P_ gates (pins C, D, Q; asap7:
+    Q is the cell's QN, which the Q inverter reads) to be cut out as in the scored netlist. Returns (Netlist, flops, ties
+    as weigh_cells takes them, the input bits)."""
     try:
         nl = parse_netlist(text)
     except PpaError as e:
         raise RepairDefect(f"the repaired netlist cannot be read back: {e}")
-    tie_kind, flop_kind = pins.prefix + pins.tie_cell, pins.prefix + FLOP_CELL
-    val = {p: k for k, p in tie_pins(lib.cell(tie_kind)).items()} if any(g.kind == tie_kind for g in nl.gates) else {}
+    fp = pins.flop
+    flop_kind = pins.full(pins.flop_cell)
+    tie_kinds = {pins.full(c) for c in pins.tie_cells.values()}
+    val = {k: {p: c for c, p in tie_pins(lib.cell(k), "").items()} for k in tie_kinds
+           if any(g.kind == k for g in nl.gates)}        # tie cell -> {output pin: its constant}
     ties, flops, gates = [], [], []
     for g in nl.gates:
-        if g.kind == tie_kind:
+        if g.kind in tie_kinds:
             ties.append(g)
         elif g.kind == flop_kind:
-            if set(g.pins) != {"CLK", "D", "Q"}:
+            if set(g.pins) != {fp["clock"], fp["d"], fp["q"]}:
                 raise RepairDefect(f"the repaired netlist's flop {g.inst} has pins {sorted(g.pins)}")
-            flops.append(Gate(FLOP_KIND, g.inst, {"C": g.pins["CLK"], "D": g.pins["D"], "Q": g.pins["Q"]}))
+            flops.append(Gate(FLOP_KIND, g.inst, {"C": g.pins[fp["clock"]], "D": g.pins[fp["d"]], "Q": g.pins[fp["q"]]}))
         else:
             gates.append(g)
     nl.gates = gates
     tnet = {}
     for g in ties:
         for p, n in g.pins.items():
-            if p not in val or n in tnet:
+            if p not in val[g.kind] or n in tnet:
                 raise RepairDefect(f"the repaired netlist's tie cell {g.inst} is not connected as written")
-            tnet[n] = (g.inst, p, val[p])
+            tnet[n] = (g.inst, pins.short(g.kind), p, val[g.kind][p])
     load_e, bits, cells, dpins = {"r": defaultdict(float), "f": defaultdict(float)}, defaultdict(list), defaultdict(int), \
         defaultdict(int)
     for g in gates:
@@ -1896,15 +2301,15 @@ def read_repaired(text, lib, pins):
                 dpins[r] += 1
     load = {n: max(load_e["r"][n], load_e["f"][n]) for n in tnet}     # the larger edge's, as the audit checks
     checks = []
-    for n, (inst, p, k) in tnet.items():
+    for n, (inst, cname, p, k) in tnet.items():
         nl.alias[n] = k
         if load[n] > 0:
             what = [f"{len(bits[n])} output bit{'s' if len(bits[n]) > 1 else ''} ({bits[n][0]}"
                     + (f" .. {bits[n][-1]})" if len(bits[n]) > 1 else ")")] if bits[n] else []
             what += [f"{cells[n]} cell pin{'s' if cells[n] > 1 else ''}"] if cells[n] else []
             what += [f"{dpins[n]} flop D pin{'s' if dpins[n] > 1 else ''}"] if dpins[n] else []
-            checks.append((inst, p, k, load[n], ", ".join(what)))
-    return nl, flops, (len(ties), checks), list(nl.pi)
+            checks.append((inst, cname, p, k, load[n], ", ".join(what)))
+    return nl, flops, ([pins.short(g.kind) for g in ties], checks), list(nl.pi)
 
 
 def check_repair(base, dn, rd, rdn, pins):
@@ -1948,6 +2353,10 @@ def analyze(netlist_text, lib, pins, repair_netlist=True, input_drive=None):
     for gate in sorted({re.fullmatch(r"\$_(\w+?)_", g.kind).group(1) for g in raw.gates}):
         check_gate_cell(lib, pins, gate)
     inputs = list(raw.pi)
+    scored_gates = len(raw.gates) + len(flops)     # the scored netlist's gates and flops (score.py's count), not its cells
+    if flops:
+        FlopTiming(lib, pins)          # the flop cell checked (a positive-edge flop of D; Q formed as the pins say)
+    flops = invert_flop_q(nl, flops, pins)
     q, dn = cut_flops(nl, flops)
     base = Design(nl, lib, pins)
     unit_depth = base.unit_depth([(n, None) for n in dn])
@@ -1960,7 +2369,7 @@ def analyze(netlist_text, lib, pins, repair_netlist=True, input_drive=None):
         nl, flops, ties, inputs = read_repaired(text, lib, pins)
         q, rdn = cut_flops(nl, flops)
         try:
-            a = weigh_cells(nl, q, rdn, len(flops), lib, pins, drive, Audit(), ties=ties)
+            a = weigh_cells(nl, q, rdn, len(flops), lib, pins, drive, new_audit(pins), ties=ties)
         except PpaError as e:
             raise RepairDefect(f"the repaired netlist cannot be weighed: {e}")
         check_repair(base, dn, a.design, rdn, pins)
@@ -1969,40 +2378,54 @@ def analyze(netlist_text, lib, pins, repair_netlist=True, input_drive=None):
             raise RepairDefect("the repaired netlist read back is not legal although the repair found it so: "
                                + a.audit.report())
     else:
-        a = weigh_cells(nl, q, dn, len(flops), lib, pins, drive, Audit())
+        a = weigh_cells(nl, q, dn, len(flops), lib, pins, drive, new_audit(pins))
     a.unit_depth = unit_depth
     a.input_drive = a_drive
-    a.scored_gates = len(base.cells) + len(flops)
+    a.scored_gates = scored_gates
     a.repair = info
     a.flop_gates, a.q, a.dn, a.inputs = flops, q, dn, inputs      # for the energy model (score/energy.py)
     if a.audit.violations():
         raise IllegalNetlist(
-            "the sky130 netlist is electrically illegal (unrepaired). " + a.audit.report()
-            + f". The ranked sky130 score ({pins.version}) is taken on a legal netlist only (no timing table is "
+            f"the {pins.pdk} netlist is electrically illegal (unrepaired). " + a.audit.report()
+            + f". The {score_name(pins)} ({pins.version}) is taken on a legal netlist only (no timing table is "
             f"extrapolated), so the design is rejected", a.audit.summary())
     return a
 
 
+def score_name(pins):
+    """How a rejection names the score it withholds: `ranked sky130 score`, `asap7 score`."""
+    return f"ranked {pins.pdk} score" if pins.pdk == "sky130" else f"{pins.pdk} score"
+
+
 def columns(a, pins, lib, netlist_sha256, script_sha256=None, with_path=False):
-    """The result block for one weighed netlist: integers where the quantity is exact, versions and pins beside."""
+    """The result block for one weighed netlist: integers where the quantity is exact, versions and pins beside. The
+    column names carry the library (`area_um2_sky130`, `area_um2_asap7`, ...; the integer area `area_e4um2_sky130` in
+    1e-4 um^2, `area_e5um2_asap7` in 1e-5 um^2), so that the two are never swapped silently."""
+    c, d = pins.col, pins.area_decimals
     out = {
         "ppa_version": pins.version,
-        "area_um2_sky130": a.area_e4 / 10000,
-        "area_e4um2_sky130": a.area_e4,
-        "delay_ps_sky130": round(a.t_ns * 1000),
+        f"area_um2_{c}": a.area_e4 / 10 ** d,
+        f"area_e{d}um2_{c}": a.area_e4,
+        f"delay_ps_{c}": round(a.t_ns * 1000),
         "unit_depth": a.unit_depth,
-        "cells_sky130": a.cells,
-        "cell_hist_sky130": dict(a.hist),
+        f"cells_{c}": a.cells,
+        f"cell_hist_{c}": dict(a.hist),
         "constants": a.constants,
         "critical": {"output": a.crit_output, "edge": a.crit_edge, "cells": a.crit_cells},
-        "setup": {"pi_slew_ps": round(pins.pi_slew_ns * 1000), "input_drive": a.input_drive,
-                  "po_load_ff": round(pins.po_load_pf * 1000), "wires": "none", "tables": "no extrapolation"},
+        "setup": {"pi_slew_ps": pins.pi_slew_ps, "input_drive": a.input_drive,
+                  "po_load_ff": pins.po_load_ff, "wires": "none",
+                  "tables": "no extrapolation" if pins.below_grid == "reject" else
+                  "no extrapolation; a read below a grid at the grid's floor"},
         "liberty_file": pins.lib_file(),
         "liberty_sha256": lib.sha256,
         "ppa_pins_sha256": pins.sha256,
         "ppa_script_sha256": script_sha256 if script_sha256 else sha256_file(os.path.abspath(__file__)),
         "netlist_sha256": netlist_sha256,
     }
+    if pins.pdk != "sky130":
+        out["pdk"] = pins.pdk
+    if pins.multi:             # several files: the set's identity above, each file's here
+        out["liberty_files"] = dict(lib.file_sha256)
     if a.audit is not None:
         out["legality"] = a.audit.summary()
     if a.repair is not None:
@@ -2029,7 +2452,7 @@ def path_timing(a, pins):
         drv = d.driver.get(net)
         cell = d.cells[drv[0]].name if drv else None
         out.append({"net": net, "edge": edge, "inst": d.names[drv[0]] if drv else None,
-                    "cell": cell[len(pins.prefix):] if cell and cell.startswith(pins.prefix) else cell,
+                    "cell": pins.short(cell) if cell else cell,
                     "arrival_ps": round(t * 1000, 1), "slew_ps": round(d.arr[(net, edge)][1] * 1000, 1)})
     return out
 
@@ -2043,7 +2466,9 @@ class MappedPins:
     """score/ppa_mapped_pins.json (flow A1') and the script score/ppa_mapped.ys, validated and bound to the A0' pins: the
     liberty must be the same file, so one fetched copy and one hash serve both flows."""
 
-    def __init__(self, pins, path=MAPPED_PINS_PATH, script=MAPPED_SCRIPT_PATH):
+    def __init__(self, pins, path=None, script=None):
+        _, dpath, dscript = pdk_paths(pins.pdk)       # the library's own A1' pins and script by default
+        path, script = path or dpath, script or dscript
         self.path, self.script = path, script
         try:
             with open(path) as fh:
@@ -2064,11 +2489,19 @@ class MappedPins:
             self.equiv_vectors = int(raw["equivalence"]["vectors"])
             self.equiv_seed = raw["equivalence"]["seed"]
             self.timeout_s = int(raw["yosys_timeout_s"])
+            # the liberty files ABC maps onto (a library of several files: the combinational ones; default all of them)
+            self.abc_files = list(raw.get("abc_liberty_files", [f["file"] for f in pins.lib_files]))
+            # the cells counted as buffers and inverters in the record (short-name prefixes)
+            cp = raw.get("count_prefixes", {"buffers": ["buf_", "bufbuf_", "bufinv_"], "inverters": ["inv_"]})
+            self.buffer_prefixes, self.inverter_prefixes = tuple(cp["buffers"]), tuple(cp["inverters"])
         except (KeyError, TypeError, ValueError) as e:
             raise PpaError(f"mapped-flow pins file {path}: missing or malformed key {e}")
-        if self.lib_sha256 != pins.lib["sha256"]:
-            raise PpaError(f"the mapped-flow pins name the liberty {self.lib_sha256}, the A0' pins {pins.lib['sha256']}: "
+        want = pins.lib["sha256"] if not pins.multi else set_sha256(pins.lib_files)
+        if self.lib_sha256 != want:
+            raise PpaError(f"the mapped-flow pins name the liberty {self.lib_sha256}, the A0' pins {want}: "
                            "both flows weigh with one liberty")
+        if not self.abc_files or not set(self.abc_files) <= {f["file"] for f in pins.lib_files}:
+            raise PpaError("mapped-flow pins: abc_liberty_files must name files of the A0' pins' liberty")
         if self.equiv_vectors < 256 or self.equiv_vectors % 256:
             raise PpaError("mapped-flow pins: equivalence.vectors must be a multiple of 256, at least 256")
         if self.timeout_s < 1:
@@ -2112,18 +2545,21 @@ def map_rtlil(rtlil_path, top, lib, mpins, yosys=None):
     failure, not a result)."""
     score = _score_module()
     yosys = score.yosys_bin(yosys)
+    # the files ABC reads: the one liberty (sky130), or the pinned subset of a library of several (`-liberty` once each)
+    by_name = dict(zip((f["file"] for f in lib.pins.lib_files), lib.paths))
+    abc_paths = [os.path.abspath(by_name[f]) for f in mpins.abc_files]
     work = tempfile.mkdtemp(prefix="svgolf-ppa-map-")
     try:
         net = os.path.join(work, "mapped.v")
         text = score.fill_template(mpins.script, {
             "@RTLIL@": f'"{os.path.abspath(rtlil_path)}"', "@TOP@": top,
-            "@LIBERTY@": f'"{os.path.abspath(lib.path)}"', "@NETLIST@": f'"{net}"'})
+            "@LIBERTY@": " -liberty ".join(f'"{p}"' for p in abc_paths), "@NETLIST@": f'"{net}"'})
         path, log = os.path.join(work, "map.ys"), os.path.join(work, "map.log")
         with open(path, "w") as fh:
             fh.write(text)
         try:
             proc = score.yosys_run([yosys, "-q", "-l", log, "-s", path], yosys, work,
-                                   (os.path.abspath(rtlil_path), os.path.abspath(lib.path)), mpins.timeout_s,
+                                   (os.path.abspath(rtlil_path), *abc_paths), mpins.timeout_s,
                                    "yosys (flow A1' mapping)")
         except subprocess.TimeoutExpired:
             raise PpaError(f"the mapping run timed out after {mpins.timeout_s} s")
@@ -2148,7 +2584,7 @@ def analyze_mapped(netlist_text, lib, pins):
     nl = parse_netlist(netlist_text)
     bad = defaultdict(int)
     for g in nl.gates:
-        if not (g.kind.startswith(pins.prefix) and lib.has(g.kind)):
+        if not (g.kind.startswith(pins.prefix) and g.kind.endswith(pins.suffix) and lib.has(g.kind)):
             bad[g.kind] += 1
     if bad:
         raise PpaError(f"the mapped netlist has instances that are not cells of the pinned liberty: {dict(sorted(bad.items()))}")
@@ -2219,19 +2655,20 @@ def mapped_columns(a, pins, mpins, lib, mapped_sha256, rtlil_sha256, yosys, abc,
     """The `mapped` block for one weighed mapped netlist: the A1' fields (their own names and version, never A0''s), the
     hashes of every input and the tool builds."""
     hist = dict(a.hist)
+    c, d = pins.col, pins.area_decimals
     out = {
         "ppa_mapped_version": mpins.version,
-        "area_um2_sky130_mapped_v1": a.area_e4 / 10000,
-        "area_e4um2_sky130_mapped_v1": a.area_e4,
-        "mapped_delay_sky130_v1": round(a.t_ns * 1000),
-        "mapped_cells_sky130_v1": a.cells,
-        "mapped_cell_hist_sky130_v1": hist,
-        "mapped_levels_sky130_v1": a.unit_depth,
-        "mapped_buffers_sky130_v1": sum(n for c, n in hist.items() if c.startswith(("buf_", "bufbuf_", "bufinv_"))),
-        "mapped_inverters_sky130_v1": sum(n for c, n in hist.items() if c.startswith("inv_")),
+        f"area_um2_{c}_mapped_v1": a.area_e4 / 10 ** d,
+        f"area_e{d}um2_{c}_mapped_v1": a.area_e4,
+        f"mapped_delay_{c}_v1": round(a.t_ns * 1000),
+        f"mapped_cells_{c}_v1": a.cells,
+        f"mapped_cell_hist_{c}_v1": hist,
+        f"mapped_levels_{c}_v1": a.unit_depth,
+        f"mapped_buffers_{c}_v1": sum(n for x, n in hist.items() if x.startswith(mpins.buffer_prefixes)),
+        f"mapped_inverters_{c}_v1": sum(n for x, n in hist.items() if x.startswith(mpins.inverter_prefixes)),
         "constants": a.constants,
         "critical": {"output": a.crit_output, "edge": a.crit_edge, "cells": a.crit_cells},
-        "setup": {"pi_slew_ps": round(pins.pi_slew_ns * 1000), "po_load_ff": round(pins.po_load_pf * 1000), "wires": "none"},
+        "setup": {"pi_slew_ps": pins.pi_slew_ps, "po_load_ff": pins.po_load_ff, "wires": "none"},
         "equivalence": {"vectors": equiv_vectors, "seed": mpins.equiv_seed},
         "liberty_file": pins.lib_file(),
         "liberty_sha256": lib.sha256,
@@ -2244,6 +2681,11 @@ def mapped_columns(a, pins, mpins, lib, mapped_sha256, rtlil_sha256, yosys, abc,
         "rtlil_sha256": rtlil_sha256,
         "netlist_sha256": mapped_sha256,
     }
+    if pins.pdk != "sky130":
+        out["pdk"] = pins.pdk
+    if pins.multi:
+        out["liberty_files"] = dict(lib.file_sha256)
+        out["abc_liberty_files"] = list(mpins.abc_files)
     if with_path:
         out["critical_path"] = [[net, edge] for net, edge, _ in a.path]
     return out
@@ -2365,6 +2807,7 @@ def main(argv=None):
     ap.add_argument("--netlist-in", metavar="SCORED.v")
     ap.add_argument("--fetch-liberty", action="store_true")
     ap.add_argument("--liberty")
+    ap.add_argument("--pdk", choices=sorted(PDKS), help="the library: sky130 (the default, the ranked columns) or asap7")
     ap.add_argument("--pins")
     ap.add_argument("--json")
     ap.add_argument("--netlist")
@@ -2381,10 +2824,14 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     try:
-        pins = Pins(args.pins) if args.pins else Pins()
+        pins = Pins(args.pins) if args.pins else Pins(pdk_paths(args.pdk or "sky130")[0])
+        if args.pdk and pins.pdk != args.pdk:
+            ap.error(f"--pins {args.pins} is a {pins.pdk} pins file, not {args.pdk}")
         if args.fetch_liberty:
             p = fetch_liberty(args.liberty, pins)
-            print(json.dumps({"liberty": p, "sha256": pins.lib["sha256"]}, indent=2, sort_keys=True))
+            print(json.dumps({"liberty": p, "sha256": pins.lib["sha256"]} if not pins.multi else
+                             {"liberty": p, "sha256": set_sha256(pins.lib_files),
+                              "files": {f["file"]: f["sha256"] for f in pins.lib_files}}, indent=2, sort_keys=True))
             return 0
         task = None
         if args.task:

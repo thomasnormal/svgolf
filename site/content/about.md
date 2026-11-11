@@ -32,7 +32,8 @@ The hypotheses are about the stimulus (and, on a clocked task, the power-up stat
 quantifies over, not about the design's own behaviour, so no design can keep them false. Most statements quantify over every width `N`, so a
 proof at the scoring point alone does not type-check. Every task ships designs that try such escapes
 (wrong ports, a dead clock, a hidden mode pin, a circuit that is right only at `N = 16`) with
-kernel-checked refutations: they are listed on each task page under "What does not count".
+kernel-checked refutations: they are listed on each task page under "What does not count", a tab of the trusted
+statement beside its properties.
 
 A statement says what is computed; it cannot say what is scored. The proof is about the design as ls-sv
 reads it, the score about the netlist Yosys builds from the same text, and two tools can read one text

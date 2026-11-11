@@ -371,7 +371,8 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
     for e in sorted(dated, key=lambda e: (KIND_ORDER[e["kind"]], e["id"] in setters, e["date"], e["id"])):
         p = dict(e, cls="best" if e["id"] in setters else "")
         parts.append(_mark(p, xs(_ordinal(e["date"])), ys(e["value"]), r=5.5 if e["id"] in setters else 4))
-    desc = (f"{len(dated)} entries by date (x) and score in {unit} (y); the line is the best score so far"
+    desc = (f"{len(dated)} {'entry' if len(dated) == 1 else 'entries'} by date (x) and score in {unit} (y); the line "
+            "is the best score so far"
             + (", the dashed line par" if par else "")
             + (f", and {len(levels)} unproved baselines are labelled on the right" if levels else "")
             + ". The table under the chart lists the same numbers.")
@@ -430,7 +431,8 @@ def scatter_chart(points, *, x_label, y_label, x_log=None, y_log=None, x_integer
         parts.append(f'<polyline class="frontier" points="{coords}"><title>{_esc(front_label)}</title></polyline>')
     for p in sorted(points, key=lambda p: (p["id"] in on, KIND_ORDER[p["kind"]], p["y"], p["x"], p["id"])):
         parts.append(_mark(dict(p, cls="on-front" if p["id"] in on else "off-front"), xs(p["x"]), ys(p["y"])))
-    desc = (f"{len(points)} designs by {x_label} (x) and {y_label} (y); lower is better on both. "
+    desc = (f"{len(points)} design{'' if len(points) == 1 else 's'} by {x_label} (x) and {y_label} (y); lower is "
+            "better on both. "
             "The table under the chart lists the same numbers.")
     return _svg(fr, parts, title, desc, cls="chart compact" if compact else "chart")
 
@@ -555,7 +557,8 @@ def area_time_chart(points, *, subject, view, x_label, y_label, title, front=(),
                          f'<title>{n} design{"" if n == 1 else "s"} beyond the view ({edge})</title>{_esc(fmt.format(n=n))}'
                          "</text>")
     beyond = sum(1 for p in points if not inside(p))
-    desc = (f"{len(points)} designs by {x_label} (x) and {y_label} (y), this one ringed; lower left is better"
+    desc = (f"{len(points)} design{'' if len(points) == 1 else 's'} by {x_label} (x) and {y_label} (y), this one "
+            "ringed; lower left is better"
             + (f"; {beyond} beyond the view, counted at its edges" if beyond else "")
             + ". The table under the chart lists the same numbers.")
     return _svg(fr, parts, title, desc, cls="chart pa compact" if compact else "chart pa")
@@ -645,7 +648,8 @@ def line_chart(lines, *, x_label, y_label, x_ticks, x_fmt=tick, x_log=None, y_lo
 
 def bar_chart(rows, *, title, unit):
     """Horizontal bars: `rows` are (label, value, note) with value >= 0, drawn
-    in the given order. Single series: one colour, no legend."""
+    in the given order. Single series: one colour, no legend. `unit` names the
+    values in the tooltips; a plural noun ("cells") is singular at 1."""
     if not rows:
         return ""
     bar, gap, label_w, value_w = 16, 12, 90, 150
@@ -661,7 +665,8 @@ def bar_chart(rows, *, title, unit):
         d = (f"M{_f(x0)} {_f(y)}H{_f(x0 + w - r)}Q{_f(x0 + w)} {_f(y)} {_f(x0 + w)} {_f(y + r)}"
              f"V{_f(y + bar - r)}Q{_f(x0 + w)} {_f(y + bar)} {_f(x0 + w - r)} {_f(y + bar)}H{_f(x0)}Z")
         parts.append(f'<g class="mark" data-label="{_esc(label)}" data-value="{value}">'
-                     f"<title>{_esc(label)}: {value} {_esc(unit)}{_esc(note and ' (' + note + ')')}</title>"
+                     f"<title>{_esc(label)}: {value} {_esc(unit[:-1] if value == 1 and unit.endswith('s') else unit)}"
+                     f"{_esc(note and ' (' + note + ')')}</title>"
                      f'<text class="tick" x="{_f(x0 - 8)}" y="{_f(y + bar - 4)}" text-anchor="end">{_esc(label)}</text>'
                      + (f'<path class="bar" d="{d}"/>' if w > 0 else "")
                      + f'<text class="value" x="{_f(x0 + w + 8)}" y="{_f(y + bar - 4)}">{value}'

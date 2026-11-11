@@ -5,21 +5,8 @@ duplicates kept. This is svGolf's STREAM task, one of its three clocked tasks (w
 `matmul`): the values arrive over `N` cycles rather than all at once, and leave the same way. The proof covers every
 `N, W ≥ 1` with `N·W < 2^31`, and it proves the cycle count too: the score is the area times that count
 times the clock period. So the task is the schedule: how many cells or comparators, how many cycles, and how
-short a cycle.
-
-Status (2026-11-09):
-
-```
-trusted statement: final, decided 2026-11-08, amended 2026-11-09 before any record was published
-  (txtask-v2: StreamTask.StatementV2 of SvGolf/TaskSeq.lean, stated by Spec.lean)
-run2 proof: complete, from every power-up state (lat = 2N)
-checker: stream-family (check.py)   post-synthesis: stream-family (8 seeds at (3, 4) and at (8, 8))
-reference: reference/sorter_ins.sv + sorter_ins.lean (adapted from andrewpeck/cell-sort, MIT), check.py
-  ACCEPTS it (--postsynth full)
-attacks: 8, each rejected at solution with the reference proof; 7 wrong at post-synthesis, and
-  rst_gate refused by rule 1 (no output reads rst combinationally, decided 2026-11-09)
-ranking: ranked (decided 2026-11-08); par is the reference's record
-```
+short a cycle. The task's state (statement, checker, reference, ranking) is under "Status", after "Start a
+new design".
 
 Labels: **MEASURED** = run (command or file named); **DERIVED** = a hand argument given here; **JUDGED** =
 opinion.
@@ -78,6 +65,11 @@ one point into facts about ONE clock cycle:
 **Lay the design out so the proof stays short**:
 
 * register every output: with only `always_ff` processes, rule 1 is one line (`combDeps_of_ffOnly`);
+* keep every process an `always_ff` whose body writes with nonblocking assignments only: the library's clock
+  step in closed form (`cycleStep2_ffOnly`; the reference uses it through `cycleStep2_profile`) is for such
+  designs only. A continuous `assign` or an `always_comb` block anywhere, an output driven by one included
+  (`assign out_valid = tok[0]`), means proving the combinational settle yourself, as the arbiter's proof does
+  ([PROVING.md, section 20](../../PROVING.md#20-a-reactive-task-the-arbiter-reacttask));
 * reset every register whose value matters: the claims hold from every power-up value, the first reset edge
   included (a design whose `out_valid` timing within the latency depends on an unreset register can still be
   correct: the post-synthesis check holds each power-up's run to the claims, not to another power-up's cycles);
@@ -127,6 +119,20 @@ end Submission
 * `LeanModels.Sv.SeqProfile`, `LeanModels.Sv.SeqFamily`, `LeanModels.Sv.NbaCommit`: G0's clock step for a
   flip-flop-only design, the packed-family commit lemmas (`bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV`,
   `LVec.foldl_range_insertAt_last`) and `nbaFold`.
+
+## Status (2026-11-09)
+
+```
+trusted statement: final, decided 2026-11-08, amended 2026-11-09 before any record was published
+  (txtask-v2: StreamTask.StatementV2 of SvGolf/TaskSeq.lean, stated by Spec.lean)
+run2 proof: complete, from every power-up state (lat = 2N)
+checker: stream-family (check.py)   post-synthesis: stream-family (8 seeds at (3, 4) and at (8, 8))
+reference: reference/sorter_ins.sv + sorter_ins.lean (adapted from andrewpeck/cell-sort, MIT), check.py
+  ACCEPTS it (--postsynth full)
+attacks: 8, each rejected at solution with the reference proof; 7 wrong at post-synthesis, and
+  rst_gate refused by rule 1 (no output reads rst combinationally, decided 2026-11-09)
+ranking: ranked (decided 2026-11-08); par is the reference's record
+```
 
 ## The circuit
 

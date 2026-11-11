@@ -15,7 +15,10 @@ realistic/interesting?": A0' is `sky130_a0_v3`, every primary input driven by th
 `input_drive`, default `sky130_fd_sc_hd__buf_8`; "The input drive" below). 11/04, after the STA study against OpenSTA: the
 per-edge pin loads go into `sky130_a0_v3` before it is released, so that the ranked numbers change once ("The per-edge
 loads" below). 11/05: the ONE ranked number is area x time, the A0' area times the time (`leaderboard/combined.py`);
-par, the record and "under par" use it, and the Pareto frontier of the two is an exploration view. The text further down describes the flows as
+par, the record and "under par" use it, and the Pareto frontier of the two is an exploration view. 11/09: a reader may see
+the golf scores on sky130 or on ASAP7 (a dropdown on the front page), so `ppa.py` weighs two libraries: sky130, the
+default and the records' ranked score, and ASAP7 (`--pdk asap7`), whose numbers live beside the records ("ASAP7: an
+alternative library" below). The text further down describes the flows as
 built in WP-X2..X4; where it says the columns rank nothing or reject nothing, these rulings supersede it. To reproduce a
 recorded number bit for bit: "Reproduce a score" below.
 
@@ -581,6 +584,20 @@ then gives `ppa.py`'s arrivals to 1 fs per arc; `set_driving_cell` instead would
 drive's zero-load delay ("The input drive"). `score/test_ppa_opensta.py` holds the script (`OPENSTA_TCL`) and OpenSTA's
 recorded numbers.
 
+**The ASAP7 view's numbers** (decided 2026-11-09: a reader may see the golf scores on ASAP7; sky130 stays the default).
+The same command with `--pdk asap7` weighs the same scored netlist on the five pinned ASAP7 liberty files (flow A0',
+`asap7_a0_v1`, "ASAP7: an alternative library" below); `leaderboard/asap7/<task>.json` keeps each design's numbers, and
+`leaderboard.py asap7 --rescore` weighs them all again and compares, bit for bit:
+
+```
+python3.12 score/ppa.py --pdk asap7 --fetch-liberty         # once: the five files into score/lib/asap7/ (git-ignored)
+python3.12 score/ppa.py tasks/add/reference/add_n.sv --task tasks/add --pdk asap7 --no-mapped --json add_n_asap7.json
+python3.12 leaderboard/leaderboard.py asap7 --rescore --task add
+```
+
+`add_n_asap7.json` has `ppa.netlist_sha256` `3b7da549…` (the sky130 run's: the scored netlist does not depend on the
+library), `area_e5um2_asap7` 699840 (6.99840 um^2) and `delay_ps_asap7` 563, so area x time is 3.940 um2*ns.
+
 ## The liberty
 
 `sky130_fd_sc_hd__tt_025C_1v80.lib`, 12 800 135 bytes, sha256 `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5`,
@@ -736,6 +753,109 @@ independent statements moves `sbox_bp`'s delay from -0.6% to +17.7%, and moving 
 the leaves moves a proved carry-save multiplier's area +12.6% and delay +40.9%; all 21 changed netlists are equivalent to
 their originals (ABC `cec`).
 
+## ASAP7: an alternative library (`--pdk asap7`; `asap7_a0_v1`, `asap7_a1_v1`; 11/09)
+
+The question (2026-11-09): would ASAP7 be a better library than sky130? This section is the PORT, so that the two can be
+weighed side by side on the same designs.
+sky130 stays the default and the records' ranked score: with `--pdk` absent every sky130 number, record field (but
+`ppa_script_sha256`) and repaired netlist is byte-identical to the scorer before the port (MEASURED on the eight designs
+below and add_mux, both flows), and `score/test_ppa.py` (79 tests), `test_ppa_opensta.py` and `test_energy.py` pass unchanged.
+The port is `score/ppa.py` sha256 `1ef1b1c1904853711cbed9b3b5e275f333aade8f60361f8bbc61305c98c480ab`. Records made
+before it name the scorer before the port, sha256 `912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe`
+(`checker.files` and `ppa_script_sha256`), and are not made again: rescoring each with the port reproduced every stored
+sky130 field but that hash, `ppa.mapped` included (MEASURED 2026-11-11 on all 23 records of the board). `leaderboard.py
+verify` notes the changed file; a note never changes a record's status.
+**Decided 2026-11-09: a reader may choose ASAP7** (a dropdown on the front page lets the reader see the golf scores on
+sky130 or on ASAP7): the site's library selector shows every golf score on sky130 (the default) or on these
+A0' columns, both views ranked by `leaderboard.py` at build time (`board --pdk asap7`). The ASAP7 columns of every record,
+proved reference and baseline are kept in `leaderboard/asap7/<task>.json`, bound to each record's scored netlist and
+re-derived by `leaderboard.py verify` and `asap7 --rescore` (leaderboard/README.md, "The ASAP7 view"; README.md,
+"Scoring", "The ASAP7 view").
+
+    python3.12 score/ppa.py --pdk asap7 --fetch-liberty                     # five files into score/lib/asap7/ (git-ignored)
+    python3.12 score/ppa.py --pdk asap7 SOLUTION.sv --task tasks/<name>      # A0' (+ A1' for a combinational task)
+    python3.12 score/ppa.py --pdk asap7 SOLUTION.sv --task tasks/<name> --seq
+    python3.12 score/test_ppa_asap7.py                                       # $SVGOLF_ASAP7_LIB: a directory of the five files
+
+**Same flows, same rules.** The scored netlist of `score.py` (unchanged), re-expressed cell by cell, repaired by the same
+`buffer_trees_v1` buffering (no resizing, no restructuring), written as Verilog, read back, simulated against the unrepaired
+netlist and weighed by the same STA; an illegal netlist is rejected with the nets named; nothing is extrapolated above a
+table's grid; bit-exact run to run. A1' is the same `abc -liberty` script on the library's combinational cells. The columns
+carry the library's name (`area_um2_asap7`, `area_e5um2_asap7`, `delay_ps_asap7`, `cells_asap7`, `cell_hist_asap7`; A1':
+`area_um2_asap7_mapped_v1`, `mapped_delay_asap7_v1`, ...) plus `"pdk": "asap7"` and `liberty_files`, so a board can never
+read an asap7 number as a sky130 one.
+
+**What the library forced** (each pinned in `score/ppa_pins_asap7.json` with its reason in a `_why` entry; the measurements
+with the ported `ppa.py`):
+
+* **The library**: asap7sc7p5t rev 28, RVT, TT (0.70 V, 25 C), NLDM; five files (INVBUF, SIMPLE, AO, OA, SEQ: 202 cells),
+  fetched gzipped from OpenROAD-flow-scripts `a1a6c3ff` (the four `.lib.gz` and the plain SEQ file; compressed and
+  uncompressed sizes and sha256 pinned, the git blob sha1 recorded), not vendored; each file carries its BSD-3 header. TT
+  because sky130's pin is its typical corner; not FF (ORFS's default), whose SIMPLE file is a 2025 re-characterization by
+  another Liberate version than its siblings. A library of several files has one identity, `liberty_sha256` = SHA-256 over
+  `<file> <sha256>` lines (`5ece07ac...`), each file's hash in `liberty_files`.
+* **Units**: ps and fF, converted to ns and pF as the files are read (one division by 1000; sky130's numbers are read
+  exactly as before). Areas have five decimals: integers in 1e-5 um^2. Cell names have a suffix (`_ASAP7_75t_R`); cell names
+  are unquoted; the 37 INVBUF cells and five SEQ cells have no semicolon after `area` (the line end closes it, as Yosys and
+  OpenSTA read it; sky130 has no such line). The SIMPLE file declares `default_max_transition` 4000 ps, the others 320 ps:
+  a library of several files takes the smallest (every asap7 input pin declares 320 ps and every table ends at 320 ps).
+* **Gates**: each Yosys gate is its least-area build of at most two cells (exhaustive search; ties: fewer cells, larger
+  max_capacitance, faster FO4): NOT `INVx1`, NAND `NAND2xp5`, NOR `NOR2xp33`, AND `AND2x2`, OR `OR2x2`, XOR `XOR2xp5`, XNOR
+  `XNOR2xp5`, and, the library having no MUX2 and no A&!B / A|!B cell, MUX = `INVx1` on S + `AO22x1`, ANDNOT = `INVx1` on A +
+  `NOR2xp33`, ORNOT = `INVx1` on A + `NAND2xp5`. In NAND2 units: 0.75, 1, 1, 1.5, 1.5, 2.25, 2.25, 3.0, 1.75, 1.75 (sky130: 1,
+  1, 1, 1.667, 1.667, 2.333, 2.333, 3.0, 1.667, 1.667). A build's helper cell is a real cell (weighed, timed, repaired) but
+  not a gate of the unit depth, which stays `ltp -noff`'s.
+* **The flop**: every asap7 positive-edge flop but the x4 has QN only. `$_DFF_P_` = `DFFHQNx1` + `INVx1` forming Q (0.33534
+  um^2, 8% under `DFFHQx4`; clock-to-Q 63.0 / 69.5 / 99.0 ps at Q loads of 1 / 2.5 / 10 fF against 73.0 / 74.6 / 83.3).
+  `ppa.py` checks from the `ff` group that QN is !D of the last rising edge; asap7 stores its setup tables with the D
+  transition first, so they are read transposed (a latent assumption of the sky130 code, now checked on both).
+* **Timing setup**, scaled by sky130's own stated reasons (design/ppa/sky130.md:187-188): the input ramp and the ideal
+  clock's transition 20 ps (sky130's 50 ps sits at 55% of a min-size inv/nand2/buf output into two inverter pins, 27.6 to
+  68.2 ps; the same measurement on asap7 is 9.7 to 25.8 ps, 55% of it 18.6 ps, and 20 ps is a grid point); the output load
+  2.5 fF per bit (sky130's 10 fF is 4.18 inverter inputs; 4 `INVx1` inputs are 2.48 fF); the input drive `BUFx8` (sky130's
+  `buf_8` may carry 407 `inv_1` input loads, `BUFx8` 433 `INVx1` input loads, the nearest asap7 buffer). Allowed input
+  drives: every BUF and INV of INVBUF; no flop (asap7's has no Q).
+* **Constants**: `TIELOx1` and `TIEHIx1` (a cell per constant, not one `conb_1`), replicated as `conb_1` is. They declare no
+  max_capacitance: 46.08 fF is pinned (`INVx1`'s, the same size and area).
+* **Below a grid**: asap7's grids start at max_capacitance / 64 (0.36 fF for the xp cells, 0.72 fF for `INVx1`), above most
+  single input pins (`INVx1` 0.62 fF), so sky130's rule (a read below a grid rejects) would reject almost every fan-out-1
+  net. asap7 reads below a grid at the grid's floor in that dimension, counts it (`legality.table_reads_floored`) and keeps
+  sky130's rule above a grid. Every asap7 delay table rises from its first point along both axes (MEASURED over the 20,162
+  tables the flow can read, and checked by `test_ppa_asap7.py`), so a floored delay errs slow; transitions are flat there
+  (at most 0.39 ps).
+* **A1'**: the four combinational files, SIMPLE first: the pinned `yosys-abc` (ABC 1.01 of 6 May 2025) dies with a
+  segmentation fault when INVBUF is the first `-liberty` file (MEASURED). `-dont_use` excludes exactly the non-logic cells
+  of the asap7 cell policy (clock inverters, hold buffers, FA/HA, tie cells).
+
+**Measured** (11/09; A0' at the tasks' scoring points, rating build; area um^2 / delay ps; the clocked rows' delay is the
+register-to-register period):
+
+| design | sky130 A0' | asap7 A0' | ratio area, delay | sky130 A1' | asap7 A1' |
+|---|---|---|---|---|---|
+| add_n (add, N=16) | 460.4416 / 2611 | 6.99840 / 563 | 65.8x, 4.6x | 440.4224 / 6279 | 7.10046 / 328 |
+| mul_n (mul, N=16) | 8290.4512 / 10907 | 123.93000 / 1981 | 66.9x, 5.5x | 8644.5408 / 16391 | 110.91006 / 1784 |
+| mul_wallace | 8966.0992 / 5982 | 133.91730 / 1186 | 67.0x, 5.0x | 8398.0544 / 7374 | 115.42986 / 913 |
+| sbox_bp (aes_sbox) | 892.1056 / 4297 | 13.35528 / 704 | 66.8x, 6.1x | 1094.8 / 4160 | 12.21804 / 653 |
+| sbox_table | 3445.8048 / 2288 | 51.81732 / 373 | 66.5x, 6.1x | 2343.4976 / 1648 | 29.69946 / 291 |
+| rr_mask (arbiter, N=8, clocked) | 769.488 / 2826 | 12.15972 / 464 | 63.3x, 6.1x | | |
+| matmul_g1 (matmul, clocked) | 87173.6064 / 10696 | 1334.7261 / 1539 | 65.3x, 6.9x | | |
+| sorter_ins (sorter, clocked) | 5512.7872 / 2523 | 85.68666 / 512 | 64.3x, 4.9x | | |
+
+Over the 19 designs of `score/tests/ppa/designs.json` (A0', banned baselines included), the area ratio is 65.8x to 68.3x and
+the area order within every task is the same on both libraries (Kendall tau 1.0 in add, mul, aes_sbox, fdivp); the delay
+ratio is 4.6x to 6.1x and the delay order moves in mul (tau 0.62) and fdivp (0.67); area x time moves in add (0.40), mul
+(0.71). Repairs are few on both (matmul: 6 buffers on asap7, 6 on sky130). Records are bit-identical over two runs in
+separate processes with different hash seeds (all nine designs, JSON and repaired netlists).
+
+**Not claimed for asap7.** It is a predictive kit ("the resulting designs are not manufacturable", asap.asu.edu): its
+numbers are a model of a 7 nm process, not of a fabricated one. No wires, as on sky130, but at 7 nm the resistive lower
+metal is a larger share of real delay than at 130 nm, so a wireless STA claims less on asap7. The floored reads are an
+upper bound on delay, not a characterization. Licence (decided 2026-11-10): only files of a public BSD-3 repository are
+used: the five liberty files of OpenROAD-flow-scripts at commit `a1a6c3ff933391161089e65e0af92324e41aefa3`
+(`score/ppa_pins_asap7.json`), each with its BSD 3-Clause licence in its header, fetched at pinned hashes and never
+vendored. Nothing comes from the ASU download page, whose academic, non-commercial, no-redistribution terms cover other
+material (the gated Calibre decks).
+
 ## What is NOT claimed
 
 * **(Superseded 11/03 and 11/04.)** A0' is the ranked sky130 score, and an electrically illegal repaired A0' netlist is a
@@ -759,6 +879,8 @@ their originals (ABC `cec`).
 * No hold check, no clock tree, no clock skew: a clocked design (`--seq`, PLAN4 Gate 2) is weighed as its register-to-register
   period (latest D arrival plus setup, from an ideal clock with the input ramp's transition), flops included in area. Energy is
   `score/energy.py`'s unranked columns, on the same repaired netlist.
+* `ppa.py` reads a liberty cell function with `&` binding tighter than `^`, while Liberty binds `^` tighter; no function
+  string in the pinned sky130 or ASAP7 files contains `^` (MEASURED 2026-11-11), so nothing is misread today.
 
 ## Wiring (WP-X3, 10/31; flow A1' WP-X4, 11/01)
 

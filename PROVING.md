@@ -2277,6 +2277,128 @@ and the invariant 7.5k; `Solution.olean` 12.9 MB, 1042 constants in the module, 
 theorems, 34 definitions), 739 generated equation lemmas and 199 auxiliary declarations. Axioms `propext`,
 `Classical.choice`, `Quot.sound`.
 
+### 19.1 A probe: what the loader made of your design
+
+Step 1's hand-built design must equal the loaded one, and where the two differ, an instantiation lemma (`mm_ctrl`,
+`pe_inst` in `matmul_g1.lean`; `so_static`, `cell_inst` in `sorter_ins.lean`) fails without saying where. For a
+mirror of a changed control process, `mm_ctrl` printed nothing but
+
+```
+error: unsolved goals
+N W AccW : Nat
+⊢ False
+```
+
+Print what the loader made and compare it with your mirror. Stage the design with
+`--unproved` (a task with a latency needs `--latency n` there) and compile a probe file against it, as in section 0:
+
+```bash
+python3.12 check.py tasks/matmul solution.sv --unproved --latency 4 --stage-dir stage
+LEAN_PATH=stage/build lake env lean Probe.lean
+```
+
+```lean
+import Submission.Design
+open LeanModels.Sv
+#eval (Submission.design.sem 2 3 5).processes.toList.take 1   -- the first process, at N = 2, W = 3, AccW = 5
+```
+
+`design` is `Submission.design`: without the prefix, or the `namespace Submission` of section 0's probe, Lean
+answers ``Unknown identifier `design.sem` ``. Small parameter values keep the printout short; `.drop k` before
+`.take 1` shows process `k`. The module's own processes come first, in source order, then those of the generate
+loops (`sorter_ins.sv` writes its cell loop first, and `soD` lists `topP`, `outP`, then the cells). For a variant of
+`matmul_g1.sv` whose control ends in `else if (busy) begin if (k == N - 1) begin … end end`, the probe printed
+(2026-11-10; abridged):
+
+```
+(some (LeanModels.Sv.Stmt2.ifStmt
+   (LeanModels.Sv.Expr2.ident "busy")
+   (LeanModels.Sv.Stmt2.block
+     #[LeanModels.Sv.Stmt2.ifStmt
+         (LeanModels.Sv.Expr2.binary
+           (LeanModels.Sv.BinOp.eq)
+           (LeanModels.Sv.Expr2.ident "k")
+...
+```
+
+The `begin … end` around the one `if` is a block of one statement, and a mirror that wrote that `if` bare was the
+`⊢ False` above. What the loader writes, and so what the mirror must write (each from a proof the kernel accepted:
+the references, unless another proof is named):
+
+* `begin … end` is `.block #[…]`, also around one statement: in `topP`,
+  `if (in_valid) begin if (…) … end else …` is `.ifStmt (.ident "in_valid") (.block #[.ifStmt …]) (some …)`.
+  A statement without one stays bare: in `outP`,
+  `if (rst) out_valid <= 1'b0;` is `.ifStmt (.ident "rst") (.nbaAssign …) none`, and `mmPE`, an `always_ff` whose
+  body is one `if`, is `.alwaysFF "clk" (.ifStmt …)`. An `else if` is an `.ifStmt` in the `some` of the outer one.
+* An operand or a right-hand side whose width is not its context's gets `Expr2.resize w`: in `mmPE`,
+  `C[…] <= C[…] + {…} * {…}` is
+  `.resize AccW (.binary .add (.resize (AccW + W) (.slice (.ident "C") …)) (.binary .mul …))`, the `AccW`-bit
+  window widened to the expression's `AccW + W` bits and the sum cut back to `AccW`. In an
+  accepted variant whose `a_sh` has `(N*N+3)*W` bits, `a_sh <= A` is
+  `.nbaAssign (.ident "a_sh") (.resize ((N * N + 3) * W) (.ident "A"))`. `k <= k + 32'd1`, all 32 bits, has none.
+* A parameter (the tasks' are `int`) or an unsized number in an expression is a 32-bit constant, `c32 v`
+  (`.lit (LVec.ofInt 32 v)`): `a_sh >> W` is `.binary (.shr false) (.ident "a_sh") (c32 W)` and `k == N - 1` is
+  `.binary .eq (.ident "k") (.binary .sub (c32 N) (c32 1))`; the probe above prints `W = 3` as a 32-bit literal.
+* How a constant is spelled is free as long as it evaluates to the same bits: the loader's 1-bit zero is
+  `⟨#[.l0]⟩`, which `mmCtrl` writes, and `outP` writes `zW 1`.
+
+### 19.2 What changes when you change a reference
+
+Measured on accepted variants of the two references (2026-11-10), declaration by declaration: a declaration counts
+as changed when its text differs, a name added to a `simp` list included; lines are those `diff` removes plus those
+it adds. The names are the references'; a row "on the row above" (or "against the four-step proof") is measured
+against that proof. The variants' proofs are records on the board: `61bf6f8d17f7` (the sorter's cell rule),
+`1ffe71156e90` (the k loop), `abdd0afdf025` (two steps), `9fdf50f9ae02` (the accumulators free-running) and
+`263ce18b31ab` (the product register). The variant of the row "the operand registers and `k` free-running" is not on
+the board; against the reference, `9fdf50f9ae02` (that row's change and the next row's together) changes 13 of the 86
+declarations and adds 5, in 242 lines.
+
+| the change | what changed in the proof | new declarations | lines |
+|---|---|---|--:|
+| `sorter_ins`, **the cell rule**: the cells' and the top cell's conditions rewritten (`d < in_data` for `in_data > d`, the input test first), latency `2N` kept | the mirror `cellP`, `topP`, their queues `cellQ`, `topQ` and runs `cell_run`, `top_run`; `gtc`, `gtc_ofBitVec` gone for `<` forms; in a `simp` list only, `so_simp`, `cell_data`, `so_disciplined`, `so_xsafe`. Unchanged: 95 of 107, the sort, the invariant, `model`, `so_moore` and `so_powerUp` among them | 16: the two conditions as `@[irreducible]` definitions with their evaluation lemmas (19.3), the 4-state `<`, `!`, `&&`, `||` as functions, the conditions' values and their values on known bits | 119 |
+| `sorter_ins`, **the output stage, the latency, the token line** | no accepted proof has changed them yet. In the reference: the output register is `outP` (`outQ`, `out_run`); `lat` is `2 * N`, and `2 * N` is written into the schedules `ovb` (`out_valid`, `j` cycles after a start) and `tokv` (the tokens), which `at_step` steps and `model` uses (`out_lat`, with `zero_done`); the token line is `tstep`, `cell_tok`, `top_tok`, `tok_fold`, `tok_step`; `solution` passes `N ≤ lat` | | |
+| `matmul_g1`, **the k loop**: four multiply-accumulates per PE per cycle, `k` stepping by 4, the operand registers padded by three entries and three rows, `lat = (N + 3) / 4` | `lat` and `solution` (its `1 ≤ lat`: the reference passes `hN`, its `lat` being `N`); the mirror `mmPE`, `mmCtrl`, `mmDecls`, `mmD`, `mmE` and, for the new widths, `mm_decls`, `pe_inst`, `mm_instantiate2`, `mm_init`, `Wd`, `pe_xsafe`; the queues and runs `ctrlQ`, `peV`, `ctrl_run`, `pe_run`; the steps `pe_step`, `ctrl_busy`, `next_step`, `next_start`, `mmNext_I`; the phase `BusyAt` and `model`; in a `simp` list only, `pe_simp`, `mm_noq`, `mm_disciplined`, `ctrl_xsafe`. 28 of 86 | 22: the padded operands, the shift amounts and windows, the four-product term, the four-step sum and their `BitVec` facts | 468 |
+| `matmul_g1`, the same design at **two** steps per cycle (against the four-step proof) | the four products cut to two, the padding to one entry and one row: 26 declarations | 3 (5 gone) | 282 |
+| `matmul_g1`, **the operand registers and `k` free-running**: loaded on `start`, stepped in every cycle that is not a start, no hold enable, `k` not reset | `mmCtrl`, `ctrlQ` (now the free-running writes, then `busy` and `done`), `next_idle`, `next_reset` (they now give `k`, `a_sh`, `b_sh` as some value), `model`; in a `simp` list only (a lemma for the appended queue: `List.cons_append`, `commitNba2_append`), `ctrl_busy`, `mmNext_I`, `next_start`. 8 of 86 | none | 133 |
+| `matmul_g1`, **the accumulators free-running** (on the row above): `C` adds the operands' product in every cycle that is not a start, and holds once `b_sh` is shifted out | `mmPE`, `peQ`, `pe_step`, `next_step`, `next_idle`, `FinAt` (a finished state is now any `t ≥ N` cycles on), `model` | 5: past `N` steps the partial sums do not change, the control's idle and running steps | 157 |
+| `matmul_g1`, **a product register per PE** (on the row above): `P <= a * b`, `C <= C + P`, `lat = N + 1` | the state `MS` gains a twelfth signal, and every declaration that names it changes: 44 of 91, among them `apply_mm`, the commits `nb_*`, `mmNext`, `mm_cycle`, `ctrlQ`, `peQ`, `Wd`, `I`, `mm_init`, `MS_inj`, `BusyAt`, `FinAt`, `Stp`, `model`, `mm_powerUp`, `lat` and `solution`; gone: `peV`, `commit_C`, `rowMajor_map`, `commit_map`, `peQ_C` | 13: the registered products and their sums, the commit of `C` and `P` together, `BitVec` and list facts | 560 |
+
+No matmul row changed the agreement's frame (`mm_sem_eq`, `mm_processes`, `mm_gens`, `mm_pairwise`, `mm_driversOk`,
+and `mm_ctrl`, whose text names `mmCtrl` only), `mm_profile`, the spec's arithmetic (`psum`, `accC`, `psum_succ`,
+`product_eq`, `accC_N`), `mm_moore` or `mm_xsafe`, and every matmul row changed the mirror (step 1), a queue (step 2)
+and `model` (step 4); a new register reaches every lemma that spells out the state. The sorter's cell rule changed
+steps 1 and 2 only, apart from the two new definitions' names in the `simp` lists of `so_disciplined` and
+`so_xsafe`.
+
+### 19.3 Pitfalls
+
+* **`⊢ False` from an instantiation lemma**: your mirror differs from the loaded process (19.1).
+* **The latency fact.** `TxTask.satisfiedAtV2_of_phases` takes `1 ≤ lat`, `StreamTask.satisfiedAtV2_of_phases`
+  takes `1 ≤ t.count p` and `t.count p ≤ lat`. The references pass `hN` (matmul's `lat` is `N`) and
+  `show N ≤ 2 * N by omega` (the sorter's); a new `lat` needs its own (`show 1 ≤ (N + 3) / 4 by omega` in the
+  four-step matmul variant).
+* **A `whnf` timeout in a run lemma after a condition changed.** The reference's `cell_run` took 21.1k of the
+  default 200k heartbeats (the v1 file, "Cost" above). In a sorter variant with rewritten cell conditions,
+  `cell_run` stopped at ``(deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been
+  reached``, in a compile of 298 CPU s, and with `set_option maxHeartbeats 1000000` one compile took 1334 s of user
+  time alone (1376 s of wall clock), far past the 300 CPU s the check allows; `lake env lean` in the inner loop
+  enforces no CPU-time limit, only Lean's heartbeat one (measured 2026-11-10). What made the same proof compile,
+  in 20 CPU s for the whole file: (1)
+  each new condition as its own `@[irreducible] def` of type `Expr2`, used in the mirror `cellP`, so that `simp`
+  cannot unfold `evalExpr2` into it; (2) one evaluation lemma per condition, `evalExpr2 fuel st (c W k) = .ok v`
+  under a hypothesis `8 ≤ fuel`, proved once (write `fuel` as `n + 8`, then `simp` with the definitions); (3) in
+  the run lemma, after a `by_cases` on each condition's value, two stages:
+  `simp (disch := omega) only [cellP, runEdgeProcess2, execStmt2, execStmts2, SS, <the evaluation lemmas>]`, then
+  `simp [evalExpr2, resolveLhs2, readSignal, SvState.lookup, cellQ, <the cases>]`.
+* **Mathlib's names are not in scope.** Between them the references use core tactics (`simp`, `omega`, `decide`,
+  `rfl`, `rw`, `by_cases`, `split`, `induction`, `obtain`, `refine`, `exact`, `unfold`, `congr`, `funext`) and
+  the library's `sv2_inst_simp`, and import no Mathlib: in a file like theirs `zify` is an `unknown tactic` and
+  `Nat.le_induction` an ``Unknown constant `Nat.le_induction` ``. Section 6's table gives core forms of Mathlib
+  habits (none for `zify`); for `Nat.le_induction`, `obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le h` and then
+  `induction d`, as an accepted matmul variant does. A proof may import Mathlib (README.md, "Mathlib in
+  submissions", says what an import costs; in a clone of the public repository its build comes from
+  `lake exe cache get`).
+
 ## 20. A reactive task: the arbiter (`ReactTask`)
 
 A reactive task (`kind` `react-family`; the `arbiter`) is clocked, like section 19's, but has no transaction and no

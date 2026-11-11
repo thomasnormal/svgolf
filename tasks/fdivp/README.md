@@ -31,7 +31,7 @@ comparisons are allowed) and a `Solution.lean` that proves it for every format, 
 the design without Lean, then check it once without a proof:
 
 ```bash
-python3.12 score/ppa.py solution.sv --task tasks/fdivp --no-mapped   # area and delay at (5, 11), seconds
+python3.12 score/ppa.py solution.sv --task tasks/fdivp --no-mapped --path   # area, delay and the critical path at (5, 11), seconds
 python3.12 check.py tasks/fdivp solution.sv --unproved --tactics --stage-dir stage
 ```
 

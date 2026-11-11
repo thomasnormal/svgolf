@@ -1,10 +1,19 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `score_tips` (optional): the \"What moves the score\" box, observations from trial runs (Markdown inline, placeholders allowed), never promises. `new_design_lead` (optional, Markdown): the opening of the page's \"Start a new design\" card, a fact of the route that the README's opening gives first (the page shows none of the README's opening: site/build.py `new_design_parts`); `new_design_checks` (optional, Markdown): replaces the README card's text on what its two commands do (shown under them, the first two of How to submit), where that text restates the task's facts (it must name the same options). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "N × N matrix multiplication, clocked",
  "subtitle": "Multiply two signed N × N matrices, wrapping at AccW bits, behind a start/done handshake.",
  "banlist_note": "No task-specific ban, `*` included: the task is the schedule (how many multipliers, how many cycles, how short a cycle), and the score prices it. Run-time `/ % **` are banned here as in every task: a zero divisor or a negative exponent makes an unknown value from known operands.",
  "references": {
   "matmul_g1": "N × N parallel multiply-accumulate units and one step counter: A and B are captured into shift registers at `start`, and `done` rises N steps later (latency N)."
  },
- "baselines": {}
+ "baselines": {},
+ "score_tips": [
+  "Registering each product (a register between every unit's multiplier and its adder, one more cycle of latency) about halved the clock period at about the same area: area × time about a third under par.",
+  "The golfing loop's `--path` names the critical path with each net's arrival time: read it before you guess."
+ ],
+ "new_design_checks": "The first command weighs the design through the clocked flow (`--seq`): the area and the register-to-register period, with the critical path (`--path`). The second runs every stage that needs no proof: the clocked source rules, the check that no construct can create an `x` (`clocked_rules`), the never-loaded register check, the score, and the clocked post-synthesis check, which drives the scored netlist through `oracle.py`'s transactions from random power-up states and holds every `C` to the oracle's product and every `done` to the latency. A wrong design is named there, with the transaction, before any proof. It leaves the design staged in `stage/` for probe files ([PROVING.md, section 0](site:proving.html#0-the-loop)). Rule 1 (Moore outputs) has no early check in this kind: the proof is what refuses a combinational path from an input to an output.",
+ "new_design_reviewed": {
+  "opening": "ea4c98f3a169",
+  "checks": "b71221f4cea2"
+ }
 }

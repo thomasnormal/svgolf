@@ -3058,6 +3058,270 @@ class KindsAndFlowsTest(unittest.TestCase):
                     self.assertEqual(lb.clocked_seeds(task), postsynth.config(task)["seeds"])
 
 
+def asap7_entry_of(rec, area_e5, delay, of=None, cycles=None):
+    """An ASAP7 entry (leaderboard/asap7/<task>.json) bound to the record `rec` (its canonical text, RTLIL, GE columns,
+    cycles and scored netlist), weighing `area_e5` (1e-5 um^2) and `delay` ps."""
+    b = rec.get("ppa") or {}
+    return {"sv_sha256": rec["files"]["sv"]["sha256"], "of": of or [f"record:{rec['record_hash']}"],
+            "canonical_sha256": rec["canonical_sha256"], "rtlil_sha256": rec["score"].get("rtlil_sha256") or "7" * 64,
+            "netlist_sha256": b.get("netlist_sha256") or "8" * 64, "area_mge": rec["score"]["area_mge"],
+            "depth": rec["score"]["depth"], "area_e5um2": area_e5, "delay_ps": delay, "cycles": cycles,
+            "time_ps": delay * (cycles or 1), "cells": 10, "flops": None, "buffers": 0, "tie_cells": 0,
+            "repaired_sha256": "9" * 64, "table_reads_floored": 3}
+
+
+A7_IDENT = {"ppa_version": "asap7_a0_v1", "liberty_sha256": "1" * 64, "ppa_pins_sha256": "2" * 64,
+            "input_drive": "BUFx8_ASAP7_75t_R"}
+
+
+def asap7_table(task, entries, identity=None, flow=None):
+    return {"schema": lb.ASAP7_SCHEMA, "task": task["name"], "scoring_point": lb.scoring_point(task),
+            "flow": dict(flow or {"flow": "comb", **FLOW}), "identity": dict(identity or A7_IDENT),
+            "ppa_script_sha256": "3" * 64, "designs": sorted(entries, key=lambda e: e["sv_sha256"])}
+
+
+class Asap7ViewTest(Tmp):
+    """The ASAP7 view (decided 2026-11-09: a reader may see the golf scores on ASAP7; sky130 stays the default and the
+    records' own columns): its columns kept beside the records (leaderboard/asap7/<task>.json), bound to each record,
+    ranked by the same rules, checked by `verify` and `asap7`."""
+
+    def three(self):
+        """Three ranked sky130 records whose ASAP7 order differs from their sky130 order."""
+        task = toy_task()
+        a = make_record(player="alice", sv=b"module a;endmodule\n", sky=(4000000, 2000))    # sky130 8000.0, best
+        b = make_record(player="bob", sv=b"module b;endmodule\n", sky=(4100000, 2100))      # sky130 8610.0
+        c = make_record(player="carol", sv=b"module c;endmodule\n", sky=(5000000, 1900))    # sky130 9500.0
+        table = asap7_table(task, [asap7_entry_of(a, 700000, 600), asap7_entry_of(b, 690000, 560),
+                                   asap7_entry_of(c, 800000, 500)])
+        return task, [a, b, c], table
+
+    def test_the_file_is_checked_for_shape_and_arithmetic(self):
+        task, recs, table = self.three()
+        self.assertEqual(lb.asap7_file_problems(table, "toy"), [])
+        for mutate, frag in ((lambda t: t["designs"][0].update(time_ps=1), "time_ps"),
+                             (lambda t: t["designs"][0].pop("cells"), "keys must be exactly"),
+                             (lambda t: t["designs"].reverse(), "sv_sha256 order"),
+                             (lambda t: t["designs"][0].update(of=["player:x"]), "`of`"),
+                             (lambda t: t.update(schema="x"), "schema"),
+                             (lambda t: t["identity"].pop("input_drive"), "identity"),
+                             (lambda t: t.update(extra=1), "unexpected")):
+            bad = copy.deepcopy(table)
+            mutate(bad)
+            self.assertTrue(any(frag in p for p in lb.asap7_file_problems(bad, "toy")), frag)
+        self.assertTrue(lb.asap7_file_problems(table, "other"))
+
+    def test_the_board_ranks_the_asap7_columns_by_the_same_rules(self):
+        task, recs, table = self.three()
+        sky = lb.build_board(task, recs, flow=FLOW)
+        self.assertEqual([r["player"] for r in sky["ranking"]], ["alice", "bob", "carol"])
+        a7 = lb.build_board(task, recs, flow=FLOW, pdk="asap7", asap7=table, asap7_identity=A7_IDENT)
+        # 6.9 um^2 x 560 ps (bob) < 7 x 600 (alice) < 8 x 500 (carol): 3.864, 4.0 and 4.2 um2*ns
+        self.assertEqual([r["player"] for r in a7["ranking"]], ["bob", "carol", "alice"])
+        self.assertEqual([r["exact"] for r in a7["ranking"]], [690000 * 560, 800000 * 500, 700000 * 600])
+        self.assertEqual(a7["ranking"][0]["um2ns"], 690000 * 560 / 1e8)
+        self.assertEqual([r["rank"] for r in a7["ranking"]], [1, 2, 3])
+        self.assertEqual((a7["pdk"], a7["ranked_axes"]), ("asap7", ["area_um2_asap7", "time_ps"]))
+        for r in a7["ranking"]:
+            self.assertIn("area_e5um2", r)
+            self.assertNotIn("area_e4um2", r)
+        # Pareto layers on the ASAP7 axes: bob dominates alice; carol is on the front
+        self.assertEqual({r["player"] for r in a7["frontier"]}, {"bob", "carol"})
+        self.assertEqual(sky["pdk"], "sky130")
+        md = lb.render_markdown(a7)
+        self.assertIn(lb.ASAP7_BOARD_NOTE, md)
+        self.assertIn("| 6.90000 | 560 |", md)
+        self.assertIn("| 3.8640 |", md)
+
+    def test_ties_share_a_rank_on_asap7_too(self):
+        task, recs, table = self.three()
+        for e in table["designs"]:
+            e.update(area_e5um2=700000, delay_ps=600, time_ps=600)
+        a7 = lb.build_board(task, recs, flow=FLOW, pdk="asap7", asap7=table, asap7_identity=A7_IDENT)
+        self.assertEqual([r["rank"] for r in a7["ranking"]], [1, 1, 1])
+        # equal products: the board's later keys (GE area, depth, date, hash) order them, as on sky130
+        self.assertEqual([r["record_hash"] for r in a7["ranking"]],
+                         [r["record_hash"] for r in sorted((lb.row_of(x, "asap7", table) for x in recs),
+                                                           key=lb.score_key)])
+
+    def test_a_record_without_comparable_asap7_columns_is_not_ranked_there(self):
+        task, (a, b, c), table = self.three()
+        cases = []
+        cases.append(("no table", None, "no ASAP7 columns for task toy"))
+        t1 = copy.deepcopy(table)
+        t1["designs"] = [e for e in t1["designs"] if e["sv_sha256"] != a["files"]["sv"]["sha256"]]
+        cases.append(("no entry", t1, "no ASAP7 columns for its design"))
+        t2 = copy.deepcopy(table)
+        lb.asap7_entry(t2, a["files"]["sv"]["sha256"])["netlist_sha256"] = "0" * 64
+        cases.append(("another netlist", t2, "not of its netlist"))
+        t3 = copy.deepcopy(table)
+        lb.asap7_entry(t3, a["files"]["sv"]["sha256"])["area_mge"] += 1
+        cases.append(("other GE columns", t3, "not of its netlist"))
+        cases.append(("another version", asap7_table(task, table["designs"], identity=dict(A7_IDENT, ppa_version="x")),
+                      "another version"))
+        cases.append(("another flow", asap7_table(task, table["designs"], flow={"flow": "comb", **GOLD_FLOW}),
+                      "another flow"))
+        for what, tab, frag in cases:
+            with self.subTest(what):
+                why = lb.unranked_reason(a, task, flow=FLOW, pdk="asap7", asap7=tab, asap7_identity=A7_IDENT)
+                self.assertIn(frag, why or "")
+                board = lb.build_board(task, [a, b, c], flow=FLOW, pdk="asap7", asap7=tab, asap7_identity=A7_IDENT)
+                self.assertIn(a["record_hash"], [r["record_hash"] for r in board["unranked"]])
+                self.assertNotIn(a["record_hash"], [r["record_hash"] for r in board["ranking"]])
+        # the sky130 board does not look at the ASAP7 columns at all
+        self.assertIsNone(lb.unranked_reason(a, task, flow=FLOW, asap7=None))
+
+    def test_par_of_the_asap7_view(self):
+        task, recs, table = self.three()
+        refs = [dict(r, player=lb.REFERENCE_PLAYER) for r in recs]
+        for r in refs:
+            r["record_hash"] = lb.compute_record_hash(r)
+        table = asap7_table(task, [asap7_entry_of(r, e["area_e5um2"], e["delay_ps"])
+                                   for r, e in zip(refs, (asap7_entry_of(x, 700000, 600) for x in refs))])
+        ents = {r["files"]["sv"]["sha256"]: v for r, v in zip(refs, ((700000, 600), (690000, 560), (800000, 500)))}
+        for e in table["designs"]:
+            e.update(area_e5um2=ents[e["sv_sha256"]][0], delay_ps=ents[e["sv_sha256"]][1], time_ps=ents[e["sv_sha256"]][1])
+        sky = lb.par_of(task, refs, flow=FLOW)
+        a7 = lb.par_of(task, refs, flow=FLOW, pdk="asap7", asap7=table, asap7_identity=A7_IDENT)
+        self.assertEqual(sky["exact"], 4000000 * 2000)
+        self.assertEqual((a7["exact"], a7["area_e5um2"]), (690000 * 560, 690000))
+        self.assertIn("6.90000 um^2 x 560 ps = 3.8640 um2*ns", lb.fmt_par(a7))
+
+    def test_verify_checks_the_entry_of_each_record(self):
+        task, (a, b, c), table = self.three()
+        path = self.store(a, sv=b"module a;endmodule\n")
+        fresh = {k: v for k, v in lb.asap7_entry(table, a["files"]["sv"]["sha256"]).items() if k in lb.ASAP7_COMPARED}
+
+        def view(tab, rescore=None, error=None):
+            return {"table": tab, "error": error, "identity": A7_IDENT, "rescore": rescore}
+        r = lb.verify_record(path, a, task, asap7_view=view(table, rescore=lambda sv: dict(fresh)))
+        self.assertEqual(r.fails, [])
+        self.assertIn("ASAP7 columns reproduced", r.notes)
+        r = lb.verify_record(path, a, task, asap7_view=view(table, rescore=lambda sv: dict(fresh, delay_ps=601)))
+        self.assertTrue(any("asap7: delay_ps recorded 600, now 601" in f for f in r.fails), r.fails)
+        bad = copy.deepcopy(table)
+        lb.asap7_entry(bad, a["files"]["sv"]["sha256"])["canonical_sha256"] = "0" * 64
+        r = lb.verify_record(path, a, task, asap7_view=view(bad))
+        self.assertTrue(any("not of its netlist: canonical text" in f for f in r.fails), r.fails)
+        r = lb.verify_record(path, a, task, asap7_view=view(None))
+        self.assertEqual(r.fails, [])
+        self.assertTrue(any("no columns for task toy" in n for n in r.notes))
+        none = copy.deepcopy(table)
+        none["designs"] = [e for e in none["designs"] if e["sv_sha256"] != a["files"]["sv"]["sha256"]]
+        r = lb.verify_record(path, a, task, asap7_view=view(none))
+        self.assertEqual((r.fails, r.status), ([], "ok"))
+        self.assertTrue(any("no columns for this design" in n for n in r.notes))
+        r = lb.verify_record(path, a, task, asap7_view=view(None, error="leaderboard/asap7/toy.json: not JSON"))
+        self.assertTrue(r.fails)
+        old = asap7_table(task, table["designs"], identity=dict(A7_IDENT, ppa_pins_sha256="0" * 64))
+        r = lb.verify_record(path, a, task, asap7_view=view(old, rescore=lambda sv: {}))
+        self.assertEqual(r.fails, [])
+        self.assertTrue(any("another version" in n for n in r.notes))
+        r = lb.verify_record(path, a, task)               # without a view: as before the ASAP7 view
+        self.assertFalse(any("ASAP7" in n for n in r.notes))
+
+    def test_the_check_covers_every_design_and_binds_it(self):
+        task, (a, b, c), table = self.three()
+        expected = {"tasks": {}}
+        designs = lb.asap7_designs(task, [a, b, c], expected, data_dir=self.data)
+        self.assertEqual(sorted(designs), sorted(e["sv_sha256"] for e in table["designs"]))
+        self.assertEqual(lb.asap7_check(task, table, designs, identity=A7_IDENT, flow=FLOW), ([], []))
+        short = copy.deepcopy(table)
+        short["designs"] = short["designs"][1:]
+        fails, _ = lb.asap7_check(task, short, designs, identity=A7_IDENT, flow=FLOW)
+        self.assertTrue(any(f.startswith("no entry for record:") for f in fails), fails)
+        fails, _ = lb.asap7_check(task, table, {k: v for k, v in designs.items() if k != a["files"]["sv"]["sha256"]},
+                                  identity=A7_IDENT, flow=FLOW)
+        self.assertTrue(any("an entry for no design" in f for f in fails), fails)
+        moved = copy.deepcopy(table)
+        lb.asap7_entry(moved, b["files"]["sv"]["sha256"])["rtlil_sha256"] = "0" * 64
+        fails, _ = lb.asap7_check(task, moved, designs, identity=A7_IDENT, flow=FLOW)
+        self.assertTrue(any("rtlil_sha256" in f for f in fails), fails)
+        same = lambda e, d: {k: e[k] for k in lb.ASAP7_COMPARED}           # noqa: E731
+        self.assertEqual(lb.asap7_check(task, table, designs, identity=A7_IDENT, flow=FLOW, rescore=same), ([], []))
+        off = lambda e, d: dict(same(e, d), cells=e["cells"] + 1)          # noqa: E731
+        fails, _ = lb.asap7_check(task, table, designs, identity=A7_IDENT, flow=FLOW, rescore=off)
+        self.assertEqual(len(fails), 3)
+        _, notes = lb.asap7_check(task, table, designs, identity=dict(A7_IDENT, ppa_version="x"), flow=FLOW,
+                                  rescore=off)
+        self.assertTrue(any("not comparable" in n for n in notes), notes)
+
+    def test_the_columns_of_a_weighing(self):
+        score = {"sources": [{"canonical_sha256": "c" * 64}], "rtlil_sha256": "d" * 64, "area_mge": 1000, "depth": 3}
+        ppa = {"pdk": "asap7", "area_e5um2_asap7": 699840, "delay_ps_asap7": 563, "netlist_sha256": "e" * 64,
+               "cells_asap7": 80, "repair": {"buffers": 1, "tie_cells": 0, "netlist_sha256": "f" * 64},
+               "legality": {"table_reads_floored": 124}}
+        cols = lb.asap7_columns_of(score, ppa, None)
+        self.assertEqual(set(cols), set(lb.ASAP7_COMPARED))
+        self.assertEqual((cols["time_ps"], cols["area_e5um2"], cols["buffers"]), (563, 699840, 1))
+        self.assertEqual(lb.asap7_columns_of(score, dict(ppa, flops=8), 4)["time_ps"], 4 * 563)
+        with self.assertRaises(RuntimeError):
+            lb.asap7_columns_of(score, dict(ppa, pdk="sky130"), None)
+
+    def test_the_identity_is_read_from_the_pins(self):
+        ident = lb.asap7_identity()
+        self.assertEqual(set(ident), set(lb.ASAP7_IDENTITY))
+        self.assertEqual(ident["ppa_version"], "asap7_a0_v1")
+        self.assertEqual(ident["liberty_sha256"], "5ece07acb7ece6a9fad109eadccbf88cce141dd8aa02f877205ee706cc99057a")
+        self.assertEqual(ident["input_drive"], "BUFx8_ASAP7_75t_R")
+        self.assertIsNone(lb.asap7_identity(os.path.join(self.tmp, "none.json")))
+
+    def test_the_cli_boards_take_pdk(self):
+        task, recs, table = self.three()
+        env = CliEnv(self)
+        for r, sv in zip(recs, (b"module a;endmodule\n", b"module b;endmodule\n", b"module c;endmodule\n")):
+            lb.store_record(env.data, r, sv, LEAN_TEXT)
+        a7dir = os.path.join(self.tmp, "asap7")
+        os.makedirs(a7dir)
+        with open(os.path.join(a7dir, "toy.json"), "w") as fh:
+            json.dump(table, fh)
+        rc, out, err = env.run("board", "--task", "toy", "--pdk", "asap7", "--all-flows", "--format", "json",
+                               "--asap7-dir", a7dir)
+        self.assertEqual(rc, 0, err)
+        board = json.loads(out)
+        self.assertEqual([r["player"] for r in board["ranking"]], ["bob", "carol", "alice"])
+        self.assertEqual(board["pdk"], "asap7")
+        rc, out, err = env.run("pareto", "--task", "toy", "--pdk", "asap7", "--all-flows", "--asap7-dir", a7dir)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("Pareto frontier of (ASAP7 area, time)", out)
+        rc, out, err = env.run("board", "--task", "toy", "--all-flows", "--format", "json", "--asap7-dir", a7dir)
+        self.assertEqual([r["player"] for r in json.loads(out)["ranking"]], ["alice", "bob", "carol"])
+        rc, out, err = env.run("pareto", "--task", "toy", "--pdk", "asap7", "--axes", "area_mge,depth")
+        self.assertEqual(rc, 2)
+
+
+class CommittedAsap7Test(unittest.TestCase):
+    """The committed ASAP7 columns (leaderboard/asap7/): every file well-formed, covering exactly the designs each task's
+    pages show, every entry bound to its sources, measured under the current ASAP7 pins and the pinned flow
+    (tests/expected.json), so the site's ASAP7 view ranks every record the sky130 view ranks."""
+
+    def test_every_task_with_designs_has_its_file_and_it_binds(self):
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        recs = lb.good_records(lb.load_records(lb.DEFAULT_DATA))
+        ident = lb.asap7_identity()
+        for name in lb.all_task_names(lb.DEFAULT_TASKS):
+            task = lb.load_task(lb.DEFAULT_TASKS, name)
+            designs = lb.asap7_designs(task, recs, expected)
+            if not designs:
+                continue
+            with self.subTest(task=name):
+                table, why = lb.read_asap7(name)
+                self.assertIsNone(why)
+                self.assertIsNotNone(table, f"no leaderboard/asap7/{name}.json")
+                pin = expected["flow_seq" if lb.task_flow(task) == lb.SEQ_FLOW else "flow"]
+                flow = {"flow": lb.task_flow(task), "yosys": pin["yosys_version"],
+                        "canon_script_sha256": pin["canon_script_sha256"], "script_sha256": pin["script_sha256"],
+                        "ge_table_sha256": pin["ge_table_sha256"]}
+                self.assertEqual(lb.asap7_check(task, table, designs, identity=ident, flow=flow), ([], []))
+                mine = [r for r in recs if r["task"] == name]
+                sky = lb.build_board(task, mine, flow=flow, identity=lb.ppa_identity(),
+                                     input_drive=lb.ppa_setup_now(task).get("input_drive"),
+                                     statement=lb.current_statement_or_none(task))
+                a7 = lb.build_board(task, mine, flow=flow, statement=lb.current_statement_or_none(task), pdk="asap7",
+                                    asap7=table, asap7_identity=ident)
+                self.assertEqual({r["record_hash"] for r in a7["ranking"]}, {r["record_hash"] for r in sky["ranking"]})
+
+
 class CommittedDataTest(unittest.TestCase):
     def test_committed_records_are_intact(self):
         """Every record under leaderboard/data/ verifies at the offline level

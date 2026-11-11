@@ -80,6 +80,8 @@ STEPS, in order:
               score/test_ppa.py (the sky130 PPA columns, stage 1),
               score/test_ppa_opensta.py (ppa.py's STA against OpenSTA's recorded
               arrivals, cell arcs to clocked periods, the input-drive convention),
+              score/test_ppa_asap7.py (the asap7 alternative library of
+              `ppa.py --pdk asap7`; its real-library tests skip without the files),
               tests/checker/test_ppa_wiring.py (no Lean, fake Lean: check.py's
               `--ppa off|auto|require` and the absent-liberty path; `off` equals,
               character for character, the baseline checker's result on the `add`
@@ -900,6 +902,10 @@ def step_unit():
                        ("score/test_ppa.py", [PY, "score/test_ppa.py"]),
                        # ppa.py's STA against OpenSTA's own numbers, recorded (the 11/04 STA study)
                        ("score/test_ppa_opensta.py", [PY, "score/test_ppa_opensta.py"]),
+                       # the asap7 alternative (`ppa.py --pdk asap7`): a synthetic two-file library always; the
+                       # real-library tests skip when the five pinned files are absent (SVGOLF_ASAP7_LIB, or
+                       # `python3.12 score/ppa.py --pdk asap7 --fetch-liberty`; SVGOLF_PPA_REQUIRE_ASAP7=1: no skip)
+                       ("score/test_ppa_asap7.py", [PY, "score/test_ppa_asap7.py"]),
                        # check.py's `--ppa` modes, the absent-liberty path, the byte-identity of the
                        # default result and the tripwire (no Lean: a fake Lean for the design stage)
                        ("tests/checker/test_ppa_wiring.py",
@@ -948,12 +954,15 @@ def step_comparator():
 
 def step_leaderboard():
     """The leaderboard's own tests, and the integrity of the committed
-    records. Neither runs Lean or Yosys."""
+    records and of the ASAP7 view's columns (leaderboard/asap7/, decided
+    2026-11-09: offline, every entry bound to its design). None runs Lean or Yosys."""
     good = True
     for label, cmd in (("tests/leaderboard/test_leaderboard.py",
                         [PY, "tests/leaderboard/test_leaderboard.py"]),
                        ("leaderboard.py verify --offline (leaderboard/data)",
-                        [PY, "leaderboard/leaderboard.py", "verify", "--offline"])):
+                        [PY, "leaderboard/leaderboard.py", "verify", "--offline"]),
+                       ("leaderboard.py asap7 (leaderboard/asap7, offline)",
+                        [PY, "leaderboard/leaderboard.py", "asap7"])):
         t0 = time.time()
         proc = subprocess.run(cmd, cwd=SVGOLF, capture_output=True, text=True)
         out = (proc.stdout + proc.stderr).strip().splitlines()

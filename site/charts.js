@@ -6,7 +6,8 @@
 //     one's data-tip; designs drawn at one point share one tooltip that names them all);
 //   * the explorer: the point selector (the scored point's ranked numbers, or another point's
 //     measured ones: score/measured/<task>.json), two axis menus and their log switches, and a redraw
-//     of the scatter from the page's data (the inert JSON in #task-data), with the Pareto front of
+//     of the scatter from the page's data (the inert JSON in #task-data; the ASAP7 view's explorer, a
+//     second copy on the page, from #task-data-asap7: site/build.py `dual`), with the Pareto front of
 //     the proved designs for the chosen pair. The drawing mirrors svgplot.scatter_chart: same frame,
 //     scales, ticks, marks and CSS classes.
 //   * the scaling view: a metric menu, the "÷ par" and log switches, and a redraw of the lines
@@ -14,7 +15,8 @@
 //   * a detail page (a record's, a reference's): the area-time plot's "fit to cluster" / "all designs"
 //     switch (it shows one of the server's two drawings) and the schematic's zoom buttons (they scale
 //     the inline SVG inside its scroll box about the view's centre), critical-path switch, cell finder
-//     and the critical-path links into the drawing.
+//     and the critical-path links into the drawing (the drawing sits in the netlist card's Schematic tab:
+//     a link from the Critical path tab opens it first; site.js makes the tabs).
 // No libraries, nothing fetched.
 (function () {
   "use strict";
@@ -250,7 +252,8 @@
                 my.label.toLowerCase() + " against " + mx.label.toLowerCase();
     var s = ['<svg class="chart' + (compact ? " compact" : "") + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(title) +
              '" xmlns="http://www.w3.org/2000/svg"><title>' + esc(title) + "</title><desc>" + esc(pts.length +
-             " designs by " + axisLabel(mx) + " (x) and " + axisLabel(my) + " (y); lower is better on both.") +
+             (pts.length === 1 ? " design by " : " designs by ") + axisLabel(mx) + " (x) and " + axisLabel(my) +
+             " (y); lower is better on both.") +
              '</desc><g class="axes">'];
     ys.ticks(F.ticks).forEach(function (v) {
       var y = ys.map(v);
@@ -354,20 +357,22 @@
 
   // -- the score chart's switch ---------------------------------------------------------------
 
-  function wireScale(toggle) {
+  function wireScale(toggle) {         // the card holds the chart once per library view (site/build.py `dual`)
     var card = toggle.closest("section") || document;
-    var box = card.querySelector("[data-score-chart]");
-    if (!box) { return; }
+    var boxes = card.querySelectorAll("[data-score-chart]");
+    if (!boxes.length) { return; }
     toggle.hidden = false;
     var buttons = toggle.querySelectorAll("button");
     Array.prototype.forEach.call(buttons, function (btn, i) {
       btn.addEventListener("click", function () {
         Array.prototype.forEach.call(buttons, function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
-        Array.prototype.forEach.call(box.querySelectorAll("[data-scale]"), function (v) {
-          v.hidden = v.getAttribute("data-scale") !== (i === 0 ? "linear" : "log");
+        Array.prototype.forEach.call(boxes, function (box) {
+          Array.prototype.forEach.call(box.querySelectorAll("[data-scale]"), function (v) {
+            v.hidden = v.getAttribute("data-scale") !== (i === 0 ? "linear" : "log");
+          });
+          var t = box.querySelector(":scope > .chart-tip");
+          if (t) { t.hidden = true; }
         });
-        var t = box.querySelector(":scope > .chart-tip");
-        if (t) { t.hidden = true; }
       });
     });
   }
@@ -395,7 +400,9 @@
   // The drawing in a scroll box (without the script: shrunk to the box's width, and each cell a link target). The
   // script adds zoom about the view's centre (the critical path keeps its width when the drawing is shown smaller
   // than its size), a cell finder (instance or cell type; Enter steps through the hits), and the critical-path links
-  // (`a.sch-link`, to `#sch-<instance>`), which scroll the cell to the middle of the view and mark it.
+  // (`a.sch-link`, to `#sch-<instance>`), which scroll the cell to the middle of the view and mark it. The drawing
+  // is in a tab (page.py's tabs): it is fitted the first time it is shown, and a link from another tab opens its
+  // tab first (by clicking the tab, so site.js keeps the tabs' state).
   function wireSchematic(box) {
     var svg = box.querySelector("svg.sch");
     var tools = box.parentNode.querySelector("[data-schematic-tools]");
@@ -430,7 +437,20 @@
       box.scrollLeft += r.left + r.width / 2 - (b.left + box.clientLeft + box.clientWidth / 2);
       box.scrollTop += r.top + r.height / 2 - (b.top + box.clientTop + box.clientHeight / 2);
     }
+    var fitted = false;
+    function firstFit() {                // a drawing wider than its box starts fitted, once the box is shown
+      if (fitted || !box.clientWidth) { return; }
+      fitted = true;
+      if (w0 > box.clientWidth) { fit(); }
+    }
+    function show() {                    // open the tab that holds the drawing
+      var pane = box.closest("[role='tabpanel']");
+      var tab = pane && pane.hidden ? document.getElementById(pane.getAttribute("aria-labelledby")) : null;
+      if (tab) { tab.click(); }
+      firstFit();
+    }
     function pick(el) {                  // mark one cell and bring it (and the box) into view
+      show();
       Array.prototype.forEach.call(svg.querySelectorAll(".c.picked"), function (c) { c.classList.remove("picked"); });
       el.classList.add("picked");
       centre(el);
@@ -481,30 +501,39 @@
       var el = href && href.charAt(0) === "#" ? document.getElementById(href.slice(1)) : null;
       return el && box.contains(el) ? el : null;
     }
+    // in the capture phase: this link is handled here, before site.js's own handling of links into a tab
     document.addEventListener("click", function (e) {
       var a = e.target && e.target.closest ? e.target.closest("a.sch-link") : null;
       var el = a ? target(a.getAttribute("href")) : null;
-      if (!el) { return; }
+      if (!el || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
       e.preventDefault();
       if (crit && !crit.checked) { crit.checked = true; box.classList.remove("no-crit"); }
       pick(el);
       if (window.history && history.replaceState) { history.replaceState(null, "", a.getAttribute("href")); }
-    });
-    if (w0 > box.clientWidth) { fit(); }
+    }, true);
+    firstFit();
+    if (!fitted && window.ResizeObserver) {             // in a hidden tab: fitted when the tab opens
+      var watch = new ResizeObserver(function () {
+        firstFit();
+        if (fitted) { watch.disconnect(); }
+      });
+      watch.observe(box);
+    }
     var start = target(location.hash);
     if (start) { pick(start); }
   }
 
   // -- the explorer ---------------------------------------------------------------------------
 
-  function wireExplorer(data) {
-    var controls = document.querySelector("[data-explorer-controls]");
-    var box = document.querySelector("[data-explorer]");
+  // `scope`: the element holding one explorer and its data (a task page has one per library view, site/build.py `dual`)
+  function wireExplorer(data, scope) {
+    var controls = scope.querySelector("[data-explorer-controls]");
+    var box = scope.querySelector("[data-explorer]");
     if (!controls || !box || !data.metrics || data.metrics.length < 2) { return; }
     var sel = { x: controls.querySelector('select[data-axis="x"]'), y: controls.querySelector('select[data-axis="y"]') };
     var log = { x: controls.querySelector('input[data-log="x"]'), y: controls.querySelector('input[data-log="y"]') };
-    var note = document.querySelector("[data-explorer-note]");
-    var pointNote = document.querySelector("[data-point-note]");
+    var note = scope.querySelector("[data-explorer-note]");
+    var pointNote = scope.querySelector("[data-point-note]");
     var scoredNote = pointNote ? pointNote.innerHTML : "";
     var buttons = controls.querySelectorAll("button[data-point]");
     var points = {};
@@ -564,14 +593,7 @@
       draw();
     }
 
-    var pending = null;
-    window.addEventListener("resize", function () {
-      if (drawn === null) { return; }
-      clearTimeout(pending);
-      pending = setTimeout(function () {
-        if ((box.clientWidth < COMPACT_BELOW ? "compact" : "wide") !== drawn) { draw(); }
-      }, 150);
-    });
+    refitOnResize(box, function () { return drawn; }, draw);
 
     ["x", "y"].forEach(function (a) {
       sel[a].addEventListener("change", function () { autoLog(a); draw(); });
@@ -710,6 +732,26 @@
     return { svg: s.join(""), n: lines.length };
   }
 
+  // A drawing the script made is redrawn when its box crosses COMPACT_BELOW. The box is watched itself (a
+  // ResizeObserver; the window's resize event where there is none), so a box that is hidden (the other library's
+  // view, a closed tab) is not redrawn at width 0, and is redrawn at its own width once it is shown again.
+  function refitOnResize(box, drawnAs, draw) {
+    var pending = null;
+    function refit() {
+      if (drawnAs() === null || !box.clientWidth) { return; }   // the server's drawing, or hidden: nothing to fit
+      clearTimeout(pending);
+      pending = setTimeout(function () {
+        var w = box.clientWidth;
+        if (w && (w < COMPACT_BELOW ? "compact" : "wide") !== drawnAs()) { draw(); }
+      }, 150);
+    }
+    if (window.ResizeObserver) {
+      new ResizeObserver(refit).observe(box);
+    } else {
+      window.addEventListener("resize", refit);
+    }
+  }
+
   function wireScaling(data) {
     var sc = data.scaling;
     var controls = document.querySelector("[data-scaling-controls]");
@@ -747,14 +789,7 @@
     if (rel) { rel.addEventListener("change", draw); }
     log.x.addEventListener("change", draw);
     log.y.addEventListener("change", draw);
-    var pending = null;
-    window.addEventListener("resize", function () {
-      if (drawn === null) { return; }
-      clearTimeout(pending);
-      pending = setTimeout(function () {
-        if ((box.clientWidth < COMPACT_BELOW ? "compact" : "wide") !== drawn) { draw(); }
-      }, 150);
-    });
+    refitOnResize(box, function () { return drawn; }, draw);
   }
 
   function init() {
@@ -765,15 +800,18 @@
     Array.prototype.forEach.call(document.querySelectorAll("[data-scale-toggle]"), wireScale);
     Array.prototype.forEach.call(document.querySelectorAll("[data-view-toggle]"), wireViewToggle);
     Array.prototype.forEach.call(document.querySelectorAll("[data-schematic]"), wireSchematic);
-    var el = document.getElementById("task-data");
-    if (el) {
+    // the page's data: #task-data (sky130, with the scaling view's) and #task-data-asap7 (the ASAP7 view's explorer),
+    // each beside the explorer it feeds
+    Array.prototype.forEach.call(document.querySelectorAll('script[type="application/json"][id^="task-data"]'), function (el) {
       var data = null;
       try { data = JSON.parse(el.textContent); } catch (e) { /* the server's drawings stay */ }
       if (data) {
-        try { wireExplorer(data); } catch (e) { /* the server's drawing stays */ }
-        try { wireScaling(data); } catch (e) { /* the server's drawing stays */ }
+        try { wireExplorer(data, el.parentNode || document); } catch (e) { /* the server's drawing stays */ }
+        if (data.scaling) {
+          try { wireScaling(data); } catch (e) { /* the server's drawing stays */ }
+        }
       }
-    }
+    });
   }
 
   if (document.readyState === "loading") {

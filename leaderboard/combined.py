@@ -12,11 +12,18 @@ The exact value is an integer in 1e-4 um^2 x ps (the area is recorded in 1e-4 um
 whole ps), so two scores compare exactly; it is shown in um^2 x ns (`um2ns`), the display unit
 `UNIT`. Used by the site (site/build.py: the big numbers, the score chart, the leaderboard order)
 and importable by leaderboard.py (`of_record`). Standard library only, no side effects.
+
+The ASAP7 view (decided 2026-11-09: a viewer may choose the library the site's golf scores are shown on;
+sky130 stays the default): the same product on the ASAP7 columns (score/ppa.py --pdk asap7), whose area is
+recorded in 1e-5 um^2 (`area_e5um2_asap7`), so its exact value is an integer in 1e-5 um^2 x ps and `um2ns`
+takes the library (`AREA_SCALE`). Scores of the two libraries are never compared with each other.
 """
 
 UNIT = "µm²·ns"                 # the display unit (um^2 x ns)
 UNIT_ASCII = "um2*ns"
 NAME = "area × time"
+# the integer area unit of each library's columns, per um^2: 1e-4 um^2 (sky130), 1e-5 um^2 (asap7)
+AREA_SCALE = {"sky130": 10_000, "asap7": 100_000}
 
 
 def time_ps(*, delay_ps=None, cycles=None, period_ps=None):
@@ -36,14 +43,21 @@ def exact(area_e4um2, time):
     return area_e4um2 * time
 
 
-def um2ns(score):
-    """An exact score in the display unit, um^2 x ns (a float), or None."""
-    return None if score is None else score / 10_000_000
+def um2ns(score, pdk="sky130"):
+    """An exact score in the display unit, um^2 x ns (a float), or None. `pdk`: the library whose integer area
+    unit the score is in (AREA_SCALE)."""
+    return None if score is None else score / (AREA_SCALE[pdk] * 1000)
 
 
 def e4um2(area_um2):
     """An area in um^2 (a float, as a clocked check result writes it) as integer 1e-4 um^2."""
     return None if area_um2 is None else int(round(area_um2 * 10_000))
+
+
+def area_int(area_um2, pdk="sky130"):
+    """An area in um^2 as the integer unit of `pdk`'s columns (AREA_SCALE: 1e-4 um^2 on sky130, `e4um2`; 1e-5 um^2
+    on asap7)."""
+    return None if area_um2 is None else int(round(area_um2 * AREA_SCALE[pdk]))
 
 
 def of_columns(*, area_e4um2=None, area_um2=None, delay_ps=None, cycles=None, period_ps=None, time=None):

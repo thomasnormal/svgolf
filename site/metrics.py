@@ -79,26 +79,46 @@ def input_drive(task, svgolf=SVGOLF):
         return None
 
 
-def metric_table(clocked, drive=None, latency=True):
+def asap7_input_drive(svgolf=SVGOLF):
+    """The cell in front of every primary input in the ASAP7 view (score/ppa_pins_asap7.json's default, as
+    leaderboard.py's `asap7_identity` reads it), or None."""
+    try:
+        with open(os.path.join(svgolf, "score", "ppa_pins_asap7.json"), encoding="utf-8") as fh:
+            return json.load(fh)["timing"]["input_drive"]["default"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+ASAP7_SUFFIX = "_ASAP7_75t_R"
+
+
+def metric_table(clocked, drive=None, latency=True, pdk="sky130"):
     """Every metric, in the order the explorer offers them. The time is the delay of a
     combinational design and cycles x period of a clocked one; `drive` is the task's input drive
     (`input_drive`), which the delay's sentence names. A clocked task without a latency (`latency`
     false: a reactive task, one decision per cycle) has the period as its time, so it has no
-    separate period and no latency column."""
+    separate period and no latency column. `pdk` "asap7": the ASAP7 view's (decided 2026-11-09): its area
+    and time are the ASAP7 columns (`drive` then an ASAP7 cell; three decimals of µm²); the energy
+    metrics are measured on sky130 alone, so an ASAP7 design does not carry them and that view has none."""
     cell = drive[len(CELL_PREFIX):] if isinstance(drive, str) and drive.startswith(CELL_PREFIX) else drive
-    time = (Metric("time_ps", "Time", "ps", "Cycles × the register-to-register period from the pinned liberty.")
+    if isinstance(cell, str) and cell.endswith(ASAP7_SUFFIX):
+        cell = cell[:-len(ASAP7_SUFFIX)]
+    lib = "ASAP7" if pdk == "asap7" else "sky130"
+    liberty = "the pinned ASAP7 liberty" if pdk == "asap7" else "the pinned liberty"
+    time = (Metric("time_ps", "Time", "ps", f"Cycles × the register-to-register period from {liberty}.")
             if clocked and latency else
-            Metric("time_ps", "Time", "ps", "The register-to-register period from the pinned liberty, one decision "
+            Metric("time_ps", "Time", "ps", f"The register-to-register period from {liberty}, one decision "
                    "per cycle.")
             if clocked else
-            Metric("time_ps", "Delay", "ps", "The critical-path delay of the sky130 netlist (static timing"
+            Metric("time_ps", "Delay", "ps", f"The critical-path delay of the {lib} netlist (static timing"
                    + (f", inputs driven by a {cell}" if cell else "") + ")."))
     per_cycle = [Metric("period_ps", "Clock period", "ps", "The register-to-register period."),
                  Metric("cycles", "Latency", "cycles", "The declared latency at the scoring point.")]
     return [
-        Metric("adp", "Score", combined.UNIT, "Area × time, the ranked score: lower is better.", 0),
-        Metric("area_um2", "Area", "µm²", "The sky130 cell area of the scored netlist"
-               + (", flip-flops included." if clocked else ", repaired by buffering."), 1),
+        Metric("adp", "Score", combined.UNIT, "Area × time, the ranked score: lower is better." if pdk != "asap7" else
+               "Area × time, the score this view orders by: lower is better.", 0),
+        Metric("area_um2", "Area", "µm²", f"The {lib} cell area of the scored netlist"
+               + (", flip-flops included." if clocked else ", repaired by buffering."), 3 if pdk == "asap7" else 1),
         time,
         *(per_cycle if latency else []),
         Metric("ffs", "Flip-flops", "", "Flip-flops in the scored netlist."),

@@ -74,6 +74,19 @@ PPA_PY = os.path.join(SVGOLF, "score", "ppa.py")
 PPA_PINS = os.path.join(SVGOLF, "score", "ppa_pins.json")
 PPA_MAPPED_PINS = os.path.join(SVGOLF, "score", "ppa_mapped_pins.json")
 PPA_MAPPED_SCRIPT = os.path.join(SVGOLF, "score", "ppa_mapped.ys")
+# THE ASAP7 VIEW (decided 2026-11-09: a dropdown on the front page lets the reader see the golf scores on sky130 or on
+# ASAP7). sky130 stays the default and the records' own columns; the ASAP7 A0' columns of every
+# record, proved reference and baseline (score/ppa.py --pdk asap7 on the same scored netlist) are DERIVED data kept
+# beside the records, one file per task (leaderboard/asap7/<task>.json, `asap7 --write`), bound to each record by its
+# design's sha256, canonical text, canonical RTLIL and scored netlist, and re-derived by `verify` and `asap7
+# --rescore`. Not in the records: adding a column after the fact would change every record's hash (its identity and its
+# page's address) and need every record re-checked, a player's included, for numbers that are a pure function of
+# the scored netlist the record already pins. See "The ASAP7 view" below and leaderboard/README.md.
+PDKS = ("sky130", "asap7")
+DEFAULT_PDK = "sky130"
+PPA_PINS_ASAP7 = os.path.join(SVGOLF, "score", "ppa_pins_asap7.json")
+ASAP7_DIR = os.path.join(HERE, "asap7")
+EXPECTED_JSON = os.path.join(SVGOLF, "tests", "expected.json")
 
 SCHEMA = "svgolf-leaderboard-record/1"
 
@@ -1237,10 +1250,14 @@ RANKED_AXES = ("area_um2_sky130", "time_ps")
 RANKED_BY = "area_x_time"
 
 
-def ranked_columns(rec):
+def ranked_columns(rec, pdk=DEFAULT_PDK, asap7=None):
     """{area_e4um2, time_ps, cycles, period_ps} of a record's ranked score, or None if it has no numeric
     `ppa` block (a record made before the columns, or of a design the pinned flow could not weigh).
-    `cycles` and `period_ps` are None for a combinational record."""
+    `cycles` and `period_ps` are None for a combinational record. With `pdk` "asap7": {area_e5um2, time_ps, cycles,
+    period_ps} from the record's entry in `asap7` (the task's leaderboard/asap7/<task>.json, `load_asap7`), or None
+    without one (`asap7_columns`)."""
+    if pdk == "asap7":
+        return asap7_columns(rec, asap7)
     b = rec.get(PPA_KEY)
     if not (isinstance(b, dict) and b.get("available") is True):
         return None
@@ -1252,23 +1269,43 @@ def ranked_columns(rec):
             "period_ps": None}
 
 
-def row_of(rec):
+def row_of(rec, pdk=DEFAULT_PDK, asap7=None):
     """The flat row the ranking works on: the ranked number (`exact`, area x time in 1e-4 um^2 x ps, and
     `um2ns`, the same in the display unit um^2 x ns; `combined.of_record`), its two factors (`area_e4um2`,
-    `time_ps`), all None without sky130 columns, and the extra columns (`area_mge`, `depth`, ...)."""
-    ranked = ranked_columns(rec)
-    cols = ranked or {"area_e4um2": None, "time_ps": None, "cycles": None, "period_ps": None}
-    exact = combined.of_record(rec) if ranked else None
+    `time_ps`), all None without sky130 columns, and the extra columns (`area_mge`, `depth`, ...). With `pdk` "asap7"
+    (the ASAP7 view; `asap7` the task's table, `load_asap7`): the ASAP7 factors instead, `area_e5um2` (1e-5 um^2, the
+    library's own unit) in place of `area_e4um2`, `exact` in 1e-5 um^2 x ps, and `pdk: "asap7"` (`row_area`)."""
+    if pdk == "asap7":
+        ranked = asap7_columns(rec, asap7)
+        cols = ranked or {"area_e5um2": None, "time_ps": None, "cycles": None, "period_ps": None}
+        exact = combined.exact(cols["area_e5um2"], cols["time_ps"]) if ranked else None
+        um2ns = combined.um2ns(exact, "asap7")
+        cols = dict(cols, pdk="asap7")
+    else:
+        ranked = ranked_columns(rec)
+        cols = ranked or {"area_e4um2": None, "time_ps": None, "cycles": None, "period_ps": None}
+        exact = combined.of_record(rec) if ranked else None
+        um2ns = combined.um2ns(exact)
     return {"record_hash": rec["record_hash"], "task": rec["task"], "player": rec["player"],
-            "assisted_by": list(rec["assisted_by"]), "exact": exact, "um2ns": combined.um2ns(exact), **cols,
+            "assisted_by": list(rec["assisted_by"]), "exact": exact, "um2ns": um2ns, **cols,
             "area_mge": rec["score"]["area_mge"], "depth": rec["score"]["depth"],
             "proof_lines": rec["proof"]["lines"], "submitted_at": rec["submitted_at"],
             "postsynth": record_mode(rec["postsynth"])}
 
 
+def row_pdk(r):
+    """The library a row's ranked columns are of: "asap7" for a row of the ASAP7 view, else sky130."""
+    return r.get("pdk") or DEFAULT_PDK
+
+
+def row_area(r):
+    """A row's area in its library's integer unit: `area_e4um2` (sky130) or `area_e5um2` (asap7)."""
+    return r.get("area_e5um2") if row_pdk(r) == "asap7" else r.get("area_e4um2")
+
+
 def has_ranked_columns(r):
     """A row carries both ranked numbers (a record without sky130 columns does not: it is not ranked)."""
-    return all(isinstance(r.get(k), int) and not isinstance(r.get(k), bool) for k in ("area_e4um2", "time_ps"))
+    return all(isinstance(v, int) and not isinstance(v, bool) for v in (row_area(r), r.get("time_ps")))
 
 
 def score_key(r):
@@ -1287,14 +1324,15 @@ def row_key(r):
     depth."""
     if not has_ranked_columns(r):
         return (1, r["area_mge"], r["depth"], r["submitted_at"], r["player"], r["record_hash"])
-    return (0, r["area_e4um2"], r["time_ps"], r["submitted_at"], r["player"], r["record_hash"])
+    return (0, row_area(r), r["time_ps"], r["submitted_at"], r["player"], r["record_hash"])
 
 
 def dominates(a, b):
-    """`a` beats `b`: no worse on both ranked axes (sky130 area, time) and strictly
+    """`a` beats `b`: no worse on both ranked axes (sky130 area, time; the ASAP7 view's on its rows) and strictly
     better on one. Equal scores do not dominate each other (ties are kept)."""
-    return (a["area_e4um2"] <= b["area_e4um2"] and a["time_ps"] <= b["time_ps"]
-            and (a["area_e4um2"] < b["area_e4um2"] or a["time_ps"] < b["time_ps"]))
+    aa, ba = row_area(a), row_area(b)
+    return (aa <= ba and a["time_ps"] <= b["time_ps"]
+            and (aa < ba or a["time_ps"] < b["time_ps"]))
 
 
 def pareto_layers(rows):
@@ -1353,7 +1391,8 @@ def _competition_ranks(rows):
     return ranks
 
 
-def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, statement=None):
+def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, statement=None, pdk=DEFAULT_PDK,
+                    asap7=None, asap7_identity=None):
     """Why `rec` is not ranked on `task`'s board, or None if it is. Pure. In order: scored at another
     point; a LIGHT post-synthesis check (incomplete: never ranked); scored under another flow than the one of the
     task's kind (`kind_flow_mismatch`); checked under another flow than `flow` (given: the current flow of the task's
@@ -1361,7 +1400,9 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, st
     ranked until it is backfilled, i.e. checked again) or columns that were not computed; columns of
     another `ppa_version`/liberty/pins than `identity` (given); weighed under another input drive than
     the task's `input_drive` (given); checked under another trusted statement than `statement` (given: the task's
-    `current_statement`), or before records named theirs (`statement_mismatch`)."""
+    `current_statement`), or before records named theirs (`statement_mismatch`). The ASAP7 view (`pdk` "asap7"): the
+    same up to the flow, then the ASAP7 columns instead of the sky130 ones (`asap7_mismatch` against `asap7`, the
+    task's table, and `asap7_identity`, `asap7_identity()`; `identity` and `input_drive` are not used)."""
     point = scoring_point(task)
     if rec["score"]["scoring_point"] != point:
         return f"scored at {rec['score']['scoring_point']}, not at {point}"
@@ -1374,6 +1415,8 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, st
         return kind_flow_mismatch(rec, task)
     if flow is not None and flow_mismatch(flow_of(rec), flow):
         return "checked under another flow (" + ", ".join(flow_mismatch(flow_of(rec), flow)) + " differ)"
+    if pdk == "asap7":
+        return asap7_mismatch(rec, task, asap7, identity=asap7_identity, flow=flow)
     b = rec.get(PPA_KEY)
     if b is None:
         return ("no sky130 columns (a record made before them): not ranked until it is backfilled "
@@ -1389,9 +1432,12 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, st
     return ppa_drive_mismatch(b, input_drive)
 
 
-def build_board(task, records, *, flow=None, unassisted=False, identity=None, input_drive=None, statement=None):
+def build_board(task, records, *, flow=None, unassisted=False, identity=None, input_drive=None, statement=None,
+                pdk=DEFAULT_PDK, asap7=None, asap7_identity=None):
     """The board of one task, ranked by area x time (decided 2026-11-05: the one ranked number,
-    `combined.py`; the product of RANKED_AXES, the sky130 A0' area and time). `records` are
+    `combined.py`; the product of RANKED_AXES, the sky130 A0' area and time). With `pdk` "asap7" (the ASAP7 view,
+    decided 2026-11-09): the same board on the ASAP7 columns (`asap7`, the task's table, `load_asap7`; `asap7_identity`,
+    `asap7_identity()`), its rows carrying `area_e5um2` (`row_of`), its `ranked_axes` ASAP7_RANKED_AXES. `records` are
     its records (others are ignored); `flow`, if given, is the current pinned flow OF THE TASK'S KIND
     (`current_flow(svgolf, task_flow(task))`: {flow, yosys, canon_script_sha256, script_sha256,
     ge_table_sha256}; a key it lacks is not compared); `identity` (`ppa_identity()`) and
@@ -1409,11 +1455,12 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
     budget = effective_depth_budget(task)
     ranked, unranked = [], []
     for rec in sorted((r for r in records if r["task"] == task["name"]),
-                      key=lambda r: score_key(row_of(r))):
+                      key=lambda r: score_key(row_of(r, pdk, asap7))):
         if unassisted and rec["assisted_by"]:
             continue
-        row = row_of(rec)
-        why = unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement)
+        row = row_of(rec, pdk, asap7)
+        why = unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement,
+                              pdk=pdk, asap7=asap7, asap7_identity=asap7_identity)
         if why:
             unranked.append(dict(row, reason=why))
         else:
@@ -1426,10 +1473,14 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
     for r, k in zip(ranking, _competition_ranks(ranking)):
         r["rank"] = k
         r["over_budget"] = budget is not None and r["depth"] > budget
-    board = {"task": task["name"], "title": task.get("title", ""), "scoring_point": point,
-             "ranked_by": RANKED_BY, "ranked_axes": list(RANKED_AXES), "unit": combined.UNIT_ASCII,
+    a7 = pdk == "asap7"
+    board = {"task": task["name"], "title": task.get("title", ""), "scoring_point": point, "pdk": pdk,
+             "ranked_by": RANKED_BY, "ranked_axes": list(ASAP7_RANKED_AXES if a7 else RANKED_AXES),
+             "unit": combined.UNIT_ASCII,
              "depth_budget": budget, "flow_checked": flow is not None,
-             "ppa_identity": identity, "input_drive": input_drive, "statement_checked": statement is not None,
+             "ppa_identity": asap7_identity if a7 else identity,
+             "input_drive": ((asap7 or {}).get("identity") or {}).get("input_drive") if a7 else input_drive,
+             "statement_checked": statement is not None,
              "ranking": [dict(r) for r in ranking],
              "frontier": [dict(r) for r in (layers[0] if layers else [])],
              "dominated": [dict(r) for layer in layers[1:] for r in layer],
@@ -1445,37 +1496,39 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
 
 
 def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=None,
-           reference_player=REFERENCE_PLAYER, statement=None):
+           reference_player=REFERENCE_PLAYER, statement=None, pdk=DEFAULT_PDK, asap7=None, asap7_identity=None):
     """PAR of `task`, the bar to beat: among the reference player's records (the proved references,
     `seed-references`) that rank under `flow`, `identity` and `input_drive` (`unranked_reason`, as on the
     board), the one with the best area x time (leaderboard/combined.py: the ONE ranked number); None when
     there is none. Pure. A tie of the exact product goes to the design listed first among task.json's
     references (`names`: design sha256 -> (index, stem), `reference_names`; a design not listed comes after
     them), then to `row_key`. Returns the record's row plus `name` (the reference's stem, else the stored
-    .sv's name without `.sv`), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit)."""
+    .sv's name without `.sv`), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit). With `pdk` "asap7": par
+    of the ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule)."""
     names = names or {}
     best = None
     for rec in records:
         if rec.get("task") != task["name"] or rec.get("player") != reference_player:
             continue
-        if unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement):
+        if unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement,
+                           pdk=pdk, asap7=asap7, asap7_identity=asap7_identity):
             continue
-        exact = combined.of_record(rec)
+        row = row_of(rec, pdk, asap7)
+        exact = row["exact"]
         if exact is None:
             continue
-        row = row_of(rec)
         idx, stem = names.get(rec["files"]["sv"]["sha256"], (float("inf"), None))
         key = (exact, idx, row_key(row))
         if best is None or key < best[0]:
             name = stem or os.path.splitext(rec["files"]["sv"]["name"])[0]
-            best = (key, dict(row, name=name, exact=exact, um2ns=combined.um2ns(exact)))
+            best = (key, dict(row, name=name, exact=exact, um2ns=row["um2ns"]))
     return best[1] if best else None
 
 
 def fmt_par(par):
     """A par row as one line of text: '`mul_tree_h`: 8563.2000 um^2 x 5992 ps = 51311.23 um2*ns (record
     `0123456789ab`)'."""
-    return (f"`{par['name']}`: {fmt_um2(par['area_e4um2'])} um^2 x {fmt_time(par)} ps = {par['um2ns']:.2f} "
+    return (f"`{par['name']}`: {fmt_area(par)} um^2 x {fmt_time(par)} ps = {fmt_adp(par)} "
             f"{combined.UNIT_ASCII} (record `{par['record_hash'][:12]}`)")
 
 
@@ -1529,6 +1582,16 @@ def fmt_um2(e4):
     return "-" if e4 is None else _fmt_e4(e4)
 
 
+def fmt_um2_e5(e5):
+    """1e-5 um^2 (the ASAP7 columns' unit) as exact decimal um^2 text ('6.99840'); '-' for None."""
+    return "-" if e5 is None else f"{e5 // 100000}.{e5 % 100000:05d}"
+
+
+def fmt_area(r):
+    """A row's area as exact decimal um^2 text, in its library's unit (`row_area`); '-' without it."""
+    return fmt_um2_e5(r.get("area_e5um2")) if row_pdk(r) == "asap7" else fmt_um2(r.get("area_e4um2"))
+
+
 def fmt_time(r):
     """A row's ranked time as text: the delay in ps ('2611'), or for a clocked record the time and how it is
     made ('42784 (4 x 10696)'); '-' without sky130 columns."""
@@ -1542,7 +1605,10 @@ def fmt_time(r):
 def fmt_adp(r):
     """A row's ranked number, area x time in um^2 x ns, as text ('12022.21', as `fmt_par` and check.py's
     headline print it); '-' without it."""
-    return "-" if r.get("exact") is None else f"{combined.um2ns(r['exact']):.2f}"
+    if r.get("exact") is None:
+        return "-"
+    v = combined.um2ns(r["exact"], row_pdk(r))
+    return f"{v:.2f}" if row_pdk(r) != "asap7" else f"{v:.4f}"     # ASAP7 scores are ~250x smaller: 4 decimals
 
 
 ADP_HEAD = f"area x time ({combined.UNIT_ASCII})"
@@ -1563,6 +1629,8 @@ def render_markdown(board, level=2):
                  + (f". Input drive: `{board['input_drive']}`" if board.get("input_drive") else "")
                  + (". Unassisted entries only" if board["unassisted_only"] else "") + ".")
     lines.append("")
+    if board.get("pdk") == "asap7":
+        lines += [ASAP7_BOARD_NOTE, ""]
     if "par" in board:          # (`_boards` sets it; a board built by `build_board` alone has no par line)
         lines += [par_line(board["par"]), ""]
     if not board["ranking"]:
@@ -1577,7 +1645,7 @@ def render_markdown(board, level=2):
         trs = []
         for r in board["ranking"]:
             cells = [str(r["rank"]), md_escape(r["player"]), _assist_cell(r), fmt_adp(r),
-                     fmt_um2(r["area_e4um2"]), fmt_time(r), str(r["layer"]), fmt_ge(r["area_mge"]),
+                     fmt_area(r), fmt_time(r), str(r["layer"]), fmt_ge(r["area_mge"]),
                      str(r["depth"]), str(r["proof_lines"]), r["submitted_at"], _record_cell(r)]
             if budget is not None:
                 cells.insert(9, "over" if r["over_budget"] else "ok")
@@ -1587,7 +1655,7 @@ def render_markdown(board, level=2):
     if board["budget_ranking"] is not None:
         lines += [f"{h}# Best area x time under the depth budget (depth <= {budget})", ""]
         trs = [[("-" if r["rank"] is None else str(r["rank"])), md_escape(r["player"]),
-                _assist_cell(r), fmt_adp(r), fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]),
+                _assist_cell(r), fmt_adp(r), fmt_area(r), fmt_time(r), fmt_ge(r["area_mge"]),
                 str(r["depth"]), "over budget" if r["rank"] is None else "ok", r["submitted_at"],
                 _record_cell(r)] for r in board["budget_ranking"]]
         lines += _md_table(["rank", "player", "assisted by", ADP_HEAD, "area (um^2)", "time (ps)", "area (GE)",
@@ -1596,7 +1664,7 @@ def render_markdown(board, level=2):
         lines.append("")
     if board["unranked"]:
         lines += [f"{h}# Not ranked", ""]
-        trs = [[md_escape(r["player"]), fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]),
+        trs = [[md_escape(r["player"]), fmt_area(r), fmt_time(r), fmt_ge(r["area_mge"]),
                 str(r["depth"]), _record_cell(r), md_escape(r["reason"])] for r in board["unranked"]]
         lines += _md_table(["player", "area (um^2)", "time (ps)", "area (GE)", "depth", "record", "why"],
                            ["l", "r", "r", "r", "r", "l", "l"], trs) + [""]
@@ -1605,8 +1673,8 @@ def render_markdown(board, level=2):
     return "\n".join(lines)
 
 
-def render_export(boards):
-    """All tasks' boards as one Markdown document."""
+def render_export(boards, pdk=DEFAULT_PDK):
+    """All tasks' boards as one Markdown document (`pdk` "asap7": the boards of the ASAP7 view)."""
     parts = ["# svGolf leaderboard", "",
              "Generated by `leaderboard/leaderboard.py export` from the records under "
              "`leaderboard/data/`. Ranked by area x time (`leaderboard/combined.py`), lower is better: "
@@ -1614,6 +1682,12 @@ def render_export(boards):
              "clocked task, cycles x the clock period), in um^2 x ns. The Pareto layer of the two factors, "
              "area in GE and depth are extra columns; they rank nothing. A record without sky130 columns "
              "is not ranked until it is backfilled.", ""]
+    if pdk == "asap7":
+        parts = ["# svGolf leaderboard: the ASAP7 view", "",
+                 "Generated by `leaderboard/leaderboard.py export --pdk asap7` from the records under "
+                 "`leaderboard/data/` and their ASAP7 columns under `leaderboard/asap7/`. The same boards ranked by "
+                 "area x time on the ASAP7 library instead of sky130 (a view a reader may choose; sky130 is the "
+                 "default and the records' own columns).", ""]
     parts += [render_markdown(b, 2) for b in boards]
     return "\n".join(parts).rstrip("\n") + "\n"
 
@@ -1634,7 +1708,8 @@ ADP_TEXT_HEAD = f"area x time {combined.UNIT_ASCII}"
 def render_pareto_text(board):
     lines = []
     point = ", ".join(f"{k}={v}" for k, v in board["scoring_point"].items()) or "fixed size"
-    lines.append(f"{board['task']}: Pareto frontier of (sky130 area, time) at {point} "
+    lib = "ASAP7" if board.get("pdk") == "asap7" else "sky130"
+    lines.append(f"{board['task']}: Pareto frontier of ({lib} area, time) at {point} "
                  f"({len(board['frontier'])} of {len(board['ranking'])} ranked records), {PARETO_EXPLORATION}")
     if "par" in board:
         lines.append("  " + par_line(board["par"]))
@@ -1642,7 +1717,7 @@ def render_pareto_text(board):
         lines.append("  (no ranked records)")
     else:
         heads = ("#", ADP_TEXT_HEAD, "area um^2", "time ps", "area GE", "depth")
-        rows = [(str(r["rank"]), fmt_adp(r), fmt_um2(r["area_e4um2"]), fmt_time(r), fmt_ge(r["area_mge"]),
+        rows = [(str(r["rank"]), fmt_adp(r), fmt_area(r), fmt_time(r), fmt_ge(r["area_mge"]),
                  str(r["depth"]), r) for r in board["frontier"]]
         w = [max(len(head), *(len(x[k]) for x in rows)) for k, head in enumerate(heads)]
         lines.append("  " + " ".join(f"{head:>{n}}" for head, n in zip(heads, w))
@@ -1816,6 +1891,364 @@ def ppa_mapped_identity(pins_path=PPA_MAPPED_PINS, script_path=PPA_MAPPED_SCRIPT
                 "ppa_mapped_script_sha256": sha256_bytes(script), "liberty_sha256": pins["liberty_sha256"]}
     except (OSError, ValueError, KeyError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# the ASAP7 view (decided 2026-11-09)
+# ---------------------------------------------------------------------------
+#
+# A reader may see the golf scores on ASAP7 instead of sky130 (the site's library selector; `board --pdk asap7`).
+# The ASAP7 columns are flow A0' of `score/ppa.py --pdk asap7` (asap7_a0_v1: the same scored netlist, each gate its
+# least-area ASAP7 build, repaired by buffering, timed under the ASAP7 setup; score/PPA.md, "ASAP7: an alternative
+# library"). They live in leaderboard/asap7/<task>.json (ASAP7_SCHEMA), one entry per design FILE (its sha256) that the
+# task's views show at the scoring point: every record (the players' and the reference player's), every proved
+# reference and every baseline with a score there (`asap7_designs`). Each entry is BOUND to the sky130 side: its
+# canonical text, canonical RTLIL, GE columns, cycles and scored netlist are the record's (for a reference or a
+# baseline, tests/expected.json's GE columns and cycles), so an ASAP7 number is always about the netlist the record's
+# sky130 numbers weigh (`asap7_binding_problems`). `asap7 --write` measures (Yosys and the five pinned ASAP7 liberty
+# files), `asap7` checks the files offline, `asap7 --rescore` and plain `verify` re-derive them bit for bit.
+# Deterministic: ppa.py's A0' is bit-exact run to run on either library (score/PPA.md), keys and lists are sorted, and
+# nothing in the file is a clock reading.
+
+ASAP7_SCHEMA = "svgolf-asap7/1"
+ASAP7_RANKED_AXES = ("area_um2_asap7", "time_ps")
+# what makes ASAP7 columns comparable with the ones weighed now: the pins' version and hash, the liberty SET's
+# identity (score/ppa.py `set_sha256`) and the input drive (the asap7 pins' default: no task names one)
+ASAP7_IDENTITY = ("ppa_version", "liberty_sha256", "ppa_pins_sha256", "input_drive")
+ASAP7_TOP_KEYS = {"schema", "task", "scoring_point", "flow", "identity", "ppa_script_sha256", "designs"}
+# an entry: the design file it is of and who shows it (`of`), its binding to the sky130 side, the ASAP7 columns
+ASAP7_ENTRY_KEYS = ("sv_sha256", "of", "canonical_sha256", "rtlil_sha256", "netlist_sha256", "area_mge", "depth",
+                    "area_e5um2", "delay_ps", "cycles", "time_ps", "cells", "flops", "buffers", "tie_cells",
+                    "repaired_sha256", "table_reads_floored")
+ASAP7_COMPARED = ASAP7_ENTRY_KEYS[2:]            # what a fresh weighing must reproduce exactly
+ASAP7_OF_RE = re.compile(r"(record:[0-9a-f]{64}|reference:[A-Za-z0-9_.-]+|baseline:[A-Za-z0-9_.-]+)")
+ASAP7_BOARD_NOTE = ("Library: ASAP7 (asap7sc7p5t rev 28, RVT, TT; predictive 7 nm, never fabricated; wire-free like "
+                    "sky130's A0'), the view a reader may choose (decided 2026-11-09). The default and the records' own "
+                    "columns are sky130; the ASAP7 columns are `score/ppa.py --pdk asap7` on the same scored netlist "
+                    "(`leaderboard/asap7/<task>.json`), area in um^2 to 5 decimals.")
+
+
+def asap7_identity(pins_path=PPA_PINS_ASAP7):
+    """What ASAP7 columns must have been computed under to be comparable with the ones weighed now (ASAP7_IDENTITY):
+    the pins' `ppa_version`, the pins file's sha256, the identity of the pinned liberty SET (score/ppa.py `set_sha256`:
+    SHA-256 over `<file> <sha256>\\n` per file, in the pins' order) and the pins' default input drive. Read from the
+    pins file alone (no liberty, no ppa.py). None if it cannot be read."""
+    try:
+        with open(pins_path, "rb") as fh:
+            raw = fh.read()
+        pins = json.loads(raw.decode("utf-8"))
+        files = pins["liberty"]["files"]
+        lib = sha256_bytes("".join(f"{f['file']} {f['sha256']}\n" for f in files).encode())
+        return {"ppa_version": pins["ppa_version"], "ppa_pins_sha256": sha256_bytes(raw), "liberty_sha256": lib,
+                "input_drive": pins["timing"]["input_drive"]["default"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def asap7_path(task_name, asap7_dir=ASAP7_DIR):
+    return os.path.join(asap7_dir, f"{task_name}.json")
+
+
+def point_key(point):
+    """A scoring point as tests/expected.json keys it: 'N=16', 'W=5,P=11', 'default' (task.json's order)."""
+    return ",".join(f"{k}={v}" for k, v in point.items()) or "default"
+
+
+def _nat(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def asap7_file_problems(data, task_name=None):
+    """What is wrong with the contents of a leaderboard/asap7/<task>.json (a list of strings; [] for a good file).
+    Pure. Checks the shape and the arithmetic (time = delay, or cycles x delay); whether the entries are the task's
+    designs and bound to them is `asap7_check`'s."""
+    if not isinstance(data, dict):
+        return ["not a JSON object"]
+    p = []
+    keys = {k for k in data if not k.startswith("_")}
+    if keys != ASAP7_TOP_KEYS:
+        p.append(f"keys {sorted(keys ^ ASAP7_TOP_KEYS)} unexpected or missing")
+    if data.get("schema") != ASAP7_SCHEMA:
+        p.append(f"schema is {data.get('schema')!r}, not {ASAP7_SCHEMA!r}")
+    if task_name is not None and data.get("task") != task_name:
+        p.append(f"task is {data.get('task')!r}, not {task_name!r}")
+    ident = data.get("identity")
+    if not (isinstance(ident, dict) and set(ident) == set(ASAP7_IDENTITY)
+            and all(isinstance(ident[k], str) for k in ASAP7_IDENTITY)):
+        p.append(f"identity must name exactly {', '.join(ASAP7_IDENTITY)}")
+    if not isinstance(data.get("scoring_point"), dict) or not isinstance(data.get("flow"), dict):
+        p.append("scoring_point and flow must be objects")
+    designs = data.get("designs")
+    if not isinstance(designs, list):
+        return p + ["designs is not a list"]
+    seen = set()
+    for k, e in enumerate(designs):
+        where = f"designs[{k}]"
+        if not isinstance(e, dict) or set(e) != set(ASAP7_ENTRY_KEYS):
+            p.append(f"{where}: keys must be exactly {', '.join(ASAP7_ENTRY_KEYS)}")
+            continue
+        if not (isinstance(e["sv_sha256"], str) and SHA_RE.fullmatch(e["sv_sha256"])) or e["sv_sha256"] in seen:
+            p.append(f"{where}: sv_sha256 is not a sha256, or not unique")
+        seen.add(e["sv_sha256"])
+        of = e["of"]
+        if not (isinstance(of, list) and of and all(isinstance(x, str) and ASAP7_OF_RE.fullmatch(x) for x in of)
+                and of == sorted(set(of))):
+            p.append(f"{where}: `of` must be a sorted, non-empty list of record:<hash>, reference:<stem>, baseline:<stem>")
+        for h in ("canonical_sha256", "rtlil_sha256", "netlist_sha256", "repaired_sha256"):
+            if not (isinstance(e[h], str) and SHA_RE.fullmatch(e[h])):
+                p.append(f"{where}: {h} is not a sha256")
+        for n in ("area_mge", "depth", "area_e5um2", "delay_ps", "time_ps", "cells", "buffers", "tie_cells",
+                  "table_reads_floored"):
+            if not _nat(e[n]):
+                p.append(f"{where}: {n} is not a non-negative integer")
+        for n in ("cycles", "flops"):
+            if e[n] is not None and not _nat(e[n]):
+                p.append(f"{where}: {n} is neither null nor a non-negative integer")
+        if _nat(e["delay_ps"]) and _nat(e["time_ps"]) and (e["cycles"] is None or _nat(e["cycles"])):
+            want = e["delay_ps"] * (e["cycles"] if e["cycles"] is not None else 1)
+            if e["time_ps"] != want:
+                p.append(f"{where}: time_ps {e['time_ps']} is not " + ("cycles x delay_ps" if e["cycles"] is not None
+                                                                      else "delay_ps") + f" ({want})")
+    if [e.get("sv_sha256") for e in designs if isinstance(e, dict)] != sorted(
+            e.get("sv_sha256") for e in designs if isinstance(e, dict) and isinstance(e.get("sv_sha256"), str)):
+        p.append("designs are not in sv_sha256 order")
+    return p
+
+
+def read_asap7(task_name, asap7_dir=ASAP7_DIR):
+    """(the task's ASAP7 table, None), (None, why) for a file that cannot be read or is malformed, or (None, None) when
+    the task has none."""
+    path = asap7_path(task_name, asap7_dir)
+    if not os.path.isfile(path):
+        return None, None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as e:
+        return None, f"{os.path.relpath(path, SVGOLF)}: not JSON: {e}"
+    bad = asap7_file_problems(data, task_name)
+    if bad:
+        return None, f"{os.path.relpath(path, SVGOLF)}: " + "; ".join(bad[:5])
+    return data, None
+
+
+def load_asap7(task_name, asap7_dir=ASAP7_DIR, warn=None):
+    """The task's ASAP7 table (`read_asap7`), or None (`warn` is told why, for a file that is there but bad)."""
+    data, why = read_asap7(task_name, asap7_dir)
+    if why and warn:
+        warn(f"{why}: its ASAP7 columns are not used")
+    return data
+
+
+def asap7_entry(table, sv_sha256):
+    """The entry of `table` for the design file with this sha256, or None."""
+    if not isinstance(table, dict):
+        return None
+    return next((e for e in table.get("designs") or [] if e.get("sv_sha256") == sv_sha256), None)
+
+
+def asap7_binding_problems(entry, rec):
+    """Where an ASAP7 entry is not about the record's own netlist: its canonical text, canonical RTLIL, GE columns,
+    cycles (a clocked record's) and scored netlist (the record's `ppa.netlist_sha256`, when it has sky130 columns: the
+    scored netlist does not depend on the library) against the record's. [] when it is bound. Pure."""
+    sc = rec.get("score") or {}
+    p = []
+    if entry.get("canonical_sha256") != rec.get("canonical_sha256"):
+        p.append("canonical text sha256 differs")
+    if sc.get("rtlil_sha256") and entry.get("rtlil_sha256") != sc["rtlil_sha256"]:
+        p.append("canonical RTLIL sha256 differs")
+    for k in ("area_mge", "depth"):
+        if entry.get(k) != sc.get(k):
+            p.append(f"{k} {entry.get(k)!r}, the record's {sc.get(k)!r}")
+    if entry.get("cycles") != sc.get("cycles"):
+        p.append(f"cycles {entry.get('cycles')!r}, the record's {sc.get('cycles')!r}")
+    b = rec.get(PPA_KEY)
+    if isinstance(b, dict) and b.get("available") is True and b.get("netlist_sha256") \
+            and entry.get("netlist_sha256") != b["netlist_sha256"]:
+        p.append("scored netlist sha256 differs from the record's ppa.netlist_sha256")
+    return p
+
+
+def asap7_columns(rec, table):
+    """{area_e5um2, time_ps, cycles, period_ps} of a record in the ASAP7 view (`cycles`, `period_ps` None for a
+    combinational record, as `ranked_columns`), from its entry in `table`; None without an entry bound to it."""
+    e = asap7_entry(table, ((rec.get("files") or {}).get("sv") or {}).get("sha256"))
+    if e is None or asap7_binding_problems(e, rec):
+        return None
+    clocked = e["cycles"] is not None
+    return {"area_e5um2": e["area_e5um2"], "time_ps": e["time_ps"], "cycles": e["cycles"] if clocked else None,
+            "period_ps": e["delay_ps"] if clocked else None}
+
+
+def asap7_table_mismatch(table, task, *, identity=None, flow=None):
+    """Why a task's ASAP7 table as a whole is not comparable with columns weighed now (another scoring point, another
+    ASAP7 version or input drive than `identity`, measured under another flow than `flow`, the current flow of the
+    task's kind), or None. Pure."""
+    if table.get("scoring_point") != scoring_point(task):
+        return f"ASAP7 columns measured at {table.get('scoring_point')}, the task's scoring point is {scoring_point(task)}"
+    ident = table.get("identity") or {}
+    if identity is not None:
+        other = [k for k in ASAP7_IDENTITY if ident.get(k) != identity.get(k)]
+        if other:
+            return "ASAP7 columns computed under another version (" + ", ".join(other) + " differ)"
+    if flow is not None:
+        diff = flow_mismatch(table.get("flow") or {}, flow)
+        if diff:
+            return "ASAP7 columns measured under another flow (" + ", ".join(diff) + " differ)"
+    return None
+
+
+def asap7_mismatch(rec, task, table, *, identity=None, flow=None):
+    """Why `rec` has no comparable ASAP7 columns (the ASAP7 view's half of `unranked_reason`), or None. Pure."""
+    if table is None:
+        return (f"no ASAP7 columns for task {task['name']} yet (leaderboard/asap7/{task['name']}.json; "
+                "`leaderboard.py asap7 --write` measures them)")
+    why = asap7_table_mismatch(table, task, identity=identity, flow=flow)
+    if why:
+        return why
+    e = asap7_entry(table, rec["files"]["sv"]["sha256"])
+    if e is None:
+        return "no ASAP7 columns for its design yet (`leaderboard.py asap7 --write` measures them)"
+    bad = asap7_binding_problems(e, rec)
+    if bad:
+        return "its ASAP7 columns are not of its netlist (" + "; ".join(bad) + ")"
+    return None
+
+
+def asap7_designs(task, records, expected, *, tasks_dir=DEFAULT_TASKS, data_dir=DEFAULT_DATA, svgolf=SVGOLF):
+    """The design files the ASAP7 view of `task` shows at its scoring point, by sha256: {sv_sha256: {"src" (a path),
+    "of" (sorted: record:<hash>, reference:<stem>, baseline:<stem>), "want" (what the entry must be bound to: the GE
+    columns and cycles from every source, and a record's canonical text, RTLIL and scored netlist), "conflicts" (two
+    sources that disagree on one of them)}}. The records are `records` of the task at its scoring point (every player,
+    the reference player's too); the references are task.json's, the baselines tests/expected.json's, each with a
+    score at the scoring point (`expected`: tests/expected.json). Reads the design files (their sha256), nothing else."""
+    name = task["name"]
+    point = scoring_point(task)
+    key = point_key(point)
+    exp = (expected.get("tasks") or {}).get(name, {})
+    out = {}
+
+    def add(sha, src, tag, want):
+        d = out.setdefault(sha, {"src": src, "of": set(), "want": {}, "conflicts": []})
+        d["of"].add(tag)
+        for k, v in want.items():
+            if v is None:
+                continue
+            if k in d["want"] and d["want"][k] != v:
+                d["conflicts"].append(f"{k}: {tag} says {v!r}, another source {d['want'][k]!r}")
+            d["want"].setdefault(k, v)
+
+    def from_scores(e):
+        s = (e.get("scores") or {}).get(key) or {}
+        if "area_mge" not in s:
+            return None
+        return {"area_mge": s["area_mge"], "depth": s["depth"], "cycles": s.get("cycles")}
+
+    for ref in task.get("references") or []:
+        stem = os.path.splitext(os.path.basename(ref["sv"]))[0]
+        want = from_scores((exp.get("references") or {}).get(stem, {}))
+        if want is None:
+            continue
+        src = os.path.join(tasks_dir, name, ref["sv"])
+        add(sha256_file(src), src, f"reference:{stem}", want)
+    for stem, e in sorted((exp.get("baselines") or {}).items()):
+        want = from_scores(e)
+        if want is None:
+            continue
+        src = os.path.join(svgolf, "tests", name, e.get("sv", f"baselines/{stem}.sv"))
+        add(sha256_file(src), src, f"baseline:{stem}", want)
+    for rec in sorted(records, key=lambda r: r["record_hash"]):
+        if rec.get("task") != name or rec["score"]["scoring_point"] != point:
+            continue
+        sc = rec["score"]
+        b = rec.get(PPA_KEY)
+        net = b.get("netlist_sha256") if isinstance(b, dict) and b.get("available") is True else None
+        src = record_paths(data_dir, name, rec["record_hash"])[1]
+        add(rec["files"]["sv"]["sha256"], src, f"record:{rec['record_hash']}",
+            {"area_mge": sc["area_mge"], "depth": sc["depth"], "cycles": sc.get("cycles"),
+             "canonical_sha256": rec["canonical_sha256"], "rtlil_sha256": sc.get("rtlil_sha256"),
+             "netlist_sha256": net})
+    for d in out.values():
+        d["of"] = sorted(d["of"])
+    return out
+
+
+def asap7_want_problems(entry, want):
+    """Where an entry differs from what its design's sources say (`asap7_designs`' `want`). Pure."""
+    out = [f"{k}: the entry has {entry.get(k)!r}, the design's sources {v!r}" for k, v in sorted(want.items())
+           if k != "cycles" and entry.get(k) != v]
+    if entry.get("cycles") != want.get("cycles"):
+        out.append(f"cycles: the entry has {entry.get('cycles')!r}, the design's sources {want.get('cycles')!r}")
+    return out
+
+
+def run_asap7(sv, task_dir, *, ppa_py=PPA_PY, seq=False, timeout=3600):
+    """score/ppa.py --pdk asap7 --no-mapped (and --seq for the clocked flow) on one design at the task's scoring point:
+    (score.py's result, the ASAP7 `ppa` block). RuntimeError with the reason if it cannot weigh (no ASAP7 liberty here,
+    a flow failure, an illegal netlist)."""
+    cmd = [checker_python(), ppa_py, sv, "--task", task_dir, "--pdk", "asap7", "--no-mapped"] + (["--seq"] if seq else [])
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    try:
+        out = json.loads(proc.stdout)
+    except ValueError:
+        out = {}
+    if proc.returncode == 0 and isinstance(out.get("score"), dict) and isinstance(out.get("ppa"), dict):
+        return out["score"], out["ppa"]
+    why = " ".join(str(out.get("error") or proc.stderr[-400:] or f"exit {proc.returncode}").split())
+    raise RuntimeError(f"ppa.py --pdk asap7: {why[:400]}")
+
+
+def asap7_columns_of(score, ppa, cycles):
+    """An entry's measured part (ASAP7_COMPARED) from ppa.py's result; `cycles` is the design's latency at the scoring
+    point (a clocked design; None for a combinational one), which the time multiplies."""
+    if ppa.get("pdk") != "asap7":
+        raise RuntimeError(f"ppa.py weighed on {ppa.get('pdk')!r}, not asap7")
+    rp = ppa.get("repair") or {}
+    delay = ppa["delay_ps_asap7"]
+    return {"canonical_sha256": ((score.get("sources") or [{}])[0]).get("canonical_sha256"),
+            "rtlil_sha256": score.get("rtlil_sha256"), "netlist_sha256": ppa["netlist_sha256"],
+            "area_mge": score["area_mge"], "depth": score["depth"],
+            "area_e5um2": ppa["area_e5um2_asap7"], "delay_ps": delay, "cycles": cycles,
+            "time_ps": delay * (cycles if cycles is not None else 1), "cells": ppa["cells_asap7"],
+            "flops": ppa.get("flops"), "buffers": rp.get("buffers"), "tie_cells": rp.get("tie_cells"),
+            "repaired_sha256": rp.get("netlist_sha256"),
+            "table_reads_floored": (ppa.get("legality") or {}).get("table_reads_floored")}
+
+
+def asap7_check(task, table, designs, *, identity=None, flow=None, rescore=None):
+    """Check a task's ASAP7 table against the designs it must cover (`asap7_designs`): (fails, notes). FAIL: a design
+    of the task without an entry, an entry for no design or with another `of`, an entry not bound to its design's
+    sources (GE columns, cycles, a record's canonical text, RTLIL and scored netlist), two sources of one design that
+    disagree; with `rescore(entry)` (it returns the fresh ASAP7_COMPARED columns, or raises), a column that a fresh
+    weighing does not reproduce. Notes (not failures): a table of another ASAP7 version, scoring point or flow than now
+    (it is then not compared with a rescore)."""
+    fails, notes = [], []
+    entries = {e["sv_sha256"]: e for e in table["designs"]}
+    for sha in sorted(set(designs) - set(entries)):
+        fails.append(f"no entry for {', '.join(designs[sha]['of'])} ({sha[:12]})")
+    for sha in sorted(set(entries) - set(designs)):
+        fails.append(f"an entry for no design of the task now: {', '.join(entries[sha]['of'])} ({sha[:12]})")
+    stale = asap7_table_mismatch(table, task, identity=identity, flow=flow)
+    if stale:
+        notes.append(stale + ": not comparable (measure again with `asap7 --write`)")
+    for sha in sorted(set(designs) & set(entries)):
+        d, e = designs[sha], entries[sha]
+        who = ", ".join(d["of"])
+        fails += [f"{who}: {c}" for c in d["conflicts"]]
+        if e["of"] != d["of"]:
+            fails.append(f"{sha[:12]}: `of` is {e['of']}, the design is now {d['of']}")
+        if not stale:
+            fails += [f"{who}: {p}" for p in asap7_want_problems(e, d["want"])]
+        if rescore is not None and not stale:
+            try:
+                got = rescore(e, d)
+            except Exception as ex:   # infrastructure (no ASAP7 liberty) or a flow failure
+                notes.append(f"{who}: not re-weighed ({ex})")
+                continue
+            diffs = [f"{who}: {k} recorded {e.get(k)!r}, now {got.get(k)!r}" for k in ASAP7_COMPARED
+                     if e.get(k) != got.get(k)]
+            fails += diffs
+    return fails, notes
 
 
 def build_axes_view(task, records, axes, *, flow=None, identity=None, mapped_identity=None, unassisted=False,
@@ -1996,7 +2429,7 @@ class VerifyResult:
 
 
 def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescore=None,
-                  recheck=None, ppa_identity=None, ppa_setup=None, statement=None):
+                  recheck=None, ppa_identity=None, ppa_setup=None, statement=None, asap7_view=None):
     """Verify one stored record at `path` (a `.json` next to its two files).
 
     Always: the record is well-formed, its `record_hash` is the hash of its
@@ -2023,7 +2456,14 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
     `input_drive`, a task field outside the pins file): `stale`, the columns are not compared
     (rescore, recheck) and the views do not rank them. Its `pi_slew_ps` / `po_load_ff` other than
     the pins file it names: FAIL (that file cannot have given them). A rescore or recheck compares
-    the whole `setup` with the fresh weighing's (PPA_COMPARED)."""
+    the whole `setup` with the fresh weighing's (PPA_COMPARED).
+
+    `asap7_view` (optional, the ASAP7 view, decided 2026-11-09): {"table": the task's leaderboard/asap7/<task>.json or
+    None, "error": why that file is unreadable or malformed (FAIL), "identity": `asap7_identity()`, "rescore":
+    sv_path -> the fresh ASAP7_COMPARED columns, or None}. The record's entry must be bound to it (canonical text,
+    RTLIL, GE columns, cycles, scored netlist: FAIL otherwise, `asap7_binding_problems`); no entry, or a table of
+    another ASAP7 version or flow, is a note (the view lacks the record; the record is no less valid); with
+    `rescore` a fresh weighing must reproduce the entry exactly (FAIL)."""
     res = VerifyResult(os.path.basename(path))
     bad = validate_record(rec)
     if bad:
@@ -2170,7 +2610,49 @@ def verify_record(path, rec, task=None, *, flow=None, current_files=None, rescor
                     res.notes.append("recheck: ppa columns not compared (the flow has changed)")
                 if not any(f.startswith("recheck") for f in res.fails):
                     res.notes.append("rechecked: accepted, same canonical text and axioms")
+    if asap7_view is not None and task is not None:
+        _verify_asap7(res, rec, task, asap7_view, stored["sv"])
     return res
+
+
+def _verify_asap7(res, rec, task, view, sv_path):
+    """`verify_record`'s ASAP7 part (its docstring)."""
+    if view.get("error"):
+        res.fails.append(f"asap7: {view['error']}")
+        return
+    table = view.get("table")
+    if table is None:
+        res.notes.append(f"ASAP7 view: no columns for task {task['name']} yet")
+        return
+    e = asap7_entry(table, rec["files"]["sv"]["sha256"])
+    if e is None:
+        res.notes.append("ASAP7 view: no columns for this design yet (`asap7 --write`)")
+        return
+    other_flow = flow_mismatch(table.get("flow") or {}, flow_of(rec))
+    if other_flow:
+        res.notes.append("ASAP7 columns measured under another flow than this record's (" + ", ".join(other_flow)
+                         + " differ): not compared")
+        return
+    bad = asap7_binding_problems(e, rec)
+    res.fails += [f"asap7: the entry for this design is not of its netlist: {b}" for b in bad]
+    if bad:
+        return
+    stale = asap7_table_mismatch(table, task, identity=view.get("identity"))
+    if stale:
+        res.notes.append(stale + ": not re-weighed")
+        return
+    if view.get("rescore") is None:
+        res.notes.append("ASAP7 columns bound to the record")
+        return
+    try:
+        got = view["rescore"](sv_path)
+    except Exception as ex:     # infrastructure (no ASAP7 liberty here) or a flow failure
+        res.notes.append(f"ASAP7 columns not re-weighed ({ex})")
+        return
+    diffs = [f"asap7: {k} recorded {e.get(k)!r}, now {got.get(k)!r}" for k in ASAP7_COMPARED if e.get(k) != got.get(k)]
+    res.fails += diffs
+    if not diffs:
+        res.notes.append("ASAP7 columns reproduced")
 
 
 # the columns a fresh weighing must reproduce exactly (the provenance hashes, and the input drive, decide whether it may be
@@ -2592,6 +3074,9 @@ def cmd_add(args):
         print("  NOTE: this record carries no sky130 columns (the check result has no `ppa` key: "
               "`check.py --ppa off`, or a checker from before them): the boards rank the sky130 score, "
               "so it is NOT RANKED until it is backfilled (checked again with `--ppa require`)")
+    # the ASAP7 view (decided 2026-11-09) ranks a record once its columns are measured beside it
+    print(f"  NOTE: the site's ASAP7 view ranks it once its ASAP7 columns are measured: "
+          f"`leaderboard.py asap7 --write --task {args.task}` (leaderboard/asap7/{args.task}.json)")
     return 0
 
 
@@ -2654,6 +3139,8 @@ def cmd_verify(args):
     flows = current_flows()
     files = checker_file_hashes()
     identity = ppa_identity()
+    a7_identity = asap7_identity()
+    a7_tables = {}                    # task -> (table, error): the ASAP7 view, read once per task
     failed = stale = 0
     for path, rec, err in loaded:
         label = os.path.relpath(path, args.data_dir)
@@ -2684,10 +3171,21 @@ def cmd_verify(args):
                    (lambda sv, lean, td=task_dir, w=has_ppa: run_check(
                        td, sv, lean, check_py=args.check_py, lean_wrap=args.lean_wrap,
                        postsynth="full", ppa=OFFICIAL_PPA_MODE if w else "off", sandbox=args.sandbox)[1]))
+        # the ASAP7 view: the record's entry must be bound to it; plain `verify` and `--full` also re-weigh it
+        # (ppa.py --pdk asap7; `--full`'s check.py run weighs sky130 only)
+        a7 = None
+        if task is not None:
+            if task["name"] not in a7_tables:
+                a7_tables[task["name"]] = read_asap7(task["name"], args.asap7_dir)
+            table, why = a7_tables[task["name"]]
+            cyc = (rec.get("score") or {}).get("cycles")
+            a7 = {"table": table, "error": why, "identity": a7_identity,
+                  "rescore": None if args.offline else (lambda sv, td=task_dir, q=seq, c=cyc: asap7_columns_of(
+                      *run_asap7(sv, td, ppa_py=args.ppa_py, seq=q), c))}
         r = verify_record(path, rec, task, flow=flow, current_files=files, rescore=rescore,
                           recheck=recheck, ppa_identity=identity,
                           ppa_setup=ppa_setup_now(task) if task is not None else None,
-                          statement=current_statement_or_none(task))
+                          statement=current_statement_or_none(task), asap7_view=a7)
         who = f"{rec.get('player')} {score_text(rec)}" if not validate_record(rec) else "malformed"
         detail = "; ".join(r.fails + r.stale + r.notes)
         task_name, _, stem = label[:-len(".json")].partition(os.sep)
@@ -2701,9 +3199,12 @@ def cmd_verify(args):
 
 def _boards(args, names, unassisted=False):
     """The boards of `names`, ranked under the current flow and sky130 identity and each task's input drive
-    (`--all-flows`: none of them checked; a record without sky130 columns is never ranked)."""
+    (`--all-flows`: none of them checked; a record without sky130 columns is never ranked). `--pdk asap7`: the boards
+    of the ASAP7 view (leaderboard/asap7/<task>.json, under the current ASAP7 identity unless `--all-flows`)."""
+    pdk = getattr(args, "pdk", DEFAULT_PDK)
     flows = None if args.all_flows else current_flows()
     identity = None if args.all_flows else ppa_identity()
+    a7_identity = None if args.all_flows else asap7_identity()
     records = good_records(load_records(args.data_dir), warn=lambda m: print(m, file=sys.stderr))
     out = []
     for n in names:
@@ -2712,12 +3213,15 @@ def _boards(args, names, unassisted=False):
         mine = [r for r in records if r["task"] == n]
         drive = None if args.all_flows else ppa_setup_now(task).get("input_drive")
         statement = None if args.all_flows else current_statement_or_none(task)
+        a7 = (load_asap7(n, getattr(args, "asap7_dir", ASAP7_DIR), warn=lambda m: print(m, file=sys.stderr))
+              if pdk == "asap7" else None)
         board = build_board(task, mine, flow=flow, unassisted=unassisted, identity=identity, input_drive=drive,
-                            statement=statement)
+                            statement=statement, pdk=pdk, asap7=a7, asap7_identity=a7_identity)
         # par: the best of the reference player's records that rank here (whatever `unassisted` says: par is the
         # bar, not an entry)
         board["par"] = par_of(task, mine, flow=flow, identity=identity, input_drive=drive,
-                              names=reference_names(args.tasks_dir, task), statement=statement)
+                              names=reference_names(args.tasks_dir, task), statement=statement, pdk=pdk, asap7=a7,
+                              asap7_identity=a7_identity)
         out.append(board)
     return out
 
@@ -2772,6 +3276,9 @@ def cmd_pareto_axes(args):
 
 def cmd_pareto(args):
     if getattr(args, "axes", None):
+        if getattr(args, "pdk", DEFAULT_PDK) != DEFAULT_PDK:
+            print("error: --axes names the records' own (sky130) columns; it does not take --pdk", file=sys.stderr)
+            return 2
         return cmd_pareto_axes(args)
     try:
         (board,) = _boards(args, [args.task], args.unassisted)
@@ -2805,10 +3312,95 @@ def cmd_export(args):
         print(f"error: {e}", file=sys.stderr)
         return 2
     with open(args.out, "w", encoding="utf-8") as fh:
-        fh.write(render_export(boards))
+        fh.write(render_export(boards, getattr(args, "pdk", DEFAULT_PDK)))
     print(f"wrote {args.out}: {len(boards)} tasks, "
           f"{sum(len(b['ranking']) for b in boards)} ranked records")
     return 0
+
+
+def cmd_asap7(args):
+    """`asap7`: the ASAP7 view's columns (see "the ASAP7 view"). Exit 0 all good, 1 a check or a measurement failed,
+    2 usage or infrastructure."""
+    names = [args.task] if args.task else all_task_names(args.tasks_dir)
+    try:
+        with open(EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        tasks = {n: load_task(args.tasks_dir, n) for n in names}
+    except (OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    identity = asap7_identity()
+    if identity is None:
+        print(f"error: {os.path.relpath(PPA_PINS_ASAP7, SVGOLF)} cannot be read", file=sys.stderr)
+        return 2
+    records = good_records(load_records(args.data_dir), warn=lambda m: print(m, file=sys.stderr))
+    status = 0
+    for name in names:
+        task = tasks[name]
+        designs = asap7_designs(task, records, expected, tasks_dir=args.tasks_dir, data_dir=args.data_dir)
+        if not designs:
+            continue
+        seq = task_flow(task) == SEQ_FLOW
+        task_dir = os.path.join(args.tasks_dir, name)
+        flow = current_flow(SVGOLF, task_flow(task))
+
+        def weigh(sv, cycles, td=task_dir, q=seq):
+            return asap7_columns_of(*run_asap7(sv, td, ppa_py=args.ppa_py, seq=q), cycles)
+        path = asap7_path(name, args.asap7_dir)
+        if args.write:
+            bad, entries, script = [], [], None
+            for sha in sorted(designs):
+                d = designs[sha]
+                if d["conflicts"]:
+                    bad += [f"{', '.join(d['of'])}: {c}" for c in d["conflicts"]]
+                    continue
+                try:
+                    score, ppa = run_asap7(d["src"], task_dir, ppa_py=args.ppa_py, seq=seq)
+                    cols = asap7_columns_of(score, ppa, d["want"].get("cycles"))
+                except (RuntimeError, OSError, KeyError, subprocess.TimeoutExpired) as e:
+                    print(f"error: {name}: {', '.join(d['of'])}: {e}", file=sys.stderr)
+                    return 2
+                if score.get("params") != scoring_point(task):
+                    bad.append(f"{', '.join(d['of'])}: weighed at {score.get('params')}, not at {scoring_point(task)}")
+                if any(ppa.get(k) != identity.get(k) for k in ASAP7_IDENTITY if k != "input_drive") \
+                        or (ppa.get("setup") or {}).get("input_drive") != identity["input_drive"]:
+                    bad.append(f"{', '.join(d['of'])}: weighed under another ASAP7 identity than the pins file's")
+                if sha256_file(d["src"]) != sha:
+                    bad.append(f"{', '.join(d['of'])}: the design file changed while it was weighed")
+                bad += [f"{', '.join(d['of'])}: {p}" for p in asap7_want_problems(cols, d["want"])]
+                script = script or ppa.get("ppa_script_sha256")
+                entries.append(dict(cols, sv_sha256=sha, of=d["of"]))
+            if bad:
+                print(f"[FAIL] {name}: not written: " + "; ".join(bad))
+                status = 1
+                continue
+            data = {"_comment": ("GENERATED by `leaderboard.py asap7 --write`; do not edit (measure again instead). "
+                                 "The ASAP7 view's columns (decided 2026-11-09): score/ppa.py --pdk asap7 --no-mapped "
+                                 "(flow A0', asap7_a0_v1) on every design the task's pages show at its scoring point, "
+                                 "one entry per design file, bound to the sky130 side by the canonical text, RTLIL, GE "
+                                 "columns, cycles and scored netlist. Areas in 1e-5 um^2, times in ps (time = cycles x "
+                                 "delay on a clocked task, the delay being the register-to-register period). Derived "
+                                 "data, outside every record hash; `leaderboard.py verify` and `asap7 --rescore` "
+                                 "re-derive it. See leaderboard/README.md, \"The ASAP7 view\"."),
+                    "schema": ASAP7_SCHEMA, "task": name, "scoring_point": scoring_point(task), "flow": flow,
+                    "identity": identity, "ppa_script_sha256": script, "designs": entries}
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+            print(f"[ok] {name}: wrote {os.path.relpath(path)} ({len(entries)} designs)")
+            continue
+        table, why = read_asap7(name, args.asap7_dir)
+        if why or table is None:
+            print(f"[FAIL] {name}: {why or f'no {os.path.relpath(path, SVGOLF)}: `asap7 --write` measures it'}")
+            status = 1
+            continue
+        rescore = (lambda e, d, w=weigh: w(d["src"], d["want"].get("cycles"))) if args.rescore else None
+        fails, notes = asap7_check(task, table, designs, identity=identity, flow=flow, rescore=rescore)
+        tag = "FAIL" if fails else ("stale" if notes and any("not comparable" in n for n in notes) else "ok")
+        what = "re-weighed, every column reproduced" if args.rescore and not fails else "bound to every design"
+        print(f"[{tag}] {name}: {len(table['designs'])} designs: " + ("; ".join(fails + notes) or what))
+        status = status or (1 if fails else 0)
+    return status
 
 
 def make_parser():
@@ -2820,6 +3412,7 @@ def make_parser():
     common.add_argument("--check-py", default=CHECK_PY, help=argparse.SUPPRESS)
     common.add_argument("--score-py", default=SCORE_PY, help=argparse.SUPPRESS)
     common.add_argument("--ppa-py", default=PPA_PY, help=argparse.SUPPRESS)
+    common.add_argument("--asap7-dir", default=ASAP7_DIR, help=argparse.SUPPRESS)
     common.add_argument("--sandbox", choices=("off", "auto", "require"), default=OFFICIAL_SANDBOX_MODE,
                         help="check.py's --sandbox for the checks `add` and `verify --full` run (default "
                         "`require`: an official record is made with the OS sandbox or not at all; `off` is refused "
@@ -2880,6 +3473,9 @@ def make_parser():
                        help="only records with an empty assisted_by")
         b.add_argument("--all-flows", action="store_true",
                        help="rank records checked under another flow too")
+        b.add_argument("--pdk", choices=PDKS, default=DEFAULT_PDK,
+                       help="the library the board ranks on: sky130 (the default, the records' own columns) or asap7 "
+                       "(the ASAP7 view: leaderboard/asap7/<task>.json)")
         if name == "pareto":
             b.add_argument("--axes", metavar="A,B,...",
                            help="opt-in: the n-dimensional Pareto frontier over these axes, for the "
@@ -2891,7 +3487,21 @@ def make_parser():
     e = sub.add_parser("export", parents=[common], help="all tasks' boards as one Markdown file")
     e.add_argument("--out", required=True)
     e.add_argument("--all-flows", action="store_true")
+    e.add_argument("--pdk", choices=PDKS, default=DEFAULT_PDK, help="sky130 (default) or asap7 (the ASAP7 view)")
     e.set_defaults(fn=cmd_export)
+
+    x = sub.add_parser("asap7", parents=[common],
+                       help="the ASAP7 view's columns (leaderboard/asap7/<task>.json): check them offline (default), "
+                       "re-derive them (--rescore) or measure and write them (--write)")
+    x.add_argument("--task")
+    g = x.add_mutually_exclusive_group()
+    g.add_argument("--rescore", action="store_true",
+                   help="also re-weigh every entry (score/ppa.py --pdk asap7; Yosys and the ASAP7 liberty) and "
+                   "require the same columns, bit for bit")
+    g.add_argument("--write", action="store_true",
+                   help="measure every design of the task(s) and write the file(s) (refused when an entry would not "
+                   "be bound to its design's sources)")
+    x.set_defaults(fn=cmd_asap7)
     return ap
 
 

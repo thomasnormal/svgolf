@@ -37,6 +37,8 @@ python3.12 leaderboard/leaderboard.py pareto --task T [--format text|json] [--un
 python3.12 leaderboard/leaderboard.py pareto --task T --axes area_mge,depth   # opt-in: n-D frontier over chosen columns (here GE)
 python3.12 leaderboard/leaderboard.py pareto --task T --axes area_um2_sky130_mapped_v1,mapped_delay_sky130_v1   # ... of flow A1' (mapped)
 python3.12 leaderboard/leaderboard.py seed-references [--task T [--ref STEM ...]]   # the proved references
+python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7     # the ASAP7 view (also pareto, export): below
+python3.12 leaderboard/leaderboard.py asap7 [--task T] [--rescore | --write]   # the ASAP7 view's columns
 ```
 
 `add` takes `--date YYYY-MM-DD` (default: today, UTC; this is the only place
@@ -225,6 +227,45 @@ carries no noise band: the pinned flow is deterministic (the same design text gi
 README "Scoring"), so the board compares the exact integers and a difference of any size is a difference between the
 scored netlists. Without `--axes`, `pareto` prints the frontier of the ranked number's two factors, each row with its
 board rank (`#`) and its area x time.
+
+## The ASAP7 view (decided 2026-11-09)
+
+The site's library selector shows every golf score either on sky130 (the default, and the records' own `ppa` columns)
+or on ASAP7 (decided 2026-11-09: a dropdown on the front page lets the reader see the golf scores on sky130 or on
+ASAP7). `board`, `pareto` and `export` take `--pdk asap7` and build the same boards on the ASAP7 columns:
+area x time (`exact` in 1e-5 um^2 x ps, `combined.py`'s `AREA_SCALE`), ties, par and the Pareto layers by the same rules,
+a row carrying `area_e5um2` (um^2 to five decimals) where a sky130 row carries `area_e4um2`, the board `pdk: "asap7"`
+and `ranked_axes` `["area_um2_asap7", "time_ps"]`. A record is ranked there under the same conditions up to the flow
+(scoring point, statement, full post-synthesis check, the flow of its task's kind), then on its ASAP7 entry instead of
+its sky130 columns (`asap7_mismatch`). The site's build ranks both views with these functions.
+
+**Where the columns live: `leaderboard/asap7/<task>.json`, not the records.** The ASAP7 columns are a pure function of
+the scored netlist each record already pins (`ppa.netlist_sha256`), of `score/ppa.py` and of the pinned ASAP7 files. Put
+into the records they would change every record's hash, that is its identity and its page's address, and need every
+record checked again, a player's included, for no new fact about the submission; and the next ASAP7 pins version would
+do it again. So they are derived data beside the records (schema `svgolf-asap7/1`; `leaderboard.py`, "the ASAP7 view"),
+like `score/measured/`: one entry per design FILE that the task's pages show at the scoring point (every record of the
+task, players' and the reference player's, every proved reference of task.json and every baseline of
+tests/expected.json with a score there), keyed by its sha256 and naming who shows it (`of`: `record:<hash>`,
+`reference:<stem>`, `baseline:<stem>`). Each entry is BOUND to the sky130 side: its canonical text, canonical RTLIL,
+GE columns, cycles and scored netlist are its record's (`asap7_binding_problems`), and a reference's or a baseline's GE
+columns and cycles are tests/expected.json's; an entry that is not is never ranked and fails `verify`. The file names
+the ASAP7 identity it was weighed under (`identity`: `ppa_version`, the pins' sha256, the liberty set's identity and the
+input drive; `asap7_identity()`) and the flow (`flow`, `current_flow`): under another one the whole file is not
+comparable, and the ASAP7 view shows no numbers for the task until it is measured again. A new or re-seeded record
+needs `asap7 --write` too: until then the ASAP7 view lists it as not ranked, and the site's build warns, fatally under
+`--strict`, about every design the view would show without a bound entry (`asap7`'s own check, `site/build.py`
+`asap7_gaps`), so a published site never has a partial ASAP7 view.
+
+| command | what | cost |
+|---|---|---|
+| `asap7 --write [--task T]` | `score/ppa.py --pdk asap7 --no-mapped` (`--seq` on a clocked task) on every design of the task(s), each checked against its sources before anything is written; writes the file(s), deterministic (sorted keys and entries, no clock) | about 2.5 minutes for every task (45 designs; fdivp 72 s, matmul 39 s, measured 2026-11-11); Yosys and the five ASAP7 files (`ppa.py --pdk asap7 --fetch-liberty`) |
+| `asap7 [--task T]` | the files against the repository, offline: the shape and the arithmetic, every design of the task present and no other, each entry bound to its sources, the identity and the flow current (else a note: not comparable) | milliseconds; no tools |
+| `asap7 --rescore [--task T]` | the offline check, then every entry weighed again: every column must reproduce, bit for bit | as `--write` |
+| `verify` | per record, its entry: bound to it (else FAIL), or a note when there is none (the view lacks the record; the record is no less valid) or the file is of another version or flow; plain `verify` and `--full` also weigh the record again on ASAP7 and require its entry's columns exactly (a note when the ASAP7 files are not on the verifying machine) | +0.8 to 17 s per record, 61 s for the largest fdivp record (median 1.6 s, measured 2026-11-11) |
+
+A new record has no ASAP7 entry until `asap7 --write` runs: until then it ranks on sky130 and is listed as not ranked in
+the ASAP7 view, with that reason.
 
 ## Policy
 

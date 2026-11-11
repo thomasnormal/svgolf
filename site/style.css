@@ -355,6 +355,39 @@ code {
 }
 .site-nav a:focus-visible { outline-offset: 4px; z-index: 1; }
 
+/* THE LIBRARY SELECTOR (decided 2026-11-09). Every golf score is on the page twice, in `.pdk.pdk-sky130` and in
+   `.pdk.pdk-asap7` (site/build.py `dual`); <html data-pdk>, which pdk.js sets before the page is drawn, picks the one
+   shown, sky130 without it. The wrappers draw no box (display: contents), so the cards, rows and grids around them lay
+   out as before; a lone `.pdk-asap7` element (a note, the banner) is shown in the ASAP7 view only. */
+.pdk { display: contents; }
+html:not([data-pdk="asap7"]) .pdk-asap7, html[data-pdk="asap7"] .pdk-sky130 { display: none !important; }
+.pdk-pick { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.pdk-pick[hidden] { display: none; }
+.site-header .pdk-pick, .site-header noscript { margin-left: auto; }
+.pdk-pick label { font: 700 0.66rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
+.pdk-pick select {
+  font: 600 var(--fs-sm)/1.2 var(--font-display); color: var(--text); background: var(--surface); cursor: pointer;
+  border: 2px solid var(--border-strong); border-radius: 0; padding: 0.4rem 0.5rem; max-width: 100%;
+}
+.pdk-pick select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.pdk-nojs { margin: 0; font: var(--fs-xs)/1.4 var(--mono); color: var(--text-2); }
+.pdk-home { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); margin-left: auto; }
+.pdk-home .pdk-what, .pdk-home .pdk-nojs { margin: 0; max-width: 30rem; text-align: right; }
+.pdk-pick-home label { font-size: var(--fs-xs); color: var(--text); }
+.pdk-pick-home select { font-size: var(--fs-md); border-color: var(--accent-line); }
+.pdk-banner { margin: 0 0 var(--sp-4); }
+.pdk-banner p { margin: 0; padding: var(--sp-3) var(--sp-4); background: var(--accent-soft); color: var(--text);
+  border-left: 4px solid var(--accent); font-size: var(--fs-sm); }
+.pdk-note { color: var(--text-2); margin: 0 0 var(--sp-3); }
+html[data-pdk="asap7"] tr.par-row:not(.par-a7) td { background: none; }
+html[data-pdk="asap7"] tr.par-row:not(.par-a7) td:first-child { box-shadow: none; }
+html[data-pdk="asap7"] tr.par-a7 td { background: var(--surface-2); }
+html[data-pdk="asap7"] tr.par-a7 td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+@media (max-width: 40rem) {
+  .pdk-home { align-items: flex-start; margin-left: 0; }
+  .pdk-home .pdk-what, .pdk-home .pdk-nojs { text-align: left; }
+}
+
 main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: var(--sp-5) var(--gutter) var(--sp-7); }
 
 /* the footer: the course's rough, under a strip of grass */
@@ -428,7 +461,7 @@ main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: va
 .stat dd .unit { font-size: 0.45em; font-weight: 500; color: var(--text-3); margin-left: 0.25em; letter-spacing: 0; }
 .stat .stat-note { display: block; font: var(--fs-xs)/1.4 var(--font); color: var(--text-3); letter-spacing: 0; text-transform: none; margin-top: 2px; }
 /* a page head's numbers: a scoreboard, the game's HUD, in a pixel frame */
-.page-head > .stats, .page-head > #numbers > .stats { --pl: var(--text); --ps: var(--px-grass-lo); background: var(--surface); padding: var(--sp-3) var(--sp-4); margin: var(--px) var(--px) calc(3 * var(--px));
+.page-head > .stats, .page-head > #numbers > .stats, .page-head > #numbers > .pdk > .stats { --pl: var(--text); --ps: var(--px-grass-lo); background: var(--surface); padding: var(--sp-3) var(--sp-4); margin: var(--px) var(--px) calc(3 * var(--px));
   box-shadow:
     0 calc(-1 * var(--px)) 0 0 var(--pl), 0 var(--px) 0 0 var(--pl), calc(-1 * var(--px)) 0 0 0 var(--pl), var(--px) 0 0 0 var(--pl),
     calc(-1 * var(--px)) var(--px) 0 0 var(--ps), var(--px) var(--px) 0 0 var(--ps), 0 calc(2 * var(--px)) 0 0 var(--ps); }
@@ -554,6 +587,11 @@ pre.code {
 }
 pre.code code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; border-radius: 0; }
 pre.code[data-src] { max-height: 40rem; }       /* whole files: scroll inside the block */
+/* "Start a new design": its first commands wrap in the narrow column (each starts with python3.12) rather than
+   hide their options past the edge; the copy button copies them unwrapped */
+#new-design > pre.code[data-lang="bash"], #new-design > .codebox > pre.code[data-lang="bash"] {
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+#new-design pre.code[data-lang="bash"] .hl-opt { white-space: nowrap; }   /* never "--" | "task" */
 
 /* a code block with a head (file name, language, actions); site.js adds a copy button */
 .codebox { position: relative; margin: var(--sp-3) 0; }
@@ -578,7 +616,11 @@ pre.code[data-src] { max-height: 40rem; }       /* whole files: scroll inside th
 .copy.done { color: var(--good-ink); border-color: var(--good); }
 .codebox > .copy { position: absolute; top: var(--sp-2); right: var(--sp-2); opacity: 0; transition: opacity 0.12s; }
 .codebox:hover > .copy, .codebox > .copy:focus-visible, .codebox > .copy.done { opacity: 1; }
-@media (hover: none) { .codebox > .copy { opacity: 1; } }
+@media (hover: none) {
+  .codebox > .copy { opacity: 1; }
+  /* a box with no head: the always-shown button sits in a strip above the code, not over its first line */
+  .codebox > pre.code:has(+ .copy) { padding-top: calc(2 * var(--sp-2) + 1.75rem); }
+}
 
 /* a terminal: shell commands on a dark block, in both modes */
 .term {
@@ -656,6 +698,10 @@ details > summary:hover { color: var(--text); }
 details[open] > summary { border-bottom: 1px solid var(--border); }
 details > :not(summary) { margin-left: var(--sp-4); margin-right: var(--sp-4); }
 details > pre.code:last-child, details > .codebox:last-child, details > .table-wrap:last-child { margin-bottom: var(--sp-4); }
+/* "Start a new design": the rest of the README's card, folded; under the title, the parts it holds */
+details.nd-detail > summary { color: var(--text); font-weight: 600; }
+.nd-more { display: block; margin-top: 0.2rem; font-weight: 400; font-size: var(--fs-xs); color: var(--text-2); }
+details.nd-detail > .codebox, details.nd-detail > pre.code { margin-left: var(--sp-4); margin-right: var(--sp-4); }
 
 ol.steps { list-style: none; padding: 0; counter-reset: step; margin: var(--sp-4) 0; }
 ol.steps > li { counter-increment: step; position: relative; padding: 0 0 0 2.4rem; margin: 0 0 var(--sp-3); min-height: 1.7rem; }
@@ -767,9 +813,16 @@ ol.board > li.par { background: var(--surface-2); }
 .js-tabs .props-pane + .props-pane { border-top: 0; }
 .props-pane[hidden] { display: none; }
 .props-pane-title { margin: 0 var(--sp-4) var(--sp-2); font: 700 var(--fs-xs)/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); }
-.js-tabs .props-pane-title { display: none; }
+/* with the tabs, the tab names the pane: its title stays for assistive technology only (a heading where the panel
+   sits under one, so that heading navigation keeps its levels), out of sight */
+.js-tabs .props-pane-title { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 .props-intro { margin: 0 var(--sp-4) var(--sp-3); font-size: var(--fs-sm); color: var(--text-2); }
 .props-group { margin: var(--sp-4) var(--sp-4) var(--sp-2); }
+/* a pane of running text (the task page's "What does not count"): the pane's own side margins, the text's size */
+.props-text { padding: 0 var(--sp-4) var(--sp-4); font-size: var(--fs-sm); }
+.props-text > :first-child { margin-top: 0; }
+.props-text h5 { margin: var(--sp-5) 0 var(--sp-1); }
 .prop-list { border-top: 1px solid var(--border); }
 .props-foot { padding: var(--sp-4); background: var(--surface-2); border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
 .props-foot > :first-child { margin-top: 0; }
@@ -924,6 +977,9 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 .course > .section-head { margin-top: 0; }
 .course > .section-head h2 { font-size: var(--fs-xl); }
 .course > .section-head > div { flex: 0 0 auto; }
+/* the library selector beside the heading takes the rest of the line and may shrink below its one-line
+   width (a phone) */
+.course > .section-head > .pdk-home { flex: 1 1 auto; min-width: 0; }
 .course-note { margin: var(--sp-5) var(--px) 0; color: var(--text-2); font-size: var(--fs-sm); max-width: 60rem; }
 
 .task-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: calc(var(--sp-4) + 6px) var(--sp-4); }
@@ -1057,38 +1113,99 @@ svg.chart.lines .series:focus-within .series-name .lv-name { font-weight: 700; }
 svg.chart.lines .leader { stroke-dasharray: 1 3; stroke-linecap: round; }
 ul.legend li[hidden] { display: none; }
 
-/* a detail page (build.py record_page, reference_detail_page): the dashboard's three cards, the area-time plot,
-   the schematic (gen_schematics.py's SVG, inline: its own scoped style reads these tokens), the critical path */
+/* a detail page (build.py record_page, reference_detail_page): the overview's three cards, the two columns, the
+   netlist card's tabs, the area-time plot, the schematic (gen_schematics.py's SVG, inline: its own scoped style
+   reads these tokens), the critical path */
 .dash { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); margin: 0 0 var(--sp-2); }
 @media (max-width: 66rem) { .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash .score-card { grid-column: 1 / -1; } }
 @media (max-width: 42rem) { .dash { grid-template-columns: minmax(0, 1fr); } }
-p.dash-note { margin: 0 0 var(--sp-5); }        /* over .fine's margin: the next card's frame keeps clear */
+/* side by side, the cards share their five rows (label, number, the line under it, the field's line, the body:
+   build.py mcard), so a line that wraps in one card moves its neighbours' parts with it and the rules line up;
+   in two columns the score card takes the next five rows, its own gap above it */
+@media (min-width: 42.01rem) {
+  .dash { row-gap: 0; }
+  .dash > .mcard { grid-row: span 5; display: grid; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
+}
+@media (min-width: 42.01rem) and (max-width: 66rem) { .dash > .score-card { margin-top: calc(var(--sp-4) + var(--px)); } }
 .mcard { background: var(--surface); margin: var(--px) var(--px) calc(3 * var(--px));
-  padding: var(--sp-4) 1.15rem 1.1rem; min-width: 0; }
-.mhead { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: 0.35rem; }
-.mhead .label { margin: 0; }
-.mcard .big { margin: 0.1rem 0 0; font: 700 2.15rem/1.1 var(--mono); letter-spacing: -0.02em; color: var(--text); overflow-wrap: anywhere; }
+  padding: var(--sp-4) 1.15rem 1rem; min-width: 0; }
+.mcard > .label { margin: 0 0 0.2rem; }
+.mcard .big { margin: 0; font: 700 2.15rem/1.1 var(--mono); letter-spacing: -0.02em; color: var(--text); overflow-wrap: anywhere; }
+/* a digit group's narrow space: the monospace face draws it a whole figure wide (0.6em), so "2 479" read as two
+   numbers; a negative letter-spacing leaves it about a quarter of an em */
+.mcard .big .g { letter-spacing: -0.33em; }
 .mcard .big .unit { font-size: 0.45em; font-weight: 500; color: var(--text-3); margin-left: 0.3em; letter-spacing: 0; }
-.mcard .sub { margin: 0.25rem 0 0.8rem; font-size: 0.8rem; color: var(--text-2); line-height: 1.45; }
-.meter { display: flex; gap: 2px; height: 10px; border-radius: 0; background: var(--sunken); overflow: hidden; margin: 0.4rem 0 0.35rem; }
-.meter > span:not(.meter-note) { display: block; flex-basis: 0; min-width: 4px; }
+.mcard .sub { margin: 0.2rem 0 0.7rem; font-size: 0.8rem; color: var(--text-2); line-height: 1.45; }
+/* a card's rows: a quiet term beside its value, one typeface (figures tabular), no small capitals */
+dl.mrows { display: grid; grid-template-columns: 5.8rem minmax(0, 1fr); gap: 0.25rem 0.75rem; margin: 0;
+  padding: 0.6rem 0 0; border-top: 1px solid var(--border); font-size: 0.86rem; line-height: 1.45;
+  font-variant-numeric: tabular-nums; }
+dl.mrows dt { color: var(--text-3); font-size: 0.8rem; }
+dl.mrows dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+dl.mrows .mpar { display: block; font-size: 0.8rem; color: var(--text-3); }   /* par's name and number, under */
+dl.mrows dd a { white-space: nowrap; }             /* a design's name ("late-carry") never breaks at its hyphen */
+dl.mrows + dl.mrows { margin-top: 0.6rem; }
+dl.mfacts { font-size: 0.8rem; }
+dl.mfacts dd { color: var(--text-2); }
+.tag { font-size: 0.72rem; color: var(--text-3); }
+.meter { display: flex; gap: 2px; height: 8px; border-radius: 0; background: var(--sunken); overflow: hidden; margin: 0 0 0.35rem; }
+.meter > span { display: block; flex-basis: 0; min-width: 4px; }
 .meter .m-beat { background: var(--accent); }
 .meter .m-tie { background: color-mix(in srgb, var(--accent) 42%, var(--surface)); }
 .meter .m-trade { background: var(--axis); }
 .meter .m-behind { background: transparent; }
-.meter-empty { height: auto; min-height: 1.6rem; align-items: center; justify-content: center; background: var(--surface-2);
-  border: 2px dashed var(--border-strong); border-radius: 0; }
-.meter-note { flex: 1 1 auto; font: 500 0.72rem/1.3 var(--mono); color: var(--text-3); padding: 0.3rem 0.5rem; text-align: center; }
-.beats { margin: 0.35rem 0 0.1rem; font-size: var(--fs-base); }
+.beats { margin: 0; font-size: 0.92rem; }
+.mcard .beats + .fine { margin: 0.1rem 0 0.6rem; }
+.mboard { margin: 0.6rem 0 0; }       /* across the card under the rows, as the beats/matches line above them */
+.mboard .fine { margin: 0; }
 .fine { margin: 0.3rem 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-2); }
-.vs { margin: 0.65rem 0 0.2rem; font-size: 0.86rem; }
-.vs-k { font: 600 0.66rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); margin-right: 0.45rem; }
-dl.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 0.9rem; margin: 0.75rem 0 0.5rem;
-  padding-top: 0.6rem; border-top: 1px solid var(--border); font-size: 0.84rem; }
-dl.kv dt { font: 600 0.68rem/1.9 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
-dl.kv dd { margin: 0; font-family: var(--mono); font-size: 0.82rem; line-height: 1.75; }
-.tag { font: 500 0.64rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); margin-left: 0.3rem; }
-.sublabel { margin: var(--sp-4) 0 0.2rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+.dash-note { margin: 0 0 var(--sp-5); max-width: 62rem; }     /* the next card's frame keeps clear */
+.dash-note .fine { margin: 0.2rem 0; }
+.dash-note details.reveal { margin: 0; }
+.dash-note details.reveal > summary { font: 0.78rem/1.5 var(--font); }     /* the note's face, as the line above it */
+.dash-note details.reveal > .fine { margin: 0.35rem 0; }
+/* the two columns of a detail page, under the sources (across the page): the netlist takes the room, the record's
+   facts a rail beside it; both shrink together (a rail held at its widest left the netlist's tables to scroll),
+   and under 72rem they stand one under the other, the netlist first */
+.split-detail { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 72.01rem) {
+  .split-detail { grid-template-columns: minmax(0, 2.25fr) minmax(15rem, 1fr); }
+  /* a record's checker card (build.py detail_layout's `more`) goes under the netlist, beside the rest of the side
+     column: the first row is the netlist's height, the second takes the rest */
+  .split-more { grid-template-rows: auto 1fr; }
+  .split-more > .col-main { grid-column: 1; grid-row: 1; }
+  .split-more > .col-side { grid-column: 2; grid-row: 1 / span 2; }
+  .split-more > .col-more { grid-column: 1; grid-row: 2; }
+}
+#sources .codebox-dl { font: 600 var(--fs-xs)/1 var(--mono); color: var(--link); }
+@media (min-width: 40.01rem) {           /* the main column is wide enough for a term beside its value */
+  .col-main dl.facts { grid-template-columns: max-content minmax(0, 1fr); }
+  .col-main dl.facts dt { padding-bottom: 0.55rem; border-bottom: 1px solid var(--border); }
+}
+.col-side dl.facts dt { padding-top: 0.45rem; }
+.col-side dl.facts dd { padding: 0.1rem 0 0.45rem; }
+/* tabs in a card (page.py's tabs; site.js): without the script, links to panes that stand one under the other */
+.tabs-nav { display: flex; flex-wrap: wrap; gap: 0 var(--sp-5); margin: 0 0 var(--sp-4); border-bottom: 1px solid var(--border); }
+.tabs-nav > a { display: inline-flex; align-items: center; font: 700 var(--fs-xs)/1 var(--mono); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-3); padding: 0.7rem 0 0.6rem; margin-bottom: -1px;
+  border-bottom: 3px solid transparent; text-decoration: none; }
+.tabs-nav > a:hover { color: var(--text); }
+.tabs-nav > a[aria-selected="true"] { color: var(--text); border-bottom-color: var(--nav-on); }
+.tabs-pane[hidden] { display: none; }
+.tabs-pane + .tabs-pane { margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--border); }
+.js-tabs > .tabs-pane + .tabs-pane { margin-top: 0; padding-top: 0; border-top: 0; }
+.tabs-pane > .tabs-pane-title { margin: 0 0 var(--sp-2); font: 700 var(--fs-xs)/1.4 var(--mono); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--accent-ink); }
+/* with the tabs, the tab names the pane: its title stays for assistive technology (heading navigation), out of
+   sight, as the property panel's */
+.js-tabs .tabs-pane-title { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.tabs-pane { position: relative; }
+.tabs-pane > :last-child { margin-bottom: 0; }
+/* the size a pane shows (build.py scale_label), at its top right; a drawing or a box below it starts under it */
+.tabs-pane > .pane-scale { float: right; margin: 0.3rem 0 0 var(--sp-4); }      /* beside the first line only */
+.tabs-pane > .pane-scale + :is(figure, .empty, .table-wrap, details) { clear: right; }
+@media (max-width: 40rem) { .tabs-pane > .pane-scale { float: none; margin: 0 0 var(--sp-2); } }   /* its own line */
 svg.chart.pa .iso { fill: none; stroke: var(--kind-reference); stroke-width: 1; opacity: 0.55; }
 svg.chart.pa .halo, .legend-icon .halo { fill: none; stroke: var(--text); stroke-width: 1.6; }
 .legend-icon .iso { fill: none; stroke: var(--kind-reference); stroke-width: 1.2; opacity: 0.7; }
@@ -1136,6 +1253,12 @@ tr.is-subject td:first-child { box-shadow: inset 3px 0 0 var(--text); }
 .sch-box svg.sch .c.picked path, .sch-box svg.sch .c:target path { fill: color-mix(in srgb, var(--link) 25%, transparent); }
 .sch-box svg.sch .c.picked .cellref, .sch-box svg.sch .c:target .cellref { fill: var(--link); font-weight: 700; }
 table.path td:nth-child(2), table.path td:nth-child(4) { white-space: nowrap; }
+/* eight columns beside the record's rail: a head may take two lines ("arrival / (ps)"), the cells less padding */
+table.path thead th { white-space: normal; vertical-align: bottom; }
+table.path th, table.path td { padding-left: 0.55rem; padding-right: 0.55rem; }
+/* the checker's files beside the record's rail: a whole sha256 on one line, a long name broken after a slash */
+table.hashes th, table.hashes td { padding-left: 0.6rem; padding-right: 0.6rem; }
+table.hashes td:first-child > code { white-space: normal; }
 ol.chain { list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0; margin: 0 0 var(--sp-4);
   padding: 0; font-size: var(--fs-sm); line-height: 1.6; }
 ol.chain li { white-space: nowrap; }
@@ -1201,6 +1324,8 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   .page-head > .stats, .page-head > #numbers { margin-right: var(--px); }
   .stats { gap: var(--sp-2) var(--sp-5); }
   .stat { text-align: left; }
+  /* the page head's Par and Record lines ("87 174 µm² × 4 cycles × 10.7 ns period") wrap rather than widen the page */
+  .stat .stat-note { white-space: normal; }
   pre.code { font-size: 0.76rem; padding: var(--sp-3); }
   table.wide { min-width: 40rem; }      /* many columns: scroll rather than squeeze the prose */
   /* page.table(stack=True): each row a small card, the first cell on top, every other cell under
@@ -1212,6 +1337,7 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   table.stack td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; white-space: normal; }
   table.stack td:first-child { grid-column: 1 / -1; min-width: 0; }
   table.stack td:not(:first-child)::before { content: attr(data-label); display: block; font: 600 0.66rem/1.4 var(--mono); letter-spacing: 0.06em; color: var(--text-3); }
+  table.stack.closure td:last-child code { white-space: normal; overflow-wrap: anywhere; }   /* a hash in a third of a row */
   table.stack tr.par-row { background: var(--surface-2); box-shadow: inset 4px 0 0 var(--accent); }
   table.stack tr.par-row td, table.stack tr.par-row td:first-child { background: none; box-shadow: none; }
   dl.facts { grid-template-columns: minmax(0, 1fr); }
@@ -1229,6 +1355,10 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
 }
 @media (max-width: 21rem) {
   .site-nav a { font-size: 0.7rem; padding-left: 0.15rem; padding-right: 0.15rem; }
+  /* a task card's three numbers in a 320 px column ("3 729 636" twice, then the share): a smaller figure, and the
+     share's column at its narrowest ("UNDER" over "PAR", as it wraps here anyway), so the numbers keep their gap */
+  .task-card .stats { grid-template-columns: minmax(0, auto) minmax(0, auto) min-content; }
+  .task-card .stat dd { font-size: var(--fs-sm); }
 }
 
 @media (forced-colors: active) {
@@ -1237,7 +1367,8 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   .badge::before, .bar > span { background: CanvasText; }
   /* the pixel frames are shadows, which forced colours drop: a plain border instead */
   .card, .task-card, .loop > li, .mcard, .props, .hero, .btn, .site-nav, .chart-tip, ul.roadmap > li,
-  .empty, .badge, .seg, .toc a, .page-head > .stats, .page-head > #numbers > .stats { border: 2px solid CanvasText; }
+  .empty, .badge, .seg, .toc a, .page-head > .stats, .page-head > #numbers > .stats,
+  .page-head > #numbers > .pdk > .stats { border: 2px solid CanvasText; }
   .page-head { border-bottom: 3px solid CanvasText; }
   .site-nav a[aria-current="page"], .seg > [aria-pressed="true"], .seg > .on {
     forced-color-adjust: none; background: Highlight; color: HighlightText; }
@@ -1245,6 +1376,15 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
 
 @media print {
   .site-header, .site-footer, .copy, .doc-side, .hero-art { display: none; }
+  /* a detail page's netlist prints its three panes, each under its title, as without the script */
+  .tabs-nav, .sch-tools { display: none; }
+  .tabs-pane[hidden] { display: block; }
+  .js-tabs > .tabs-pane + .tabs-pane { margin-top: var(--sp-5); padding-top: var(--sp-4);
+    border-top: 1px solid var(--border); }
+  .js-tabs .tabs-pane-title { position: static; width: auto; height: auto; margin: 0 0 var(--sp-2); overflow: visible;
+    clip: auto; clip-path: none; }
+  .sch-box { max-height: none; overflow: visible; }
+  .sch-box.zoomable svg.sch { max-width: 100%; height: auto; }      /* the whole drawing, whatever its zoom */
   body { background: #fff; }
   .card { box-shadow: none; }
 }

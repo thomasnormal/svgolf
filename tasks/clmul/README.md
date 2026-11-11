@@ -15,7 +15,7 @@ and a `Solution.lean` that proves it for every `N ≥ 1`. Find the design withou
 without a proof:
 
 ```bash
-python3.12 score/ppa.py solution.sv --task tasks/clmul --no-mapped   # area and delay, about a second
+python3.12 score/ppa.py solution.sv --task tasks/clmul --no-mapped --path   # area, delay and the critical path, about a second
 python3.12 check.py tasks/clmul solution.sv --unproved --tactics --stage-dir stage
 ```
 

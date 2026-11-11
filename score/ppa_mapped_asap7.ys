@@ -1,0 +1,26 @@
+# svGolf PPA flow A1' on ASAP7 (asap7_a1_v1; score/ppa.py --pdk asap7): REAL TECHNOLOGY MAPPING of the pinned canonical RTLIL
+# onto asap7sc7p5t rev 28, RVT, TT. Do not edit: a change here is a change to every asap7 mapped number (ppa.py records this
+# file's sha256 as `ppa_mapped_script_sha256` and the version in ppa_mapped_pins_asap7.json must change with it). It is
+# score/ppa_mapped.ys (the sky130 A1' script) with the library swapped and nothing else: the same fresh Yosys process on the
+# canonical RTLIL, the same `synth -flatten`, the same ABC script spelled out (Yosys 0.53's default for `abc -liberty`
+# without -constr: strash; &get -n; &fraig -x; &put; scorr; dc2; dretime; strash; &get -n; &dch -f; &nf; &put), no
+# -constr, no -D, no sizing pass, no hilomap (constants stay literals; ppa.py prices one TIELOx1 / TIEHIx1 per constant
+# used, as the A0' constants policy of ppa_pins_asap7.json does for an unrepaired netlist).
+#
+#   @RTLIL@    the canonical RTLIL (score.py's `rtlil_out`)
+#   @TOP@      the task's top module
+#   @LIBERTY@  the four COMBINATIONAL liberty files of ppa_mapped_pins_asap7.json `abc_liberty_files` (INVBUF, SIMPLE, AO,
+#              OA; ppa.py checks every sha256 before this script runs and writes them as `"f1" -liberty "f2" ...`, so ABC
+#              reads one library made of the four); the SEQ file is not read (A1' maps combinational designs only, and
+#              its clock gates have an output without a function, which read_liberty refuses)
+#   @NETLIST@  output file: the mapped netlist (`write_verilog -noattr -noexpr`)
+#
+# `-dont_use` excludes, by glob, exactly the cells of those four files outside class "logic" of ppa_pins_asap7.json
+# `cell_policy`: the clock inverters CKINVDC*, the hold buffers HB*, the multi-output full and half adders FAx1 and HAxp5,
+# and the tie cells TIEHI*/TIELO*. Every drive strength of every ordinary combinational cell may appear (the xp33..x24
+# sizes, AO/OA/AOI/OAI, MAJ, 5-input gates, ...); ppa.py enforces the same policy again on the mapped netlist.
+read_rtlil @RTLIL@
+synth -flatten -top @TOP@
+abc -liberty @LIBERTY@ -dont_use CKINVDC* -dont_use HB* -dont_use FAx1_* -dont_use HAxp5_* -dont_use TIEHI* -dont_use TIELO* -script +strash;,&get,-n;,&fraig,-x;,&put;,scorr;,dc2;,dretime;,strash;,&get,-n;,&dch,-f;,&nf;,&put
+opt_clean -purge
+write_verilog -noattr -noexpr @NETLIST@

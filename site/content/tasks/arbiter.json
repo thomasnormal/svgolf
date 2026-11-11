@@ -1,10 +1,15 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `preview_note` is a preview's status line (why it is not ranked yet); `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `preview_note` is a preview's status line (why it is not ranked yet); `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_lead` (optional, Markdown): the opening of the page's \"Start a new design\" card, a fact of the route that the README's opening gives first (the page shows none of the README's opening: site/build.py `new_design_parts`); `new_design_checks` (optional, Markdown): replaces the README card's text on what its two commands do (shown under them, the first two of How to submit), where that text restates the task's facts (it must name the same options). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "Fair N-client arbiter, clocked and reactive",
  "subtitle": "At most one grant per cycle, only to a requester, someone whenever anyone requests, and a requester that asks N cycles in a row granted within them.",
  "banlist_note": "Only run-time `/ % **` are banned: a zero divisor or a negative exponent makes an unknown value from known operands, which ls-sv carries into decisions and synthesis builds as a defined value. Comparisons, additions and shifts are an arbiter's own tools; the score prices the policy and its state.",
  "references": {
   "rr_mask": "A registered mask round-robin: the lowest requester above the last grant wins, else the lowest requester; proved for every number of clients."
  },
- "baselines": {}
+ "baselines": {},
+ "new_design_checks": "The first command weighs the design through the clocked flow (`--seq`; without it `ppa.py` refuses the flip-flops): the area and the register-to-register period, with the critical path (`--path`). The second runs every stage that needs no proof: the clocked source rules, the check that no construct can create an `x`, the never-loaded register check, the score, and the reactive post-synthesis check, which drives the scored netlist through reset segments and one long run without a reset and holds every grant to the statement's G0 to G4 and the Moore sample. A wrong policy is named there, with the cycle, before any proof. It leaves the design staged in `stage/` for probe files ([PROVING.md, section 0](site:proving.html#0-the-loop)). The `sv_comb` tactics are for combinational tasks: `--tactics` does not read a clocked design.",
+ "new_design_reviewed": {
+  "opening": "477ef5d6f9e8",
+  "checks": "31e445488c48"
+ }
 }

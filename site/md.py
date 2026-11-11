@@ -31,7 +31,7 @@ blocks go through `highlight(code, lang)`.
 import html
 import re
 
-__all__ = ["MarkdownError", "Rendered", "Slugger", "render", "render_inline", "split_sections"]
+__all__ = ["MarkdownError", "Rendered", "Slugger", "render", "render_inline", "split_blocks", "split_sections"]
 
 
 class MarkdownError(Exception):
@@ -132,6 +132,35 @@ def split_sections(text):
     for k, (level, title, start) in enumerate(heads):
         end = next((s for lv, _, s in heads[k + 1:] if lv <= level), len(lines))
         out.append((level, title, start, end))
+    return out
+
+
+def split_blocks(text):
+    """[(start, end, kind)] of the top-level chunks of `text`: runs of non-blank lines, each with its
+    0-based line range [start, end); a fenced code block is one chunk, blank lines inside it included.
+    `kind` is "fence" (the chunk is a fenced code block), "list" (it starts with a list item) or "text".
+    For a caller that shows the parts of a section differently (site/build.py's "Start a new design")."""
+    lines = text.split("\n")
+    out, i, n = [], 0, len(lines)
+    while i < n:
+        if not lines[i].strip():
+            i += 1
+            continue
+        start = i
+        m = _FENCE.match(lines[i])
+        if m:
+            fence = m.group(2)
+            i += 1
+            while i < n:
+                c = _FENCE.match(lines[i])
+                i += 1
+                if c and c.group(2)[0] == fence[0] and len(c.group(2)) >= len(fence) and not c.group(3):
+                    break
+            out.append((start, i, "fence"))
+            continue
+        while i < n and lines[i].strip() and not (i > start and _FENCE.match(lines[i])):
+            i += 1
+        out.append((start, i, "list" if _LIST.match(lines[start]) else "text"))
     return out
 
 

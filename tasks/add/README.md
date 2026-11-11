@@ -19,7 +19,7 @@ A new adder is your own `solution.sv` (the header below; `+ - * / % **` are bann
 without a proof:
 
 ```bash
-python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped     # area and delay, about a second
+python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped --path   # area, delay and the critical path, about a second
 python3.12 check.py tasks/add solution.sv --unproved --tactics --stage-dir stage
 ```
 

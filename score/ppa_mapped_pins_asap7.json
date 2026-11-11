@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Pins of flow A1' on ASAP7 (score/ppa.py --pdk asap7): the canonical RTLIL of the pinned flow mapped by a real `abc -liberty` run onto",
+    "asap7sc7p5t rev 28, RVT, TT (the four combinational files of ppa_pins_asap7.json), then weighed exactly as A1' is on sky130 (the same",
+    "STA, ideal input ramps, no repair, no legality audit, linear extrapolation outside a grid; the asap7 timing setup and constants",
+    "policy of ppa_pins_asap7.json). The Yosys script is score/ppa_mapped_asap7.ys (its sha256 is recorded beside this file's). Change",
+    "anything here or there and `ppa_mapped_version` must change. A research column, as A1' is on sky130: its fields carry their own",
+    "names (area_um2_asap7_mapped_v1, mapped_delay_asap7_v1, ...)."
+  ],
+  "ppa_mapped_version": "asap7_a1_v1",
+  "liberty_sha256": "5ece07acb7ece6a9fad109eadccbf88cce141dd8aa02f877205ee706cc99057a",
+  "_liberty_sha256_comment": "The identity of ppa_pins_asap7.json's set of five files (ppa.py set_sha256: SHA-256 over `<file> <sha256>\\n` per file, in the pins' order): both flows weigh with one library.",
+  "abc_liberty_files": ["asap7sc7p5t_SIMPLE_RVT_TT_nldm_211120.lib", "asap7sc7p5t_INVBUF_RVT_TT_nldm_220122.lib",
+                        "asap7sc7p5t_AO_RVT_TT_nldm_211120.lib", "asap7sc7p5t_OA_RVT_TT_nldm_211120.lib"],
+  "_abc_liberty_files_comment": "The four combinational files, in the order ABC reads them (`-liberty` once each). SIMPLE FIRST: the pinned yosys-abc (ABC 1.01 of 6 May 2025) dies with a segmentation fault when INVBUF is the first -liberty file (MEASURED on a 4-bit adder and mux: INVBUF, SIMPLE, ... and INVBUF, SIMPLE crash; SIMPLE, INVBUF, AO, OA maps).",
+  "count_prefixes": {"buffers": ["BUF"], "inverters": ["INV"]},
+  "tools": {
+    "_comment": "The builds the asap7 mapped numbers were measured with (score/reference_build.json's rating build); recorded live in every mapped block, never refused.",
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)"
+  },
+  "yosys_timeout_s": 900,
+  "script": {
+    "file": "ppa_mapped_asap7.ys",
+    "abc_script": "strash; &get -n; &fraig -x; &put; scorr; dc2; dretime; strash; &get -n; &dch -f; &nf; &put"
+  },
+  "equivalence": {
+    "vectors": 2048,
+    "seed": "svgolf-ppa-mapped/1",
+    "_comment": "As on sky130: the mapped netlist is simulated against the scored one on `vectors` input vectors through the liberty's own cell functions before it is weighed."
+  }
+}

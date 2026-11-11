@@ -18,7 +18,7 @@ A new multiplier is your own `solution.sv` (the header below; `+ - * / % **` are
 without a proof:
 
 ```bash
-python3.12 score/ppa.py solution.sv --task tasks/mul --no-mapped     # area and delay, about two seconds
+python3.12 score/ppa.py solution.sv --task tasks/mul --no-mapped --path   # area, delay and the critical path, about two seconds
 python3.12 check.py tasks/mul solution.sv --unproved --tactics --stage-dir stage
 ```
 

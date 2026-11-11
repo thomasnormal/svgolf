@@ -97,11 +97,13 @@ be checked: it fails at `solution` with "operation not permitted". `lake env lea
 
 ## 4. Writing the proof
 
-[PROVING.md](PROVING.md) is the guide; read its sections 0 to 2 and 4 before anything else, and do not copy it. It
+[PROVING.md](PROVING.md) is the guide; read its sections 0 to 2 and 4 before anything else (for a clocked task:
+section 0, then section 19, or 20 for `arbiter`), and do not copy it. It
 covers the loop, the four obligations of a settled-state proof, what the tactics accept and refuse, and when to fall
 back to a by-hand proof. Two complete tactic proofs are the models: `tasks/add/reference/add_n.lean` (every `N`, 84
 code lines) and `tasks/aes_sbox/reference/sbox_bp.lean` (a fixed-size flat netlist). The whole file is a submission
-`Solution.lean` that imports `Submission.Design` and proves `theorem Submission.solution : Submission.Goal`.
+`Solution.lean` that imports `Submission.Design` and proves `theorem Submission.solution : Submission.Goal`
+(`Submission.Goal Submission.lat` for `matmul` and `sorter`, which declare a latency: README.md, "Submitting").
 
 The shape of an `add_n`-style proof (a family, every `N`):
 

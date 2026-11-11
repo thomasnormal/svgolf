@@ -21,7 +21,8 @@ hardware. For each task you:
 **Read these, in this order:** a task's `tasks/<name>/README.md` (`tasks/_example/` is the tutorial,
 `tasks/add/` the first real task: the statement, what is banned, par); [Quick start](#quick-start)
 (Step 0, the inner loop, the three commands); [Submitting](#submitting) (the two files and the Lean
-contract); [PROVING.md](PROVING.md) sections 0 to 2 (the loop, the shape of a proof, the adder); then
+contract); [PROVING.md](PROVING.md) sections 0 to 2 (the loop, the shape of a proof, the adder; for a
+clocked task, `matmul`, `sorter` or `arbiter`: section 0, then section 19, or 20 for the arbiter); then
 the rest of this file as you need it.
 
 A proof that a circuit is correct is worth nothing if the statement can be
@@ -38,7 +39,9 @@ which never will be: [REFUSALS.md](REFUSALS.md) (generated from
 
 **Step 0, once per machine.** Install [elan](https://github.com/leanprover/elan) (it installs the Lean
 toolchain that `lean-toolchain` pins, `leanprover/lean4:v4.33.0-rc1`, on first use), Yosys 0.53 with its
-`yosys-abc` (the pinned flow), Verilator 5 and Python 3.12. Then:
+`yosys-abc` (the pinned flow), Verilator 5, a C++ compiler and `make` (the post-synthesis stage compiles
+Verilator's model of the netlist, and without them `check.py` stops with the infrastructure error
+"postsynth: `c++` is not on PATH ..."; "Checking" says which compiler) and Python 3.12. Then:
 
 ```bash
 python3.12 -m pip install -r requirements.txt   # pyslang 11.0.0, the extractor's SystemVerilog frontend
@@ -46,10 +49,20 @@ lake build                                      # the trusted Lean and the check
 python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty (12.8 MB, checked by its hash)
 ```
 
-The first `lake build` of a clone of the public repository takes about 6 minutes and 1 GB: Lake clones
-proglib and its packages from github.com (it needs network access there) and builds the
-`LeanModels.Sv` modules svGolf uses; Mathlib is cloned, never built. Before it, `check.py` stops with an
+In the first `lake build` of a clone of the public repository, Lake clones proglib and its packages from
+github.com (it needs network access there) and builds the `LeanModels.Sv` modules svGolf uses; Mathlib is
+cloned, never built. Measured from a fresh clone: about 6 minutes, and about 1 GB of clones on disk, on an
+Apple M2 Pro laptop with 16 GB and the toolchain already installed (2026-11-05); on a slower Linux machine
+with Lean on 2 threads (2026-11-10), 484 s for elan's first toolchain download, then 1215 s for `lake build`
+(about 8 minutes of it cloning) at a peak resident memory of 3.75 GB. Before it, `check.py` stops with an
 infrastructure error that names the missing extractor.
+
+A proof that imports Mathlib needs Mathlib's build, which `lake build` does not make (svGolf and the
+references import no Mathlib): in a clone of the public repository, `lake exe cache get` fetches it (109 s
+on that machine; where the open-file limit is 1024, raise it first: `ulimit -n 65536`; at 1024 it failed
+with "No file descriptors available (os error 24)"). Without it, `check.py` stops such a proof with an
+infrastructure error: "the package(s) ['Mathlib'] are on no entry of the Lean search path" ("Mathlib in
+submissions").
 
 **The three commands.** A submission is `solution.sv` and `Solution.lean` (any names and paths;
 "Submitting" says what the Lean file must contain):
@@ -739,7 +752,7 @@ Written inside `namespace Submission`, as every reference does, that is `theorem
 `Goal` unfolds to the task's statement of your design: `SvGolf.Tasks.Add.Statement Submission.design.sem`
 for `add` (`task.json`'s `statement.constant`). The file names and paths are free (`solution.sv` and
 `Solution.lean` throughout these docs); the module name `Submission`, the `import Submission.Design`
-header and the theorem are fixed. A skeleton:
+header and the theorem are fixed. A skeleton for a combinational task:
 
 ```lean
 import Submission.Design
@@ -755,6 +768,14 @@ theorem solution : Goal := by
 
 end Submission
 ```
+
+The clocked tasks have their own skeletons, in their `tasks/<name>/README.md`, "Start a new design" (the
+task page shows the same text). `matmul` and `sorter` declare a latency in one line of its own in
+`Solution.lean`, `-- svgolf-latency: n` (not in the `.sv`; the references put it first), define `lat`, one
+`Nat` per parameter, and prove `theorem solution : Goal lat`: their generated `Goal` takes the latency,
+and `Goal lat` is the task's `Statement design.sem lat ∧ lat p0 = n` at the scoring point `p0` ("Rules").
+The `arbiter` has no latency line and proves `theorem solution : Goal`. None of the three uses the `sv_comb` tactics:
+[PROVING.md](PROVING.md) section 19 is the route for `matmul` and `sorter`, section 20 for the `arbiter`.
 
 It may import `Init`, `Std`, `Lean`, `LeanModels.Sv.*`, `SvGolf.*`,
 and `tasks.*`, and Mathlib with the packages it imports (`Mathlib.*`,
@@ -1118,7 +1139,13 @@ it, the wrapper goes in front of each call, as before. `python3.12` is required
 scripts also need Verilator 5 (the measurements here are 5.042, recorded in
 every postsynth result as `verilator`), a C++ compiler (`$CXX`, default
 `c++`) and `make`; a missing tool is an infrastructure error, not a
-rejection. `SVGOLF_VERILATOR_JOBS` (default 2) sets the parallelism of the
+rejection. The model's makefile includes Verilator's own `verilated.mk`,
+which sets `CXX` and `LINK` itself (both `c++` in Homebrew's Verilator
+5.042), and `make` takes those over the `$CXX` the stage passes in its
+environment, so the compiler they name must be on `PATH` too: where `CXX`
+named another compiler and no `g++` was on `PATH`, the build stopped with
+"make: g++: No such file or directory" (2026-11-10).
+`SVGOLF_VERILATOR_JOBS` (default 2) sets the parallelism of the
 model's C++ build.
 
 **Advisory output.** Three things in the result are contestant conveniences; none changes
@@ -1606,10 +1633,11 @@ is the period). **The one ranked number is their product, area x time** in um2*n
 and "under par" use it, and the site's leaderboard orders by it. The Pareto frontier of the two ("Leaderboard"), area
 in NAND2 gate equivalents (`area_mge`), depth (`ltp -noff`) and flow A1' are EXTRA columns for exploring: shown beside
 the score, ranked by nothing. "Reproduce a score" (the end of this section, and
-[score/PPA.md](score/PPA.md)'s section of that name) gives every ranked number again, bit for bit.
+[score/PPA.md](score/PPA.md)'s section of that name) gives every ranked number again, bit for bit. sky130 is the
+default; a reader may see the same golf scores on ASAP7 instead ("The ASAP7 view", at the end of this section).
 
-**The build ratings use** (decided 2026-11-05). Every ranked number, on the boards and on the site, is made by one
-build of the tools, and it is not a slower portable one:
+**The build ratings use** (decided 2026-11-05). Every ranked number, on the boards and on the site, is made, or
+reproduced bit for bit, by one build of the tools, and it is not a slower portable one:
 
 * **Yosys 0.53** (git sha1 `53c22ab7c0ced80861c7536c5dae682c30fb5834`), the Homebrew build for macOS arm64, compiled
   by clang++ 17 with -O3 (version line `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++
@@ -1618,10 +1646,19 @@ build of the tools, and it is not a slower portable one:
   `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653`);
 * the liberty `sky130_fd_sc_hd__tt_025C_1v80.lib` (sha256
   `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5`), `score/ppa.py` (sha256
-  `912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe`) and `score/ppa_pins.json` (`sky130_a0_v3`,
+  `1ef1b1c1904853711cbed9b3b5e275f333aade8f60361f8bbc61305c98c480ab`) and `score/ppa_pins.json` (`sky130_a0_v3`,
   sha256 `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8`), with the scripts `score/canon.ys`
   (`bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b`) and `score/svgolf.ys`
   (`ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445`).
+
+Records made before this `score/ppa.py` (every record on the board on 2026-11-11) name the earlier file, sha256
+`912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe`, in their checker files and as
+`ppa_script_sha256`. The change between the two adds the ASAP7 view (`--pdk asap7`, "The ASAP7 view", below) and
+leaves the sky130 output identical: rescoring all 23 records with this file on 2026-11-11 reproduced every stored
+sky130 field but that hash. So the records were not made again; `leaderboard.py verify` prints a note for the changed
+file, and a note never changes a record's status. The ASAP7 view's numbers come from the same build and the same
+`score/ppa.py`, with `score/ppa_pins_asap7.json` and its five pinned liberty files in place of the sky130 pins and
+liberty.
 
 The flow is deterministic on that build: the same design text gives the same area, time and netlist on every run
 (measured 2026-11-05 on 52 designs, 826 runs). Another build of the same Yosys version can break ABC's ties differently
@@ -1834,6 +1871,61 @@ versions and file hashes, prints both Yosys scripts as filled in for the `add` r
 runs the same steps by hand (`srcgate.py`, two `yosys -s` runs, `ppa.py --netlist-in`); it was tested by following it
 literally in a scratch copy on the `add` and `aes_sbox` references, bit for bit equal to the goldens.
 
+### The ASAP7 view
+
+**sky130 is the default; a reader may see the golf scores on ASAP7 instead** (decided 2026-11-09). The site's library
+selector, on the home page and in the header of every page, switches every golf score on the site between the two
+libraries: the boards and their order, par and the record, the ranks, the score and Pareto charts, each task's score
+card and each record's overview. The browser remembers the choice (where it allows it) and the address carries it:
+`?pdk=asap7`, and `?pdk=sky130` once a reader has chosen a library, so a copied link shows its recipient what its
+sender saw; an address without `?pdk=` shows each reader their own choice (sky130 until they choose one), and Back and
+Forward show the reader's latest choice. Without JavaScript the site shows sky130. Both rankings are computed when the
+site is built, by `leaderboard.py`'s own functions (`board --pdk asap7`), under the same rules (area x time, par, ties);
+a score of one library is never compared with one of the other. The records keep their sky130 columns, and nothing else
+changes with the view: the netlist cards, the scaling view and the task texts stay sky130's, each labelled so in the
+ASAP7 view; the energy figures are measured on sky130 alone, so the ASAP7 view shows none; GE and depth do not depend
+on the library.
+
+**How ASAP7 is scored.** The same scored netlist as sky130's score (the pinned flow does not depend on the library),
+weighed by `score/ppa.py --pdk asap7` (flow A0', `asap7_a0_v1`): each gate its least-area ASAP7 build, repaired by
+buffering only, an illegal netlist rejected, no wires, timed by the same static analysis. The area is in um^2 (exact in
+1e-5 um^2), the time in ps (the critical-path delay; on a clocked task cycles x the register-to-register period). The
+library is asap7sc7p5t rev 28 (RVT, typical corner, 0.70 V, 25 C): five liberty files of The OpenROAD Project's
+OpenROAD-flow-scripts (commit `a1a6c3ff`, each file with its BSD 3-Clause licence header), fetched at pinned hashes,
+never vendored (decided 2026-11-10).
+
+**What ASAP7 is, and its quirks.** ASAP7 is a predictive 7 nm library made for research: it has never been fabricated,
+so no chip can confirm its numbers, where sky130 is a real 130 nm process. What it forces on the scorer, each choice
+pinned with its reason in `score/ppa_pins_asap7.json`:
+
+* it has no MUX, A&!B or A|!B cell, so those gates cost two cells each (an inverter in front);
+* its x1 flip-flop has only an inverted output, so every flop gets an inverter forming Q;
+* its timing tables start above the smallest input loads, so a read below a table's grid is read at the grid's floor
+  (counted, and a floored delay errs slow) where sky130 rejects the netlist; above a grid the rule is sky130's;
+* its timing setup is scaled from sky130's by the same reasons: a 20 ps input ramp, 2.5 fF per output bit, every input
+  driven by `BUFx8`;
+* its tie cells declare no capacitance limit, so one is pinned.
+
+The two libraries order the designs by area almost alike (a sky130 area is 63 to 72 times the ASAP7 one) and differ on
+time, because they price AND, OR, XOR and MUX against NAND differently; so area x time can reorder close designs, and
+does on the `add` and `mul` boards.
+
+**Where the numbers live.** Not in the records, whose hash and address would change for a column that is a pure
+function of the netlist they already pin: in `leaderboard/asap7/<task>.json`, one entry per design file a task's pages
+show (every record, proved reference and baseline), bound to its record by the canonical text, the canonical RTLIL, the
+GE columns, the cycles and the scored netlist. `leaderboard.py asap7 --write` measures them (a new or re-seeded record
+needs it), `leaderboard.py asap7` checks them, and `asap7 --rescore` and `verify` weigh them again and require the same
+numbers, bit for bit. A design the ASAP7 view would show without a bound entry is "not ranked" or "–" there, never a
+sky130 number, and the site build warns about it (fatal under `--strict`, so a published site has the whole view)
+([leaderboard/README.md](leaderboard/README.md), "The ASAP7 view"; [score/PPA.md](score/PPA.md), "ASAP7: an alternative
+library", has every choice and measurement).
+
+```bash
+python3.12 score/ppa.py --pdk asap7 --fetch-liberty                                 # once: the five pinned files
+python3.12 score/ppa.py SOLUTION.sv --task tasks/<name> --pdk asap7 --no-mapped     # a design's ASAP7 numbers
+python3.12 leaderboard/leaderboard.py board --task <name> --pdk asap7               # the ASAP7 board
+```
+
 ## The banlist
 
 `score/banlist.py` runs two independent checks, both driven by the task's
@@ -1899,6 +1991,7 @@ python3.12 leaderboard/leaderboard.py pareto --task add        # the (sky130 are
 python3.12 leaderboard/leaderboard.py pareto --task add --axes area_mge,depth      # opt-in: the frontier over other columns (here GE)
 python3.12 leaderboard/leaderboard.py pareto --task add --axes area_um2_sky130_mapped_v1,mapped_delay_sky130_v1   # ... over flow A1''s columns
 python3.12 leaderboard/leaderboard.py board  --task add       # the table by area x time (--format json too)
+python3.12 leaderboard/leaderboard.py board  --task add --pdk asap7   # the same on ASAP7 (the site's ASAP7 view)
 python3.12 leaderboard/leaderboard.py verify                  # re-verify every stored record
 python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks, Markdown
 ```

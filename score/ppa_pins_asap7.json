@@ -1,0 +1,112 @@
+{
+  "_comment": [
+    "Pins of the ASAP7 PPA columns (score/ppa.py --pdk asap7): an ALTERNATIVE library beside sky130 (score/ppa_pins.json, the default and",
+    "the ranked one, unchanged). Everything an asap7 number depends on besides the scored netlist and the code is here; ppa.py records this",
+    "file's sha256 (ppa_pins_sha256) beside the liberty set's. Change anything here and `ppa_version` must change.",
+    "Flow A0' on asap7 (asap7_a0_v1) is flow A0' of sky130_a0_v3 with the library swapped and nothing else: the PINNED `abc -g` scored",
+    "netlist of score/score.py (unchanged), each Yosys gate re-expressed as its least-area build in this library (one cell, or two where",
+    "the library has no one-cell build: MUX, ANDNOT, ORNOT), each flop as DFFHQNx1 with an INVx1 forming Q, then REPAIRED BY BUFFERING ONLY",
+    "(the same buffer_trees_v1 repair, the same rules), weighed by the liberty: area = sum of cell areas (um^2, 5 decimals), delay = the same",
+    "graph-based NLDM STA (ps), unit depth = gates of the scored netlist on the longest path (a 2-cell build counts once, the Q inverter not",
+    "at all), every primary input driven by the input drive. Rejected as on sky130: a load over a max_capacitance, a transition over a",
+    "max_transition, a timing read ABOVE a table's characterized range. The one rule that differs is pinned in timing.below_grid. No wires.",
+    "Every choice and its reason: the `_why` entries below; the measurements behind them: score/PPA.md, section `ASAP7`."
+  ],
+  "ppa_version": "asap7_a0_v1",
+  "pdk": "asap7",
+  "column_suffix": "asap7",
+  "area_decimals": 5,
+  "_area_decimals_why": "157 of the 202 RVT TT cell areas have 5 decimals (INVx1 0.04374 um^2 = 0.162 x 0.27 um, the 1x LEF footprint; the liberty areas are the unscaled 1x values, not the 4x of the Innovus-workaround LEFs): areas are integers in 1e-5 um^2 (`area_e5um2_asap7`).",
+  "liberty": {
+    "library": "asap7sc7p5t rev 28 (7.5-track), RVT, TT corner: PVT_0P7V_25C (0.70 V, 25 C), NLDM",
+    "cell_prefix": "",
+    "cell_suffix": "_ASAP7_75t_R",
+    "units": {"time": "1ps", "capacitance": "ff", "voltage": "1V"},
+    "_units_why": "The asap7 files are in ps and fF; ppa.py converts every number to ns and pF as it reads it (one correctly-rounded division by 1000), so the STA, the repair and the records are unit for unit those of sky130.",
+    "orfs_commit": "a1a6c3ff933391161089e65e0af92324e41aefa3",
+    "_corner_why": "TT because sky130's pin is its typical corner (tt_025C_1v80): a nominal corner on both libraries. RVT because it is the regular threshold and ORFS's default VT_LIST. Not FF (ORFS's default CORNER): its SIMPLE file is the 2025-04 re-characterization (SIMPLE_RVT_FF_250407, Liberate 23.2) of a file extracted at the wrong PVT, beside four siblings of 2020-2022 (Liberate 18.1); the five TT files are one generation. TT's one quirk (SIMPLE declares default_max_transition 4000 ps, the other four 320 ps) is resolved by ppa.py's rule for a library of several files: the smallest default_max_transition of the files (320 ps; every input pin of every file declares max_transition 320 ps and every table's transition axis ends at 320 ps).",
+    "files": [
+      {"file": "asap7sc7p5t_INVBUF_RVT_TT_nldm_220122.lib", "sha256": "a4ceb32e418e1aac8667e28fbd8e9e46baf520180be4db075598a4d7c681a56e", "bytes": 309886,
+       "gz_url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/a1a6c3ff933391161089e65e0af92324e41aefa3/flow/platforms/asap7/lib/NLDM/asap7sc7p5t_INVBUF_RVT_TT_nldm_220122.lib.gz",
+       "gz_sha256": "8d6db2c2f83c3c162be54a5e102b2d379fcaaaef2db5f0b1d4152c395d01fea1", "gz_bytes": 69356, "gz_git_blob_sha1": "b438f82dd202029640a910855d518b9afd606103"},
+      {"file": "asap7sc7p5t_SIMPLE_RVT_TT_nldm_211120.lib", "sha256": "fa92e6ab1481810602811b1eea54bc016a341f11fb5188d7512c026599adf038", "bytes": 2306883,
+       "gz_url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/a1a6c3ff933391161089e65e0af92324e41aefa3/flow/platforms/asap7/lib/NLDM/asap7sc7p5t_SIMPLE_RVT_TT_nldm_211120.lib.gz",
+       "gz_sha256": "073ac4b6b08f272b6953b0ad54d1d9743767a7d15a0e2964ed86cf44c3dbe00e", "gz_bytes": 446864, "gz_git_blob_sha1": "6fb324912a9b31aa2d2ae5bd84add35b831f26c8"},
+      {"file": "asap7sc7p5t_AO_RVT_TT_nldm_211120.lib", "sha256": "b1ece108c0a2acd8d01c05cee6daee2834425037b1d9aad625d6f1dd640f1940", "bytes": 22136706,
+       "gz_url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/a1a6c3ff933391161089e65e0af92324e41aefa3/flow/platforms/asap7/lib/NLDM/asap7sc7p5t_AO_RVT_TT_nldm_211120.lib.gz",
+       "gz_sha256": "fe9f1c18e88ab129d63ad82adc256f3a85c7e38e47dabbe0a96749b41087dea1", "gz_bytes": 4181747, "gz_git_blob_sha1": "4f78cf564a45789f0b9701c7dba9b3ee04578cd8"},
+      {"file": "asap7sc7p5t_OA_RVT_TT_nldm_211120.lib", "sha256": "6529c6c72465cd133dfbfb03952327ab2774bb6aa4be866d78fd7bc6c58c9f6f", "bytes": 19915253,
+       "gz_url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/a1a6c3ff933391161089e65e0af92324e41aefa3/flow/platforms/asap7/lib/NLDM/asap7sc7p5t_OA_RVT_TT_nldm_211120.lib.gz",
+       "gz_sha256": "bbe6d904d58c7367de1ed7639e4eae386c65fa0a5af26ae62dc5e4e2ec52b08b", "gz_bytes": 3765433, "gz_git_blob_sha1": "3cc49bb41849cf2039bd80cf7a6ab61cfa7c0316"},
+      {"file": "asap7sc7p5t_SEQ_RVT_TT_nldm_220123.lib", "sha256": "57a0b403485b99ebd676942af4673ac086b86c7c75fbdc3e5c0038501dd22ba3", "bytes": 1512690,
+       "url": "https://raw.githubusercontent.com/The-OpenROAD-Project/OpenROAD-flow-scripts/a1a6c3ff933391161089e65e0af92324e41aefa3/flow/platforms/asap7/lib/NLDM/asap7sc7p5t_SEQ_RVT_TT_nldm_220123.lib",
+       "git_blob_sha1": "a2a257c944b4640ce354db9a3eab29f19eec59d1"}
+    ],
+    "licence_note": "Not vendored (as the sky130 liberty is not): fetched at the pinned hashes (python3.12 score/ppa.py --pdk asap7 --fetch-liberty, into score/lib/asap7/, git-ignored) or taken from $SVGOLF_ASAP7_LIB / --liberty (a directory). Every file carries its BSD 3-Clause licence in its header (Copyright 2020 Lawrence T. Clark, Vinay Vashishtha, or Arizona State University), as does The-OpenROAD-Project/asap7. Cite: L. T. Clark et al., 'ASAP7: A 7-nm finFET predictive process design kit', Microelectronics Journal 53:105-115, 2016; V. Vashishtha, M. Vangala, L. T. Clark, 'ASAP7 predictive design kit development and cell design technology co-optimization', ICCAD 2017. ASAP7 is a PREDICTIVE kit: 'the resulting designs are not manufacturable' (asap.asu.edu)."
+  },
+  "timing": {
+    "pi_slew_ps": 20,
+    "_pi_slew_why": "sky130's 50 ps stands for 'a min-size inv/nand2/buf output driving two input pins' (design/ppa/sky130.md:187): that transition is 27.6 to 68.2 ps on sky130 (inv_1, nand2_1, buf_1 into two inv_1 pins, 4.78 fF, inputs 30 to 70 ps) and 9.7 to 25.8 ps on asap7 (INVx1, NAND2xp5, BUFx2 into two INVx1 pins, 1.24 fF, inputs 5 to 30 ps), MEASURED with this ppa.py. 20 ps sits where 50 ps sits in sky130's range (18.6 ps) and is a grid point of every asap7 table's transition axis (5, 10, 20, ... 320 ps). It is also the ideal clock's transition.",
+    "input_drive": {
+      "default": "BUFx8_ASAP7_75t_R",
+      "shape": "(BUF|INV)(x\\d+f?|xp\\d+)",
+      "allowed": ["BUFx2_ASAP7_75t_R", "BUFx3_ASAP7_75t_R", "BUFx4_ASAP7_75t_R", "BUFx4f_ASAP7_75t_R", "BUFx5_ASAP7_75t_R",
+                  "BUFx6f_ASAP7_75t_R", "BUFx8_ASAP7_75t_R", "BUFx10_ASAP7_75t_R", "BUFx12_ASAP7_75t_R", "BUFx12f_ASAP7_75t_R",
+                  "BUFx16f_ASAP7_75t_R", "BUFx24_ASAP7_75t_R",
+                  "INVxp33_ASAP7_75t_R", "INVxp67_ASAP7_75t_R", "INVx1_ASAP7_75t_R", "INVx2_ASAP7_75t_R", "INVx3_ASAP7_75t_R",
+                  "INVx4_ASAP7_75t_R", "INVx5_ASAP7_75t_R", "INVx6_ASAP7_75t_R", "INVx8_ASAP7_75t_R", "INVx11_ASAP7_75t_R",
+                  "INVx13_ASAP7_75t_R"],
+      "_why": "The cell in front of every primary input, as on sky130 (its whole delay counted, its budget the repair's). Default BUFx8: sky130's default buf_8 may carry 973.2 fF at its ramp = 407 inv_1 input loads; BUFx8 may carry 268.5 fF = 433 INVx1 input loads, the nearest of the asap7 buffers (BUFx6f 297, BUFx10 529), MEASURED (Budgets, this ppa.py). Allowed: every buffer and inverter of INVBUF (the clock inverters CKINVDC and the hold buffers HB excluded, as sky130 excludes clk* and dly*). No flop: asap7's DFFHQNx1 has no Q (its Q is DFFHQNx1 + INVx1), so the flop's Q is not an input drive here (no task sets input_drive; a task that names a sky130 cell is a task-configuration error under --pdk asap7, loudly)."
+    },
+    "po_load_ff": 2.5,
+    "_po_load_why": "sky130's 10 fF is 'a fixed FO4-like load' (design/ppa/sky130.md:188): 4.18 x the input capacitance of inv_1 (2.39 fF, the larger edge). 4 x INVx1 (0.620 fF) = 2.48 fF; 2.5 fF, MEASURED with this ppa.py.",
+    "below_grid": "floor",
+    "_below_grid_why": "sky130 rejects a timing read below a table's grid (no sky130 net comes near: its grids start at 0.5 fF, below all but 13 of its 408 cells' input pins). asap7's grids start at max_capacitance/64 (0.36 fF for the xp cells, 0.72 fF for INVx1, 5.76 fF for BUFx8), above most single input pins (INVx1 0.62 fF, NAND2xp5 0.52 fF, DFFHQNx1's D 0.56 fF): rejecting would reject almost every fan-out-1 net, which is legal by every electrical rule. So a read below a grid in a dimension (a load, or an input transition, smaller than the library characterizes) and not above it in the other is read AT THE GRID'S FLOOR in that dimension and counted (legality.table_reads_floored); a read above a grid stays a violation (the repair buffers it, else the netlist is rejected), as on sky130. MEASURED over the 20,162 tables of the logic and tie cells, DFFHQNx1's CLK->QN and its setup: every delay table rises from its first point along both axes, so a floored delay is never below the linear extrapolation of the first interval (it errs slow); the transition tables rise along the load and are flat along the input transition (at most 0.39 ps lower at the second point than at the first); the setup tables rise along D's transition at the 20 ps clock row.",
+    "wires": "none",
+    "_comment": "Every primary input that is read is the output of the input drive at the input net's real load, its own input an ideal pi_slew_ps ramp at 0, its whole delay counted; the ideal clock's transition is pi_slew_ps too; a load pin presents its rise_capacitance to a rising transition and its fall_capacitance to a falling one; every primary-output BIT carries po_load_ff; no wire capacitance or resistance; T = latest output arrival over both edges (clocked: the latest output arrival or flop D arrival + setup)."
+  },
+  "repair": {
+    "_comment": "sky130's repair (buffer_trees_v1, score/ppa_pins.json `repair`), unchanged, on asap7's buffers: every BUF cell of INVBUF (the least-area cell and grouping per tree level wins, as on sky130). A buffer's budget is the largest load at which its output transition stays within 320 ps for every input transition up to 320 ps.",
+    "method": "buffer_trees_v1",
+    "buffers": ["BUFx2", "BUFx3", "BUFx4", "BUFx4f", "BUFx5", "BUFx6f", "BUFx8", "BUFx10", "BUFx12", "BUFx12f", "BUFx16f", "BUFx24"],
+    "max_rounds": 32,
+    "equivalence": {"vectors": 2048, "seed": "svgolf-ppa-repair/1"}
+  },
+  "gates": {
+    "_comment": "Yosys abc -g gate -> its LEAST-AREA build from at most two single-output logic cells of the library (exhaustive search over every cell with <= 4 inputs, each input pin on a distinct signal, no tied or constant pin: score/PPA.md, ASAP7). Ties: fewer cells, then per cell the larger max_capacitance and the faster FO4 (the cell driving four of its own inputs at the 20 ps ramp), then the pin order below. One cell: `pins` maps the gate's pin to the cell's, as in the sky130 table. Two cells: `cells`, each `conn` mapping a cell input pin to a gate pin or the first cell's output; the first cell is a helper (its own name and net, not a gate of the unit depth). Areas relative to NAND2xp5 (0.05832 um^2): NOT 0.75 (INVxp33 = INVxp67 = INVx1 in area; INVx1 has twice their max_capacitance and the fastest FO4, 19.5 ps against 20.4 and 23.4), NAND 1 (NAND2xp5 over NAND2xp33: same area and max_capacitance, FO4 23.8 ps against 29.1), NOR 1, AND 1.5 and OR 1.5 (no x1: AND2x2, OR2x2), XOR 2.25 and XNOR 2.25 (XOR2xp5, XNOR2xp5; the 2-cell NOR2 + AOI21 builds of the same area lose on cell count), ANDNOT = A & ~B 1.75 (INVx1 on A + NOR2xp33: NOR(~A, B)), ORNOT = A | ~B 1.75 (INVx1 on A + NAND2xp5: NAND(~A, B)), MUX 3.0 (INVx1 on S + AO22x1: A & ~S | B & S). The library has no MUX2 cell and no mixed-polarity 2-input cell (sky130's nor2b/nand2b), so those three are the 2-cell builds (sky130 relative: 1, 1, 1, 1.667, 1.667, 2.333, 2.333, 1.667, 1.667, 3.0).",
+    "NOT":    {"cell": "INVx1",    "pins": {"A": "A"},           "out": "Y"},
+    "NAND":   {"cell": "NAND2xp5", "pins": {"A": "A", "B": "B"}, "out": "Y"},
+    "NOR":    {"cell": "NOR2xp33", "pins": {"A": "A", "B": "B"}, "out": "Y"},
+    "AND":    {"cell": "AND2x2",   "pins": {"A": "A", "B": "B"}, "out": "Y"},
+    "OR":     {"cell": "OR2x2",    "pins": {"A": "A", "B": "B"}, "out": "Y"},
+    "XOR":    {"cell": "XOR2xp5",  "pins": {"A": "A", "B": "B"}, "out": "Y"},
+    "XNOR":   {"cell": "XNOR2xp5", "pins": {"A": "A", "B": "B"}, "out": "Y"},
+    "MUX":    {"cells": [{"cell": "INVx1",  "conn": {"A": "S"},                                    "out": {"Y": "sn"}},
+                         {"cell": "AO22x1", "conn": {"A1": "A", "A2": "sn", "B1": "B", "B2": "S"}, "out": {"Y": "Y"}}]},
+    "ANDNOT": {"cells": [{"cell": "INVx1",    "conn": {"A": "A"},             "out": {"Y": "an"}},
+                         {"cell": "NOR2xp33", "conn": {"A": "an", "B": "B"},  "out": {"Y": "Y"}}]},
+    "ORNOT":  {"cells": [{"cell": "INVx1",    "conn": {"A": "A"},             "out": {"Y": "an"}},
+                         {"cell": "NAND2xp5", "conn": {"A": "an", "B": "B"},  "out": {"Y": "Y"}}]}
+  },
+  "flop": {
+    "cell": "DFFHQNx1", "clock": "CLK", "d": "D", "q": "QN",
+    "q_inverter": {"cell": "INVx1", "in": "A", "out": "Y"},
+    "_why": "The clocked flow's one flop ($_DFF_P_, every flop of score.py's clocked flow; its reset is logic). asap7's positive-edge flops: DFFHQNx1/x2/x3 (QN only) and DFFHQx4 (Q, 0.3645 um^2); DFFASRHQNx1 is the only one with a reset and is not needed. DFFHQNx1 (0.2916) + INVx1 (0.04374) = 0.33534 um^2, 8% under DFFHQx4, and the x1 drive as sky130's dfxtp_1; its clock-to-Q (through the inverter) is 63.0 / 69.5 / 99.0 ps at Q loads of 1 / 2.5 / 10 fF against DFFHQx4's 73.0 / 74.6 / 83.3 (MEASURED, 20 ps clock ramp): faster at the loads a flop sees before the repair buffers it. The inverter is a real cell of the netlist (weighed, timed and repaired like any other; it is not a gate of the unit depth); clock-to-Q is the CLK->QN rising_edge arc at the inverter's input, setup the setup_rising constraint (its table stored constrained-transition first, read the other way round). ppa.py checks from the cell's ff group that QN is !D of the last rising CLK edge."
+  },
+  "constants": {
+    "cells": {"0": "TIELOx1", "1": "TIEHIx1"},
+    "policy": "replicated_within_max_capacitance",
+    "max_capacitance_ff": 46.08,
+    "_comment": "sky130's policy (one conb_1 with both constants, replicated within its outputs' max_capacitance) on a library with a cell per constant: TIELOx1 (L) for 0, TIEHIx1 (H) for 1, each 0.04374 um^2, as few of each as hold every constant load within max_capacitance_ff, the loads split into balanced groups as the repair's trees are. Neither cell declares a max_capacitance (and no file a default_max_capacitance): 46.08 fF is pinned, the max_capacitance of INVx1, the inverter of the same x1 size and area. A tie cell has no timing arcs (no delay effect)."
+  },
+  "cell_policy": [
+    ["^(DFF|SDF)", "sequential"],
+    ["^(DHL|DLL)", "sequential"],
+    ["^ICG", "sequential"],
+    ["^CKINVDC", "clock"],
+    ["^HB\\d", "delay"],
+    ["^(FA|HA)x", "multi-output"],
+    ["^TIE(HI|LO)", "tie"]
+  ],
+  "_cell_policy_why": "Only class `logic` may appear in a weighed netlist (sky130's policy, score/ppa.py POLICY, by name): flops, scan flops, latches and clock gates (sequential), the clock inverters CKINVDC (clock), the hold buffers HBxxp67 (delay), the full and half adders FAx1/HAxp5 (multi-output: two outputs, inverted, with output-to-output arcs) and the tie cells. Matched on the name without the _ASAP7_75t_R suffix."
+}

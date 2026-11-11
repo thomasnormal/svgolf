@@ -6,5 +6,5 @@ for `N = 16` ({{band.ge}}, depth {{band.depth}}). The task exists to run
 the whole pipeline (statement, proof, checker, banlist, scoring) on a design small enough to read in one
 sitting, and to be the template for real tasks. Its reference proofs are complete for every width:
 `band_tactics` with the `sv_comb` tactics, the route of the real tasks and the proof the walk-through starts
-from, and `band` by hand, walking the design's structure symbolically. The run-time operators `+ - * / % **` are banned only to exercise
-the banlist.
+from, and `band` by hand, walking the design's structure symbolically. The run-time operators `+ - * / % **` and the ordering
+comparisons `< <= > >=` are banned only to exercise the banlist.

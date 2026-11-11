@@ -28,7 +28,7 @@ proof is one line, `sv_exhaustive`, which reads the design, compiles it into a g
 a proof:
 
 ```bash
-python3.12 score/ppa.py solution.sv --task tasks/aes_sbox --no-mapped   # area and delay, about a second
+python3.12 score/ppa.py solution.sv --task tasks/aes_sbox --no-mapped --path   # area, delay and the critical path, about a second
 python3.12 check.py tasks/aes_sbox solution.sv --unproved --tactics
 ```
 

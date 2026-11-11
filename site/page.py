@@ -90,9 +90,10 @@ def code_block(text, lang=None, *, src=None, cls="code", name=None, actions_html
     return f'<div class="codebox{" term" if term else ""}">{head}{pre}</div>'
 
 
-def details(summary_html, body_html, cls=None):
-    """A collapsed block (no JavaScript: the browser's own disclosure)."""
-    c = f' class="{cls}"' if cls else ""
+def details(summary_html, body_html, cls=None, id_=None):
+    """A collapsed block (no JavaScript: the browser's own disclosure); site.js opens it when a link or the URL's
+    fragment names it or something inside it."""
+    c = (f' class="{cls}"' if cls else "") + (f' id="{esc(id_)}"' if id_ else "")
     return f"<details{c}><summary>{summary_html}</summary>\n{body_html}\n</details>"
 
 
@@ -218,6 +219,18 @@ def seg(options, on=0, *, label_text):
     return f'<div class="seg" role="group" aria-label="{esc(label_text)}">{items}</div>'
 
 
+def tabs(panes, *, label_text):
+    """Tabs in a card (a detail page's netlist: Schematic, Critical path, Cells). `panes`: (id, tab label, body
+    HTML); each pane is a `<section>` with that id, so a link to the id lands on it. Without JavaScript the tab
+    links jump to the panes, which stand one under the other, each under its own title, and no tab is marked as
+    chosen; site.js makes them tabs (the first one shown) and shows the pane a link or the URL's fragment names (or
+    holds), and a tab chosen names its pane in the URL."""
+    links = "".join(f'<a href="#{esc(pid)}">{esc(label)}</a>' for pid, label, _ in panes)
+    body = "".join(f'<section class="tabs-pane" id="{esc(pid)}"><h3 class="tabs-pane-title">{esc(label)}</h3>'
+                   f"{html_}</section>" for pid, label, html_ in panes)
+    return f'<div class="tabs" data-tabs><nav class="tabs-nav" aria-label="{esc(label_text)}">{links}</nav>{body}</div>'
+
+
 # ---------------------------------------------------------------------------
 # the leaderboard list, property cards
 # ---------------------------------------------------------------------------
@@ -280,22 +293,29 @@ class Counter:
         return f'<span class="{esc(self.kind)}"{t}>{esc(self.text)}</span>'
 
 
-def props_panel(panes, *, counters=(), hook=None, foot_html=""):
+def props_panel(panes, *, counters=(), hook=None, foot_html="", title_tag="p"):
     """The panel of property cards. `panes`: (id, tab label, count or None, body HTML), each a
-    tab. Without JavaScript the tabs are links to the panes, which stand one under the other, each
-    under its own title; site.js makes them tabs (the first one shown) and opens a card the URL's
-    fragment names."""
+    tab (the task page's last one is "What does not count"). Without JavaScript the tabs are links to the
+    panes, which stand one under the other, each under its own title (`title_tag`: a heading's tag where the panel
+    sits under one, so that heading navigation finds each pane); site.js makes them tabs (the first one shown) and
+    shows the pane a link or the URL's fragment names, opening the card it names. A tab with a count is named
+    "label (count)" for assistive technology, which would otherwise read the two run together."""
     on = ' class="on"'
-    tabs = "".join(f'<a href="#{esc(pid)}"{on if k == 0 else ""}>{esc(label)}'
+    tabs = "".join(f'<a href="#{esc(pid)}"{on if k == 0 else ""}'
+                   + (f' aria-label="{esc(label)} ({n})"' if n is not None else "") + f">{esc(label)}"
                    + (f'<span class="props-n">{n}</span>' if n is not None else "") + "</a>"
                    for k, (pid, label, n, _) in enumerate(panes))
     counts = "".join(c.html() for c in counters)
-    body = "".join(f'<div class="props-pane" id="{esc(pid)}"><p class="props-pane-title">{esc(label)}</p>{html_}</div>'
+    body = "".join(f'<div class="props-pane" id="{esc(pid)}"><{title_tag} class="props-pane-title">{esc(label)}'
+                   f'</{title_tag}>{html_}</div>'
                    for pid, label, _, html_ in panes)
     h = f' data-hook="{esc(hook)}"' if hook else ""
     foot = f'<div class="props-foot">{foot_html}</div>' if foot_html else ""
-    return (f'<div class="props" data-tabs{h}><div class="props-head"><nav class="props-tabs" aria-label="Properties '
-            f'and definitions">{tabs}</nav><div class="props-count">{counts}</div></div>{body}{foot}</div>')
+    labels = [label for _, label, _, _ in panes]
+    labels = labels[:1] + [x[:1].lower() + x[1:] for x in labels[1:]]           # one phrase: "Properties and definitions"
+    named = labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
+    return (f'<div class="props" data-tabs{h}><div class="props-head"><nav class="props-tabs" '
+            f'aria-label="{esc(named)}">{tabs}</nav><div class="props-count">{counts}</div></div>{body}{foot}</div>')
 
 
 # ---------------------------------------------------------------------------
@@ -312,11 +332,32 @@ def doc(body_html, toc_entries=(), *, wide=False):
     return f'<div class="{cls}">{side}<article class="card doc-body">{body_html}</article></div>'
 
 
+PDK_OPTIONS = (("sky130", "sky130"), ("asap7", "ASAP7"))
+
+
+def pdk_select(id_, label_html, *, cls="pdk-pick"):
+    """The library selector (decided 2026-11-09: a reader chooses the library the golf scores are shown on): a
+    `<select>` of PDK_OPTIONS, sky130 chosen, hidden until pdk.js shows it (without JavaScript it could do nothing:
+    `pdk_nojs` says so instead). `autocomplete="off"`: a browser restores no earlier value of it on Back, after pdk.js
+    has set it to the view shown."""
+    opts = "".join(f'<option value="{v}"{" selected" if v == "sky130" else ""}>{esc(t)}</option>' for v, t in PDK_OPTIONS)
+    return (f'<div class="{cls}" data-pdk-pick hidden><label for="{esc(id_)}">{label_html}</label>'
+            f'<select id="{esc(id_)}" data-pdk-select autocomplete="off">{opts}</select></div>')
+
+
+def pdk_nojs(text_html, cls="pdk-nojs"):
+    """What a reader without JavaScript sees in the selector's place: the scores are sky130's, and the ASAP7 view needs
+    the selector."""
+    return f'<noscript><p class="{cls}">{text_html}</p></noscript>'
+
+
 def layout(*, title, body_html, root, active=None, description="", revision=None, site_name="svGolf",
-           scripts=()):
+           scripts=(), banner_html=""):
     """A complete page. `root` is the relative path from the page to the site
     root ("" for a top-level page, "../../" for tasks/<t>/index.html). `scripts`: the site's own
-    script files the page loads after site.js (a task page: charts.js)."""
+    script files the page loads after site.js (a task page: charts.js). The header carries the library
+    selector (`pdk_select`; pdk.js, loaded first and not deferred, sets <html data-pdk> before the page is drawn);
+    `banner_html` (a page that shows scores) opens the main column in the ASAP7 view."""
     current = ' aria-current="page"'
     logo = pixelart.logo()          # the mark: the hero's chip, small (aria-hidden)
     extra = "".join(f'\n<script src="{root}{esc(s)}" defer></script>' for s in scripts)
@@ -333,16 +374,18 @@ def layout(*, title, body_html, root, active=None, description="", revision=None
 <meta name="description" content="{esc(description)}">
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="{root}style.css">
+<script src="{root}pdk.js"></script>
 <script src="{root}site.js" defer></script>{extra}
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
 <header class="site-header"><div class="wrap">
 <a class="brand" href="{root}index.html"><span class="brand-mark">{logo}</span>{esc(site_name)}</a>
+{pdk_select("pdk-select", "Scores on")}{pdk_nojs("Scores on sky130 · the ASAP7 view needs JavaScript")}
 <nav class="site-nav" aria-label="Site">{nav}</nav>
 </div></header>
 <main id="main">
-{body_html}
+{banner_html}{body_html}
 </main>
 <footer class="site-footer"><div class="wrap">
 <div class="foot-brand"><span class="brand-mark">{logo}</span><p><strong>{esc(site_name)}</strong>Prove a circuit correct in Lean, then golf its gates.</p></div>

@@ -38,7 +38,7 @@ opinion.
 
 ## Start a new design
 
-A new multiplier is your own `solution.sv` (the header below; run-time `/ % **` are banned, `*` is allowed) and
+A new matrix multiplier is your own `solution.sv` (the header below; run-time `/ % **` are banned, `*` is allowed) and
 a `Solution.lean` that proves it, with the latency it claims, for every `(N, W, AccW)` in range. Any schedule
 is allowed: `N²` parallel multiply-accumulate units, fewer units over more cycles, a systolic array. Find the
 design without Lean, then check it once without a proof, at the latency you mean to claim:
@@ -78,6 +78,11 @@ one point into facts about ONE clock cycle:
 **Lay the design out so the proof stays short**:
 
 * register every output: with only `always_ff` processes, rule 1 is one line (`combDeps_of_ffOnly`);
+* keep every process an `always_ff` whose body writes with nonblocking assignments only: the library's clock
+  step in closed form (`cycleStep2_ffOnly`; the reference uses it through `cycleStep2_profile`) is for such
+  designs only. A continuous `assign` or an `always_comb` block anywhere, an output driven by one included,
+  means proving the combinational settle yourself, as the arbiter's proof does ([PROVING.md, section
+  20](../../PROVING.md#20-a-reactive-task-the-arbiter-reacttask));
 * reset every register whose value matters (`busy`, `done`, the step counter): the claims hold from every
   power-up value, the first reset edge included (a design whose `done` timing within the latency depends on an
   unreset register can still be correct: the post-synthesis check holds each power-up's run to the claims);
@@ -90,7 +95,10 @@ one point into facts about ONE clock cycle:
   there the loader gives up: the design reads as an empty one, so the statement is unprovable, however correct
   the circuit is;
 * for `XSafe`, operands of one width (sign-extend explicitly, as the reference does) and run-time indices
-  whose every value is in range; shifting the operand registers keeps every select static.
+  whose every value is in range; shifting the operand registers keeps every select static;
+* no `$signed(...)` widened into a wider sum: ls-sv refuses its width conversion
+  (`ConversionExpression:width`, at the `design` stage), although `score/ppa.py` weighs the design. Sign-extend
+  a `W`-bit entry `x` by hand, as the reference does: `{{AccW{x[W-1]}}, x}`.
 
 **The skeleton** (`reference/matmul_g1.lean` is it, filled in for the reference):
 

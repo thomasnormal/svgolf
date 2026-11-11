@@ -1,6 +1,10 @@
 """The detail pages of the site: one per record and one per proved reference without a record (PLAN4 3b step 3):
-the dashboard (Area, Performance and Score cards with their beats/matches lines), the area-time plot, the schematic
-of the display instance, the critical path, the cells, the sources, reproduce. Built once with --offline.
+the overview (Area, Performance and Score cards, with their beats/matches lines once there is a field), the sources
+across the page, then two columns (the netlist card, whose tabs are the schematic of the display instance, the
+critical path and the cells, and under it a record's checker detail; beside them the record's or the reference's
+facts), then the area-time plot and reproduce. Built once with --offline. The order and the columns are the owner's
+(2026-11-09): the code before the schematic, the critical path a tab under it, the record and the proof in a second
+column as on the task page.
 
     python3 -m unittest discover -s svgolf/tests/site      (from the lean-surfaces root)
 
@@ -35,6 +39,8 @@ def load(name, path):
 
 build = load("svgolf_site_build_detail", os.path.join(SITE, "build.py"))
 lb = build.lb
+sys.path.insert(0, HERE)
+from pdkview import view_of  # noqa: E402  (a page as one library's reader sees it)
 
 
 def read_json(path):
@@ -91,8 +97,10 @@ class DetailTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def page(self, path):
-        return self.files[path].decode("utf-8")
+    def page(self, path, pdk="sky130"):
+        """The page as the reader of the `pdk` view sees it (the library selector: sky130 by default, as without
+        JavaScript; `pdkview.view_of`)."""
+        return view_of(self.files[path].decode("utf-8"), pdk)
 
     def detail_pages(self):
         """(task, site path, record or None, reference stem or None) of every detail page there should be."""
@@ -168,8 +176,15 @@ class DetailTest(unittest.TestCase):
                     self.assertNotIn("· ranked", text_of(self.page(path)), path)
 
     def test_every_detail_page_has_its_sections_in_order(self):
-        order = ("dashboard", "area-time", "schematic", "critical-path", "cells", "sources", "reproduce")
+        """The order is the owner's (2026-11-09): the overview, then the code, then the netlist (the schematic, the
+        critical path, the cells), the area-time plot below the columns; it was dashboard, plot, schematic, critical
+        path, cells, ..., sources, reproduce, with the code second to last. A record's facts and proof come before
+        its checker and post-synthesis check (on a phone, one column: the player, the date and the notes before the
+        checker detail; review 2026-11-09, L2)."""
         for t, path, rec, stem in self.detail_pages():
+            order = ("dashboard", "sources", "schematic", "critical-path", "cells")
+            order += ("record", "proof", "checker", "postsynth") if rec else ("reference",)
+            order += ("area-time", "reproduce")
             with self.subTest(page=path):
                 h = self.page(path)
                 if "No ranked numbers to show" in text_of(section(h, "dashboard")):
@@ -178,10 +193,80 @@ class DetailTest(unittest.TestCase):
                 self.assertTrue(all(a >= 0 for a in at), dict(zip(order, at)))
                 self.assertEqual(at, sorted(at))
                 self.assertIn('src="../../../charts.js"', h)
+                self.assertNotRegex(h, r"(?<![\d\u202f])\b1 cells\b")       # "1 cell" (review 2026-11-09, N2)
+
+    def test_the_code_and_the_netlist_beside_the_facts(self):
+        """The sources across the page under the overview (in the main column the code box showed 81 columns at
+        1280 px and cut lines it shows whole across the page: review 2026-11-09, M1), then two columns as on the task
+        page: the main one holds the netlist card and, under it, a record's checker card and a combinational record's
+        post-synthesis facts (`more`, beside the rest of the side column); the side one the record and the proof (a
+        record's page) or the reference's facts. A clocked record's post-synthesis table, the area-time plot and
+        reproduce come after the columns (they need the page's width)."""
+        for t, path, rec, stem in self.detail_pages():
+            h = self.page(path)
+            main, side, more = section(h, "main-col"), section(h, "side-col"), section(h, "more-col")
+            with self.subTest(page=path):
+                self.assertTrue(main and side, "no columns")
+                self.assertLess(h.index('id="sources"'), h.index('id="main-col"'))
+                self.assertLess(h.index('id="main-col"'), h.index('id="side-col"'))
+                for sid in ("netlist", "schematic", "critical-path", "cells"):
+                    self.assertIn(f'id="{sid}"', main, sid)
+                for sid in (("record", "proof") if rec else ("reference",)):
+                    self.assertIn(f'id="{sid}"', side, sid)
+                    self.assertNotIn(f'id="{sid}"', main, sid)
+                for sid in ("dashboard", "sources", "area-time", "reproduce"):
+                    self.assertNotIn(f'id="{sid}"', main + side + more, sid)
+                if rec is None:
+                    self.assertEqual(more, "")
+                    continue
+                self.assertLess(h.index('id="side-col"'), h.index('id="more-col"'))
+                self.assertIn('id="checker"', more)
+                clocked = isinstance(rec["postsynth"].get("points"), list)
+                self.assertEqual('id="postsynth"' in more, not clocked)     # a clocked table needs the page's width
+                src = section(h, "sources")
+                self.assertLess(src.index("<pre"), src.index("<details"))        # the design file, then the proof
+                # the box's download link downloads, under the name the box's head shows (L8)
+                name = rec["files"]["sv"]["name"] if rec else f"{stem}.sv"
+                self.assertRegex(src, r'<a class="codebox-dl" href="[^"]+\.sv" download="' + re.escape(name) + '">')
+                if rec and rec["player"] != self.config["reference_player"]:
+                    self.assertIn('id="diff"', h)       # a diff card, or a first submission's "previous frontier: none"
+                self.assertIn('<span class="codebox-name">' + html.escape(
+                    rec["files"]["sv"]["name"] if rec else f"{stem}.sv") + "</span>", src)
+
+    def test_the_netlist_card_has_three_tabs(self):
+        """The schematic, the critical path and the cells are the three tabs of one card (site.js; without the
+        script, three panes under their titles): each pane a section with the id the page's links use. The overview
+        links its cells and critical-path numbers to their tabs."""
+        tasks = {t.name: t for t in self.tasks()}
+        for t, path, rec, stem in self.detail_pages():
+            h = self.page(path)
+            card = section(h, "netlist")
+            with self.subTest(page=path):
+                nav = re.search(r'<nav class="tabs-nav"[^>]*>(.*?)</nav>', card, re.S)
+                self.assertIsNotNone(nav)
+                self.assertEqual(re.findall(r'<a href="#([^"]+)"', nav.group(1)), ["schematic", "critical-path", "cells"])
+                self.assertEqual(text_of(nav.group(1)), "SchematicCritical pathCells")
+                for sid in ("schematic", "critical-path", "cells"):
+                    self.assertIn(f'<section class="tabs-pane" id="{sid}">', card)
+                # without the script no tab is marked as chosen: the panes all stand there (review 2026-11-09, L6)
+                self.assertNotIn('class="on"', nav.group(0))
+                dash = section(h, "dashboard")
+                for href in re.findall(r'<a href="#([^"]+)"', dash):
+                    self.assertIn(href, ("cells", "critical-path", "area-time"))
+                # the rows that describe the area-time plot link to it, further down the page (L3)
+                if "<dt>on this page</dt>" in dash:
+                    self.assertIn('href="#area-time"', dash)
+                # each pane says the size it shows, as the three cards' heads did (L5)
+                scored = f"at {build.point_text(tasks[t].point)} · scored"
+                for sid in ("critical-path", "cells"):
+                    label = re.search(r'<p class="label pane-scale">(.*?)</p>', section(card, sid))
+                    self.assertEqual(text_of(label.group(1)), norm(scored))
 
     def test_the_cards_show_the_ranked_numbers(self):
         """The Area, Performance and Score cards: the record's own sky130 columns (a reference without a record: its
-        golden), exact, with the beats/matches line empty while the task has no other player."""
+        golden), exact. While the task has no other player the overview says so once, under the cards, and draws no
+        beats/matches line (it drew an empty one on every card, four times on a page, until the owner's 2026-11-09
+        "this overview can be cleaned up visually")."""
         tasks = {t.name: t for t in self.tasks()}
         shown = 0
         for t, path, rec, stem in self.detail_pages():
@@ -199,18 +284,69 @@ class DetailTest(unittest.TestCase):
                     self.assertIn("No ranked numbers to show", dash)
                     continue
                 shown += 1
-                for label in ("Area", "Performance · time", "Score · area × time", "On the Pareto board"):
+                for label in ("Area", "Performance · time", "Score · area × time", "vs par", "board"):
                     self.assertIn(label, dash)
-                self.assertIn(f"{lb.fmt_um2(cols['area_e4um2'])} µm² exactly", dash)
+                # "on this page" and "Pareto" are rows only when the plot has other designs; alone, the note says so
+                # once (each card said "the only design with sky130 numbers")
+                alone = len(build.plotted(tasks[t])) == 1
+                self.assertNotIn("the only design with sky130 numbers", dash)
+                self.assertEqual(dash.count("This design is the only one with sky130 numbers on this page"), int(alone))
+                if not alone:
+                    for label in ("on this page", "Pareto"):
+                        self.assertIn(label, dash)
+                self.assertNotIn("badge", section(self.page(path), "dashboard"))         # no "ranked" pill per card
+                self.assertIn(norm(f"{build.grouped(lb.fmt_um2(cols['area_e4um2']))} µm² exactly"), dash)
                 self.assertIn(norm(f"{cols['time_ps']:,}".replace(",", " ")) + "ps", dash)
                 score = build.combined.fmt(build.combined.um2ns(cols["area_e4um2"] * cols["time_ps"]))
                 self.assertIn(norm(score), dash)
-                players = {r["player"] for r in self.recs if r["task"] == t and r["player"] != self.config["reference_player"]}
-                if not players:
-                    self.assertIn("Beats – · matches –", dash)
-                    self.assertNotRegex(dash, r"Beats \d")
+                others = {r["player"] for r in self.recs if r["task"] == t and r["player"] != self.config["reference_player"]
+                          and (rec is None or r["player"] != rec["player"])}
+                n = int(re.search(r"at this revision \((\d+) players?, \d+ records?\)", dash).group(1))
+                self.assertLessEqual(n, len(others))
+                if not others:
                     self.assertIn("(0 players, 0 records)", dash)
+                if n == 0:
+                    self.assertEqual(dash.count(f"No other player has a ranked record on {t} yet"), 1)
+                    self.assertNotIn("Beats", dash)
+                    self.assertNotIn('class="meter', section(self.page(path), "dashboard"))
+                else:
+                    self.assertNotIn("No other player has a ranked record", dash)
+                    self.assertEqual(len(re.findall(r"Beats \d+% · matches \d+%", dash)), 3)
         self.assertGreaterEqual(shown, 15)
+
+    def test_the_overview_is_quiet(self):
+        """The owner's "this overview can be cleaned up visually" (2026-11-09), second round: every card has the
+        same five parts (label, number, the line under it, the field's line, the body), so that side by side they
+        line up; a big number's digit groups are narrow spaces in the text face, not a whole monospace figure each;
+        par's name and number are a quiet line of their own, its name a link, no code pill; under the cards one
+        line at most (the empty field), the definitions folded under one disclosure; "1 other player", singular."""
+        for t, path, rec, stem in self.detail_pages():
+            dash = section(self.page(path), "dashboard")
+            if "No ranked numbers to show" in text_of(dash):
+                continue
+            with self.subTest(page=path):
+                for part in ('class="label"', 'class="big"', 'class="sub"', 'class="mfield"', 'class="mbody"'):
+                    self.assertEqual(dash.count(part), 3, part)
+                for big in re.findall(r'<p class="big">(.*?)</p>', dash):
+                    self.assertNotIn(" ", re.sub(r'<span class="g"> </span>', "", big))
+                self.assertNotIn("<code>", "".join(re.findall(r'<dt>vs par</dt><dd>(.*?)</dd>', dash)))
+                for v in re.findall(r'<dt>vs par</dt><dd>(.*?)</dd>', dash):
+                    if "is par" not in v and "no par" not in v:
+                        self.assertRegex(v, r'<span class="mpar"><a href="[^"#][^"]*">[^<]+</a> · ')
+                note = dash[dash.index('<div class="dash-note">'):]
+                self.assertIn('<details class="reveal"><summary>how these numbers are measured and compared</summary>',
+                              note)
+                visible = re.sub(r"<details.*?</details>", "", note, flags=re.S)
+                self.assertLessEqual(len(re.findall(r"<p\b", visible)), 1)
+                self.assertNotRegex(text_of(dash), r"\b1 other players")
+                self.assertNotIn("Of 1 other", text_of(dash))
+                # the board's line gives the four counts; a definition in brackets after "0 beaten" read as a claim,
+                # so the four words are defined once, in the folded note (review 2026-11-09, L4)
+                self.assertNotIn("beaten (", text_of(dash))
+                if "On the board, of" in text_of(dash):
+                    self.assertIn("On the board, another player is beaten when this design dominates every record of "
+                                  "theirs", text_of(dash))
+                self.assertIn("never stored in a record and never used by the ranking", text_of(dash))     # L5
 
     def tasks(self):
         if not hasattr(self.__class__, "_tasks"):
@@ -265,7 +401,13 @@ class DetailTest(unittest.TestCase):
                     words = ", ".join(f"{k} = {params[k]}" for k in task["scoring"]["params"])
                     scored = ", ".join(f"{k} = {v}" for k, v in task["scoring"]["params"].items())
                     self.assertIn(f"Drawn at {words}, a display instance; scored at {scored}.", text_of(sch))
-                    self.assertIn("Every number on this page outside this card is the scored one", text_of(sch))
+                    # the card holds the scored critical path and cells too: the drawing is the one pane that is not
+                    # (said without "this tab": without the script there are no tabs)
+                    self.assertIn("the critical path, the cells and every other number on this page are the scored "
+                                  "netlist's", text_of(sch))
+                    self.assertNotIn("this tab", text_of(sch))
+                    self.assertIn(f"drawn at {words}", text_of(re.search(r'<p class="label pane-scale">(.*?)</p>',
+                                                                         sch).group(1)))
                 else:
                     self.assertIn("one fixed size", text_of(sch))
                 self.assertEqual(h.count('class="sch"'), 1)

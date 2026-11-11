@@ -1,5 +1,5 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown).",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "IEEE 754 division, every format",
  "subtitle": "One divider for every exponent width and precision, rounded to nearest even.",
  "references": {
@@ -11,5 +11,8 @@
   "fdivp_d1": "The natural parametric form, with `$clog2` and a logarithmic normalizer and shifter, checked by simulation on many formats but never proved.",
   "fdivp_d2": "A form of about 90 assignments, all inside what the proof tactics read, checked by simulation; the reference folds it into 34.",
   "flat_binary16": "A flat binary16 divider under this task's header: right at (5, 11) only, so it has no proof here."
+ },
+ "new_design_reviewed": {
+  "opening": "e45e2e987faf"
  }
 }

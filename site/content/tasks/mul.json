@@ -1,5 +1,5 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `score_tips` (optional): the \"What moves the score\" box, observations from trial runs (Markdown inline, placeholders allowed), never promises.",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `score_tips` (optional): the \"What moves the score\" box, observations from trial runs (Markdown inline, placeholders allowed), never promises. `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "N-bit multiplier",
  "subtitle": "The full 2N-bit product of two unsigned N-bit numbers, with logic gates only.",
  "references": {
@@ -22,6 +22,9 @@
   "The Boolean form of a cell moves both area and delay: the association of a three-input XOR, a `?:` majority, which input of a 4:2 compressor enters late.",
   "The pinned flow's ABC script restructures what you write: a structural trick that ABC can factor back into the plain form does not survive.",
   "Commuting the operands of one operator moves the A0' area by up to 11% and the delay by up to 32% (the maintainers' measurement, `score/PPA.md`).",
-  "`score/ppa.py solution.sv --task tasks/mul --no-mapped --path` names the critical path with each net's arrival time: read it before you guess."
- ]
+  "The golfing loop's `--path` names the critical path with each net's arrival time: read it before you guess."
+ ],
+ "new_design_reviewed": {
+  "opening": "23d22c0fc245"
+ }
 }

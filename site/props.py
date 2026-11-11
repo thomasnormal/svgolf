@@ -165,10 +165,13 @@ def definition_card(e, *, link, md_inline):
                           gist_html=md_inline(e.text), body_html=body, id_=f"def-{e.decl}")
 
 
-def panel(tp, *, task_dir, proved, rejected, link, md_inline, rejected_href="#does-not-count"):
+def panel(tp, *, task_dir, proved, rejected, link, md_inline, rejected_href="#does-not-count", extra_panes=(),
+          title_tag="p"):
     """The panel. `proved`: None on a task's page (requirements, no proof status); on a solution's
     page, whether that solution's proof is accepted (so every property holds of it); `rejected`: how many wrong designs and attacks the checker rejects (the counter links to
-    them); `link(site path)`: a relative link from the page."""
+    them; 0 draws no counter: the task page shows them in a tab of their own); `link(site path)`: a relative link
+    from the page; `extra_panes`: more tabs after Properties and Definitions, (id, label, count, HTML) each;
+    `title_tag`: the panes' titles' tag (page.props_panel)."""
     n_props = sum(1 for p in tp.properties if p.kind == "property")
     cards = [property_card(p, proved=proved, link=link, md_inline=md_inline) for p in tp.properties]
     ranges = [p for p in tp.properties if p.kind == "range"]
@@ -208,5 +211,5 @@ def panel(tp, *, task_dir, proved, rejected, link, md_inline, rejected_href="#do
                                    title="wrong designs and attacks the checker rejects: what does not count"))
     return page.props_panel(
         [("props-properties", "Properties", n_props, props_body),
-         ("props-definitions", "Definitions", len(tp.definitions), defs_body)],
-        counters=counts, hook="properties")
+         ("props-definitions", "Definitions", len(tp.definitions), defs_body)] + list(extra_panes),
+        counters=counts, hook="properties", title_tag=title_tag)
