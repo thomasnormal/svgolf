@@ -3586,7 +3586,8 @@ class SubmitTest(Tmp):
         def mkdtemp(**kw):
             made.append(real(**kw))
             return made[-1]
-        with mock.patch.object(lb.tempfile, "mkdtemp", mkdtemp), self.assertRaises(RuntimeError) as e:
+        with mock.patch.dict(os.environ, ident), mock.patch.object(lb.tempfile, "mkdtemp", mkdtemp), \
+                self.assertRaises(RuntimeError) as e:
             lb.run_submit_steps(steps, body)                    # the branch exists: the push is refused
         self.assertIn("git -C", str(e.exception))
         self.assertIn("push", str(e.exception))
