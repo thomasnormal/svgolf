@@ -2,8 +2,8 @@
 the overview (Area, Performance and Score cards, with their beats/matches lines once there is a field), the sources
 across the page, then two columns (the netlist card, whose tabs are the schematic of the display instance, the
 critical path and the cells, and under it a record's checker detail; beside them the record's or the reference's
-facts), then the area-time plot and reproduce. Built once with --offline. The order and the columns are the owner's
-(2026-11-09): the code before the schematic, the critical path a tab under it, the record and the proof in a second
+facts), then the area-time plot and reproduce. Built once with --offline. The order and the columns were decided
+2026-11-09: the code before the schematic, the critical path a tab under it, the record and the proof in a second
 column as on the task page.
 
     python3 -m unittest discover -s svgolf/tests/site      (from the lean-surfaces root)
@@ -176,7 +176,7 @@ class DetailTest(unittest.TestCase):
                     self.assertNotIn("· ranked", text_of(self.page(path)), path)
 
     def test_every_detail_page_has_its_sections_in_order(self):
-        """The order is the owner's (2026-11-09): the overview, then the code, then the netlist (the schematic, the
+        """The order decided 2026-11-09: the overview, then the code, then the netlist (the schematic, the
         critical path, the cells), the area-time plot below the columns; it was dashboard, plot, schematic, critical
         path, cells, ..., sources, reproduce, with the code second to last. A record's facts and proof come before
         its checker and post-synthesis check (on a phone, one column: the player, the date and the notes before the
@@ -265,7 +265,7 @@ class DetailTest(unittest.TestCase):
     def test_the_cards_show_the_ranked_numbers(self):
         """The Area, Performance and Score cards: the record's own sky130 columns (a reference without a record: its
         golden), exact. While the task has no other player the overview says so once, under the cards, and draws no
-        beats/matches line (it drew an empty one on every card, four times on a page, until the owner's 2026-11-09
+        beats/matches line (it drew an empty one on every card, four times on a page, until the request of 2026-11-09
         "this overview can be cleaned up visually")."""
         tasks = {t.name: t for t in self.tasks()}
         shown = 0
@@ -305,17 +305,95 @@ class DetailTest(unittest.TestCase):
                 self.assertLessEqual(n, len(others))
                 if not others:
                     self.assertIn("(0 players, 0 records)", dash)
-                if n == 0:
-                    self.assertEqual(dash.count(f"No other player has a ranked record on {t} yet"), 1)
+                if n == 0:        # the tutorial is named so (decided 2026-11-12), every other task by its name
+                    named = "the tutorial" if self.config["tasks"].get(t) == "tutorial" else t
+                    self.assertEqual(dash.count(f"No other player has a ranked record on {named} yet"), 1)
                     self.assertNotIn("Beats", dash)
                     self.assertNotIn('class="meter', section(self.page(path), "dashboard"))
                 else:
                     self.assertNotIn("No other player has a ranked record", dash)
-                    self.assertEqual(len(re.findall(r"Beats \d+% · matches \d+%", dash)), 3)
+                    # the count line under each card's meter; "Beats x% · matches y%" said it again (gone 2026-11-11)
+                    self.assertNotIn("Beats", dash)
+                    self.assertEqual(len(re.findall(r"\d+ of \d+ other players? beaten, \d+ equal\.", dash)), 3)
         self.assertGreaterEqual(shown, 15)
 
+    def test_a_record_page_is_titled_by_who_made_it(self):
+        """A record page's title (decided 2026-11-11): who made the record, on which task, and when, "{player} on {task}
+        · {date}" ("{stem} on {task} · reference" for a proved reference's record), its hash a chip of the tag row; the
+        browser's <title> "{player} on {task} · record {hash, first 12}", unique per page. No score in either: the
+        score differs by course, and the title cannot switch with the view."""
+        titles = []
+        for t, path, rec, stem in self.detail_pages():
+            if rec is None:
+                continue
+            raw = self.files[path].decode("utf-8")
+            h1 = text_of(re.search(r"<h1\b[^>]*>(.*?)</h1>", raw, re.S).group(1)).strip()
+            title = html.unescape(re.search(r"<title>(.*?)</title>", raw, re.S).group(1))
+            titles.append(title)
+            with self.subTest(page=path):
+                self.assertNotIn("µm²·ns", h1 + title)
+                self.assertNotIn("µm", h1 + title)
+                h12 = rec["record_hash"][:12]
+                on = "the tutorial" if self.config["tasks"].get(t) == "tutorial" else t       # (decided 2026-11-12)
+                if rec["player"] == self.config["reference_player"]:
+                    task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
+                    stems = {posixpath.splitext(posixpath.basename(r["sv"]))[0]: r for r in task["references"]}
+                    mine = [st for st, r in stems.items()
+                            if (lb.sha256_file(os.path.join(SVGOLF, "tasks", t, r["sv"])),
+                                lb.sha256_file(os.path.join(SVGOLF, "tasks", t, r["lean"])))
+                            == (rec["files"]["sv"]["sha256"], rec["files"]["lean"]["sha256"])]
+                    who = mine[0] if mine else rec["player"]
+                    self.assertEqual(h1, f"{who} on {on} · " + ("reference" if mine else rec["submitted_at"][:10]))
+                else:
+                    who = rec["player"]
+                    self.assertEqual(h1, f"{rec['player']} on {on} · {rec['submitted_at'][:10]}")
+                self.assertEqual(title, f"{who} on {on} · record {h12} | svGolf")
+                tags = re.search(r'<p class="head-tags">(.*?)</p>', raw, re.S).group(1)
+                self.assertIn(f'<span class="badge badge-plain">record {h12}</span>', tags)
+        self.assertEqual(len(titles), len(set(titles)))
+
+    def test_a_record_page_folds_what_is_for_checking(self):
+        """The record page (decided 2026-11-11) shows what a reader reads and folds what is for checking: the record's
+        sha256 rows under "hashes", the checker's versions and hashes under the versions the record names, a clocked
+        record's run facts under "the run: ..." (its table of points stays shown); a clocked record's post-synthesis
+        check says its verdict first."""
+        clocked = 0
+        for t, path, rec, stem in self.detail_pages():
+            if rec is None:
+                continue
+            raw = self.files[path].decode("utf-8")
+            with self.subTest(page=path):
+                card = section(raw, "record")
+                shown, _, fold = card.partition("<details><summary>hashes</summary>")
+                self.assertTrue(fold, "no closed hashes fold")
+                for full in (rec["record_hash"], rec["files"]["sv"]["sha256"], rec["files"]["lean"]["sha256"]):
+                    self.assertIn(full, text_of(fold))
+                    self.assertNotIn(full, text_of(shown))          # (the download links' paths hold the hash)
+                for row in ("task", "player", "assisted by", "submitted", "notes", "scoring point"):
+                    self.assertIn(f"<dt>{row}</dt>", shown)
+                chk = section(raw, "checker")
+                m = re.search(r"<details><summary>([^<]*)</summary>(.*?)</details>", chk, re.S)
+                self.assertIsNotNone(m)
+                self.assertTrue(m.group(1).endswith("the checker: versions and hashes"), m.group(1))
+                if rec["checker"].get("yosys"):
+                    self.assertTrue(m.group(1).startswith("Yosys "), m.group(1))
+                self.assertIn("<dt>svGolf revision</dt>", m.group(2))
+                self.assertNotIn("svGolf revision", chk[:m.start()])
+                if isinstance(rec["postsynth"].get("points"), list):
+                    clocked += 1
+                    ps = section(raw, "postsynth")
+                    body = ps.split('<h2 class="card-title">', 1)[1].split("</div></div>", 1)[1]
+                    self.assertTrue(body.startswith("<p>The check found "), body[:80])
+                    run = re.search(r"<details><summary>the run: mode, seeds, stimulus, salt, the scored netlist's "
+                                    r"sha256</summary>(.*?)</details>", ps, re.S)
+                    self.assertIsNotNone(run)
+                    self.assertIn("<dt>mode</dt>", run.group(1))
+                    self.assertNotIn("<dt>mode</dt>", ps[:run.start()])
+                    self.assertIn("<table", ps[run.end():])
+        self.assertGreaterEqual(clocked, 1)
+
     def test_the_overview_is_quiet(self):
-        """The owner's "this overview can be cleaned up visually" (2026-11-09), second round: every card has the
+        """The request "this overview can be cleaned up visually" (2026-11-09), second round: every card has the
         same five parts (label, number, the line under it, the field's line, the body), so that side by side they
         line up; a big number's digit groups are narrow spaces in the text face, not a whole monospace figure each;
         par's name and number are a quiet line of their own, its name a link, no code pill; under the cards one

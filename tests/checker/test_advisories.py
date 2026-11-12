@@ -40,6 +40,7 @@ import io
 import json
 import os
 import random
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -1149,16 +1150,38 @@ class RankedHeadline(unittest.TestCase):
         with mock.patch.object(checkpy, "task_par", return_value=(self.PAR, None)):
             self.assertEqual(checkpy.ranked_headline(self.res(self.BLOCK)),
                              "ranked (sky130 A0'): 460.4416 um^2 x 2611 ps = 1202.21 um2*ns; par 1202.21 (add_n)")
-        with mock.patch.object(checkpy, "task_par", return_value=(None, None)):
+        with mock.patch.object(checkpy, "task_par", return_value=(None, None)), \
+                mock.patch.object(checkpy, "par_elsewhere", return_value=[]):
             self.assertTrue(checkpy.ranked_headline(self.res(self.BLOCK)).endswith("; par: none recorded"))
-        with mock.patch.object(checkpy, "task_par", return_value=(None, "ValueError: x")):
+        with mock.patch.object(checkpy, "task_par", return_value=(None, "ValueError: x")), \
+                mock.patch.object(checkpy, "par_elsewhere", side_effect=AssertionError("not asked")):
             self.assertTrue(checkpy.ranked_headline(self.res(self.BLOCK)).endswith("; par: unavailable (ValueError: x)"))
 
+    def test_no_par_here_but_under_another_build(self):
+        """No par under this machine's flow, while the reference records are par under another one (`par_elsewhere`):
+        the line says so and points at the rating build, instead of "none recorded"."""
+        with mock.patch.object(checkpy, "task_par", return_value=(None, None)), \
+                mock.patch.object(checkpy, "par_elsewhere", return_value=["yosys"]):
+            self.assertTrue(checkpy.ranked_headline(self.res(self.BLOCK)).endswith(
+                "; par: none under this Yosys build, the reference records were weighed under another (README.md, "
+                "\"The build ratings use\")"))
+        with mock.patch.object(checkpy, "task_par", return_value=(None, None)), \
+                mock.patch.object(checkpy, "par_elsewhere", return_value=["script_sha256", "yosys"]):
+            self.assertIn("; par: none under this flow (script_sha256, yosys differ), the reference records were "
+                          "weighed under another", checkpy.ranked_headline(self.res(self.BLOCK)))
+
     def test_clocked_time_is_cycles_times_period(self):
+        """A clocked run shows the ranked time as its two factors, the latency in cycles and the period (decided
+        2026-11-11); a seq- or react-family run, one cycle."""
         block = dict(self.BLOCK, delay_ps_sky130=1000)
-        with mock.patch.object(checkpy, "task_par", return_value=(None, None)):
+        with mock.patch.object(checkpy, "task_par", return_value=(None, None)), \
+                mock.patch.object(checkpy, "par_elsewhere", return_value=[]):
             line = checkpy.ranked_headline(self.res(block, {"time_ps": 4000, "cycles": 4, "period_ps": 1000}))
-        self.assertTrue(line.startswith("ranked (sky130 A0'): 460.4416 um^2 x 4000 ps = 1841.77 um2*ns"), line)
+            self.assertTrue(line.startswith("ranked (sky130 A0'): 460.4416 um^2 x 4 cycles x 1000 ps = 1841.77 um2*ns"),
+                            line)
+            one = checkpy.ranked_headline(self.res(block, {"time_ps": 1000, "cycles": 1, "period_ps": 1000}))
+            self.assertTrue(one.startswith("ranked (sky130 A0'): 460.4416 um^2 x 1 cycle x 1000 ps = 460.44 um2*ns"),
+                            one)
 
     def test_liberty_missing_and_not_computed(self):
         off = {"available": False, "reason": "liberty not found: /x\n  fetch it"}
@@ -1181,6 +1204,112 @@ class RankedHeadline(unittest.TestCase):
         self.assertIsNone(why)
         if par is not None:             # (None when this machine's Yosys is not the records' flow)
             self.assertEqual(par["name"], "add_n")
+            self.assertEqual(checkpy.par_elsewhere("add"), [])       # par here: the record's flow is this one
+        else:                           # another flow: the reference records still name one, and it differs
+            self.assertNotEqual(checkpy.par_elsewhere("add"), [])
+        self.assertEqual(checkpy.par_elsewhere("no_such_task"), [])  # advice: never an exception
+
+
+class ToolMessages(unittest.TestCase):
+    """The post-synthesis stage's infrastructure errors say what went wrong with the toolchain: Verilator's own stderr
+    when it fails to start (a Perl module its scrubbed environment hides), where the compiler's name came from ($CXX),
+    and the library the dynamic loader did not find when the compiled model cannot start (an infrastructure error,
+    never a rejection: the model's main() never ran)."""
+
+    def fake(self, tmp, name, body):
+        p = os.path.join(tmp, name)
+        with open(p, "w") as fh:
+            fh.write("#!/bin/sh\n" + body)
+        os.chmod(p, 0o755)
+        return p
+
+    def test_verilator_says_why_it_failed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.fake(tmp, "verilator", "echo \"Can't locate X.pm in @INC (you may need to install the X module)\" >&2\n"
+                      "exit 2\n")
+            with mock.patch.dict(os.environ, {"PATH": tmp + os.pathsep + os.environ.get("PATH", "")}):
+                with self.assertRaises(postsynth.InfraError) as cm:
+                    postsynth.verilator_info()
+        msg = str(cm.exception)
+        self.assertIn("(exit 2)", msg)
+        self.assertIn("Can't locate X.pm in @INC", msg)
+        self.assertIn("the tools run with an allowlisted environment: README.md, \"Sandbox\"", msg)
+
+    def test_the_compiler_named_by_cxx(self):
+        with mock.patch.dict(os.environ, {"CXX": "no-such-compiler-svgolf"}):
+            with self.assertRaises(postsynth.InfraError) as cm:
+                postsynth.cxx_path()
+        self.assertIn("`no-such-compiler-svgolf` is not on PATH", str(cm.exception))
+        self.assertIn("is the value of $CXX: set CXX to a compiler on PATH, or unset it to use `c++`", str(cm.exception))
+        env = {k: v for k, v in os.environ.items() if k != "CXX"}
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(postsynth.shutil, "which",
+                                                                             return_value=None):
+            with self.assertRaises(postsynth.InfraError) as cm:
+                postsynth.cxx_path()
+        self.assertIn("`c++` is not on PATH", str(cm.exception))
+        self.assertNotIn("$CXX", str(cm.exception))
+
+    def test_a_model_the_loader_cannot_start_is_infrastructure(self):
+        off = postsynth.sandbox.Policy("off")          # (another test of this process may have left one installed)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(postsynth.sandbox, "policy", return_value=off):
+            exe = self.fake(tmp, "VNET", "echo \"$0: error while loading shared libraries: libatomic.so.1: cannot open "
+                            "shared object file: No such file or directory\" >&2\nexit 127\n")
+            with self.assertRaises(postsynth.InfraError) as cm:
+                postsynth.vl_run(exe, [("a", 1)], [("y", 1)], [{"a": 0}], tmp, "t", 60)
+            self.assertIn("the dynamic loader did not find `libatomic.so.1`", str(cm.exception))
+            self.assertIn("the toolchain, not the design", str(cm.exception))
+            # a model that ran and printed malformed rows is the design's (a rejection by the caller), as before
+            bad = self.fake(tmp, "BAD", "echo 1 0\necho oops >&2\nexit 3\n")
+            rows, _, err = postsynth.vl_run(bad, [("a", 1)], [("y", 1)], [{"a": 0}], tmp, "u", 60)
+            self.assertIsNone(rows)
+            self.assertIn("(exit 3, end marker", err)
+        # macOS's dyld, and the cases that are not the loader's
+        done = postsynth.subprocess.CompletedProcess
+        with self.assertRaises(postsynth.InfraError) as cm:
+            postsynth.loader_failure(done([], -6, "", "dyld[123]: Library not loaded: @rpath/libc++.1.dylib\n"))
+        self.assertIn("`@rpath/libc++.1.dylib`", str(cm.exception))
+        postsynth.loader_failure(done([], 0, "", "error while loading shared libraries: x.so: ..."))
+        postsynth.loader_failure(done([], 127, "0 1\n", "error while loading shared libraries: x.so: ..."))
+        postsynth.loader_failure(done([], 1, "", "some other failure"))
+
+
+class StageDir(unittest.TestCase):
+    """`--stage-dir DIR` replaces an existing DIR only when it is empty or holds check.py's own `.svgolf-stage` file:
+    a directory check.py did not make is refused with exit status 2 and left as it was."""
+
+    def test_the_rule(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(checkpy.stage_dir_problem(os.path.join(tmp, "new")))
+            empty = os.path.join(tmp, "empty")
+            os.makedirs(empty)
+            self.assertIsNone(checkpy.stage_dir_problem(empty))
+            made = os.path.join(tmp, "made")
+            os.makedirs(made)
+            for name in (checkpy.STAGE_MARK, "Submission"):
+                with open(os.path.join(made, name), "w") as fh:
+                    fh.write("x")
+            self.assertIsNone(checkpy.stage_dir_problem(made))
+            other = os.path.join(tmp, "other")
+            os.makedirs(other)
+            with open(os.path.join(other, "notes.txt"), "w") as fh:
+                fh.write("mine")
+            self.assertIn("was not made by check.py (no .svgolf-stage in it)", checkpy.stage_dir_problem(other))
+            self.assertIn("is not a directory", checkpy.stage_dir_problem(os.path.join(other, "notes.txt")))
+            link = os.path.join(tmp, "link")
+            os.symlink(made, link)                  # a link to a directory check.py made: still refused, as a link
+            self.assertIn("is a symbolic link", checkpy.stage_dir_problem(link))
+
+    def test_check_py_refuses_and_deletes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, "notes.txt"), "w") as fh:
+                fh.write("mine")
+            p = subprocess.run([sys.executable, os.path.join(SVGOLF, "check.py"), os.path.join(TASKS, "_example"),
+                                os.path.join(TASKS, "_example", "reference", "band.sv"), "--unproved",
+                                "--stage-dir", tmp], capture_output=True, text=True, timeout=120,
+                               env=dict(os.environ, SVGOLF_LEAN_WRAP="", SVGOLF_SANDBOX="off"))
+            self.assertEqual(p.returncode, 2, p.stderr)
+            self.assertIn("was not made by check.py", p.stderr)
+            self.assertEqual(os.listdir(tmp), ["notes.txt"])
 
 
 class MainExitAndHeadline(unittest.TestCase):

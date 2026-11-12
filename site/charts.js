@@ -568,6 +568,7 @@
       if (note) {
         note.textContent = r.n + " of " + v.designs.length + " designs have both numbers" +
           (v.where ? " at " + v.where : "") + (r.n < v.designs.length ? " (the rest lack one)." : ".");
+        note.hidden = r.n >= v.designs.length;   // said only when designs are missing from the plot (build.explorer_html)
       }
     }
 

@@ -48,14 +48,14 @@
       "decl": "SvGolf.Tasks.Matmul.Properties.MooreOutputs",
       "file": "svgolf/tasks/matmul/Properties.lean",
       "kind": "property",
-      "text": "No combinational path leads from any input, rst included, to done and C: the outputs are functions of the registers only. The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another; an output gated by rst could hide a transaction's last value from a consumer when a reset follows (txtask-v2 rule 1)."
+      "text": "No combinational path leads from any input, rst included, to done and C: the outputs are functions of the registers only. The proof reads the outputs in the snapshot just after a clock edge, with that cycle's inputs still applied; on the wire the inputs change before the next edge. Without this rule an output that reads an input directly would be proved on one value and seen on another; an output gated by rst could hide a transaction's last value from a consumer when a reset follows (the clocked tasks' rule 1: no input reaches an output combinationally)."
     },
     {
       "name": "NO_X_CREATING",
       "decl": "SvGolf.Tasks.Matmul.Properties.NoXCreating",
       "file": "svgolf/tasks/matmul/Properties.lean",
       "kind": "property",
-      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (txtask-v2 rule 3)."
+      "text": "No construct of the design can make an unknown value out of known ones: no run-time / or % except by a nonzero constant, no ** that could be x, no run-time index that can leave its range, no slice beyond its operand, no bitwise or equality operator on operands of different widths, no x or z literal outside a casez/casex pattern. Together with the power-up rule, every value the design computes in Lean's model is then a known 0 or 1, so every if, case and ?: decides on a known value, where the hardware decides too (rule 3: no construct creates an unknown)."
     },
     {
       "name": "DONE_KNOWN",
@@ -230,7 +230,7 @@
       "name": "MooreOutDep",
       "decl": "SvGolf.MooreOutDep",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "The trusted rule 1 of txtask-v2 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list (here the list is empty: every input port, rst included), is closed along every combinational dependency and holds no output port."
+      "text": "The trusted rule 1 that MOORE_OUTPUTS restates: a set of signals that holds every input port outside the exempt list (here the list is empty: every input port, rst included), is closed along every combinational dependency and holds no output port."
     },
     {
       "name": "combDeps",
@@ -242,7 +242,7 @@
       "name": "ModelsPU",
       "decl": "SvGolf.ModelsPU",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "ModelsPU d P: from every power-up state, under every schedule, on every known stimulus, every completed run of d satisfies P. It replaces txtask-v1's runs from Lean's own start state, where an unreset register is x: an unreset register is a 0 or 1 nobody knows, so the claims must hold for every value it can have."
+      "text": "ModelsPU d P: from every power-up state, under every schedule, on every known stimulus, every completed run of d satisfies P. It replaces the earlier statement's runs from Lean's own start state, where an unreset register is x: an unreset register is a 0 or 1 nobody knows, so the claims must hold for every value it can have."
     },
     {
       "name": "PowerUp",
@@ -284,13 +284,13 @@
       "name": "TerminatesPU",
       "decl": "SvGolf.TerminatesPU",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "The trusted termination conjunct of txtask-v2 that TERMINATES restates: from every power-up state, under every schedule, every known stimulus completes."
+      "text": "The trusted termination conjunct that TERMINATES restates: from every power-up state, under every schedule, every known stimulus completes."
     },
     {
       "name": "XSafe",
       "decl": "SvGolf.XSafe",
       "file": "svgolf/SvGolf/TaskSeq.lean",
-      "text": "The trusted rule 3 of txtask-v2 that NO_X_CREATING restates: every process passes the structural check xsafeB."
+      "text": "The trusted rule 3 that NO_X_CREATING restates: every process passes the structural check xsafeB."
     },
     {
       "name": "xsafeB",

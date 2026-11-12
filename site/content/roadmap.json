@@ -1,5 +1,5 @@
 {
-  "_comment": "The curated public roadmap (site/build.py renders it as roadmap.html). Edit by hand; it is not generated from any plan file. Each item: title and text (inline Markdown; `site:page.html` links to a page of the site) and status: done | in-progress | planned | open.",
+  "_comment": "The curated public roadmap (site/build.py renders it as roadmap.html). Edit by hand; it is not generated from any plan file. Each item: title and text (inline Markdown; `site:page.html` links to a page of the site) and status: done | in-progress | planned | open, or handoff: the record route, which the build shows as done once a record can be handed in (site/build.py `submissions_open`) and as planned before; `{{handoff}}` in a text is the sentence on how a record reaches the board (`handoff_md`).",
   "intro": "What exists today, what is being built, and the questions that are still open. Dates and details live in the repository; this page is the short version.",
   "items": [
     {
@@ -43,9 +43,14 @@
       "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Every record and every proved reference of a ranked task has a page: the area, time and score cards, the design among the task's designs, the schematic of a small display instance, the critical path, the cells, the sources and the proof. Next: the placed and routed layout on those pages."
     },
     {
+      "status": "handoff",
+      "title": "Records by pull request",
+      "text": "{{handoff}}"
+    },
+    {
       "status": "planned",
-      "title": "A public hand-off for records",
-      "text": "There is no submission server. The plan is a pull request carrying the record's files, re-verified by CI."
+      "title": "Handing in a record without git",
+      "text": "An issue form for players without git or the GitHub command-line tool: a job checks the pasted record and opens its pull request. Later, a hosted verifier that runs the whole check for players without the tools."
     },
     {
       "status": "planned",

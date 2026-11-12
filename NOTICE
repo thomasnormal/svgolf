@@ -4,8 +4,8 @@ Copyright 2026 Thomas Ahle
 Licensed under the Apache License, Version 2.0 (SPDX-License-Identifier:
 Apache-2.0); see LICENSE.
 
-svGolf requires lean-surfaces (https://github.com/thomasnormal/lean-surfaces), under the same license, as
-a Lake dependency; none of it is copied here.
+svGolf requires Proglib (https://github.com/thomasnormal/proglib, formerly lean-surfaces), under the same
+license, as the Lake dependency `lean-models`; none of it is copied here.
 
 This repository includes third-party material, listed below with its source
 and its terms. A file that came with a notice keeps it.

@@ -32,7 +32,7 @@
 >
 > *G3 is no longer a fixed 1500-line gate.* The hand proof of G1 is now the driver of the plan: record where it was tedious, automate only that, and size G3 from that list. Stop rule S3 stands. The acceptance measure changes from "lines remaining" to "a cold agent finishes the proof without touching fuel, block plumbing or settle theory". Sections 4.2, 4.4 and 5 describe more than is now planned; they are kept as the record of the options.
 
-> **OUTSIDE REVIEW AND FIRST MEASUREMENTS (2026-11-02), which also override the rest of this note.** An outside review (gpt-6-pro) raised four blockers and several smaller points. Each was checked against the source, and the one that could be run was run: `spike0/` holds three parameter-bound loops, `Probe.lean` and its log (`lake env lean`, interpreter, at concrete N).
+> **OUTSIDE REVIEW AND FIRST MEASUREMENTS (2026-11-02), which also override the rest of this note.** An outside review raised four blockers and several smaller points. Each was checked against the source, and the one that could be run was run: `spike0/` holds three parameter-bound loops, `Probe.lean` and its log (`lake env lean`, interpreter, at concrete N).
 >
 > | loop | `lowerComb` | cost of `lowerComb` |
 > |---|---|---|
@@ -630,7 +630,7 @@ Findings that change the plan:
 - **Idempotence does not come from the guard's soundness theorem.** `runCombProcess2_alwaysComb_idem_of_admits` needs
   `Shaped`, which `applyInputs2` breaks on a stimulus of the wrong width, and `Terminates2` quantifies over every
   stimulus. It comes from the frame instead: the body sets `p` from `a`, `b` and `p`'s width only.
-- **Extractor gap** (handed to the codex ls-sv agent): an inner `for (int j = 0; j < i; j++)` is not retained; the
+- **Extractor gap** (handed to the ls-sv library): an inner `for (int j = 0; j < i; j++)` is not retained; the
   envelope then carries a `LocalDecl` that `load_design_sv2` rejects.
 
 ### 9.2 Where the 394 design-specific lines went (MEASURED counts, JUDGED attribution)

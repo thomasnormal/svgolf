@@ -281,8 +281,8 @@ class ClockedPost(unittest.TestCase):
         (the flow's own log: a flop removed while it is read) or at `fourstate` (a register bit no write reaches is
         an undriven bit); so is an array lane no write loads (opt_mem's const-x lane, the review's section 12); a flop
         removal that keeps one value per register (a constant, a merge, a shared bit, an unread flop, a constant
-        array lane) is accepted, and a state register the fsm pass re-implemented before the clocked flow ran
-        `synth -nofsm` (decided 2026-11-06) passes the rule. The source-level twin (`clocked_rules`, every write is the register's own value)
+        array lane, a register bit nothing reads that Yosys ties to an unknown value) is accepted, and a state
+        register the fsm pass re-implemented before the clocked flow ran `synth -nofsm` (decided 2026-11-06) passes the rule. The source-level twin (`clocked_rules`, every write is the register's own value)
         only warns. The fixtures' first line is `// expect: <stage>[: <message>]`, an optional second
         `// warn: <message>` (the warning it must give; without one, it gives none)."""
         for f in sorted(os.listdir(NEVER_LOADED)):
@@ -296,6 +296,9 @@ class ClockedPost(unittest.TestCase):
                 self.assertEqual(res["stage"], stage, res["errors"])
                 if want:
                     self.assertIn(want, res["errors"][0])
+                if f == "ok_unread_bit.sv":    # the constant nothing reads is accepted and listed (decided 2026-11-11)
+                    for p in res["stages"]["postsynth"]["points"]:
+                        self.assertEqual([u["bits"] for u in p["netlist_unread_unknown"]], [[0]], p["point"])
                 warnings = [w for w in res.get("warnings", []) if w.startswith("clocked_rules: ")]
                 if warn:
                     self.assertTrue(any(warn in w for w in warnings), warnings)

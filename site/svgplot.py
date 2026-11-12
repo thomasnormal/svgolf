@@ -282,14 +282,15 @@ def _spread(ys, lo, hi, gap):
 
 
 def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_fmt=num, until=None,
-                compact=False):
+                compact=False, desc_tail="The table under the chart lists the same numbers."):
     """The combined score over time. `entries`: dicts with id, kind (record | reference), date
     (YYYY-MM-DD), value (the score), score (its exact integer, for the order of equal values),
     tip (lines), href, attrs, banned. `par`: {"value", "label"} or None. `levels`: the baselines,
     dicts with id, name, value, banned, tip. `until`: the date the chart is as of (YYYY-MM-DD).
     The step line is the best score so far, from the first entry to the right edge; a dot that set
     a new best is drawn larger. `compact`: the phone drawing (SCORE_COMPACT), whose baselines are
-    unlabelled levels (the page names them under the chart). Returns "" with no entry."""
+    unlabelled levels (the page names them under the chart). `desc_tail`: the description's last
+    sentence, where the same numbers are as text. Returns "" with no entry."""
     dated = [e for e in entries if e.get("date")]
     if not dated:
         return ""
@@ -375,7 +376,7 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
             "is the best score so far"
             + (", the dashed line par" if par else "")
             + (f", and {len(levels)} unproved baselines are labelled on the right" if levels else "")
-            + ". The table under the chart lists the same numbers.")
+            + ". " + desc_tail)
     return _svg(fr, parts, title, desc, cls="chart compact" if compact else "chart")
 
 
@@ -637,7 +638,8 @@ def line_chart(lines, *, x_label, y_label, x_ticks, x_fmt=tick, x_log=None, y_lo
                  f'<text class="lv-name" x="{_f(lx)}" y="{_f(ly)}">{_esc(short(ln["name"], LABEL_CHARS[compact]))}'
                  "</text></g></g>")
         parts.append("".join(g))
-    desc = (f"{len(lines)} designs, {y_label} (y) against {x_label} (x), one line each, named on the right; lower is "
+    desc = (f"{len(lines)} design{'' if len(lines) == 1 else 's'}, {y_label} (y) against {x_label} (x), one line each, "
+            "named on the right; lower is "
             "better. The table under the chart lists the same numbers.")
     return _svg(fr, parts, title, desc, cls="chart lines compact" if compact else "chart lines")
 

@@ -9,7 +9,12 @@ with crisp edges. A colour is a class (`px-k`, `px-w`, ...), never a value: styl
 class its fill from the theme's art tokens (`--px-*`), so the day and the night theme colour the
 same drawing and the night's moon and stars are simply transparent by day. Decorative only: every
 drawing is `aria-hidden` and carries no text. Deterministic: the same maps give the same bytes.
+The favicon is the one drawing written with literal colours, as a file of its own (favicon.svg and
+favicon-32.png): a browser tab has no style.css, so its colours are the day theme's tokens, written out.
 """
+
+import struct
+import zlib
 
 # the colours: a map character -> the class of its pixels (style.css: `.px .px-<c> { fill: ... }`)
 INKS = {
@@ -236,6 +241,37 @@ PENNANT_SMALL = [
     "kkk.......",
 ]
 
+# the browser tab's mark, 16 x 16: the chip with a flag on its face (the logo's "SV" does not read at 16 px)
+FAVICON = [
+    "....p......p....",
+    "....p......p....",
+    "..kkkkkkkkkkkk..",
+    "..kggggggggggk..",
+    "..kgwwwwwwwwgk..",
+    "ppkgwwkfffwwgkpp",
+    "..kgwwkffwwwgk..",
+    "..kgwwkfwwwwgk..",
+    "..kgwwkwwwwwgk..",
+    "..kgwwkwwwwwgk..",
+    "ppkgqqkqqqqqgkpp",
+    "..kgqqqqqqqqgk..",
+    "..kggggggggggk..",
+    "..kkkkkkkkkkkk..",
+    "....p......p....",
+    "....p......p....",
+]
+
+# its colours: the day theme's tokens (style.css :root), written out because the file stands alone. One set serves
+# both themes: the dark outline carries the mark on a light tab strip, the white face and the gold pins on a dark one.
+FAVICON_FILLS = {
+    "k": "#24331c",   # --px-ink
+    "g": "#9aa4ad",   # --px-chip-lo
+    "w": "#ffffff",   # --px-face
+    "p": "#f2b33d",   # --px-gold
+    "f": "#ef5a2e",   # --px-flag
+    "q": "#6cc04a",   # --px-grass
+}
+
 
 def _merge(cells):
     """The pixels of one colour as rectangles: runs along each row, then runs of equal runs down
@@ -264,6 +300,16 @@ def _merge(cells):
     return rects
 
 
+def _path_d(cells):
+    """The `d` of one colour's `<path>`: its merged rectangles, each drawn from where the last one began (after `z`
+    the pen is back at the rectangle's corner: move from there)."""
+    d, at = "", None
+    for x, y, w, h in _merge(cells):
+        d += (f"M{x} {y}" if at is None else f"m{x - at[0]} {y - at[1]}") + f"h{w}v{h}h-{w}z"
+        at = (x, y)
+    return d
+
+
 class Canvas:
     """A pixel canvas: sprites put on it in painter's order (a later pixel covers an earlier one)."""
 
@@ -288,11 +334,7 @@ class Canvas:
             by.setdefault(ch, set()).add((x, y))
         paths = []
         for ch in sorted(by, key=lambda c: list(INKS).index(c)):
-            d, at = "", None                # after `z` the pen is back at the rectangle's corner: move from there
-            for x, y, w, h in _merge(by[ch]):
-                d += (f"M{x} {y}" if at is None else f"m{x - at[0]} {y - at[1]}") + f"h{w}v{h}h-{w}z"
-                at = (x, y)
-            paths.append(f'<path class="px-{INKS[ch]}" d="{d}"/>')
+            paths.append(f'<path class="px-{INKS[ch]}" d="{_path_d(by[ch])}"/>')
         return (f'<svg class="px {cls}" viewBox="0 0 {self.w} {self.h}" width="{self.w * scale}" '
                 f'height="{self.h * scale}"{extra} shape-rendering="crispEdges" aria-hidden="true" focusable="false">'
                 + "".join(paths) + "</svg>")
@@ -360,3 +402,45 @@ def hole_flag():
     c.put(["kkkk", "kppk", "kppk", "kkkk"], 3, 0)
     c.put(PENNANT_SMALL, 6, 4)
     return c.svg("hole-flag", scale=2)
+
+
+def _favicon_cells():
+    by = {}
+    for y, row in enumerate(FAVICON):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                by.setdefault(ch, set()).add((x, y))
+    return by
+
+
+def favicon_svg():
+    """favicon.svg: the tab's mark as a file, one `<path>` per colour with its fill written out (no style.css in a
+    tab); no `<title>`: a tab icon carries no text."""
+    by = _favicon_cells()
+    paths = "".join(f'<path fill="{FAVICON_FILLS[ch]}" d="{_path_d(by[ch])}"/>' for ch in FAVICON_FILLS if ch in by)
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" '
+            f'shape-rendering="crispEdges">{paths}</svg>\n').encode("utf-8")
+
+
+def favicon_png(scale=2):
+    """favicon-32.png: the mark as an RGBA PNG of 16 * `scale` pixels a side, transparent where the map is '.', for a
+    browser that shows no SVG icon. Its IDAT is a STORED deflate stream (no compression), so the bytes do not depend on
+    the zlib build: the same map gives the same file."""
+    size = 16 * scale
+    raw = bytearray()
+    for y in range(size):
+        raw.append(0)                                   # filter type 0 (none) for every row
+        for x in range(size):
+            ch = FAVICON[y // scale][x // scale]
+            raw += (bytes.fromhex(FAVICON_FILLS[ch][1:]) + b"\xff") if ch != "." else b"\x00\x00\x00\x00"
+    raw = bytes(raw)
+    if len(raw) > 0xFFFF:
+        raise ValueError("favicon_png: one stored block holds at most 65535 bytes")
+    stream = (b"\x78\x01" + b"\x01" + struct.pack("<HH", len(raw), len(raw) ^ 0xFFFF) + raw
+              + struct.pack(">I", zlib.adler32(raw) & 0xFFFFFFFF))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", stream) + chunk(b"IEND", b""))

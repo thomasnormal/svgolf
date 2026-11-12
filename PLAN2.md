@@ -408,8 +408,8 @@ This track is staffed by agents that work in `lean-surfaces-main` style isolated
 - **Docs refresh:** `docs/sv-comb-design.md` and `docs/sv-comb-census.md` still cite the old by-hand line
   counts; `PROVING.md` is regenerated from the new API; `REFUSALS.md` follows the register.
 - **Review practice:** every package ends with an independent re-run by the lead of the checker on its
-  references and the relevant `tests/run.py` steps (done for WP-B to WP-F), and a second-model static
-  review (gpt-6-pro) of new references and proofs when the maintainers want it.
+  references and the relevant `tests/run.py` steps (done for WP-B to WP-F), and an outside static
+  review of new references and proofs when the maintainers want it.
 
 ### T6. Sequential, asynchronous, CPUs (the direction, 10/30)
 

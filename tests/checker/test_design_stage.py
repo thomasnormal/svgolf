@@ -364,6 +364,14 @@ class Completeness(unittest.TestCase):
         self.assertIn("--time-limit 20", self.reasons(time_limit=20)[0])
         self.assertEqual(len(self.reasons({"postsynth": {"mode": "light"}}, build_trusted=False, time_limit=20)), 3)
 
+    def test_the_light_reason_asks_for_no_second_run(self):
+        """A plain run's check is light, and `leaderboard.py add` runs the full one itself: the reason says so, and
+        starts with the words `leaderboard.py` tests to let a light record through (`acceptance_problems`)."""
+        why = self.reasons({"postsynth": {"mode": "light"}})[0]
+        self.assertTrue(why.startswith("the post-synthesis check ran LIGHT"), why)
+        self.assertIn("leaderboard.py add runs the full check itself, so there is no need to rerun with --postsynth "
+                      "full first", why)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

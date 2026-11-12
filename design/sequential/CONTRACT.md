@@ -3,8 +3,8 @@
 The decisions C1 to C9 of `PLAN4.md` §5 (prep `82729dd0`), with where each one lives in the draft
 trusted text and how it is formalized.
 - **Status: FROZEN 11/03 as `txtask-v1`.** Asked whether to freeze the drafted defaults or review
-  first, the maintainers answered: "Don't worry. You choose the order, just keep following the plan." So every
-  item below stands as the lead's default, apart from the items marked "ruled". This is a delegation,
+  first, the maintainers left the order to the plan. So every
+  item below stands as the drafted default, apart from the items marked "ruled". This is a delegation,
   not a review: the maintainers may still rule on any item, and a change after the freeze is a version bump
   (`txtask-v2`), never an edit of v1.
 - **Freeze:** the commit tagged `txtask-v1`. From it on, the checker and the proofs may depend on the

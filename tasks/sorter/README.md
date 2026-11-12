@@ -5,7 +5,7 @@ duplicates kept. This is svGolf's STREAM task, one of its three clocked tasks (w
 `matmul`): the values arrive over `N` cycles rather than all at once, and leave the same way. The proof covers every
 `N, W ≥ 1` with `N·W < 2^31`, and it proves the cycle count too: the score is the area times that count
 times the clock period. So the task is the schedule: how many cells or comparators, how many cycles, and how
-short a cycle. The task's state (statement, checker, reference, ranking) is under "Status", after "Start a
+short a cycle. The task's state (statement, checker, reference, ranking) is under "Status", after "Proving a
 new design".
 
 Labels: **MEASURED** = run (command or file named); **DERIVED** = a hand argument given here; **JUDGED** =
@@ -14,7 +14,7 @@ opinion.
 | file | what |
 |---|---|
 | [`Spec.lean`](Spec.lean) | trusted text: the task (`task`, `sortAsc`, `Statement`) |
-| [`../../SvGolf/TaskSeq.lean`](../../SvGolf/TaskSeq.lean) | trusted text: the kind `StreamTask`, the handshake, and txtask-v2's rules 1 to 3 and `StreamTask.StatementV2` (its Status lists every declaration the statement reaches, final since 2026-11-08, amended 2026-11-09) |
+| [`../../SvGolf/TaskSeq.lean`](../../SvGolf/TaskSeq.lean) | trusted text: the kind `StreamTask`, the handshake, and the clocked statements' rules 1 to 3 and `StreamTask.StatementV2` (its Status lists every declaration the statement reaches, final since 2026-11-08, amended 2026-11-09) |
 | [`task.json`](task.json) | `stream-family`, status `ready`, the probe points, the scoring point, the post-synthesis block |
 | [`oracle.py`](oracle.py) | the post-synthesis transactions (`txns`) and the task's own evaluator (`good`) |
 | [`reference/sorter_ins.sv`](reference/sorter_ins.sv) | the reference: an insertion-cell array, adapted from a real-world design (provenance in its header) |
@@ -23,7 +23,7 @@ opinion.
 | [`REVIEW.md`](REVIEW.md) | the statement's review: v2 first, the v1 history after it |
 | [`../../tests/sorter/`](../../tests/sorter/) | `attacks/` (8), `tb.sv` + `sim.py` (a simulation of the reference and its hand mutants, Icarus) |
 
-## Start a new design
+## Proving a new design
 
 A new sorter is your own `solution.sv` (the header below; run-time `/ % **` are banned) and a `Solution.lean`
 that proves it, with the latency it claims, for every `N, W ≥ 1` with `N·W < 2^31`. Any schedule is allowed:
@@ -46,8 +46,8 @@ combinational path from an input to an output.
 
 **The route: a phase model, `StreamTask.satisfiedAtV2_of_phases`** ([PROVING.md, section
 19](../../PROVING.md#19-a-clocked-task-one-cycle-at-a-time-then-the-phases-matmul-sorter);
-`reference/sorter_ins.lean` is a complete proof). The reduction in `SvGolf/SeqV2.lean` turns the statement at
-one point into facts about ONE clock cycle:
+`reference/sorter_ins.lean` is a complete proof, 774 code lines). The reduction in `SvGolf/SeqV2.lean` turns
+the statement at one point into facts about ONE clock cycle:
 
 1. `Interface`: the ports in order and distinct declaration names (`rfl`, and `decide` on the names);
 2. `Disciplined`: `ClockedBy clk none` (no asynchronous reset), a `simp` over the processes;
@@ -124,7 +124,7 @@ end Submission
 
 ```
 trusted statement: final, decided 2026-11-08, amended 2026-11-09 before any record was published
-  (txtask-v2: StreamTask.StatementV2 of SvGolf/TaskSeq.lean, stated by Spec.lean)
+  (the second clocked statement: StreamTask.StatementV2 of SvGolf/TaskSeq.lean, stated by Spec.lean)
 run2 proof: complete, from every power-up state (lat = 2N)
 checker: stream-family (check.py)   post-synthesis: stream-family (8 seeds at (3, 4) and at (8, 8))
 reference: reference/sorter_ins.sv + sorter_ins.lean (adapted from andrewpeck/cell-sort, MIT), check.py
@@ -200,7 +200,7 @@ abbrev Statement (sem : Nat → Nat → LeanModels.Sv.Design2) (lat : Nat → Na
 ```
 
 `sortAsc` is insertion sort, ascending, unsigned (`List.insertionSort (· ≤ ·)` written out, because the
-trusted text imports no Mathlib). `StreamTask.StatementV2` is txtask-v2. For every point in range it asks for
+trusted text imports no Mathlib). `StreamTask.StatementV2` is the second clocked statement. For every point in range it asks for
 (`StreamTask.SatisfiedAtV2`):
 
 - **the interface**: exactly these ports, in this order, and no two declarations of one name;
@@ -222,14 +222,14 @@ trusted text imports no Mathlib). `StreamTask.StatementV2` is txtask-v2. For eve
 
 `SvGolf/TaskSeq.lean` defines `StreamTask` and the rules; `design/sequential/CONTRACT.md` is the decision log
 (C8, and interpretation points 6 and 7); `design/soundness/TXTASK-V2-REVIEW.md` is the review of v2;
-`REVIEW.md` is this task's review. The v1 text was frozen on 11/03 as the git tag `txtask-v1`; v2 (2026-11-05)
+`REVIEW.md` is this task's review. The first statement's text was frozen on 2026-11-03; v2 (2026-11-05)
 replaced its run from ls-sv's `x` start by every power-up and added rules 1 and 3, and it is final since
 2026-11-08. Its two amendments of 2026-11-09 for this kind (rule 1 with nothing exempt, no asynchronous reset;
 `REVIEW.md`) were made in place before any record of the task was published. A later statement change is a version
 bump that re-issues the records, never an edit.
 
 The refusal register ([`REFUSALS.md`](../../REFUSALS.md), rendered from the register at the pinned revision) still
-names the superseded `StreamTask.Statement` (txtask-v1) in its row for this task's guarantee and says that each
+names the superseded `StreamTask.Statement` (the first statement) in its row for this task's guarantee and says that each
 sorter attack is wrong at post-synthesis. The ranked statement is `StreamTask.StatementV2`, and `rst_gate` passes
 the post-synthesis check (rule 1 refuses it); the register's newer text comes with the next pin.
 
@@ -270,7 +270,7 @@ the post-synthesis check (rule 1 refuses it); the register's newer text comes wi
   register-to-register period, both on the netlist repaired by buffering only (`sky130_a0_v2`: buffer trees on
   every net over its driver's limits, nothing resized; a netlist the repair cannot make legal is rejected),
   every input driven by the default `sky130_fd_sc_hd__buf_8` (`sky130_a0_v3`). The ranked number is area ×
-  time, `area × (n × period)` in µm²·ns (decided 11/05), and the task is ranked by it (decided 2026-11-08);
+  time, `area × (n × period)` in µm²·ns (decided 2026-11-05), and the task is ranked by it (decided 2026-11-08);
   the Pareto frontier of (area, time), NAND2 gate equivalents and unit depth are exploration columns. One
   submission declares one latency: the same design with another `n` is a separate record. Every number can be
   reproduced bit for bit: score/PPA.md, "Reproduce a score" (`ppa.py --seq` for a clocked task). Eight
@@ -328,7 +328,7 @@ transactions, plus a transaction aborted by a mid-stream reset): `out_valid` = 1
 this design, one cycle above the task's bound `2N - 1` (the output is registered). `out_valid` is never x or z
 after the release (Icarus starts every register at x) and is 0 before the first start.
 
-**Upstream candidates** (searched 11/03; the original was run unchanged through the source gate and the
+**Upstream candidates** (searched 2026-11-03; the original was run unchanged through the source gate and the
 extractor first): `andrewpeck/cell-sort` (MIT; chosen), `Poofjunior/fpga_fast_serial_sort` (the 2015 cell
 sort with a streaming drain, but no license: not usable), `realise-lab/hwpq` `register_array`/
 `systolic_array` (BSD-3, priority queues with 0 as the empty marker), `Weiyet/RTLStructLib` `List/sorter.sv`

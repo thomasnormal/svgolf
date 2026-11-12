@@ -60,7 +60,7 @@
   "ppa_pins_sha256": "edd00a44e4f068fa31806d6d562e4f0635cb558310793b59e80dfa7cfa42a563",
   "ppa_version": "asap7_a0_v1"
  },
- "ppa_script_sha256": "1ef1b1c1904853711cbed9b3b5e275f333aade8f60361f8bbc61305c98c480ab",
+ "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
  "schema": "svgolf-asap7/1",
  "scoring_point": {
   "N": 16

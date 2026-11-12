@@ -1,10 +1,19 @@
 # About svGolf
 
+svGolf is a public proof-golf board for hardware: a SystemVerilog design and a Lean proof that it meets the
+task's statement for every size the task allows, ranked by area × time. It is maintained by the authors of its
+repository; questions go to {{issues}}, and How to submit on each task says how a record is made.
+
 svGolf asks two things of every design: a **proof** that it meets the task's statement (it computes the
 task's function, or, on a clocked task, keeps the task's property on every cycle), and a **score** from a
 pinned synthesis flow. The proof is checked by the Lean kernel against a statement the
-organizers wrote and reviewed; the score is a function of the submitted file. This page says why the
+maintainers wrote and reviewed; the score is a function of the submitted file. This page says why the
 statements are written the way they are, and how svGolf differs from the competition it is modelled on.
+
+The proofs are written with {{library}}, a Lean 4 library for proving real programs correct: a program's
+syntax tree becomes a Lean value, and a definitional interpreter gives it meaning. From it come ls-sv, the
+SystemVerilog semantics every svGolf statement is written over, the loader that turns a design into Lean, and
+the tactics that prove designs. It also covers Python and C++.
 
 ## A statement must not be satisfiable without computing anything
 
@@ -30,10 +39,9 @@ value.
 
 The hypotheses are about the stimulus (and, on a clocked task, the power-up state), which the statement
 quantifies over, not about the design's own behaviour, so no design can keep them false. Most statements quantify over every width `N`, so a
-proof at the scoring point alone does not type-check. Every task ships designs that try such escapes
-(wrong ports, a dead clock, a hidden mode pin, a circuit that is right only at `N = 16`) with
-kernel-checked refutations: they are listed on each task page under "What does not count", a tab of the trusted
-statement beside its properties.
+proof at the scoring point alone does not type-check. Every task lists such designs (wrong ports, a dead
+clock, a hidden mode pin, a circuit that is right only at `N = 16`) under "What does not count", a tab of the
+trusted statement, each with the checker stage that refuses it.
 
 A statement says what is computed; it cannot say what is scored. The proof is about the design as ls-sv
 reads it, the score about the netlist Yosys builds from the same text, and two tools can read one text
@@ -72,6 +80,6 @@ svGolf is about hardware, and scores differently:
 
 ## Status
 
-svGolf is in preview. The tasks, the checker and the leaderboard tooling run from the repository; there is
-no submission server, and the board is the repository's own record directory. The
-[roadmap](site:roadmap.html) says what comes next.
+svGolf is in preview. The tasks, the checker and the leaderboard tooling run from the repository, on your own
+machine; there is no submission server, and the board is the repository's own record directory.
+{{handoff}} The [roadmap](site:roadmap.html) says what comes next.

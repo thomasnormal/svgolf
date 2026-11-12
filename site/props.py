@@ -135,7 +135,7 @@ def load(task_name, task_dir, statement_constant, closure, read_text, source_pag
 # ---------------------------------------------------------------------------
 
 def _path_row(e, link):
-    return (f'<div class="prop-path"><span>{esc(e.file)}:{e.line}</span>'
+    return (f'<div class="prop-path"><span>{esc(page.shown_path(e.file))}:{e.line}</span>'
             + page.button(link(e.source), "Open in code", "quiet sm", arrow=True) + "</div>")
 
 

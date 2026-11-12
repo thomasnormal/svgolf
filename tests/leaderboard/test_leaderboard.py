@@ -34,7 +34,9 @@ import io
 import json
 import os
 import random
+import shlex
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -65,6 +67,10 @@ end Submission
 """
 SV_SHA = lb.sha256_bytes(SV_TEXT)
 CANON_SHA = "c" * 64
+# the reason check.py's `incomplete_reasons` gives for a light post-synthesis check
+LIGHT_REASON = ("the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback); leaderboard.py add "
+                "runs the full check itself, so there is no need to rerun with --postsynth full first (only a stored "
+                "result for add --from-check must come from a full run)")
 
 with open(os.path.join(SVGOLF, "score", "ge.json")) as _fh:
     GE = {k: round(v * 1000) for k, v in json.load(_fh).items() if not k.startswith("_")}
@@ -130,8 +136,7 @@ def fake_result(task="toy", sv_sha=SV_SHA, gates=None, depth=10, flow=None, poin
         if mode == "light":
             ps["vectors"] = 120
             res["complete"] = False
-            res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local "
-                                 "feedback): rerun with --postsynth full"]
+            res["incomplete"] = [LIGHT_REASON]
     return res
 
 
@@ -229,8 +234,7 @@ def fake_clocked_result(task=None, *, area_e4=90000, period=1000, latency=None, 
     res["stages"]["postsynth"] = {"points": pts, "netlist_sha256": res["ppa"]["netlist_sha256"]}
     if mode == "light":
         res["complete"] = False
-        res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback): "
-                             "rerun with --postsynth full"]
+        res["incomplete"] = [LIGHT_REASON]
     return res
 
 
@@ -1249,8 +1253,10 @@ if "--postsynth" in sys.argv:     # a current check.py writes the mode it ran in
     if ps["mode"] == "light":
         ps["vectors"] = 120
         res["complete"] = False
-        res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback): "
-                             "rerun with --postsynth full"]
+        res["incomplete"] = ["the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback); "
+                             "leaderboard.py add runs the full check itself, so there is no need to rerun with "
+                             "--postsynth full first (only a stored result for add --from-check must come from a "
+                             "full run)"]
 if "--sandbox" in sys.argv and sys.argv[sys.argv.index("--sandbox") + 1] != "off":
     res["sandbox"] = {"mode": sys.argv[sys.argv.index("--sandbox") + 1], "mechanism": "fake",
                       "active": os.environ.get("FAKE_SANDBOX", "active") == "active"}
@@ -1582,6 +1588,26 @@ class PostsynthModeCliTest(Tmp):
     def test_seed_references_and_default_are_full(self):
         self.assertEqual(self.env.add("bob")[0], 0)
         self.assertTrue(all(ln.endswith("--postsynth full") for ln in self.argv_log()))
+
+    def test_the_reference_handle_is_seed_references_own(self):
+        """Decided 2026-11-12: `add` refuses the proved references' handle for any record (before any check runs);
+        `seed-references`, the maintainers' path, records the task's listed references under it."""
+        rc, _, err = self.env.add(lb.REFERENCE_PLAYER)
+        self.assertEqual(rc, 1)
+        self.assertIn(lb.RESERVED_HANDLE, err)
+        self.assertFalse(os.path.exists(self.log))                  # check.py never ran
+        self.assertEqual(self.records(), [])
+        ref = os.path.join(self.env.tasks, "toy", "reference")
+        os.makedirs(ref)
+        sv, lean = self.env.files("ref_n")
+        shutil.copy(sv, os.path.join(ref, "ref_n.sv"))
+        shutil.copy(lean, os.path.join(ref, "ref_n.lean"))
+        with open(os.path.join(self.env.tasks, "toy", "task.json"), "w") as fh:
+            json.dump(toy_task(leaderboard={"depth_budget": 22},
+                               references=[{"sv": "reference/ref_n.sv", "lean": "reference/ref_n.lean"}]), fh)
+        rc, out, err = self.env.run("seed-references", "--task", "toy")
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual([r["player"] for r in self.records()], [lb.REFERENCE_PLAYER])
 
 
 class PpaRecordTest(Tmp):
@@ -2469,16 +2495,32 @@ class ParTest(Tmp):
     def rec(self, player, tag, area_e4, delay, **kw):
         return make_record(player=player, sv=SV_TEXT + f"// {tag}\n".encode(), sky=(area_e4, delay), **kw)
 
+    @staticmethod
+    def listed(*recs):
+        """`names` (reference_names' shape) listing these records' designs, in this order, as task.json would."""
+        return {r["files"]["sv"]["sha256"]: (i, f"ref{i}") for i, r in enumerate(recs)}
+
     def test_the_best_area_times_time_of_the_reference_player(self):
         task = toy_task()
         small = self.rec(self.REF, "small", 1000000, 3000)      # the smaller area: 3.0e9
         fast = self.rec(self.REF, "fast", 1200000, 2000)        # the smaller product: 2.4e9
         player = self.rec("alice", "alice", 500000, 1000)       # better still, but an entry, not par
-        par = lb.par_of(task, [small, fast, player], flow=FLOW)
+        par = lb.par_of(task, [small, fast, player], flow=FLOW, names=self.listed(small, fast))
         self.assertEqual((par["record_hash"], par["exact"]), (fast["record_hash"], 1200000 * 2000))
         self.assertAlmostEqual(par["um2ns"], 240.0)
-        self.assertEqual(par["name"], "toy")                     # no task.json name known: the stored .sv's
-        self.assertIsNone(lb.par_of(task, [player], flow=FLOW))
+        self.assertEqual(par["name"], "ref1")                    # the stem task.json lists
+        self.assertIsNone(lb.par_of(task, [player], flow=FLOW, names=self.listed(player)))
+
+    def test_par_comes_only_from_a_listed_reference(self):
+        """Decided 2026-11-12: a record of the reference player whose design task.json does not list is never par,
+        however it scores; without the listing there is no par."""
+        task = toy_task()
+        listed = self.rec(self.REF, "listed", 1000000, 3000)
+        other = self.rec(self.REF, "other", 500000, 1000)       # better, under the reference handle, not listed
+        par = lb.par_of(task, [listed, other], flow=FLOW, names=self.listed(listed))
+        self.assertEqual((par["record_hash"], par["name"]), (listed["record_hash"], "ref0"))
+        self.assertIsNone(lb.par_of(task, [other], flow=FLOW, names=self.listed(listed)))
+        self.assertIsNone(lb.par_of(task, [listed, other], flow=FLOW))
 
     def test_a_tie_goes_to_the_reference_listed_first(self):
         task = toy_task()
@@ -2493,8 +2535,9 @@ class ParTest(Tmp):
         task = toy_task()
         stale = self.rec(self.REF, "stale", 1000000, 2000, flow=dict(FLOW, script_sha256="8" * 64))
         nocols = make_record(player=self.REF, sv=SV_TEXT + b"// nocols\n")
-        self.assertIsNone(lb.par_of(task, [stale, nocols], flow=FLOW))
-        self.assertEqual(lb.par_of(task, [stale], flow=None)["record_hash"], stale["record_hash"])
+        names = self.listed(stale, nocols)
+        self.assertIsNone(lb.par_of(task, [stale, nocols], flow=FLOW, names=names))
+        self.assertEqual(lb.par_of(task, [stale], flow=None, names=names)["record_hash"], stale["record_hash"])
 
     def test_rendered_on_the_board_and_the_pareto_text(self):
         task = toy_task()
@@ -2517,12 +2560,25 @@ class ParTest(Tmp):
         rc, md, _ = env.run("board", "--task", "toy")
         self.assertEqual(rc, 0)
         self.assertIn("Par: none recorded", md)
-        rc, out, err = env.add(self.REF)
+        # the reference handle is `seed-references`' own (decided 2026-11-12): par is a listed reference of task.json
+        self.assertEqual(env.add(self.REF)[0], 1)
+        ref = os.path.join(env.tasks, "toy", "reference")
+        os.makedirs(ref)
+        sv, lean = env.files("ref_n")
+        shutil.copy(sv, os.path.join(ref, "ref_n.sv"))
+        shutil.copy(lean, os.path.join(ref, "ref_n.lean"))
+        with open(os.path.join(env.tasks, "toy", "task.json"), "w") as fh:
+            json.dump(toy_task(leaderboard={"depth_budget": 22},
+                               references=[{"sv": "reference/ref_n.sv", "lean": "reference/ref_n.lean"}]), fh)
+        rc, out, err = env.run("seed-references", "--task", "toy")
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("seeded toy: reference/ref_n.sv", out)
+        rc, out, err = env.add("alice")                 # add prints the ranked number of a record it makes
         self.assertEqual(rc, 0, err)
         self.assertIn("(area x time ", out)
         rc, md, _ = env.run("board", "--task", "toy")
         self.assertIn("Par, the best proved reference by area x time (the ranked number; lower is better): "
-                      f"`{self.REF}`: ", md)
+                      "`ref_n`: ", md)
         rc, js, _ = env.run("board", "--task", "toy", "--format", "json")
         self.assertEqual(json.loads(js)["par"]["player"], self.REF)
         rc, out, _ = env.run("pareto", "--task", "toy")
@@ -2597,7 +2653,8 @@ class StatementTest(unittest.TestCase):
         self.assertEqual(why, "checked under another statement (tasks/toy/Spec.lean differ)")
         board = lb.build_board(task, [rec], statement=other)
         self.assertEqual((board["ranking"], [r["reason"] for r in board["unranked"]]), ([], [why]))
-        self.assertIsNone(lb.par_of(task, [dict(rec, player=lb.REFERENCE_PLAYER)], statement=other))
+        self.assertIsNone(lb.par_of(task, [dict(rec, player=lb.REFERENCE_PLAYER)], statement=other,
+                                    names={rec["files"]["sv"]["sha256"]: (0, "toy")}))
         self.assertEqual(len(lb.build_board(task, [rec], statement=now)["ranking"]), 1)
         self.assertEqual(len(lb.build_board(task, [rec])["ranking"]), 1)           # not compared without one
         # a record made before records named their statement: stale, not ranked
@@ -2993,7 +3050,13 @@ class ClockedRecordTest(Tmp):
 
         def run(*argv):
             return quiet(lb.main, list(argv[:1]) + ["--data-dir", data, "--tasks-dir", tasks] + list(argv[1:]))
-        rc, out, err = run("add", "--task", "arbiter", "--player", lb.REFERENCE_PLAYER, "--sv", paths["rr_mask.sv"],
+        # (the reference handle is refused here since 2026-11-12: `seed-references` alone records under it)
+        rc, _, err = run("add", "--task", "arbiter", "--player", lb.REFERENCE_PLAYER, "--sv", paths["rr_mask.sv"],
+                         "--lean", paths["rr_mask.lean"], "--date", "2026-11-07", "--from-check", paths["check.json"],
+                         "--assisted-by", "Claude (Anthropic)")
+        self.assertEqual(rc, 1)
+        self.assertIn(lb.RESERVED_HANDLE, err)
+        rc, out, err = run("add", "--task", "arbiter", "--player", "arb-golfer", "--sv", paths["rr_mask.sv"],
                            "--lean", paths["rr_mask.lean"], "--date", "2026-11-07", "--from-check", paths["check.json"],
                            "--assisted-by", "Claude (Anthropic)")
         self.assertEqual(rc, 0, err)
@@ -3001,7 +3064,7 @@ class ClockedRecordTest(Tmp):
         self.assertIn("post-synthesis check (clocked): full mode at 3 point(s), N=3 (3 seeds, 210519 cycles), "
                       "N=5 (3 seeds, 210683 cycles), N=8 (3 seeds, 211527 cycles), 0 mismatches", out)
         rc, md, _ = run("board", "--task", "arbiter", "--all-flows")
-        self.assertIn("| 1 | svgolf-reference | Claude (Anthropic) | 2174.57 | 769.4880 | 2826 (1 x 2826) |", md)
+        self.assertIn("| 1 | arb-golfer | Claude (Anthropic) | 2174.57 | 769.4880 | 2826 (1 x 2826) |", md)
         rc, js, _ = run("board", "--task", "arbiter", "--format", "json")
         board = json.loads(js)
         if lb.flow_mismatch(lb.flow_of(arbiter_record()), REAL_SEQ_FLOW):
@@ -3010,8 +3073,8 @@ class ClockedRecordTest(Tmp):
             self.assertTrue(un["reason"].startswith("checked under another flow ("), un["reason"])
             self.assertNotIn("(flow,", un["reason"])          # compared with the clocked flow, not the combinational
         else:
-            self.assertEqual([r["player"] for r in board["ranking"]], [lb.REFERENCE_PLAYER])
-            self.assertEqual(board["par"]["name"], "rr_mask")
+            self.assertEqual([r["player"] for r in board["ranking"]], ["arb-golfer"])
+            self.assertIsNone(board["par"])                 # no reference record here: no par
         rc, out, _ = run("verify", "--offline", "--task", "arbiter")
         self.assertEqual(rc, 0, out)
         self.assertIn("verify (offline): 1 records, 0 failed", out)
@@ -3180,8 +3243,9 @@ class Asap7ViewTest(Tmp):
         ents = {r["files"]["sv"]["sha256"]: v for r, v in zip(refs, ((700000, 600), (690000, 560), (800000, 500)))}
         for e in table["designs"]:
             e.update(area_e5um2=ents[e["sv_sha256"]][0], delay_ps=ents[e["sv_sha256"]][1], time_ps=ents[e["sv_sha256"]][1])
-        sky = lb.par_of(task, refs, flow=FLOW)
-        a7 = lb.par_of(task, refs, flow=FLOW, pdk="asap7", asap7=table, asap7_identity=A7_IDENT)
+        names = {r["files"]["sv"]["sha256"]: (i, f"ref{i}") for i, r in enumerate(refs)}
+        sky = lb.par_of(task, refs, flow=FLOW, names=names)
+        a7 = lb.par_of(task, refs, flow=FLOW, pdk="asap7", asap7=table, asap7_identity=A7_IDENT, names=names)
         self.assertEqual(sky["exact"], 4000000 * 2000)
         self.assertEqual((a7["exact"], a7["area_e5um2"]), (690000 * 560, 690000))
         self.assertIn("6.90000 um^2 x 560 ps = 3.8640 um2*ns", lb.fmt_par(a7))
@@ -3320,6 +3384,513 @@ class CommittedAsap7Test(unittest.TestCase):
                 a7 = lb.build_board(task, mine, flow=flow, statement=lb.current_statement_or_none(task), pdk="asap7",
                                     asap7=table, asap7_identity=ident)
                 self.assertEqual({r["record_hash"] for r in a7["ranking"]}, {r["record_hash"] for r in sky["ranking"]})
+
+
+def git(cwd, *args):
+    """git in a test's own repository (no user configuration needed: the identity is given here, an address-free
+    one)."""
+    return subprocess.run(["git", "-c", "user.name=svgolf test", "-c", "user.email=svgolf-test", "-c",
+                           "commit.gpgsign=false", "-c", "init.defaultBranch=main", *args], cwd=cwd,
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+class SubmitTest(Tmp):
+    """`submit` (decided 2026-11-11): a record of the board's own data directory, checked at the offline level, is
+    handed in by a pull request that adds its three files, opened with the player's git and gh. `--dry-run` prints the
+    steps and the text and changes nothing; without gh the steps are printed for doing by hand."""
+
+    REPO = "https://github.com/someone/svgolf"
+
+    def setUp(self):
+        super().setUp()
+        self.env = CliEnv(self)
+        p = mock.patch.object(lb, "DEFAULT_DATA", self.env.data)     # the CliEnv's data directory is the board's own
+        p.start()
+        self.addCleanup(p.stop)
+
+    def record(self, player="alice", extra=()):
+        rc, out, err = self.env.add(player, extra=extra)
+        self.assertEqual(rc, 0, err)
+        rec = next(r for _, r, _ in lb.load_records(self.env.data, "toy") if r["player"] == player)
+        return rec
+
+    def submit(self, *argv):
+        return self.env.run("submit", "--task", "toy", *argv)
+
+    def test_dry_run_prints_the_steps_and_the_text_and_changes_nothing(self):
+        rec = self.record()
+        h = rec["record_hash"]
+        before = sorted(os.listdir(os.path.join(self.env.data, "toy")))
+        with mock.patch.object(lb, "run_submit_steps", side_effect=AssertionError("a dry run ran the steps")), \
+                mock.patch.object(lb.shutil, "which", lambda name, which=shutil.which: "/x/gh" if name == "gh"
+                                  else which(name)):
+            rc, out, err = self.submit("--record", h[:12], "--repo", self.REPO, "--dry-run")
+        self.assertEqual(rc, 0, err)
+        self.assertEqual(sorted(os.listdir(os.path.join(self.env.data, "toy"))), before)
+        self.assertIn(f"[ok] toy/{h[:12]}: alice", out)                    # verify --offline's own line
+        self.assertIn(f"board line: `toy` record `{h[:12]}` by `alice`: ", out)
+        self.assertIn("submit --dry-run: nothing was changed or sent.", out)
+        root = os.path.relpath(lb.SVGOLF)
+        for line in ("TMP=$(mktemp -d)",
+                     f"git -C {root} fetch --no-tags https://github.com/someone/svgolf.git main",
+                     f"BASE=$(git -C {root} rev-parse FETCH_HEAD)",
+                     f'GIT_INDEX_FILE="$TMP/index" git -C {root} read-tree "$BASE"',
+                     f'TREE=$(GIT_INDEX_FILE="$TMP/index" git -C {root} write-tree)',
+                     "gh repo fork someone/svgolf --clone=false --remote=false",
+                     "LOGIN=$(gh api user --jq .login)",
+                     f'git -C {root} push "https://github.com/$LOGIN/svgolf.git" "$COMMIT:refs/heads/record-toy-{h[:12]}"'):
+            self.assertIn(line + "\n", out)
+        for ext in (".json", ".sv", ".lean"):
+            self.assertIn(f'--cacheinfo "100644,${ {".json": "JSON", ".sv": "SV", ".lean": "LEAN"}[ext]},'
+                          f'leaderboard/data/toy/{h}{ext}"', out)
+        self.assertIn(f'gh pr create --repo someone/svgolf --base main --head "$LOGIN:record-toy-{h[:12]}" --title '
+                      f"'record toy alice {h[:12]}: ", out)
+        self.assertIn('--body-file "$TMP/body.md"', out)
+        # the pull request's text, as a here-document, with the record's fields
+        text = out.split(f"<<'{lb.PR_TEXT_END}'\n", 1)[1].split(f"\n{lb.PR_TEXT_END}\n", 1)[0]
+        self.assertEqual([ln[3:] for ln in text.split("\n") if ln.startswith("## ")], list(lb.PR_HEADINGS))
+        for want in ("- task: `toy`", "- handle: `alice`", "- assisted by: none (unassisted)",
+                     f"- files: `leaderboard/data/toy/{h}.json`, `.sv` and `.lean`", f"[ok] toy/{h[:12]}: alice",
+                     lb.PR_CHECK_NOTE, f"`toy` record `{h[:12]}` by `alice`: "):
+            self.assertIn(want, text)
+
+    def test_without_gh_the_steps_are_printed_for_doing_by_hand(self):
+        rec = self.record("bob", extra=["--assisted-by", "Some Tool [v2]"])
+        h = rec["record_hash"]
+        with mock.patch.object(lb, "run_submit_steps", side_effect=AssertionError("ran without gh")), \
+                mock.patch.object(lb.shutil, "which", lambda name, which=shutil.which: None if name == "gh"
+                                  else which(name)):
+            rc, out, err = self.submit("--record", h, "--repo", self.REPO + ".git")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("(gh) is not on PATH, so nothing was changed or sent", out)
+        self.assertIn("# fork https://github.com/someone/svgolf on github.com (once), then:\nLOGIN=YOUR_GITHUB_LOGIN\n",
+                      out)
+        self.assertIn(f"# open https://github.com/someone/svgolf/compare/main...$LOGIN:record-toy-{h[:12]}?expand=1,",
+                      out)
+        self.assertNotIn("gh pr create", out)
+        self.assertNotIn("gh repo fork", out)
+        self.assertIn("- assisted by: Some Tool \\[v2\\]", out)        # Markdown-escaped: the player's free text
+
+    def test_what_is_refused(self):
+        rec = self.record()
+        h = rec["record_hash"]
+        rc, _, err = self.submit("--record", h[:8], "--repo", self.REPO)
+        self.assertEqual(rc, 1)
+        self.assertIn("its first 12 characters or more", err)
+        rc, _, err = self.submit("--record", "0" * 12, "--repo", self.REPO)
+        self.assertEqual(rc, 1)
+        self.assertIn("no record 000000000000 of task toy", err)
+        rc, _, err = self.submit("--record", h, "--repo", "https://example.org/someone/svgolf")
+        self.assertEqual(rc, 2)
+        self.assertIn("is not a GitHub repository", err)
+        with mock.patch.object(lb, "site_repo_url", lambda: None):
+            rc, _, err = self.submit("--record", h)
+        self.assertEqual(rc, 2)
+        self.assertIn("no public repository is named here", err)
+        with mock.patch.object(lb, "DEFAULT_DATA", os.path.join(self.tmp, "elsewhere")):
+            rc, _, err = self.submit("--record", h, "--repo", self.REPO, "--dry-run")
+        self.assertEqual(rc, 1)
+        self.assertIn("a record made with --data-dir is a private trial", err)
+        # a light record never ranks
+        light = self.record("lena", extra=["--postsynth", "light"])
+        rc, _, err = self.submit("--record", light["record_hash"], "--repo", self.REPO, "--dry-run")
+        self.assertEqual(rc, 1)
+        self.assertIn("a LIGHT record", err)
+        # what verify --offline fails: a stored file that is not the recorded one
+        with open(os.path.join(self.env.data, "toy", h + ".sv"), "a") as fh:
+            fh.write("// edited\n")
+        rc, out, err = self.submit("--record", h, "--repo", self.REPO, "--dry-run")
+        self.assertEqual(rc, 1)
+        self.assertIn(f"[FAIL] toy/{h[:12]}", out)
+        self.assertIn("does not have the recorded sha256", err)
+        self.assertNotIn("TMP=", out)
+
+    def test_hostile_arguments_and_the_printed_quoting(self):
+        """The review's n-1, n-2, n-3: a word of the printed script stands in double quotes only when its one `$` is an
+        earlier step's output, otherwise nothing in it expands; --task is a task's name, never a path; --repo's owner
+        and repository are names, never `.` or `..`."""
+        self.assertEqual(lb._shell_word("$TMP/index"), '"$TMP/index"')
+        self.assertEqual(lb._shell_word("https://github.com/$LOGIN/svgolf.git"), '"https://github.com/$LOGIN/svgolf.git"')
+        for w in ("x$(touch PWN)", "record add x$(touch PWN) y", 'a"b$X', "a`b`$X", "$X!"):
+            self.assertEqual(lb._shell_word(w), shlex.quote(w), w)
+        rec = self.record()
+        for task in ("../tasks/toy", "toy/../toy", ".."):
+            rc, _, err = self.env.run("submit", "--task", task, "--record", rec["record_hash"], "--repo", self.REPO,
+                                      "--dry-run")
+            self.assertEqual(rc, 2, task)
+            self.assertIn("no such task", err)
+        for repo in ("https://github.com/../svgolf", "https://github.com/someone/..", "https://github.com/someone/.",
+                     "https://github.com/-x/svgolf"):
+            rc, _, err = self.submit("--record", rec["record_hash"], "--repo", repo, "--dry-run")
+            self.assertEqual(rc, 2, repo)
+            self.assertIn("is not a GitHub repository", err)
+
+    def test_a_record_under_the_reference_handle_is_refused(self):
+        """Decided 2026-11-12: the proved references' handle is not a player's; `submit` refuses such a record (one
+        made before `add` refused the handle, or by hand) before it verifies anything."""
+        rec = make_record(player=lb.REFERENCE_PLAYER)
+        lb.store_record(self.env.data, rec, SV_TEXT, LEAN_TEXT)
+        rc, out, err = self.submit("--record", rec["record_hash"], "--repo", self.REPO, "--dry-run")
+        self.assertEqual(rc, 1)
+        self.assertIn(lb.RESERVED_HANDLE, err)
+        self.assertNotIn("[ok]", out)
+        self.assertNotIn("TMP=", out)
+
+    def test_the_steps_commit_the_three_files_on_main_and_leave_the_players_tree_alone(self):
+        """The steps, run for real with git on a repository of this test's own (the public one, a clone of it with
+        the record and other work in progress, and a fork; gh's steps left out): the fork's branch is the public
+        main plus exactly the three files, and the clone's branch, index and working tree are as they were."""
+        up, clone, fork = (os.path.join(self.tmp, n) for n in ("up", "clone", "fork.git"))
+        os.makedirs(up)
+        git(up, "init", "-q")
+        with open(os.path.join(up, "README.md"), "w") as fh:
+            fh.write("public\n")
+        git(up, "add", "README.md")
+        git(up, "commit", "-q", "-m", "public main")
+        git(self.tmp, "clone", "-q", up, clone)
+        git(self.tmp, "init", "-q", "--bare", fork)
+        rec = make_record(task=toy_task())
+        lb.store_record(os.path.join(clone, "leaderboard", "data"), rec, SV_TEXT, LEAN_TEXT)
+        with open(os.path.join(clone, "README.md"), "a") as fh:
+            fh.write("my unfinished edit\n")
+        with open(os.path.join(clone, "staged.txt"), "w") as fh:
+            fh.write("staged\n")
+        git(clone, "add", "staged.txt")
+        state = lambda: (git(clone, "rev-parse", "HEAD"), git(clone, "status", "--porcelain"),  # noqa: E731
+                         git(clone, "diff", "--cached", "--name-only"), git(clone, "branch", "--list"))
+        before = state()
+        files = [os.path.relpath(p, clone) for p in lb.record_paths(os.path.join(clone, "leaderboard", "data"),
+                                                                     "toy", rec["record_hash"])]
+        title, body = lb.submit_text(rec, "a board line", "a verify line")
+        steps = [st for st in lb.submit_steps(rec, clone, files, "someone", "svgolf", title) if not st["gh"]]
+        swap = {f"{self.REPO}.git": up, "https://github.com/$LOGIN/svgolf.git": fork}
+        for st in steps:
+            st["argv"] = [swap.get(w, w) for w in st["argv"]]
+        ident = {"GIT_AUTHOR_NAME": "p", "GIT_AUTHOR_EMAIL": "player", "GIT_COMMITTER_NAME": "p",
+                 "GIT_COMMITTER_EMAIL": "player"}
+        with mock.patch.dict(os.environ, ident):
+            lb.run_submit_steps(steps, body)
+        branch = f"record-toy-{rec['record_hash'][:12]}"
+        self.assertEqual(state(), before)
+        self.assertEqual(git(fork, "rev-parse", f"{branch}^"), git(up, "rev-parse", "HEAD"))
+        self.assertEqual(git(fork, "log", "-1", "--format=%s", branch), title)
+        added = git(fork, "diff", "--name-status", f"{branch}^", branch).split("\n")
+        self.assertEqual(added, [f"A\tleaderboard/data/toy/{rec['record_hash']}{e}" for e in (".json", ".lean", ".sv")])
+        self.assertEqual(git(fork, "show", f"{branch}:README.md"), "public")        # main's, not the clone's edit
+        self.assertEqual(git(fork, "show", f"{branch}:leaderboard/data/toy/{rec['record_hash']}.sv") + "\n",
+                         SV_TEXT.decode())
+        # a step that fails is named, and the temporary directory goes
+        made = []
+        real = tempfile.mkdtemp
+
+        def mkdtemp(**kw):
+            made.append(real(**kw))
+            return made[-1]
+        with mock.patch.object(lb.tempfile, "mkdtemp", mkdtemp), self.assertRaises(RuntimeError) as e:
+            lb.run_submit_steps(steps, body)                    # the branch exists: the push is refused
+        self.assertIn("git -C", str(e.exception))
+        self.assertIn("push", str(e.exception))
+        self.assertFalse(os.path.exists(made[0]))
+
+    def test_the_board_line(self):
+        task = toy_task()
+        par_rec = make_record(task, lb.REFERENCE_PLAYER, gates={"AND": 5}, sky=(90000, 1000))
+        a = make_record(task, "a", gates={"AND": 4}, sky=(80000, 1000))
+        b = make_record(task, "b", gates={"AND": 6}, sky=(100000, 1000))
+        res = with_ppa(fake_result(gates={"AND": 3}), area_e4=10000, delay_ps=100, ppa_version="sky130_a0_v0")
+        old = make_record(task, "old", res=res)
+        cur = {"ppa_version": "sky130_a0_v1", "liberty_sha256": "a" * 64, "ppa_pins_sha256": "b" * 64}
+        board = lb.build_board(task, [a, b, old], flow=FLOW, identity=cur, input_drive=BUF8)    # the players'
+        par = lb.par_of(task, [par_rec, a, b, old], flow=FLOW, identity=cur, input_drive=BUF8,
+                        names={par_rec["files"]["sv"]["sha256"]: (0, "toy")})
+        h = a["record_hash"]
+        self.assertEqual(lb.board_line(board, par, h),
+                         f"`toy` record `{h[:12]}` by `a`: 8.0000 um^2 x 1000 ps = 8.00 um2*ns, rank 1 of 2; under par; "
+                         f"par `toy`: 9.0000 um^2 x 1000 ps = 9.00 um2*ns (record `{par_rec['record_hash'][:12]}`)")
+        self.assertIn("rank 2 of 2; not under par; par ", lb.board_line(board, par, b["record_hash"]))
+        self.assertIn("rank 1 of 2; par: none recorded", lb.board_line(board, None, h))
+        self.assertEqual(lb.board_line(board, par, old["record_hash"]),
+                         f"`toy` record `{old['record_hash'][:12]}` by `old`: not ranked: sky130 columns computed under "
+                         "another version (ppa_version differ)")
+        self.assertIn("not on the board", lb.board_line(board, par, "f" * 64))
+        self.assertIn("are par, not entries", lb.board_line(board, par, par_rec["record_hash"]))
+
+    def test_the_template_has_the_texts_parts(self):
+        """.github/pull_request_template.md, the form of a pull request opened by hand, has the parts and fields of the
+        text `submit` writes, in the same order."""
+        with open(os.path.join(SVGOLF, ".github", "pull_request_template.md"), encoding="utf-8") as fh:
+            template = fh.read()
+        _, text = lb.submit_text(make_record(task=toy_task()), "a board line", "a verify line")
+        parts = lambda t: [ln[3:] for ln in t.split("\n") if ln.startswith("## ")]            # noqa: E731
+        fields = lambda t: [ln.split(":", 1)[0] for ln in t.split("\n") if ln.startswith("- ")]  # noqa: E731
+        self.assertEqual(parts(template), list(lb.PR_HEADINGS))
+        self.assertEqual(parts(text), list(lb.PR_HEADINGS))
+        self.assertEqual(fields(template), fields(text))
+        self.assertEqual(fields(text), ["- task", "- handle", "- assisted by", "- files"])
+        self.assertIn("leaderboard.py submit --task TASK --record HASH", template)
+        self.assertIn("a maintainer re-makes the ranked\nnumber on the rating build when the pull request is merged",
+                      template)
+
+    def test_the_pinned_flows_are_the_sites(self):
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        flows = lb.pinned_flows()
+        self.assertEqual(sorted(flows), [lb.COMB_FLOW, lb.SEQ_FLOW])
+        self.assertEqual(flows[lb.COMB_FLOW]["yosys"], expected["flow"]["yosys_version"])
+        self.assertEqual(flows[lb.SEQ_FLOW]["script_sha256"], expected["flow_seq"]["script_sha256"])
+        ranked = 0
+        for name in lb.all_task_names(lb.DEFAULT_TASKS):
+            with self.subTest(task=name):
+                board, par = lb.board_now(lb.load_task(lb.DEFAULT_TASKS, name), os.path.join(SVGOLF, "leaderboard",
+                                                                                               "data"))
+                self.assertNotIn(lb.REFERENCE_PLAYER, {r["player"] for r in board["ranking"]})    # par, not an entry
+                self.assertEqual(par["player"], lb.REFERENCE_PLAYER)        # every task's par ranks under the pins
+                ranked += len(board["ranking"])
+        self.assertGreater(ranked, 0)                       # the players' committed records rank, as on the site
+
+
+def load_pr_check():
+    spec = importlib.util.spec_from_file_location("svgolf_pr_check", os.path.join(SVGOLF, "leaderboard", "pr_check.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+pc = load_pr_check()
+
+
+class PrCheckTest(Tmp):
+    """leaderboard/pr_check.py (decided 2026-11-11), on a repository of the test's own with two commits, the base and
+    the pull request: it accepts a pull request that only adds records, runs verify --offline on every record and
+    verify --full (here through a fake check.py) on the added ones, and writes the board lines and the note on the
+    rating build to the summary; it refuses every other change."""
+
+    def setUp(self):
+        super().setUp()
+        self.repo = os.path.join(self.tmp, "repo")
+        os.makedirs(os.path.join(self.repo, "tasks", "toy"))
+        with open(os.path.join(self.repo, "tasks", "toy", "task.json"), "w") as fh:
+            json.dump(toy_task(), fh)
+        self.rdata = os.path.join(self.repo, "leaderboard", "data")
+        self.a = make_record(player="alice")
+        lb.store_record(self.rdata, self.a, SV_TEXT, LEAN_TEXT)
+        git(self.repo, "init", "-q")
+        self.commit("the board")
+        self.fake = os.path.join(self.tmp, "fake_check.py")
+        with open(self.fake, "w") as fh:
+            fh.write(FAKE_CHECK.replace("@TEMPLATE@", json.dumps(fake_result()))
+                     .replace("@IDENT@", json.dumps(lb.ppa_identity() or {})))
+        self.summary = os.path.join(self.tmp, "summary.md")
+        with open(self.summary, "w") as fh:
+            fh.write("an earlier step's summary\n")
+        self.log = os.path.join(self.tmp, "argv.log")
+        p = mock.patch.dict(os.environ, {"FAKE_ARGV_LOG": self.log})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def commit(self, msg):
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", msg)
+
+    def add_record(self, player="bob", sv=None):
+        sv = sv or SV_TEXT + f"// {player}\n".encode()
+        rec = make_record(player=player, sv=sv)
+        lb.store_record(self.rdata, rec, sv, LEAN_TEXT)
+        return rec
+
+    def check(self, *argv):
+        rc, out, err = quiet(pc.main, ["--repo", self.repo, "--check-py", self.fake, "--sandbox", "off",
+                                       "--summary", self.summary, *argv])
+        with open(self.summary, encoding="utf-8") as fh:
+            return rc, out, err, fh.read()
+
+    def test_a_pull_request_that_adds_a_record(self):
+        b = self.add_record()
+        self.commit("a record")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 0, out + err)
+        self.assertTrue(summary.startswith("an earlier step's summary\n## The records this pull request adds\n"))
+        self.assertIn(out.strip(), summary)
+        self.assertIn("Every check passed. It adds 1 record.", summary)
+        self.assertIn(f"- `toy` record `{b['record_hash'][:12]}` by `bob`: ", summary)         # its board line
+        self.assertNotIn(f"record `{self.a['record_hash'][:12]}`", summary.split("###")[0])     # the base's is not
+        self.assertIn("### `leaderboard.py verify --offline`, every record: ok (exit status 0)", summary)
+        self.assertIn("verify (offline): 2 records, 0 failed", summary)
+        self.assertIn("### `leaderboard.py verify --full --sandbox off`, the records it adds: ok (exit status 0)",
+                      summary)
+        self.assertIn("verify (full re-check): 1 records, 0 failed", summary)
+        self.assertIn(pc.RATING_NOTE, summary)
+        self.assertIn("This machine's Yosys", summary)
+        with open(self.log) as fh:                          # check.py ran once, on the added record, sandbox as given
+            runs = fh.read().splitlines()
+        self.assertEqual(len(runs), 1)
+        self.assertIn("--sandbox off", runs[0])
+        self.assertIn("--postsynth full", runs[0])
+
+    def test_a_failed_check_fails(self):
+        b = self.add_record()
+        self.commit("a record")
+        with mock.patch.dict(os.environ, {"FAKE_MODE": "reject"}):
+            rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1)
+        self.assertIn("**A check failed.** It adds 1 record.", summary)
+        self.assertIn("the records it adds: FAILED (exit status 1)", summary)
+        self.assertIn(f"[FAIL] toy/{b['record_hash'][:12]}: bob", summary)
+        self.assertIn("check.py no longer accepts it", summary)
+        self.assertIn("every record: ok (exit status 0)", summary)
+
+    def test_an_added_record_whose_files_were_edited_fails_offline(self):
+        b = self.add_record()
+        with open(os.path.join(self.rdata, "toy", b["record_hash"] + ".lean"), "ab") as fh:
+            fh.write(b"-- edited\n")
+        self.commit("an edited record")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1)
+        self.assertIn("every record: FAILED (exit status 1)", summary)
+        self.assertIn("does not have the recorded sha256", summary)
+
+    def test_what_is_not_a_pull_request_of_records(self):
+        h = self.a["record_hash"]
+
+        def write(path, text, mode="a"):
+            with open(path, mode) as fh:
+                fh.write(text)
+
+        def remove():
+            for e in (".json", ".sv", ".lean"):
+                os.remove(os.path.join(self.rdata, "toy", h + e))
+        cases = [
+            ("an edit", lambda: write(os.path.join(self.rdata, "toy", h + ".json"), " "),
+             f"`leaderboard/data/toy/{h}.json` is changed: a pull request of records adds records and never edits"),
+            ("a removal", remove, f"`leaderboard/data/toy/{h}.sv` is deleted"),
+            ("another file", lambda: write(os.path.join(self.repo, "check.py"), "print('accepted')\n", "w"),
+             "`check.py` is added: it is not a record's file"),
+        ]
+        for what, change, why in cases:
+            with self.subTest(what):
+                change()
+                self.commit(what)
+                rc, out, err, summary = self.check()
+                self.assertEqual(rc, 1)
+                self.assertIn("### Problems", out)
+                self.assertIn(why, out)
+                self.assertIn("the records it adds: not run\n\nNot run because of the problems above.", out)
+                git(self.repo, "revert", "--no-edit", "HEAD")      # back to the board, as a commit of its own
+        # a record without its proof
+        b = self.add_record()
+        os.remove(os.path.join(self.rdata, "toy", b["record_hash"] + ".lean"))
+        self.commit("half a record")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1)
+        self.assertIn(f"record `toy/{b['record_hash'][:12]}` lacks `{b['record_hash']}.lean`", out)
+        self.assertFalse(os.path.exists(self.log))          # check.py never ran
+
+    def test_a_record_under_the_reference_handle_is_refused(self):
+        """Decided 2026-11-12 (the review's F3): the proved references' records are par; a pull request cannot add
+        one, and the full check does not run."""
+        r = self.add_record(player=lb.REFERENCE_PLAYER)
+        self.commit("a record under the reference handle")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1)
+        self.assertIn(f"record `toy/{r['record_hash'][:12]}` is under the handle `{lb.REFERENCE_PLAYER}`, the proved "
+                      "references' own", summary)
+        self.assertIn("the records it adds: not run", summary)
+        self.assertFalse(os.path.exists(self.log))
+
+    def test_a_record_file_must_be_a_plain_file(self):
+        """The review's F4 / m-2: a record's file added as a symbolic link (its content would be another path's) or as
+        an executable is refused, and the full check does not run."""
+        for what, change, word in (
+                ("a link", lambda d, h: (os.remove(os.path.join(d, h + ".sv")),
+                                         os.symlink(self.a["record_hash"] + ".sv", os.path.join(d, h + ".sv"))),
+                 "is added as a symbolic link"),
+                ("executables", lambda d, h: [os.chmod(os.path.join(d, h + e), 0o755) for e in (".json", ".sv", ".lean")],
+                 "is added as an executable file")):
+            with self.subTest(what):
+                b = self.add_record(player="bob", sv=SV_TEXT + f"// {what}\n".encode())
+                change(os.path.join(self.rdata, "toy"), b["record_hash"])
+                self.commit(what)
+                rc, out, err, summary = self.check()
+                self.assertEqual(rc, 1)
+                self.assertIn(word, out)
+                self.assertIn("a record's file is a plain file (mode 100644)", out)
+                self.assertIn("the records it adds: not run", out)
+                self.assertFalse(os.path.exists(self.log))
+                git(self.repo, "revert", "--no-edit", "HEAD")
+
+    def test_an_offline_failure_fails_the_check_by_itself(self):
+        """The review's F5: a record already on the board that fails `verify --offline`, while the added one passes
+        the full check, fails the pull request's check."""
+        with open(os.path.join(self.rdata, "toy", self.a["record_hash"] + ".sv"), "ab") as fh:
+            fh.write(b"// edited on the base\n")
+        self.commit("the base with a broken record")
+        self.add_record()
+        self.commit("a record")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1)
+        self.assertIn("**A check failed.** It adds 1 record.", summary)
+        self.assertIn("every record: FAILED (exit status 1)", summary)
+        self.assertIn("the records it adds: ok (exit status 0)", summary)
+
+    def test_a_record_of_a_task_this_repository_lacks(self):
+        """The review's F12: named by the task's name, not by a path of the machine."""
+        rec = make_record(task=toy_task(name="nosuch"), player="bob",
+                          res=fake_result(task="nosuch", sv_sha=lb.sha256_bytes(SV_TEXT)))
+        lb.store_record(self.rdata, rec, SV_TEXT, LEAN_TEXT)
+        self.commit("a record of no task")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1)
+        self.assertIn(f"record `nosuch/{rec['record_hash'][:12]}`: `nosuch` is not a task of this repository (it has "
+                      "no `tasks/nosuch/task.json`)", summary)
+        self.assertNotIn(self.repo, summary.split("### `leaderboard.py verify")[0])
+
+    def test_refs_that_look_like_options_are_refused(self):
+        """The review's m-3: `--base` and `--head` are resolved to commits, and one that begins with `-` is refused, so
+        that no argument reaches git as an option (`git diff --output=FILE` would write a file)."""
+        self.add_record()
+        self.commit("a record")
+        out_file = os.path.join(self.tmp, "written-by-git")
+        for flag in ("--base", "--head"):
+            with self.subTest(flag):
+                rc, _, err = quiet(pc.main, ["--repo", self.repo, f"{flag}=--output={out_file}"])
+                self.assertEqual(rc, 2)
+                self.assertIn("begins with `-`", err)
+                self.assertFalse(os.path.exists(out_file))
+        head = git(self.repo, "rev-parse", "HEAD")
+        self.assertEqual(pc.resolve(self.repo, "HEAD", "--head"), head)
+        self.assertEqual(pc.resolve(self.repo, head[:12], "--head"), head)
+
+    def test_usage_and_git_errors(self):
+        self.add_record()
+        self.commit("a record")
+        rc, _, err = quiet(pc.main, ["--repo", self.repo, "--head", "HEAD^1"])
+        self.assertEqual(rc, 2)
+        self.assertIn("is not the commit checked out", err)
+        rc, _, err = quiet(pc.main, ["--repo", self.repo, "--base", "no-such-ref"])
+        self.assertEqual(rc, 2)
+        self.assertIn("error: git rev-parse --verify --end-of-options no-such-ref^{commit}", err)   # resolved first
+
+    def test_classify_and_the_flow_note(self):
+        h, g = "1" * 64, "2" * 64
+        f = "100644"
+        added, problems = pc.classify([("A", f"leaderboard/data/add/{h}.json", f), ("A", f"leaderboard/data/add/{h}.sv", f),
+                                       ("A", f"leaderboard/data/add/{h}.lean", f), ("A", f"leaderboard/data/mul/{g}.sv", f),
+                                       ("A", "leaderboard/data/add/notes.txt", f), ("T", f"leaderboard/data/add/{g}.sv", f),
+                                       ("A", f"leaderboard/data/mul/{g}.lean", "120000")])
+        self.assertEqual(added, {("add", h): {"json", "sv", "lean"}, ("mul", g): {"sv"}})
+        self.assertEqual(problems, [
+            "`leaderboard/data/add/notes.txt` is added: it is not a record's file, and a pull request of records "
+            "changes nothing else (it would bring the checker it runs)",
+            f"`leaderboard/data/add/{g}.sv` is changed in type: a pull request of records adds records and never "
+            "edits or removes one",
+            f"`leaderboard/data/mul/{g}.lean` is added as a symbolic link: a record's file is a plain file (mode "
+            "100644)",
+            f"record `mul/{g[:12]}` lacks `{g}.json`, `{g}.lean`: a record is its three files"])
+        pin = {lb.COMB_FLOW: {"yosys": "Yosys 0.53 (rating)"}}
+        self.assertEqual(pc.flow_note(pin, pin), "This machine's Yosys is the rating build's (Yosys 0.53 (rating)), so "
+                         "the full check compared the scores too.")
+        self.assertIn("This machine's Yosys (none found) is not the rating build's (Yosys 0.53 (rating)), so the full "
+                      "check compared no score", pc.flow_note({lb.COMB_FLOW: {"yosys": None}}, pin))
 
 
 class CommittedDataTest(unittest.TestCase):

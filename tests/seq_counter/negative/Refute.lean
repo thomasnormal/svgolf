@@ -4,8 +4,8 @@ import tests.seq_counter.Spec
 /-!
 # The counter fixture: the soundness probe's twins do NOT satisfy txtask-v2 (revision 2)
 
-Kernel-checked refutations of the two designs the soundness probe (branch `svgolf-sndprobe`,
-`design/soundness/README.md`) found ACCEPTED end to end under txtask-v1, against the v2
+Kernel-checked refutations of the two designs the soundness probe (`design/soundness/TXTASK-V2-REVIEW.md`)
+found ACCEPTED end to end under txtask-v1, against the v2
 statement of the counter (`tests/seq_counter/Spec.lean`, `SeqTask.StatementV2`), at `N = 1`:
 
 * **H1, x-optimism** (`h1x`: `h1_xopt.sv`; `h1r`: `h1_rare.sv`, the twin v1's checker accepted

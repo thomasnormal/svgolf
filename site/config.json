@@ -1,6 +1,16 @@
 {
-  "_comment": "The svGolf site generator's configuration (site/build.py). Paths are repository paths as inside lean-surfaces: `svgolf/...` is svGolf's own tree, anything else is lean-surfaces' (site/build.py's `repo_file`, in either layout). `tasks`: every task directory's listing (tutorial | listed | preview | hidden; a task missing here is hidden, with a warning; a preview is listed with its status line, content/tasks/<t>.json `preview_note`, and nothing of it is ranked: no par, no record, no board). `reference_player`: the player whose records are the proved references; they are par, the bar to beat, never ranked among the players. `pages`: which document each page renders; `omit`: the sections (by heading text, any level) left out of a document; `redact`: exact phrases replaced before rendering, in order (each must occur exactly once, or with `\"all\": true` at least once, every occurrence replaced; else the build fails as stale). `link_map`: where a Markdown link to a repository file goes on the site (task READMEs and Spec.lean files are mapped automatically); any other repository path is shown as unlinked text until `repo_url` (the public repository, not decided yet) is set. `repo_url`: null until the repository is public; while it is null, every task's \"How to submit\" says that public submissions open when the repository is published and shows the local flow only, and with a URL it shows the clone and the pull request. `denylist`: what must not appear in the output (checked case-insensitively); a hit fails the build. It is empty here: the markers of what is internal are not written in the repository, and `build.py --denylist FILE` adds them from a file kept outside it. A plain string must occur nowhere, the repository files offered byte for byte included. An object {\"text\", \"scope\": \"site-text\", \"why\", \"allow\"} is an internal marker (a maintainer's name, a work-package code, a review round, a tool used during development): it must not occur in the site's own text, which leaves out the repository files offered byte for byte (downloads and the `<pre data-src>` blocks that reproduce a file) and what players wrote in their records; `allow` names the pages where it is still expected, each with the reason (a page that no longer contains it fails the build as stale).",
+  "_comment": "The svGolf site generator's configuration (site/build.py). Paths are repository paths as inside lean-surfaces: `svgolf/...` is svGolf's own tree, anything else is lean-surfaces' (site/build.py's `repo_file`, in either layout). `tasks`: every task directory's listing (tutorial | listed | preview | hidden; a task missing here is hidden, with a warning; a preview is listed with its status line, content/tasks/<t>.json `preview_note`, and nothing of it is ranked: no par, no record, no board). `headline`: the front page's headline (`title`; `accent`, the part of it on the highlighter) and its sub-line (`sub`, Markdown inline; `{library}` is the library's name, linked), the one source of the front page's title and description, every page's footer line and llms.txt's summary (README.md's first line repeats it, and a test compares the two). `library`: the Lean library svGolf's statements, semantics and tactics come from, its `name` as prose writes it and its `url`. `site_url`: the address the site is published at (https, ending in /): every page's canonical address and link preview, sitemap.xml, and the 404 page's base. `reference_player`: the player whose records are the proved references; they are par, the bar to beat, never ranked among the players. `pages`: which document each page renders; `omit`: the sections (by heading text, any level) left out of a document; `redact`: exact phrases replaced before rendering, in order (each must occur exactly once, or with `\"all\": true` at least once, every occurrence replaced; else the build fails as stale). `link_map`: where a Markdown link to a repository file goes on the site (task READMEs and Spec.lean files are mapped automatically); any other repository path is shown as unlinked text until `repo_url` (the public repository, not decided yet) is set. `repo_url`: null until the repository is public; while it is null, every task's \"How to submit\" says that public submissions open when the repository is published and shows the local flow only, and with a URL it shows the clone, and the pull request that `leaderboard.py submit` opens once both programs of the record route are in the tree (site/build.py `ROUTE_FILES`; the badge \"open for submissions\" and the sentence every page says on the hand-off, `HANDOFF_MD`, follow the same rule). `denylist`: what must not appear in the output (checked case-insensitively); a hit fails the build. It holds the public markers (work-package codes, internal names, the plan files, status notes); `build.py --denylist FILE` adds the private ones from a file kept outside the repository. A plain string must occur nowhere, the repository files offered byte for byte included. An object {\"text\", \"scope\": \"site-text\", \"why\", \"allow\"} is an internal marker (a maintainer's name, a work-package code, a review round, a tool used during development): it must not occur in the site's own text, which leaves out the repository files offered byte for byte (downloads and the `<pre data-src>` blocks that reproduce a file) and what players wrote in their records; `allow` names the pages where it is still expected, each with the reason (a page that no longer contains it fails the build as stale).",
   "site_name": "svGolf",
+  "site_url": "https://thomasnormal.github.io/svgolf/",
+  "headline": {
+    "title": "Hardware golf, with proofs.",
+    "accent": "with proofs.",
+    "sub": "Write a circuit in SystemVerilog, prove it in Lean with {library} for every size the task allows, and compete on area × time."
+  },
+  "library": {
+    "name": "Proglib",
+    "url": "https://github.com/thomasnormal/proglib"
+  },
   "reference_player": "svgolf-reference",
   "tasks": {
     "_example": "tutorial",
@@ -51,5 +61,58 @@
     "docs/sv-refusals.json": "refusals.html"
   },
   "repo_url": "https://github.com/thomasnormal/svgolf",
-  "denylist": []
+  "denylist": [
+    {
+      "text": "WP-",
+      "scope": "site-text",
+      "why": "a work-package code of the development",
+      "allow": {
+        "refusals.html": "the refusal register's own text (rendered as it is; it changes with the register and the pin)"
+      }
+    },
+    {
+      "text": "txtask-v",
+      "scope": "site-text",
+      "why": "the internal name of the clocked statements",
+      "allow": {
+        "refusals.html": "the refusal register's own text (rendered as it is; it changes with the register and the pin)",
+        "tasks/matmul/index.html": "verbatim Lean text of Properties.lean and SvGolf/TaskSeq.lean in the property cards (trusted or checked text, changed only with a re-seed)",
+        "tasks/sorter/index.html": "verbatim Lean text of Properties.lean and SvGolf/TaskSeq.lean in the property cards (trusted or checked text, changed only with a re-seed)",
+        "rules.html": "README's one quote of the old name, which explains the trusted comments that use it"
+      }
+    },
+    {
+      "text": "PLAN.md",
+      "scope": "site-text",
+      "why": "a working plan, history and not the rules",
+      "allow": {
+        "refusals.html": "the refusal register's own text (rendered as it is; it changes with the register and the pin)"
+      }
+    },
+    {
+      "text": "PLAN2.md",
+      "scope": "site-text",
+      "why": "a working plan, history and not the rules"
+    },
+    {
+      "text": "PLAN4.md",
+      "scope": "site-text",
+      "why": "a working plan, history and not the rules"
+    },
+    {
+      "text": "svgolf/site/build.py",
+      "scope": "site-text",
+      "why": "a path of the development tree's layout"
+    },
+    {
+      "text": "newcomer study",
+      "scope": "site-text",
+      "why": "a development process word"
+    },
+    {
+      "text": "awaiting confirmation",
+      "scope": "site-text",
+      "why": "a status note inside the rules"
+    }
+  ]
 }

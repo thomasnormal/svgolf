@@ -1,18 +1,18 @@
 #!/usr/bin/env python3.12
 """svGolf PPA columns: area in um^2 and delay in ps on sky130_fd_sc_hd, from TWO flows side by side.
 
-Flow A0' is the RANKED sky130 score (decided 11/03: "sky as the default"); the GE table and unit depth of score/score.py
+Flow A0' is the RANKED sky130 score (decided 2026-11-03: sky130 is the default library); the GE table and unit depth of score/score.py
 (area_ge_v1, depth_v1, unchanged) are extra columns. Flow A1' is an unranked research column. Given a design and a task's
 scoring point (or the scored netlist itself) it returns the columns, beside the unit depth the default scorer already reports.
 
-Flow A0' (sky130_a0_v3; WP-X1/X2/X3, the repair and the per-task input drive of 11/04), the block `ppa`:
+Flow A0' (sky130_a0_v3: the repair and the per-task input drive of 2026-11-04), the block `ppa`:
 
   area_um2_sky130     sum of the sky130_fd_sc_hd cell areas of the REPAIRED netlist (flops and the tie cell included)
   delay_ps_sky130     latest primary-output arrival of a graph-based NLDM static timing analysis of it (integer ps)
   unit_depth          gates on the longest input-to-output path of the scored netlist (equal to `ltp -noff`, checked)
 
   A0' = the pinned flow's scored netlist (score.py, canon.ys, svgolf.ys, ge.json: all unchanged), each Yosys gate one _1
-  cell, then REPAIRED BY BUFFERING ONLY (decided 11/04: "add the repair step everywhere (buffering)"; `repair`, the pins'
+  cell, then REPAIRED BY BUFFERING ONLY (decided 2026-11-04: every netlist is repaired, by buffering; `repair`, the pins'
   `repair` and `constants` sections): every net over its driver's limits (internal nets, primary inputs driven by the
   task's input drive, flop Q nets, nets that drive output bits, each output BIT a separate 10 fF load) gets a balanced
   buffer tree within the liberty's limits, the tie cell is replicated within its max_capacitance, nothing is resized; the
@@ -27,18 +27,18 @@ Flow A0' (sky130_a0_v3; WP-X1/X2/X3, the repair and the per-task input drive of 
   `setup.input_drive` names it. It must be ELECTRICALLY LEGAL: every load within its driver's
   max_capacitance (the tie cells' too), every transition within max_transition, every timing-table read inside the table's
   characterized grid. A netlist the repair cannot make legal is REJECTED (IllegalNetlist, naming the net in the design's
-  words; check.py's `ppa` stage) and no number is reported: nothing is ever extrapolated ("feel free to outright reject
-  designs from golfers that produce illegal netlists"). No wires. Bit-exact run to run (the repair is deterministic Python).
+  words; check.py's `ppa` stage) and no number is reported: nothing is ever extrapolated (decided 2026-11-04:
+  an illegal netlist is rejected outright). No wires. Bit-exact run to run (the repair is deterministic Python).
   Pins (liberty file, sha256, timing setup, the repair, gate-to-cell table, constant policy): score/ppa_pins.json.
-  Loads per edge (sky130_a0_v3, 11/04, before its release): a load pin presents its rise_capacitance to a rising transition
+  Loads per edge (sky130_a0_v3, 2026-11-04, before its release): a load pin presents its rise_capacitance to a rising transition
   and its fall_capacitance to a falling one, as OpenSTA reads them (the pins' `capacitance`, about their mean, was 0.5% to
   2.8% off OpenSTA on the references); max_capacitance and the repair's budgets take the larger edge. With that, the STA
   equals OpenSTA to 1 fs per arc (score/test_ppa_opensta.py records OpenSTA's numbers).
 
-Flow A1' (WP-X4), the sub-object `ppa.mapped`: the canonical RTLIL of the same run mapped by a REAL `abc -liberty` run onto
+Flow A1', the sub-object `ppa.mapped`: the canonical RTLIL of the same run mapped by a REAL `abc -liberty` run onto
 the policy-filtered liberty (compound cells, every drive strength; score/ppa_mapped.ys, pins in score/ppa_mapped_pins.json),
 then weighed by the same STA and constants policy under its own, unchanged setup (sky130_a1_v1: no repair, no driving cell,
-every input an ideal 50 ps ramp, no legality audit, linear extrapolation outside a table's grid; the 11/04 ruling changed the
+every input an ideal 50 ps ramp, no legality audit, linear extrapolation outside a table's grid; the 2026-11-04 ruling changed the
 ranked flow, not this unranked research column):
 
   area_um2_sky130_mapped_v1   sum of the cell areas of the mapped netlist (um^2; `area_e4um2_sky130_mapped_v1` the integer)
@@ -57,7 +57,7 @@ buffered too), the latest of every output arrival and every flop D arrival plus 
 inputs and at every Q at the liberty's clock-to-Q at the Q net's real load (ideal clock, transition pi_slew); the block says
 `sequential: true` and `flops`. Ranked time for a clocked task = cycles x this period.
 
-Study and measurements: design/ppa/sky130.md (WP-X1). What the numbers claim and do not claim: score/PPA.md.
+Study and measurements: design/ppa/sky130.md. What the numbers claim and do not claim: score/PPA.md.
 
 The liberty (12.8 MB) is NOT vendored: it is fetched at a pinned sha256 (--fetch-liberty) into score/lib/ (git-ignored)
 or taken from $SVGOLF_SKY130_LIB or --liberty. A missing file or a hash mismatch is an error, never a silent fallback.
@@ -100,8 +100,16 @@ Options:
   --path           also report the critical path (net names; and per node the driving cell, arrival and transition)
   --yosys PATH, --repeat K, --no-gate   as in score.py
 
+  --latency L      (with --seq, or --netlist-in of a clocked netlist) the latency in cycles the design will declare:
+                   the summary line then shows the ranked score, area x L cycles x period (a seq- or react-family
+                   task's latency is 1 cycle)
+
 Result JSON: {"ppa": {...columns..., "mapped": {...}}, "score": {...score.py's result, unchanged...}} for a design;
-{"ppa": {...}} for --netlist-in. `ppa.mapped` is `{"available": false, "reason": ...}` for a design the mapping cannot weigh.
+{"ppa": {...}} for --netlist-in. After it, ONE line on stderr (`summary_line`, never part of the JSON): the weighed area
+and delay, `ppa (sky130 A0'): area 460.4416 um^2, delay 2611 ps; area x delay = 1202.21 um2*ns`; a clocked netlist's
+`period` in place of the delay, and with --latency L `; score: A um^2 x L cycles x P ps = S um2*ns`
+(leaderboard/combined.py's product, the ranked number of check.py's headline).
+`ppa.mapped` is `{"available": false, "reason": ...}` for a design the mapping cannot weigh.
 Exit status: 0 = weighed, 1 = refused or failed (missing, unreadable or wrong liberty, a cell outside the A0' table, an
 undriven net, ..., synthesis failed, a netlist the repair cannot make legal, a repair or mapped netlist whose function differs
 from the scored one), 2 = usage error.
@@ -454,7 +462,7 @@ class Table:
 
     def at(self, x1, x2):
         """Bilinear interpolation INSIDE the characterized grid. A point outside it is never extrapolated (sky130_a0_v2,
-        decided 11/04: the extrapolated tables are non-monotone and go negative): TableRange. The STA reads through `_read`,
+        decided 2026-11-04: the extrapolated tables are non-monotone and go negative): TableRange. The STA reads through `_read`,
         which records such a point in its Audit instead, so that the weighing rejects the netlist with every violation
         named. (`_bilinear` itself extrapolates linearly outside the grid: flow A1''s unchanged reading, A1_EXTRAPOLATES.)"""
         if not self.covers(x1, x2):
@@ -520,7 +528,7 @@ def edge_caps(p, cdiv=1):
     """{"r": rise_capacitance, "f": fall_capacitance} of a liberty input pin group (its `capacitance` where one is not
     declared), in pF. A load pin presents its rise_capacitance to a rising transition and its fall_capacitance to a falling
     one, as OpenSTA reads them; sky130_fd_sc_hd's `capacitance` is about their mean (rise about 4.7% above it, fall 4.7%
-    below, at most 9%), and timing at it was 0.5% to 2.8% off OpenSTA on the references (MEASURED 11/04,
+    below, at most 9%), and timing at it was 0.5% to 2.8% off OpenSTA on the references (MEASURED 2026-11-04,
     test_ppa_opensta.py)."""
     c = p.attrs.get("capacitance", 0.0)
     return {"r": _num(p.attrs.get("rise_capacitance", c), cdiv), "f": _num(p.attrs.get("fall_capacitance", c), cdiv)}
@@ -1225,7 +1233,7 @@ A1_EXTRAPOLATES = "flow A1' (sky130_a1_v1): linear extrapolation outside the gri
 def _read(tbl, x1, x2, audit, where):
     """`tbl.at(x1, x2)`; with an Audit, a point outside the grid is recorded and read at the clamped point instead (the
     weighing will reject, so that value is never reported). `audit` = A1_EXTRAPOLATES: flow A1''s reading, kept as it was
-    (the 11/04 decision changed the ranked flow only; A1' is an unranked research column): bilinear inside the grid, linear
+    (the 2026-11-04 decision changed the ranked flow only; A1' is an unranked research column): bilinear inside the grid, linear
     extrapolation outside it. Only `analyze_cells` passes it; the ranked weighing (`analyze`) always passes an Audit."""
     if audit is A1_EXTRAPOLATES:
         return tbl._bilinear(x1, x2)
@@ -1245,7 +1253,7 @@ def drive_arrival(cell, slew_ns, load, audit, where):
     at 0, at output load `load` (pF; or {edge: pF}, each output edge at its own load: `Design.load_edge_pf`). The ramp has
     both edges, so each output edge is the arc's own table. The arrival is the cell's WHOLE delay, as if the cell were an
     instance of the netlist: OpenSTA timing the same netlist with one explicit instance of the drive per input agrees to
-    1 fs (MEASURED 11/04 for buf_1, score/test_ppa_opensta.py). OpenSTA's `set_driving_cell` is another model: it adds only
+    1 fs (MEASURED 2026-11-04 for buf_1, score/test_ppa_opensta.py). OpenSTA's `set_driving_cell` is another model: it adds only
     the load-dependent part, delay(load) - delay(0) with the zero-load delay extrapolated, so it is earlier by that
     zero-load delay (buf_1 at the 50 ps ramp: 58.7 ps on a rising input, 72.8 ps on a falling one; buf_8 74.6 and 106.2 ps
     by the same extrapolation of its tables)."""
@@ -1359,7 +1367,7 @@ class Design:
         graph-based convention). load = the fan-out pins' rise_capacitance (a rising output edge) or fall_capacitance (a
         falling one) + po_load per primary-output bit; no wires. With those loads, on ideal ramps or behind an explicit input
         buffer, it equals OpenSTA (openroad/orfs 26Q4) to 1 fs per arc on every cell with a function and on the references
-        (MEASURED 11/04; test_ppa_opensta.py).
+        (MEASURED 2026-11-04; test_ppa_opensta.py).
         Returns (T in ns, critical path [(net, edge, arrival ns)]). Constants and constant-fed cones have no arrival.
         A clocked netlist (`weigh_cells`) passes `starts` {net: {edge: (arrival, transition)}} for the flop Q nets
         (clock-to-Q at the ideal clock edge) and `ends` [(net, setup)] for the flop D nets, `setup(edge, transition)` in
@@ -1685,7 +1693,7 @@ def weigh_cells(nl, q, dn, nflops, lib, pins, drive=None, audit=None, ties=None)
 
     Clocked: each flop is the pins' flop cell (dfxtp_1; its area counts) and cuts the timing graph. Paths start at the inputs
     and at every Q (clock-to-Q at the ideal clock edge, the clock's transition pi_slew, at the Q net's real load) and end at
-    the outputs and at every D (arrival + setup): T is the register-to-register period (decided 11/03: the liberty's own
+    the outputs and at every D (arrival + setup): T is the register-to-register period (decided 2026-11-03: the liberty's own
     clock-to-Q and setup)."""
     d = Design(nl, lib, pins)
     s, po = pins.pi_slew_ns, pins.po_load_pf
@@ -1767,8 +1775,8 @@ def analyze_cells(nl, lib, pins):
 # ------------------------------------------------------------------------------------------------ the repair (sky130_a0_v2)
 class IllegalNetlist(PpaError):
     """The sky130 netlist is electrically illegal (a load over max_capacitance, a transition over max_transition, a timing
-    table read outside its characterized range) and the repair cannot make it legal: the design is REJECTED (decided 11/04:
-    "feel free to outright reject designs from golfers that produce illegal netlists"). `summary`: the Audit's counts."""
+    table read outside its characterized range) and the repair cannot make it legal: the design is REJECTED (decided 2026-11-04:
+    an illegal netlist is rejected outright). `summary`: the Audit's counts."""
 
     def __init__(self, msg, summary=None):
         super().__init__(msg)
@@ -2224,7 +2232,7 @@ class Repair:
 
 def repair(base, inputs, q, dn, flops, lib, pins, drive):
     """The A0' cell netlist `base` (a Design; flops cut out: `q` / `dn` their Q / D nets, `flops` the $_DFF_P_ gates) REPAIRED
-    (sky130_a0_v2, decided 11/04: "add the repair step everywhere (buffering)"; pins: repair, constants), by buffering only:
+    (sky130_a0_v2, decided 2026-11-04: every netlist is repaired, by buffering; pins: repair, constants), by buffering only:
 
       * weigh it (inputs driven by `drive`, the task's input drive; every output bit a separate po_load; every flop D pin a
         load) and audit it; every net that is the CAUSE of a violation (its load over its driver's max_capacitance or past
@@ -2338,8 +2346,8 @@ def check_repair(base, dn, rd, rdn, pins):
 # ------------------------------------------------------------------------------------------------ the ranked weighing
 def analyze(netlist_text, lib, pins, repair_netlist=True, input_drive=None):
     """Weigh a scored (`abc -g`) netlist, the ranked flow (sky130_a0_v3): parse, expand each gate to one _1 cell (A0'), cut
-    the flops out, REPAIR (`repair`: buffer trees and replicated tie cells, decided 11/04: "add the repair step everywhere
-    (buffering)"), write the repaired netlist, read it back, check its function against the A0' netlist, then the STA with
+    the flops out, REPAIR (`repair`: buffer trees and replicated tie cells, decided 2026-11-04: every netlist
+    is repaired, by buffering), write the repaired netlist, read it back, check its function against the A0' netlist, then the STA with
     every primary input driven by `input_drive` (the task's, `input_drive_of`; None: the pins' default), and the legality
     audit (an `input_drive` outside the pins' allowlist raises TaskConfigError). A netlist the repair cannot make legal
     raises IllegalNetlist with the nets named; nothing is extrapolated. The unit depth (`ltp -noff`) and the gate count are
@@ -2798,6 +2806,38 @@ def score_and_weigh(sources, top, params, liberty=None, pins=None, yosys=None, r
     return {"score": res, "ppa": cols}
 
 
+def _combined():
+    """leaderboard/combined.py (the one definition of the ranked product), loaded by path."""
+    import importlib.util
+    path = os.path.join(os.path.dirname(HERE), "leaderboard", "combined.py")
+    spec = importlib.util.spec_from_file_location("svgolf_combined_ppa", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def summary_line(res, pdk="sky130", latency=None):
+    """The one stderr line after the JSON (a reader's convenience, never part of the result): the weighed area and
+    delay of `res` (`main`'s result) on `pdk`'s columns; a clocked netlist (`sequential`) shows its period, and with
+    `latency` (cycles) the ranked score, area x cycles x period; a combinational one area x delay. None when the
+    columns carry no area or time."""
+    p = res.get("ppa") or {}
+    d = 5 if pdk == "asap7" else 4
+    area, t, ai = p.get(f"area_um2_{pdk}"), p.get(f"delay_ps_{pdk}"), p.get(f"area_e{d}um2_{pdk}")
+    if area is None or not isinstance(t, int) or not isinstance(ai, int):
+        return None
+    comb = _combined()
+    name = f"ppa ({pdk} A0')"
+    if p.get("sequential"):
+        line = f"{name}: area {area} um^2, period {t} ps"
+        if latency is not None:
+            s = comb.um2ns(ai * latency * t, pdk)
+            line += (f"; score: {area} um^2 x {latency} cycle{'' if latency == 1 else 's'} x {t} ps = {s:.2f} "
+                     f"{comb.UNIT_ASCII}")
+        return line
+    return f"{name}: area {area} um^2, delay {t} ps; area x delay = {comb.um2ns(ai * t, pdk):.2f} {comb.UNIT_ASCII}"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("sources", nargs="*")
@@ -2821,7 +2861,11 @@ def main(argv=None):
     ap.add_argument("--seq", action="store_true", help="the clocked flow (score.py --seq); implies --no-mapped")
     ap.add_argument("--input-drive", metavar="CELL", help="the cell driving every primary input (default: the task's "
                     "input_drive with --task, else the pins' default); one of the pins' timing.input_drive.allowed")
+    ap.add_argument("--latency", type=int, metavar="L", help="with --seq (or --netlist-in of a clocked netlist): the "
+                    "latency in cycles; the stderr summary line then shows the ranked score, area x L cycles x period")
     args = ap.parse_args(argv)
+    if args.latency is not None and (not (args.seq or args.netlist_in) or args.latency < 1):
+        ap.error("--latency L takes --seq (or --netlist-in) and L >= 1: the latency in cycles of a clocked design")
 
     try:
         pins = Pins(args.pins) if args.pins else Pins(pdk_paths(args.pdk or "sky130")[0])
@@ -2887,6 +2931,12 @@ def main(argv=None):
     if args.json:
         with open(args.json, "w") as fh:
             fh.write(text + "\n")
+    try:
+        line = summary_line(res, pins.col, args.latency)
+    except Exception as e:   # noqa: BLE001  (a reader's convenience: never a failure after the result is printed)
+        line = f"ppa: no summary: {type(e).__name__}: {e}"
+    if line:
+        print(line, file=sys.stderr, flush=True)
     return 0
 
 

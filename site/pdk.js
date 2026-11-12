@@ -5,7 +5,8 @@
 //   * sets data-pdk before the page is drawn (it is loaded in <head>, not deferred): from the URL's ?pdk= first (a
 //     link), else the reader's stored choice, else sky130. A page reached by Back or Forward takes the stored choice
 //     first, since it is the reader's latest, and so does a page the browser restores from its back-forward cache;
-//   * shows the selectors (the header's on every page, the home page's beside the task cards), which change the view,
+//   * shows the selectors (the header's on every page but the front page and the 404 page; the front page's beside
+//     its task cards), which change the view,
 //     store the choice (localStorage, if the browser allows it: everything works without it) and put it in the URL;
 //   * names the view in the URL of the page and in every link to the site's own pages (the charts' dots too, so a
 //     link opened in a new tab or copied keeps it): ?pdk=asap7, and ?pdk=sky130 once the reader has chosen a library

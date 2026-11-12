@@ -1,0 +1,6 @@
+# The issue chooser: the three templates, a blank issue, and the way to a security report (SECURITY.md).
+blank_issues_enabled: true
+contact_links:
+  - name: A security report (a sandbox escape or a checker bypass)
+    url: https://github.com/thomasnormal/svgolf/security/policy
+    about: Not in an issue, please. SECURITY.md says how to report it privately.

@@ -16,6 +16,7 @@ exploration view, like the extra columns area in GE and depth: it ranks nothing.
     leaderboard.py board  --task T [--format md|json] [--unassisted] [--all-flows]
     leaderboard.py export --out FILE.md [--all-flows]
     leaderboard.py seed-references [--task T]
+    leaderboard.py submit --task T --record HASH [--dry-run] [--repo URL]
 
 One record per ACCEPTED submission, written to
 `leaderboard/data/<task>/<record_hash>.json` next to copies of the two
@@ -46,6 +47,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -1504,11 +1506,15 @@ def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=N
     references (`names`: design sha256 -> (index, stem), `reference_names`; a design not listed comes after
     them), then to `row_key`. Returns the record's row plus `name` (the reference's stem, else the stored
     .sv's name without `.sv`), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit). With `pdk` "asap7": par
-    of the ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule)."""
+    of the ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule). Only a
+    design task.json lists counts (decided 2026-11-12): a record of the reference player whose design is not in
+    `names` is never par, and without `names` there is none."""
     names = names or {}
     best = None
     for rec in records:
         if rec.get("task") != task["name"] or rec.get("player") != reference_player:
+            continue
+        if _get(rec, "files", "sv", "sha256") not in names:
             continue
         if unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement,
                            pdk=pdk, asap7=asap7, asap7_identity=asap7_identity):
@@ -1517,10 +1523,10 @@ def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=N
         exact = row["exact"]
         if exact is None:
             continue
-        idx, stem = names.get(rec["files"]["sv"]["sha256"], (float("inf"), None))
+        idx, stem = names[rec["files"]["sv"]["sha256"]]
         key = (exact, idx, row_key(row))
         if best is None or key < best[0]:
-            name = stem or os.path.splitext(rec["files"]["sv"]["name"])[0]
+            name = stem
             best = (key, dict(row, name=name, exact=exact, um2ns=row["um2ns"]))
     return best[1] if best else None
 
@@ -2921,7 +2927,14 @@ def today_utc():
 # commands
 # ---------------------------------------------------------------------------
 
+# a task's name: its directory under tasks/ (never a path: `../x` or `a/../b` is no task)
+TASK_NAME_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}")
+
+
 def load_task(tasks_dir, name):
+    if not isinstance(name, str) or not TASK_NAME_RE.fullmatch(name):
+        raise FileNotFoundError(f"no such task: {name!r} (a task is named by its directory under tasks/: letters, "
+                                "digits, `_` and `-`)")
     path = os.path.join(tasks_dir, name, "task.json")
     if not os.path.isfile(path):
         raise FileNotFoundError(f"no such task: {name} ({path})")
@@ -2938,10 +2951,15 @@ def all_task_names(tasks_dir):
                   if os.path.isfile(os.path.join(tasks_dir, t, "task.json")))
 
 
-def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_check=None):
+RESERVED_HANDLE = (f"the handle `{REFERENCE_PLAYER}` is the proved references' own (their records are par, not "
+                   "entries; `seed-references` makes them): a player's record needs a handle of its own")
+
+
+def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_check=None, reference=False):
     """Check (or read the result of) one submission and record it. Returns the
     record's path. Raises Refused (not accepted / malformed / duplicate) or
-    RuntimeError (infrastructure)."""
+    RuntimeError (infrastructure). Only `seed-references` (`reference`) records
+    under REFERENCE_PLAYER (decided 2026-11-12)."""
     task = load_task(args.tasks_dir, args.task)
     mode = getattr(args, "postsynth", None) or DEFAULT_POSTSYNTH_MODE
     # The board's own data directory takes only a record whose kernel check `add` ran itself, in the sandbox: a
@@ -2967,6 +2985,8 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
             fn(arg)
         except Refused as e:
             problems += e.problems
+    if player == REFERENCE_PLAYER and not reference:
+        problems.append(RESERVED_HANDLE)
     if problems:
         raise Refused(problems)
     for _, other, _ in load_records(args.data_dir, args.task):
@@ -3113,7 +3133,7 @@ def cmd_seed_references(args):
             try:
                 path = add_submission(args, sv=sv, lean=lean, player=REFERENCE_PLAYER,
                                       assisted_by=["Claude (Anthropic)"],
-                                      notes="reference solution", date=args.date or today_utc())
+                                      notes="reference solution", date=args.date or today_utc(), reference=True)
                 print(f"seeded {name}: {ref['sv']} -> {os.path.relpath(path)}")
             except Refused as e:
                 print(f"{name}: {ref['sv']}: not added: " + "; ".join(e.problems))
@@ -3123,6 +3143,65 @@ def cmd_seed_references(args):
                 print(f"{name}: {ref['sv']}: error: {e}", file=sys.stderr)
                 return 2
     return status
+
+
+def verify_context():
+    """What `verify_one` compares every record with, read once per run: the current flows, the checker's files, the
+    sky130 and ASAP7 identities, and the ASAP7 tables as they are read (task -> (table, error))."""
+    return {"flows": current_flows(), "files": checker_file_hashes(), "identity": ppa_identity(),
+            "a7_identity": asap7_identity(), "a7_tables": {}}
+
+
+def verify_one(args, path, rec, ctx):
+    """`verify` of one stored record (a dict) at the level `args` asks for (`args.offline`, `args.full`), against
+    `ctx` (`verify_context`): the VerifyResult."""
+    task = None
+    try:
+        task = load_task(args.tasks_dir, rec.get("task", ""))
+    except (FileNotFoundError, ValueError):
+        pass
+    task_dir = os.path.join(args.tasks_dir, rec.get("task", ""))
+    has_ppa = (isinstance(rec.get(PPA_KEY), dict) and rec[PPA_KEY].get("available") is True)
+    # flow A1' maps once more: only a record that HAS mapped columns to reproduce pays for it
+    has_mapped = has_ppa and isinstance(rec[PPA_KEY].get(PPA_MAPPED_KEY), dict) \
+        and rec[PPA_KEY][PPA_MAPPED_KEY].get("available") is True
+    # compared with the current flow of the task's kind (the record's own when the task cannot be read); the
+    # rescore runs the record's own flow (`score.py --seq` for a clocked record)
+    flow = ctx["flows"][task_flow(task) if task is not None else record_flow(rec)]
+    seq = record_flow(rec) == SEQ_FLOW
+    rescore = (None if args.offline or args.full or task is None
+               else (lambda sv, td=task_dir, w=has_ppa, m=has_mapped, q=seq: run_rescore(
+                   sv, td, score_py=args.score_py, ppa_py=args.ppa_py if w else None, mapped=m, seq=q)))
+    # a record WITH columns is rechecked under `--ppa require` (the official mode: the columns must
+    # reproduce); a record made before them is rechecked as it always was, without needing the liberty
+    recheck = (None if not args.full or task is None else
+               (lambda sv, lean, td=task_dir, w=has_ppa: run_check(
+                   td, sv, lean, check_py=args.check_py, lean_wrap=args.lean_wrap,
+                   postsynth="full", ppa=OFFICIAL_PPA_MODE if w else "off", sandbox=args.sandbox)[1]))
+    # the ASAP7 view: the record's entry must be bound to it; plain `verify` and `--full` also re-weigh it
+    # (ppa.py --pdk asap7; `--full`'s check.py run weighs sky130 only)
+    a7 = None
+    if task is not None:
+        if task["name"] not in ctx["a7_tables"]:
+            ctx["a7_tables"][task["name"]] = read_asap7(task["name"], args.asap7_dir)
+        table, why = ctx["a7_tables"][task["name"]]
+        cyc = (rec.get("score") or {}).get("cycles")
+        a7 = {"table": table, "error": why, "identity": ctx["a7_identity"],
+              "rescore": None if args.offline else (lambda sv, td=task_dir, q=seq, c=cyc: asap7_columns_of(
+                  *run_asap7(sv, td, ppa_py=args.ppa_py, seq=q), c))}
+    return verify_record(path, rec, task, flow=flow, current_files=ctx["files"], rescore=rescore,
+                         recheck=recheck, ppa_identity=ctx["identity"],
+                         ppa_setup=ppa_setup_now(task) if task is not None else None,
+                         statement=current_statement_or_none(task), asap7_view=a7)
+
+
+def verify_line(label, rec, r):
+    """`verify`'s line for one record: '[ok] add/8c1f662e6f8c: alice 541.7696 um^2, ...: hashes and arithmetic ok'
+    (`label`: the record's path under the data directory)."""
+    who = f"{rec.get('player')} {score_text(rec)}" if not validate_record(rec) else "malformed"
+    detail = "; ".join(r.fails + r.stale + r.notes)
+    task_name, _, stem = label[:-len(".json")].partition(os.sep)
+    return f"[{r.status}] {task_name}/{stem[:12]}: {who}: {detail or 'hashes and arithmetic ok'}"
 
 
 def cmd_verify(args):
@@ -3136,11 +3215,7 @@ def cmd_verify(args):
     if not loaded:
         print("no records")
         return 0
-    flows = current_flows()
-    files = checker_file_hashes()
-    identity = ppa_identity()
-    a7_identity = asap7_identity()
-    a7_tables = {}                    # task -> (table, error): the ASAP7 view, read once per task
+    ctx = verify_context()
     failed = stale = 0
     for path, rec, err in loaded:
         label = os.path.relpath(path, args.data_dir)
@@ -3148,48 +3223,8 @@ def cmd_verify(args):
             print(f"[FAIL] {label}: not a JSON object" + (f": {err}" if err else ""))
             failed += 1
             continue
-        task = None
-        try:
-            task = load_task(args.tasks_dir, rec.get("task", ""))
-        except (FileNotFoundError, ValueError):
-            pass
-        task_dir = os.path.join(args.tasks_dir, rec.get("task", ""))
-        has_ppa = (isinstance(rec.get(PPA_KEY), dict) and rec[PPA_KEY].get("available") is True)
-        # flow A1' maps once more: only a record that HAS mapped columns to reproduce pays for it
-        has_mapped = has_ppa and isinstance(rec[PPA_KEY].get(PPA_MAPPED_KEY), dict) \
-            and rec[PPA_KEY][PPA_MAPPED_KEY].get("available") is True
-        # compared with the current flow of the task's kind (the record's own when the task cannot be read); the
-        # rescore runs the record's own flow (`score.py --seq` for a clocked record)
-        flow = flows[task_flow(task) if task is not None else record_flow(rec)]
-        seq = record_flow(rec) == SEQ_FLOW
-        rescore = (None if args.offline or args.full or task is None
-                   else (lambda sv, td=task_dir, w=has_ppa, m=has_mapped, q=seq: run_rescore(
-                       sv, td, score_py=args.score_py, ppa_py=args.ppa_py if w else None, mapped=m, seq=q)))
-        # a record WITH columns is rechecked under `--ppa require` (the official mode: the columns must
-        # reproduce); a record made before them is rechecked as it always was, without needing the liberty
-        recheck = (None if not args.full or task is None else
-                   (lambda sv, lean, td=task_dir, w=has_ppa: run_check(
-                       td, sv, lean, check_py=args.check_py, lean_wrap=args.lean_wrap,
-                       postsynth="full", ppa=OFFICIAL_PPA_MODE if w else "off", sandbox=args.sandbox)[1]))
-        # the ASAP7 view: the record's entry must be bound to it; plain `verify` and `--full` also re-weigh it
-        # (ppa.py --pdk asap7; `--full`'s check.py run weighs sky130 only)
-        a7 = None
-        if task is not None:
-            if task["name"] not in a7_tables:
-                a7_tables[task["name"]] = read_asap7(task["name"], args.asap7_dir)
-            table, why = a7_tables[task["name"]]
-            cyc = (rec.get("score") or {}).get("cycles")
-            a7 = {"table": table, "error": why, "identity": a7_identity,
-                  "rescore": None if args.offline else (lambda sv, td=task_dir, q=seq, c=cyc: asap7_columns_of(
-                      *run_asap7(sv, td, ppa_py=args.ppa_py, seq=q), c))}
-        r = verify_record(path, rec, task, flow=flow, current_files=files, rescore=rescore,
-                          recheck=recheck, ppa_identity=identity,
-                          ppa_setup=ppa_setup_now(task) if task is not None else None,
-                          statement=current_statement_or_none(task), asap7_view=a7)
-        who = f"{rec.get('player')} {score_text(rec)}" if not validate_record(rec) else "malformed"
-        detail = "; ".join(r.fails + r.stale + r.notes)
-        task_name, _, stem = label[:-len(".json")].partition(os.sep)
-        print(f"[{r.status}] {task_name}/{stem[:12]}: {who}: {detail or 'hashes and arithmetic ok'}")
+        r = verify_one(args, path, rec, ctx)
+        print(verify_line(label, rec, r))
         failed += bool(r.fails)
         stale += bool(r.stale) and not r.fails
     level = "offline" if args.offline else ("full re-check" if args.full else "hashes + rescore")
@@ -3403,6 +3438,294 @@ def cmd_asap7(args):
     return status
 
 
+# ---------------------------------------------------------------------------
+# handing a record in: `submit` (decided 2026-11-11)
+# ---------------------------------------------------------------------------
+# A record reaches the public board by a pull request that adds its three files (README.md, "Leaderboard"). `submit`
+# opens it with the player's own git and GitHub command-line tool (`gh`, and its login): it checks the record at the
+# offline level first, makes a commit of the three files on the public repository's main branch WITHOUT touching the
+# player's working tree, index or branches (a temporary index; only git objects are written), pushes it to a branch of
+# the player's fork and opens the pull request, whose text names the task, the handle, `assisted_by` and the record's
+# board line. `--dry-run` prints the commands and the text and changes nothing; without `gh` it prints the steps to do
+# by hand. The check every such pull request gets is leaderboard/pr_check.py.
+
+SUBMIT_BRANCH = "main"            # the public repository's branch a record's pull request goes to
+SITE_CONFIG = os.path.join(SVGOLF, "site", "config.json")      # its `repo_url`: the public repository, or null
+# an owner is a letter or digit and up to 38 more of them or `-`; a repository is no `.` or `..`
+GITHUB_REPO_RE = re.compile(r"https://github\.com/([A-Za-z0-9][A-Za-z0-9-]{0,38})/(?!\.\.?(?:\.git)?/?$)"
+                            r"([A-Za-z0-9_.-]+?)(?:\.git)?/?")
+RECORD_PREFIX_RE = re.compile(r"[0-9a-f]{12,64}")
+# The parts of a record's pull request, in order: `submit_text` writes them, and .github/pull_request_template.md has
+# the same headings (a test compares them)
+PR_HEADINGS = ("Record", "Board line", "Checks")
+PR_CHECK_NOTE = ("The check on this pull request runs `leaderboard.py verify --offline` on every record and the full "
+                 "check (`verify --full`) on the records it adds, and writes their board lines to its summary. A "
+                 "maintainer re-makes the ranked number on the rating build when the pull request is merged.")
+PR_TEXT_END = "SVGOLF_PR_TEXT"    # the here-document delimiter of the printed steps
+
+
+def pinned_flows(path=EXPECTED_JSON):
+    """The rating build's flows as tests/expected.json pins them, {flow name: {yosys, canon_script_sha256,
+    script_sha256, ge_table_sha256}}: what the site ranks the records under (site/build.py `collect`), whatever Yosys
+    this machine has. Raises OSError or ValueError (KeyError) if the file cannot be read."""
+    with open(path, encoding="utf-8") as fh:
+        expected = json.load(fh)
+    out = {}
+    for name, key in ((COMB_FLOW, "flow"), (SEQ_FLOW, "flow_seq")):
+        pin = expected.get(key)
+        if isinstance(pin, dict):
+            out[name] = {"yosys": pin["yosys_version"], "canon_script_sha256": pin["canon_script_sha256"],
+                         "script_sha256": pin["script_sha256"], "ge_table_sha256": pin["ge_table_sha256"]}
+    return out
+
+
+def board_now(task, data_dir, tasks_dir=DEFAULT_TASKS, flows=None):
+    """`task`'s board and par as the site shows them (site/build.py `collect_task`): the players' intact records of
+    `data_dir` (the reference player's are par, not entries), ranked under the rating build's pinned flow of the
+    task's kind (`pinned_flows`, or `flows`), the current sky130 identity and the task's input drive and statement now.
+    Returns (board, par). Raises ValueError when no flow of the task's kind is pinned."""
+    flows = pinned_flows() if flows is None else flows
+    flow = flows.get(task_flow(task))
+    if flow is None:
+        raise ValueError(f"tests/expected.json pins no {task_flow(task)} flow (task {task['name']})")
+    records = good_records(load_records(data_dir, task["name"]))
+    kw = dict(flow=flow, identity=ppa_identity(), input_drive=ppa_setup_now(task).get("input_drive"),
+              statement=current_statement_or_none(task))
+    board = build_board(task, [r for r in records if r["player"] != REFERENCE_PLAYER], **kw)
+    return board, par_of(task, records, names=reference_names(tasks_dir, task), **kw)
+
+
+def board_line(board, par, record_hash):
+    """One record's place on its task's board (`board_now`'s board and par), as one line of Markdown: its area x time
+    and its rank among the players' records, whether it is under par, and par; or why it is not ranked. Pure."""
+    head = f"`{board['task']}` record `{record_hash[:12]}`"
+    row = next((r for r in board["ranking"] if r["record_hash"] == record_hash), None)
+    if row is not None:
+        line = (f"{head} by `{row['player']}`: {fmt_area(row)} um^2 x {fmt_time(row)} ps = {fmt_adp(row)} "
+                f"{combined.UNIT_ASCII}, rank {row['rank']} of {len(board['ranking'])}")
+        if par is None:
+            return line + "; par: none recorded"
+        return line + ("; under par" if row["exact"] < par["exact"] else "; not under par") + "; par " + fmt_par(par)
+    row = next((r for r in board["unranked"] if r["record_hash"] == record_hash), None)
+    if row is not None:
+        return f"{head} by `{row['player']}`: not ranked: {row['reason']}"
+    return (f"{head}: not on the board (no intact player's record of that hash for this task; the proved "
+            "references' records are par, not entries)")
+
+
+def find_record(data_dir, task_name, prefix):
+    """(path, record) of the one record of `task_name` in `data_dir` whose hash starts with `prefix` (12 to 64 hex
+    characters: `add` prints 12). Raises Refused when there is none, or several, or the file is not a JSON object."""
+    if not RECORD_PREFIX_RE.fullmatch(prefix or ""):
+        raise Refused([f"--record {prefix!r}: the record's hash, or its first 12 characters or more, as `add` prints "
+                       "it"])
+    hits = [(p, r, e) for p, r, e in load_records(data_dir, task_name) if os.path.basename(p).startswith(prefix)]
+    where = os.path.join(os.path.relpath(data_dir), task_name)
+    if not hits:
+        raise Refused([f"no record {prefix} of task {task_name} in {where}"])
+    if len(hits) > 1:
+        raise Refused([f"{prefix} names {len(hits)} records of task {task_name}: give more of the hash"])
+    path, rec, err = hits[0]
+    if not isinstance(rec, dict):
+        raise Refused([f"{os.path.relpath(path)} is not a JSON object" + (f": {err}" if err else "")])
+    return path, rec
+
+
+def submit_text(rec, line, verified):
+    """The title and the text (Markdown) of `rec`'s pull request: the task, the handle, `assisted_by` and the files
+    (Record), `line` (`board_line`), and `verified` (`verify_line` of the offline check `submit` ran) with what the
+    pull request's own check does (Checks). The headings are PR_HEADINGS. Pure."""
+    row = row_of(rec)
+    score = (f"{fmt_area(row)} um^2 x {fmt_time(row)} ps = {fmt_adp(row)} {combined.UNIT_ASCII}"
+             if row["exact"] is not None else "no sky130 score")
+    title = f"record {rec['task']} {rec['player']} {rec['record_hash'][:12]}: {score}"
+    files = f"leaderboard/data/{rec['task']}/{rec['record_hash']}"
+    assisted = "; ".join(md_escape(a) for a in rec["assisted_by"]) if rec["assisted_by"] else "none (unassisted)"
+    body = [f"## {PR_HEADINGS[0]}", "", f"- task: `{rec['task']}`", f"- handle: `{rec['player']}`",
+            f"- assisted by: {assisted}", f"- files: `{files}.json`, `.sv` and `.lean`, as `leaderboard.py add` wrote "
+            "them", "",
+            f"## {PR_HEADINGS[1]}", "", line, "",
+            f"## {PR_HEADINGS[2]}", "", "`leaderboard.py verify --offline` of this record before it was sent:", "",
+            "```text", verified, "```", "", PR_CHECK_NOTE, ""]
+    return title, "\n".join(body)
+
+
+def submit_steps(rec, root, files, owner, repo, title):
+    """The steps of `submit` for `rec`, in order, each {"var", "argv", "index", "gh"}: `argv` (with `$NAME` for the
+    output of an earlier step), `var` the name its output is kept under (or None), `index` whether it runs with
+    GIT_INDEX_FILE=$TMP/index (a temporary index, so the player's own index, working tree and branches are never
+    touched), `gh` whether it needs the GitHub command-line tool. Two steps are not commands: TMP (a new temporary
+    directory) and BODY (the pull request's text written to $TMP/body.md). `root`: the svgolf directory as `git -C`
+    names it; `files`: the record's .json, .sv and .lean as paths from `root`; `owner`/`repo`: the public repository on
+    GitHub. Pure."""
+    task, h = rec["task"], rec["record_hash"]
+    branch = f"record-{task}-{h[:12]}"
+    git = ["git", "-C", root]
+    names = [f"leaderboard/data/{task}/{h}{ext}" for ext in (".json", ".sv", ".lean")]
+    blobs = ("JSON", "SV", "LEAN")
+    step = lambda var, argv, index=False, gh=False: {"var": var, "argv": argv, "index": index, "gh": gh}  # noqa: E731
+    out = [step("TMP", ["mktemp", "-d"]), step("BODY", []),
+           step(None, git + ["fetch", "--no-tags", f"https://github.com/{owner}/{repo}.git", SUBMIT_BRANCH]),
+           step("BASE", git + ["rev-parse", "FETCH_HEAD"])]
+    out += [step(b, git + ["hash-object", "-w", "--", f]) for b, f in zip(blobs, files)]
+    out += [step(None, git + ["read-tree", "$BASE"], index=True),
+            step(None, git + ["update-index", "--add"]
+                 + [x for b, n in zip(blobs, names) for x in ("--cacheinfo", f"100644,${b},{n}")], index=True),
+            step("TREE", git + ["write-tree"], index=True),
+            step("COMMIT", git + ["commit-tree", "$TREE", "-p", "$BASE", "-m", title]),
+            step(None, ["gh", "repo", "fork", f"{owner}/{repo}", "--clone=false", "--remote=false"], gh=True),
+            step("LOGIN", ["gh", "api", "user", "--jq", ".login"], gh=True),
+            step(None, git + ["push", f"https://github.com/$LOGIN/{repo}.git", f"$COMMIT:refs/heads/{branch}"]),
+            step(None, ["gh", "pr", "create", "--repo", f"{owner}/{repo}", "--base", SUBMIT_BRANCH, "--head",
+                        f"$LOGIN:{branch}", "--title", title, "--body-file", "$TMP/body.md"], gh=True)]
+    return out
+
+
+# a word that may stand in double quotes: `$` only as an earlier step's output ($NAME), and none of `"`, `\`, `` ` ``, `!`
+SHELL_DQ_SAFE = re.compile(r'(?:[^"\\`$!]|\$[A-Z]+)*')
+
+
+def _shell_word(w):
+    """One word of a printed command: double-quoted when it names an earlier step's output ($NAME) and holds nothing
+    else the shell would read inside double quotes, else quoted as the shell needs (`shlex.quote`: nothing in it
+    expands)."""
+    return f'"{w}"' if "$" in w and SHELL_DQ_SAFE.fullmatch(w) else shlex.quote(w)
+
+
+def submit_script(steps, body, manual=False, owner="", repo=""):
+    """The steps as a shell script (what `--dry-run` prints). `manual`: without the GitHub command-line tool, its
+    three steps become what to do on github.com, and LOGIN is typed by hand. Pure."""
+    out = []
+    for st in steps:
+        if st["var"] == "TMP":
+            out.append("TMP=$(mktemp -d)")
+        elif st["var"] == "BODY":
+            out += [f"cat > \"$TMP/body.md\" <<'{PR_TEXT_END}'", body.rstrip("\n"), PR_TEXT_END]
+        elif manual and st["gh"]:
+            if st["var"] == "LOGIN":
+                out += [f"# fork https://github.com/{owner}/{repo} on github.com (once), then:",
+                        "LOGIN=YOUR_GITHUB_LOGIN"]
+            elif "create" in st["argv"]:
+                branch = st["argv"][st["argv"].index("--head") + 1].split(":", 1)[1]
+                out += [f"# open https://github.com/{owner}/{repo}/compare/{SUBMIT_BRANCH}...$LOGIN:{branch}?expand=1,",
+                        "# give it the title of the commit and the text of $TMP/body.md (above), and create it"]
+        else:
+            cmd = ('GIT_INDEX_FILE="$TMP/index" ' if st["index"] else "") + " ".join(_shell_word(w) for w in st["argv"])
+            out.append(f"{st['var']}=$({cmd})" if st["var"] else cmd)
+    return "\n".join(out) + "\n"
+
+
+def run_submit_steps(steps, body):
+    """Run `submit_steps`' steps; returns the last command's output (`gh pr create` prints the pull request's
+    address). Raises RuntimeError naming the step that failed; the temporary directory is removed either way."""
+    names = {}
+
+    def fill(w):
+        return re.sub(r"\$([A-Z]+)", lambda m: names.get(m.group(1), m.group(0)), w)
+    try:
+        out = ""
+        for st in steps:
+            if st["var"] == "TMP":
+                names["TMP"] = tempfile.mkdtemp(prefix="svgolf-submit-")
+                continue
+            if st["var"] == "BODY":
+                with open(os.path.join(names["TMP"], "body.md"), "w", encoding="utf-8") as fh:
+                    fh.write(body)
+                continue
+            argv = [fill(w) for w in st["argv"]]
+            env = dict(os.environ)
+            if st["index"]:
+                env["GIT_INDEX_FILE"] = os.path.join(names["TMP"], "index")
+            proc = subprocess.run(argv, capture_output=True, text=True, env=env)
+            if proc.returncode != 0:
+                hint = (" (git pushes with its own login for github.com: `gh auth setup-git` makes it gh's)"
+                        if "push" in argv else "")
+                raise RuntimeError(f"`{shlex.join(argv)}` failed (exit {proc.returncode}){hint}: "
+                                   + " ".join((proc.stderr or proc.stdout).split())[-600:])
+            out = proc.stdout.strip()
+            if st["var"]:
+                names[st["var"]] = out
+        return out
+    finally:
+        if "TMP" in names:
+            shutil.rmtree(names["TMP"], ignore_errors=True)
+
+
+def site_repo_url(path=SITE_CONFIG):
+    """site/config.json's `repo_url`: the public repository, or None (null, or the file cannot be read)."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh).get("repo_url")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def cmd_submit(args):
+    """`submit`: hand a record in (above). Exit 0 the pull request is open, or the steps were printed (`--dry-run`,
+    or no `gh`); 1 the record is refused; 2 usage or a step that failed."""
+    try:
+        task = load_task(args.tasks_dir, args.task)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    url = args.repo or site_repo_url()
+    m = GITHUB_REPO_RE.fullmatch(url or "")
+    if not m:
+        print("error: " + (f"--repo {url!r} is not a GitHub repository (https://github.com/OWNER/REPO)" if url else
+                           "no public repository is named here (site/config.json `repo_url` is null): pass --repo "
+                           "https://github.com/OWNER/REPO"), file=sys.stderr)
+        return 2
+    owner, repo = m.group(1), m.group(2)
+    try:
+        if not is_official_data_dir(args.data_dir):
+            raise Refused(["submit hands in a record of the board's own data directory, leaderboard/data, where `add` "
+                           "writes without --data-dir; a record made with --data-dir is a private trial"])
+        path, rec = find_record(args.data_dir, args.task, args.record)
+        if rec.get("player") == REFERENCE_PLAYER:
+            raise Refused([RESERVED_HANDLE])
+        vargs = argparse.Namespace(**vars(args))
+        vargs.offline, vargs.full = True, False
+        r = verify_one(vargs, path, rec, verify_context())
+        verified = verify_line(os.path.relpath(path, args.data_dir), rec, r)
+        print(verified)
+        problems = list(r.fails) + [f"stale: {s}: the board would not rank it; make it again with `add`"
+                                    for s in r.stale]
+        if not r.fails and record_mode(rec["postsynth"]) == "light":
+            problems.append("a LIGHT record (its post-synthesis check ran light) never ranks: it is for local use; "
+                            "`add` without --postsynth light makes one the board ranks")
+        if problems:
+            raise Refused(problems)
+    except Refused as e:
+        print("REFUSED: the record was not submitted:", file=sys.stderr)
+        for p in e.problems:
+            print(f"  - {p}", file=sys.stderr)
+        return 1
+    try:
+        board, par = board_now(task, args.data_dir, args.tasks_dir)
+    except (OSError, ValueError) as e:
+        print(f"error: the board cannot be built: {e}", file=sys.stderr)
+        return 2
+    line = board_line(board, par, rec["record_hash"])
+    title, body = submit_text(rec, line, verified)
+    print(f"board line: {line}")
+    files = [os.path.relpath(p, SVGOLF) for p in record_paths(args.data_dir, rec["task"], rec["record_hash"])]
+    gh = shutil.which("gh")
+    if args.dry_run or not gh:
+        steps = submit_steps(rec, os.path.relpath(SVGOLF), files, owner, repo, title)
+        print(("submit --dry-run: nothing was changed or sent. The steps, from this directory:" if args.dry_run else
+               "submit: the GitHub command-line tool (gh) is not on PATH, so nothing was changed or sent. The steps, "
+               "from this directory, by hand:"))
+        print(submit_script(steps, body, manual=not gh, owner=owner, repo=repo), end="")
+        return 0
+    try:
+        out = run_submit_steps(submit_steps(rec, SVGOLF, files, owner, repo, title), body)
+    except (RuntimeError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print(f"opened: {out}")
+    return 0
+
+
 def make_parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--data-dir", default=os.environ.get("SVGOLF_LEADERBOARD_DATA",
@@ -3502,6 +3825,17 @@ def make_parser():
                    help="measure every design of the task(s) and write the file(s) (refused when an entry would not "
                    "be bound to its design's sources)")
     x.set_defaults(fn=cmd_asap7)
+
+    u = sub.add_parser("submit", parents=[common],
+                       help="hand a record in: open the pull request that adds its three files (with git and gh)")
+    u.add_argument("--task", required=True)
+    u.add_argument("--record", required=True, metavar="HASH",
+                   help="the record's hash, or its first 12 characters or more, as `add` prints them")
+    u.add_argument("--repo", metavar="URL",
+                   help="the public repository on GitHub (default: site/config.json `repo_url`)")
+    u.add_argument("--dry-run", action="store_true",
+                   help="print the steps and the pull request's text; change and send nothing")
+    u.set_defaults(fn=cmd_submit)
     return ap
 
 

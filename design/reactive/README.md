@@ -1,7 +1,6 @@
 # Reactive controller tasks for svGolf (design note, 2026-11-04)
 
-**Status (2026-11-05): ADDED, as a draft for the maintainers' review.** Decided 11/05: "That's great.
-Please add it. I love new task types." The study's defaults for its open choices were taken (section 9,
+**Status (2026-11-05): ADDED, as a draft for the maintainers' review.** Decided 2026-11-05: added. The study's defaults for its open choices were taken (section 9,
 each now marked decided), and the kind is wired through the pipeline on branch `svgolf-react`: the
 trusted module `SvGolf/TaskReact.lean`, the task `tasks/arbiter` (status `draft`, a statement draft whose
 goalpost is the own mask round-robin), `check.py`'s kind `react-family` with a reactive post-synthesis
@@ -18,8 +17,8 @@ planned switch to the shared clocked conjuncts). The reference of section 4 is N
 yet: ls-sv does not instantiate its generate-local declarations (MEASURED; task README (j), F5), so the
 goalpost is `reference/rr_mask.sv`, scored 769.488 µm² × 2826 ps under sky130_a0_v3.
 
-The maintainers (11/04), on SYNTCOMP's controller specs: "sound interesting, since they are a category of
-tasks we don't have yet". This note is the plan for that category.
+Decided 2026-11-04, on SYNTCOMP's controller specs: of interest, a category of tasks svGolf does not have yet.
+This note is the plan for that category.
 
 | file | what |
 |---|---|

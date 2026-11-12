@@ -11,7 +11,7 @@ Status (2026-11-07):
 
 ```
 trusted statement: final, decided 2026-11-07 (the kind SvGolf/TaskReact.lean, the task Spec.lean, and the
-  primitives of SvGolf/TaskSeq.lean they share), txtask-v2's rules 2 and 3 (§7)
+  primitives of SvGolf/TaskSeq.lean they share), the clocked statements' rules 2 and 3 (§7)
 run2 proof: complete, from every power-up state
 checker: react-family (check.py)   post-synthesis: react-family (segments, a 70000-entry run, a Moore sample;
   8 seeds per point)
@@ -28,7 +28,7 @@ opinion.
 | file | what |
 |---|---|
 | [`Spec.lean`](Spec.lean) | trusted text (final, decided 2026-11-07): the task (`task`, `Statement`) |
-| [`../../SvGolf/TaskReact.lean`](../../SvGolf/TaskReact.lean) | trusted text (final, decided 2026-11-07): the kind `ReactTask`, `MooreOut`, txtask-v2's rules 2 and 3 (`ModelsPU`, `TerminatesPU`, `XSafe`, from `SvGolf/TaskSeq.lean`, whose Status lists the shared declarations, final too) |
+| [`../../SvGolf/TaskReact.lean`](../../SvGolf/TaskReact.lean) | trusted text (final, decided 2026-11-07): the kind `ReactTask`, `MooreOut`, the clocked statements' rules 2 and 3 (`ModelsPU`, `TerminatesPU`, `XSafe`, from `SvGolf/TaskSeq.lean`, whose Status lists the shared declarations, final too) |
 | [`task.json`](task.json) | `react-family`, status `ready`, the reference, the reactive post-synthesis block |
 | [`oracle.py`](oracle.py) | the reactive post-synthesis stimulus (`segments`) and the guarantee read on a netlist's grants (`violations`) |
 | [`reference/rr_mask.sv`](reference/rr_mask.sv) | the reference: a registered mask round-robin (own code) |
@@ -39,7 +39,7 @@ opinion.
 | [`../../tests/arbiter/negative/Mutants.lean`](../../tests/arbiter/negative/Mutants.lean) | untrusted, kernel-checked: eight generated mutants of the reference REFUTED (G0 to G4, eight operators; one at `N = 4`), each twin checked equal to the loaded `tests/arbiter/mutants/<id>.sv` (section 8) |
 | [`../../tests/arbiter/`](../../tests/arbiter/) | `tb.sv` + `sim.py` (the statement read by simulation, Icarus), `attacks/` (17), `designs/` (two more correct arbiters), `mutants/` (the mutation sweep, section 8) |
 
-## Start a new design
+## Proving a new design
 
 A new arbiter is your own `solution.sv` (the header below; run-time `/ % **` are banned) and a `Solution.lean`
 that proves it for every `N` with `1 ≤ N`, `N·N < 2^31`. Any fair policy is allowed: a pointer, a mask, a
@@ -157,9 +157,9 @@ module arbiter #(parameter int N = 8) (
 
 For every `N` with `1 ≤ N`, `N·N < 2^31`: the ports exactly as above, no two declarations of one name;
 clocked by `clk` alone, no asynchronous process, `clk` not read as data; **no combinational path from an
-input to an output** (`MooreOut`); **no construct that can create an `x`** (`XSafe`, txtask-v2's rule 3);
+input to an output** (`MooreOut`); **no construct that can create an `x`** (`XSafe`, the clocked statements' rule 3);
 termination from every power-up state; and **from every power-up state** (every register and variable,
-2-state ones included, at some 0/1 value: txtask-v2's rule 2), under every schedule, on every known stimulus,
+2-state ones included, at some 0/1 value: the clocked statements' rule 2), under every schedule, on every known stimulus,
 in every completed run, at every reset release `c1` and for every list `x0 :: xs` of request vectors driven at
 the reset entry `c1-1` and the entries `c1, c1+1, …` with `rst` = 0, the snapshots `c1-1, c1, c1+1, …` show
 known grant vectors `y0, ys[0], ys[1], …` with
@@ -201,7 +201,7 @@ pipeline (f) to (k).
   `S` = the input cone).
 * **Synchronous reset only**; the reset snapshot IS claimed (G0): for a Moore output it is what the
   requesters see during the first period with `rst` = 0.
-* **Every power-up state, no x-creating construct** (txtask-v2's rules 2 and 3, 2026-11-06; until then the
+* **Every power-up state, no x-creating construct** (the clocked statements' rules 2 and 3, 2026-11-06; until then the
   known-state clause KS of the study's review, 2026-11-04). ls-sv's own start state is `x` for a 4-state
   register and `0` for a 2-state one, and `if (x)` takes the else branch; the netlist's flops power up to
   some 0/1 value. So the claims are about the runs from EVERY power-up state, the first reset edge included,
@@ -334,7 +334,7 @@ the seed's record (`netlist_randseed`, `lssv_start`); before, they were the seed
    equals ls-sv bit for bit; from different power-ups ls-sv's outputs must meet the guarantee instead (the
    evaluator of 2., on ls-sv's run).
    A guarantee admits several outputs, so a design correct from every power-up may show different grants from
-   two different ones (an arbiter whose mask is not reset: txtask-v2's review, section 12, F4);
+   two different ones (an arbiter whose mask is not reset: `design/soundness/TXTASK-V2-REVIEW.md`, section 12, F4);
 2. G0 to G4 on the NETLIST's grants, segment by segment (`oracle.py` `violations`): a bug ls-sv shares is still
    caught (A17);
 3. **the Moore sample**: the harness also reads every output BEFORE each rising edge, with the entry's inputs
@@ -444,7 +444,7 @@ record hash. It is par, and the task ranks once it is listed ((k)).
 * **F3, the bound and work conservation are both load-bearing**: without G3 the time-sliced ring A06 wins on
   area; without the tight `K` the fixed-priority family comes back.
 * **F4, x-optimism and the dropped clock fields** (the study's review): closed here by KS and by the clocked
-  source rules; since 2026-11-06 by txtask-v2's rules 2 and 3 in place of KS (§7).
+  source rules; since 2026-11-06 by the clocked statements' rules 2 and 3 in place of KS (§7).
 * **F5, generate-local declarations** (MEASURED 2026-11-05, (j)): the most common real-world arbiter
   idiom, a tree whose nodes are declared inside generate loops, is outside ls-sv.
 * **F6, a false rejection by the netlist lint** (MEASURED 2026-11-05): the correct rotating-priority arbiter
@@ -493,14 +493,14 @@ record hash. It is par, and the task ranks once it is listed ((k)).
   which it does not write; the second pass is the identity, so the settle loop's `==` test ends it) and its own
   cycle (`rr_cycle`), about 150 lines. A library form (a comb block that writes none of the signals it reads,
   settled in two passes, under every schedule) would serve every clocked reference with combinational logic
-  (JUDGED: the ls-sv lane's library).
+  (JUDGED: the ls-sv library).
 * **F11, `sv2_inst_simp` stops at a comparison with a fill** (MEASURED 2026-11-05): `mreq != '0` instantiates
   at the width `maxW2 (selfWidth mreq) (selfWidth '0)` = `maxW2 (some N) none`, and ls-sv's private `maxW2` has
   a simp lemma for two known widths only (`maxW2_some`), so the fill's width and the comparison stay
   unevaluated for a symbolic `N`. The reference states the lowering once (`inst_ne_fill`, proved by unfolding
   `instExpr2` and `rfl`) and passes it to the tactic as a pre-lemma. The robust fix is in ls-sv: `@[simp]`
   lemmas `maxW2 (some a) none = some a`, `maxW2 none (some b) = some b`, `maxW2 none none = none` beside
-  `maxW2_some` (`LeanModels/Sv/Param2.lean`). Not changed here (another lane's file); the design was not
+  `maxW2_some` (`LeanModels/Sv/Param2.lean`). Not changed here (the library's file); the design was not
   rewritten.
 
 ## 3. The attacks (17), each with the clause it breaks and where the pipeline rejects it
@@ -603,7 +603,7 @@ the default limit of 200 M per declaration. A run of the same check at load aver
 the shared machine) exceeded the limit (the solution stage killed after 120 s, 255 s wall clock): the proof is
 quick, the limit is on wall-clock time.
 
-MEASURED 2026-11-06, the reference RE-PROVED against the revised statement (txtask-v2's rules 2 and 3, §7; the
+MEASURED 2026-11-06, the reference RE-PROVED against the revised statement (the clocked statements' rules 2 and 3, §7; the
 design unchanged): `check.py tasks/arbiter reference/rr_mask.sv reference/rr_mask.lean --postsynth full` ACCEPTS
 it (a fresh `--stage-dir`, one acquisition of the shared Lean slot, load average 9.0 at the start, 113 s wall
 clock): trusted 1.7 s, design 4.6 s, `clocked_rules` (the rule-3 twin) no finding at the 5 probe points,
@@ -636,15 +636,15 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
 * DONE since 2026-11-07: the reference's leaderboard record (`84da5a4152db` since its third re-seed on 2026-11-09, par)
   and the site listing ((k),
   (n)).
-* DONE since 2026-11-06: the refusal register `docs/sv-refusals.json` of proglib (formerly lean-surfaces),
+* DONE since 2026-11-06: the refusal register `docs/sv-refusals.json` of Proglib (formerly lean-surfaces),
   which generates `REFUSALS.md`, cites this task's 17 attacks, its 2 negatives and the mutants m004 and m007, and has rows for
   the never-loaded and `clocked_rules` refusals of every clocked kind; `tools/gen_sv_refusals.py --check` (a
   nightly repository check) passes (MEASURED 2026-11-07: 210 ls-sv entries, 78 svGolf entries; it failed with
   19 errors on 2026-11-06).
 * NOT YET IN THIS REPOSITORY'S `REFUSALS.md`: the six register rows below, which this task's refusals rest on.
-  `REFUSALS.md` is what the refusal register of the pinned proglib revision renders (`bb5e58e0`, the
+  `REFUSALS.md` is what the refusal register of the pinned Proglib revision renders (`bb5e58e0`, the
   revision `lakefile.toml` and `lake-manifest.json` require), and that revision predates them. They reach
-  `REFUSALS.md` with the round that moves svGolf to a later proglib revision (one with ls-sv's `int32`
+  `REFUSALS.md` with the round that moves svGolf to a later Proglib revision (one with ls-sv's `int32`
   change, against which this task's reference proof and the tactic references must be re-checked first). Until
   then the checker refuses these designs with its own messages; the rows are:
 
@@ -662,15 +662,15 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
   task), `sg-ban-cmp` (a run-time ordering comparison in a task that bans `+` or `-`) and `sg-loopfree` (a
   combinational loop or a latch, the statement's `LoopFree`), which the svGolf README's Rules and The banlist
   describe, and `sg-txstream-moore` (an output of a transaction or stream task in the combinational cone of an
-  input port, the reset included: txtask-v2 rule 1, `MooreOutDep d []`, nothing exempt since 2026-11-09),
+  input port, the reset included: the clocked statements' rule 1, `MooreOutDep d []`, nothing exempt since 2026-11-09),
   which the matmul and sorter READMEs describe as rule 1 (the sorter's attack `rst_gate` is its example).
 
-## 7. txtask-v2's rules in the kind (2026-11-06)
+## 7. The clocked statements' rules in the kind (2026-11-06)
 
 The rulings of 2026-11-06 (svGolf README, "Rules": a design is valid when every admissible initial state,
 input sequence and nondeterministic choice gives permitted behaviour; an `x` is an unknown 0/1 value; the
-pinned Yosys is disallowed where it deviates from the semantics) and txtask-v2's revision 3
-(`design/soundness/TXTASK-V2-REVIEW.md`) are ported to `ReactTask`, with txtask-v2's definitions
+pinned Yosys is disallowed where it deviates from the semantics) and the second clocked statement's revision 3
+(`design/soundness/TXTASK-V2-REVIEW.md`) are ported to `ReactTask`, with that statement's definitions
 (`SvGolf/TaskSeq.lean`) and its x-free lemma (`SvGolf/XFree.lean`), no copies.
 
 The statement diff (`SvGolf/TaskReact.lean`, definitions only):
@@ -710,7 +710,7 @@ The statement diff (`SvGolf/TaskReact.lean`, definitions only):
   never-granting arbiter. The kind requires distinct names (every loaded design has them: SystemVerilog
   forbids the redeclaration, and the loader refuses it in a flattened hierarchy at the defaults); with them,
   `knownEntry_of_interface` gives the known entry every refutation needs. The same reading of `KnownEntry` is
-  in txtask-v2's three kinds; their `Interface` asks for distinct names too since 2026-11-06 (`SeqTask`,
+  in the clocked statement's three kinds; their `Interface` asks for distinct names too since 2026-11-06 (`SeqTask`,
   `TxTask` and `StreamTask` took this conjunct, decided 2026-11-06: design/soundness/TXTASK-V2-REVIEW.md section
   12.2, M3), so all four clocked kinds read it the same way.
 
@@ -751,7 +751,7 @@ different legal grants from different power-ups and was rejected at `postsynth` 
 netlist (100) is not ls-sv (001)", MEASURED); from the random starts both runs are now held to the guarantee
 (`test_clocked_post.py` `test_an_unreset_mask_passes_the_reactive_check`).
 
-What the port does not close: txtask-v2's dependencies, which the kind shares
+What the port does not close: the clocked statement's dependencies, which the kind shares
 (design/soundness/TXTASK-V2-REVIEW.md sections 7 and 11.7). W4 (ls-sv validates a `unique`/`priority` case
 on the snapshots): the source gate refuses the qualifiers. W5 (ls-sv reads every dynamic index unsigned):
 rule 3 refuses an index that mentions a signal declared signed, and a `$signed` cast or a signed literal
@@ -764,8 +764,8 @@ guarantee at every seed, on the sampled stimulus.
 MEASURED 2026-11-06, `tests/run.py --only arbiter`, every step, one step per acquisition of the shared Lean
 slot (the tree at the commits of this section): layout 27, 0 failed; build 1, 1 failed: `lake build` stops at
 `tests.add.negative.Refute`, `tests.mul.negative.Refute` and `tests.clmul.negative.Refute`, whose `only_n16.sv`
-the loader refuses (`PDesign.int32Agrees`), a failure inherited from svgolf-prep's ls-sv through the merge (the
-same three fail on svgolf-prep and svgolf-txtask-v2; every other module builds,
+the loader refuses (`PDesign.int32Agrees`), a failure inherited from the development branch's ls-sv through a merge (the
+same three fail on both branches merged; every other module builds,
 `tests.arbiter.negative.Refute` and `SvGolf.React` included); unit 24, 0 failed (551 s: `test_clocked_post.py`
 with the goalpost's mutants, G0 for the unreset grant, `score` for the self-holding register; `tests/site`
 OK, 1 skipped); comparator 3, 0 failed (`test_xsafe_twin.py`: the twin and `xsafeB` agree on all 20 of the
@@ -822,7 +822,7 @@ grant the lowest requester).
   every `N` (`Interface`), and no proof can exist; but the simulation, every stage of `check.py --unproved`
   and the reactive check at every `N` pass them: nothing before the proof compares the ports with
   task.json's `ports` (the harnesses drive what the netlist has, and the oracle never sets the extra bit).
-  Proposed fix (for the lead): the `extract` or `design` stage refuses a top module whose ports at a probe
+  Proposed fix (for the maintainers): the `extract` or `design` stage refuses a top module whose ports at a probe
   point differ from task.json `ports` (names, directions, widths), for every kind. DONE 2026-11-07 (decided):
   the `extract` stage compares them (check.py `port_problems`); m004 and m007 are attacks rejected there
   (tests/expected.json `m004_wide_req`, `m007_wide_gnt`, `tests/arbiter/mutants/m004.sv`, `m007.sv`), and so are
@@ -830,7 +830,7 @@ grant the lowest requester).
 * **m070, m072** (the mask's reset value `~('1 >> 1)`, `~1'b1`), **m083, m086** (`pick != '0` as `>=` or as
   `!= '1`: the mask is also cleared when nobody is granted): CORRECT, G0 to G4 proved at `N = 2, 3, 4, 8`
   (the first grant after a reset may differ from the reference's, a legal policy). Not findings.
-* Two correct mutants are KILLED: **m067** (the mask's reset deleted, the case txtask-v2's review accepted)
+* Two correct mutants are KILLED: **m067** (the mask's reset deleted, the case the second statement's review accepted)
   only by `tb.sv`'s `KN` check, a four-state artifact (the unreset mask is `x` in Icarus) that the statement
   no longer has (rule 3); and **m085** (`if ('1 != '0)`) by ls-sv's loud `Fill:width` refusal. Proposed fix
   for the first: run `tb.sv` from 0/1 power-up states (as the post-synthesis check does) and drop `KN`. DONE

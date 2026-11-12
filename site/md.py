@@ -139,7 +139,7 @@ def split_blocks(text):
     """[(start, end, kind)] of the top-level chunks of `text`: runs of non-blank lines, each with its
     0-based line range [start, end); a fenced code block is one chunk, blank lines inside it included.
     `kind` is "fence" (the chunk is a fenced code block), "list" (it starts with a list item) or "text".
-    For a caller that shows the parts of a section differently (site/build.py's "Start a new design")."""
+    For a caller that shows the parts of a section differently (site/build.py's "Proving a new design")."""
     lines = text.split("\n")
     out, i, n = [], 0, len(lines)
     while i < n:

@@ -419,6 +419,9 @@ class Packages(Base):
             self.check("Mathlib.Tactic.Ring")
         self.assertIn("infrastructure", str(cm.exception))
         self.assertIn("Mathlib", str(cm.exception))
+        # the hint (the review's F9): Mathlib's build products come from its cache, as README.md says
+        self.assertIn("; for Mathlib, run `lake exe cache get` in the repository first: README.md, \"Mathlib in "
+                      "submissions\"", str(cm.exception))
         self.assertEqual(self.probes(), [])     # not probed: the answer is known without Lean
 
     def test_a_checkout_at_another_revision_is_an_infrastructure_error(self):

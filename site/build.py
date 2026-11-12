@@ -13,14 +13,14 @@ Python 3.9 or later, standard library only. It writes the whole site to
                                   (the score of each entry over time; its caption the one definition of
                                   the score and of par, record and under par; its last line a link to
                                   how to submit); then two columns: the task (statement,
-                                  interface, the trusted statement as a panel of property cards, the
+                                  interface, the trusted statement folded: a panel of property cards, the
                                   definitions they use (props.py) and what does not count, with
-                                  Spec.lean and its trusted import closure, how to participate), how to
+                                  Spec.lean and its trusted import closure), how to
                                   submit (the path of a first submission: the two files, the copy of par's
-                                  pair, the four commands, what "done" is, the Lean file, the record)
-                                  beside the leaderboard (by score); under the two columns, start a new
-                                  design (the README's card: the route of a design of your own); the
-                                  designs compared (any two numbers
+                                  pair, the four commands, what "done" is, the Lean file, the record;
+                                  last, proving a new design: the README's card, the route of a design
+                                  of your own) beside the leaderboard (by score); under the two
+                                  columns, the designs compared (any two numbers
                                   against each other, with the Pareto front, at the scored point or,
                                   measured, not ranked, at any other point of score/points.json; and
                                   how the designs scale: one number against the task's parameter, a
@@ -50,6 +50,10 @@ Python 3.9 or later, standard library only. It writes the whole site to
   llms.txt llms-full.txt          what an agent reads: the commands, the Lean contract, the tasks; the
                                   proving guide in plain text
   data/site.json data/tasks/<t>.json style.css site.js charts.js pdk.js
+  favicon.svg favicon-32.png      the browser tab's mark (pixelart.FAVICON), as SVG and as a 32 px PNG
+  404.html                        what the host serves for an address with no page: links from the root
+  sitemap.xml                     every page's published address (config.json `site_url`); robots.txt too
+                                  where the site is a host's root, the only place crawlers read it
 
 Every golf score is shown on sky130, the default, or on ASAP7 (decided 2026-11-09: the library selector, on the home page
 and in every page's header; `dual`, `both`): a page carries both views, ranked here at build time from the records'
@@ -90,7 +94,9 @@ ranked among the players.
 
 How to submit: until `config.json` names the public repository (`repo_url`),
 a task page says that public submissions open when it is published and shows
-the local flow only; with a `repo_url`, it shows the clone and the pull request.
+the local flow only; with a `repo_url`, it shows the clone, and the pull request
+of `leaderboard.py submit` when both programs of the record route are in the
+tree (ROUTE_FILES; HANDOFF_MD is the sentence every page says).
 
 Boards are built under the flow pinned in tests/expected.json, so the output
 is a function of the repository alone: a task's board under the pin of its
@@ -129,6 +135,7 @@ import posixpath
 import re
 import shutil
 import sys
+import urllib.parse
 
 sys.dont_write_bytecode = True
 SITE = os.path.dirname(os.path.abspath(__file__))
@@ -158,7 +165,7 @@ import standing                                   # noqa: E402
 import svgplot                                    # noqa: E402
 from metrics import combined                      # noqa: E402  (leaderboard/combined.py: the score)
 from highlight import highlight, language_of, tokens   # noqa: E402
-from page import esc, code                        # noqa: E402
+from page import esc, code, shown_path            # noqa: E402
 
 OUT_DEFAULT = os.path.join(SITE, "_out")
 CONTENT = "svgolf/site/content"                   # the site's own texts (a repository path: `repo_file`)
@@ -324,6 +331,87 @@ def md_inline(text, resolve=None):
     return md.render_inline(text, resolve_link=resolve or (lambda t: t if re.match(r"^[a-z]+:", t) else None))
 
 
+def library_md(config):
+    """The Lean library svGolf's statements, semantics and tactics come from, as a Markdown link: config.json
+    `library`, the one place its name and address are written (decided 2026-11-11)."""
+    lib = config["library"]
+    return f"[{lib['name']}]({lib['url']})"
+
+
+# How a record reaches the board (decided 2026-11-11: by pull request), as ONE sentence that every page says where it
+# says how (How to submit, About, the roadmap, the front page, llms.txt) and the docs repeat word for word (README,
+# CONTRIBUTING, leaderboard/README.md: a test compares them). It is said only where it holds: the public repository is
+# named (config.json `repo_url`) and both programs of the route are in this tree (ROUTE_FILES: the submit command,
+# `leaderboard.py submit`, and the check of every record's pull request, leaderboard/pr_check.py, which the public
+# repository's `records` workflow runs). Without them the pages say the sentence of that state instead, and a ready
+# task's badge says "ready to play", not "open for submissions" (`status_badge`).
+HANDOFF_MD = ("To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files; a check on "
+              "the pull request verifies every record and runs the full check on the added ones, and a maintainer "
+              "re-makes the ranked number on the rating build when the pull request is merged.")
+HANDOFF_UNPUBLISHED_MD = ("Public submissions open when the svGolf repository is published; until then you check and "
+                          "record on your own machine.")
+HANDOFF_NONE_MD = ("There is no way to hand in a record yet: `leaderboard.py add` writes it on your machine and sends "
+                   "nothing, and the board shows the records the maintainers added.")
+ROUTE_FILES = ("svgolf/leaderboard/leaderboard.py", "svgolf/leaderboard/pr_check.py")
+# who made the board's records so far (the front page, under the course's helper line; README's Leaderboard says the
+# same words, and a test compares them and checks the claim against the records)
+FIRST_ENTRIES_MD = ("Every record so far was added by the maintainers: the proved references, and trial designs made with "
+                    "an AI assistant (each record names the tool). There are no outside entries yet.")
+
+
+def record_salts(rec):
+    """Whether each post-synthesis run of a record was salted: the combinational record's one, a clocked record's
+    every seed."""
+    ps = rec.get("postsynth") or {}
+    if "salted" in ps:
+        return [ps["salted"]]
+    return [sd.get("salted") for pt in ps.get("points", []) for sd in pt.get("seeds", [])]
+
+
+def salt_md(records):
+    """The front page's clause on the random vectors' salt, as the records have it (decided 2026-11-12: a claim the
+    records make true, so that a salted record cannot make the page wrong)."""
+    salted = sum(1 for r in records if any(record_salts(r)))
+    if not salted:
+        return "the board's records so far were checked without one"
+    return ("one of the board's records was checked with one" if salted == 1 else
+            "some of the board's records were checked with one") + " (its page says so)"
+
+
+def route_ready():
+    """Whether both programs of the record route are in this tree: the submit command (leaderboard.py, with its
+    `submit`) and the check of a record's pull request (leaderboard/pr_check.py)."""
+    return all(os.path.isfile(repo_file(p)) for p in ROUTE_FILES) and callable(getattr(lb, "cmd_submit", None))
+
+
+def submissions_open(config):
+    """Whether a record can be handed in from this tree: the public repository is named and the route is here."""
+    return bool(config.get("repo_url")) and route_ready()
+
+
+def handoff_md(config):
+    """The sentence on how a record reaches the board (HANDOFF_MD), or the one of the state the tree is in."""
+    if submissions_open(config):
+        return HANDOFF_MD
+    return HANDOFF_NONE_MD if config.get("repo_url") else HANDOFF_UNPUBLISHED_MD
+
+
+def site_headline(config):
+    """config.json `headline` as (title, accent, sub_html, sub_text): the front page's headline, the end of it shown
+    on the highlighter, and its sub-line as HTML (the library's name linked) and as plain text. The one source of the
+    front page's h1, title and description, every page's footer line and llms.txt's summary (decided 2026-11-11)."""
+    hl = config.get("headline") or {}
+    title, accent, sub = hl.get("title") or "", hl.get("accent") or "", hl.get("sub") or ""
+    if not title or not sub:
+        raise BuildError("svgolf/site/config.json: `headline` needs its `title` and its `sub`")
+    if accent and not title.endswith(accent):
+        raise BuildError(f"svgolf/site/config.json: `headline.accent` {accent!r} is not the end of its title {title!r}")
+    if sub.count("{library}") > 1:
+        raise BuildError("svgolf/site/config.json: `headline.sub` names `{library}` once at most")
+    return (title, accent, md_inline(sub.replace("{library}", library_md(config))),
+            sub.replace("{library}", config["library"]["name"]))
+
+
 def json_text(obj):
     return json.dumps(obj, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
 
@@ -416,12 +504,22 @@ class Site:
         except ValueError as e:
             raise BuildError(f"{path}: not JSON: {e}")
 
-    def page(self, path, title, body_html, *, active=None, description="", scripts=(), scores=False):
-        """A page; `scores`: it shows golf scores, so in the ASAP7 view a banner at its top says so (`asap7_banner`)."""
+    def page(self, path, title, body_html, *, active=None, description="", scripts=(), scores=False, header_pdk=True,
+             not_found=False):
+        """A page; `scores`: it shows golf scores, so in the ASAP7 view a banner at its top says so (`asap7_banner`);
+        `header_pdk`: the header carries the course selector (every page but the front page, which has its own, and the
+        404 page, which has no scores);
+        `not_found`: the 404 page (no published address of its own, links from the site's root, not indexed)."""
+        url = site_url(self.config)
         self.add(path, page.layout(title=title, body_html=body_html, root=root_of(path), active=active,
                                    description=description, revision=self.revision,
-                                   site_name=self.config["site_name"], scripts=scripts,
-                                   banner_html=asap7_banner(path) if scores else ""))
+                                   site_name=self.config["site_name"], tagline=site_headline(self.config)[0],
+                                   library=self.config["library"], foot_repo=foot_repo(self.config.get("repo_url")),
+                                   scripts=scripts,
+                                   banner_html=asap7_banner(path) if scores else "", header_pdk=header_pdk,
+                                   url=None if not_found else page_url(url, path),
+                                   base_href=urllib.parse.urlsplit(url).path if not_found and url else None,
+                                   skip_link=not not_found, robots="noindex" if not_found else None))
 
     # -- links from documents --------------------------------------------
 
@@ -569,7 +667,7 @@ class Task:
         self.board, self.full_board, self.par = None, None, None
         self.drive = None                         # the cell in front of every input of the sky130 score
         self.ref_of_record = {}                   # a reference player's record hash -> its reference
-        self.number = None                        # "00" the tutorial, "01".. the listed tasks (`collect`)
+        self.number = None                        # "01".. the listed tasks (`collect`); the tutorial has none (TUTORIAL_MARK)
         self.designs = []                         # every design the page compares (`task_designs`)
         self.props = None                         # properties.json, resolved (props.TaskProperties), or None
         self.preview_note = None                  # a preview's status line (content/tasks/<t>.json `preview_note`)
@@ -827,9 +925,6 @@ def collect(site, offline):
     for k, t in enumerate(listed, 1):
         t.number = f"{k:02d}"
     for t in out:
-        if t.listing == "tutorial":
-            t.number = "00"
-    for t in out:
         site.task_pages[f"{t.dir}/README.md"] = t.page
         site.task_pages[t.spec] = t.page + "#spec"
         if t.props:
@@ -847,13 +942,47 @@ def compact_ge(mge):
     return s.rstrip("0").rstrip(".") if "." in s else s
 
 
-def status_badge(task, listing=None):
-    """The badge "open for submissions" for a task whose statement and checker are final (status
-    `ready`), else its status; a preview's says that it is not ranked."""
+# The tutorial is shown as a tutorial (2026-11-12; display only: the slug `_example` stays, as its directory, its
+# page's path and every command name it): its page is headed "Tutorial: <title>" (`page_title`), with no task-id chip
+# and no number, its crumbs say "tutorial", and its home card has TUTORIAL_MARK where a listed task has its number
+TUTORIAL_MARK = "start here"
+
+
+def tutorial_title(title):
+    """'Tutorial: ' and the title, its first word in lower case unless the word is an acronym: 'Bitwise AND' becomes
+    'Tutorial: bitwise AND', 'AES S-box' 'Tutorial: AES S-box'."""
+    first, sep, rest = title.partition(" ")
+    if first[1:].islower():
+        first = first[0].lower() + first[1:]
+    return f"Tutorial: {first}{sep}{rest}"
+
+
+def page_title(t):
+    """A task's title as its page heads it (the h1's text and the <title>): the tutorial's `tutorial_title`, any other
+    task's own."""
+    return tutorial_title(t.title) if t.listing == "tutorial" else t.title
+
+
+def task_word(t):
+    """How a page's crumbs and titles name its task: the tutorial "tutorial" (decided 2026-11-12: a visitor sees the
+    tutorial called one on its every page; the slug stays in paths and commands), any other task its name."""
+    return "tutorial" if t.listing == "tutorial" else t.name
+
+
+def task_ref_html(t):
+    """A task named in a sentence: "the tutorial", or the task's name as code."""
+    return "the tutorial" if t.listing == "tutorial" else code(t.name)
+
+
+def status_badge(task, listing=None, open_=False):
+    """The badge of a task whose statement and checker are final (status `ready`), worded by the repository's state
+    (decided 2026-11-11): "open for submissions" when a record can be handed in (`open_`: `submissions_open`, the
+    public repository named and both programs of the route in the tree); else "ready to play", as How to submit
+    says. Else the task's status; a preview's says that it is not ranked."""
     if listing == "preview":
         return page.badge("preview: not ranked", "draft")
     if task.get("status") == "ready":
-        return page.badge("open for submissions", "open")
+        return page.badge("open for submissions" if open_ else "ready to play", "open")
     return page.badge(task.get("status", "unknown"), "draft")
 
 
@@ -1203,29 +1332,41 @@ def headline(t):
 
 
 def under_text(under):
-    """'−68%' for a record 68% under par; '0%' at par."""
+    """'68%' for a record 68% under par (the label says under: no minus sign, decided 2026-11-11, since "under par
+    −68%" read as a double negative); '0%' at par; a record above par, which the board cannot make, '5% over par'."""
     if under is None:
         return "–"
     pct = round(under * 100)
-    return "0%" if pct == 0 else f"−{pct}%" if pct > 0 else f"+{-pct}%"
+    return "0%" if pct == 0 else f"{pct}%" if pct > 0 else f"{-pct}% over par"
 
 
 def big_numbers(t, *, notes=True):
-    """The big numbers of `headline`: PAR, RECORD, UNDER PAR (zk.golf's three)."""
+    """The big numbers of `headline`: PAR, RECORD, UNDER PAR (zk.golf's three). `notes` (the task page's head): each
+    with its design and factors, and each label a link to the score card's closed note that defines it (decided
+    2026-11-11; `SCORE_TERMS`, its ASAP7 copy's id suffixed), Par and Record naming ASAP7 in that view. The link
+    names the note's paragraph (`SCORE_TERMS_TEXT`), not the note: a browser opens a closed <details> for a fragment
+    inside it, also without JavaScript, and not for one that names the <details> itself. The front page's cards (no
+    `notes`) are links as a whole, so their labels stay plain."""
     h = headline(t)
+    a7 = t.pdk == "asap7"
+    href = (f"#{SCORE_TERMS_TEXT}-asap7" if a7 else f"#{SCORE_TERMS_TEXT}") if notes else None
+    lab = {k: (f"{k} · ASAP7" if a7 and notes and k != "Under par" else k) for k in ("Par", "Record", "Under par")}
     if h["par"] is None:
-        return page.stats([page.Stat("Par", "–", kind="empty"),
-                           page.Stat("Record", "–", kind="empty"), page.Stat("Under par", "–", kind="empty")])
+        return page.stats([page.Stat(lab["Par"], "–", kind="empty", label_href=href),
+                           page.Stat(lab["Record"], "–", kind="empty", label_href=href),
+                           page.Stat(lab["Under par"], "–", kind="empty", label_href=href)])
 
     def note(name, d):
         """The design's name and its ranked factors, area × time ('add_n · 460.4 µm² × 2.59 ns'; a latency kind's
         time with its factors named, 'matmul_g1 · 87 174 µm² × 4 cycles × 10.7 ns period')."""
         return f"{name} · {breakdown(d, t, labels=True)}" if d and breakdown(d, t) else name
     return page.stats([
-        page.Stat("Par", combined.fmt(h["par"]), unit=h["unit"], note=note(h["par_name"], h["par_design"]) if notes else None),
-        page.Stat("Record", combined.fmt(h["record"]), unit=h["unit"],
-                  note=note(h["record_name"], h["record_design"]) if notes else None),
-        page.Stat("Under par", under_text(h["under"]), kind="accent" if h["under"] and h["under"] > 0 else None)])
+        page.Stat(lab["Par"], combined.fmt(h["par"]), unit=h["unit"],
+                  note=note(h["par_name"], h["par_design"]) if notes else None, label_href=href),
+        page.Stat(lab["Record"], combined.fmt(h["record"]), unit=h["unit"],
+                  note=note(h["record_name"], h["record_design"]) if notes else None, label_href=href),
+        page.Stat(lab["Under par"], under_text(h["under"]), kind="accent" if h["under"] and h["under"] > 0 else None,
+                  label_href=href)])
 
 
 def ns(ps, pdk="sky130"):
@@ -1300,14 +1441,19 @@ def placeholder_metrics(t, stem):
     return m
 
 
-def fill_placeholders(site, t, text, source):
+GE_GLOSS = "NAND2 gate equivalents"
+
+
+def fill_placeholders(site, t, text, source, *, gloss_ge=False):
     """`text` (content/tasks/<t>.md) with its `{{DESIGN.FIELD}}` placeholders filled (PLACEHOLDER); an
     unknown design or field, or one the data has no number for, fails the build. A hand-typed number
-    with a unit is a warning (HAND_TYPED)."""
+    with a unit is a warning (HAND_TYPED). With `gloss_ge` (the task text, the page's first GE), the first
+    `.ge` says what GE is: "1962.576 GE (NAND2 gate equivalents)" (2026-11-11)."""
     for i, line in enumerate(text.split("\n"), 1):
         for m in HAND_TYPED.finditer(PLACEHOLDER.sub("", line)):
             site.warn(f"{source}:{i}: the hand-typed number {m.group(0)!r}: write a placeholder "
                       "({{DESIGN.area}}, {{DESIGN.time}}, ...) so that the build fills it from the data")
+    glossed = [not gloss_ge]
 
     def fill(m):
         stem, field = m.group(1), m.group(2)
@@ -1327,7 +1473,9 @@ def fill_placeholders(site, t, text, source):
         if field == "score":
             return f"{combined.fmt(v)} {combined.UNIT}"
         if field == "ge":
-            return lb.fmt_ge(round(v * 1000)).rstrip("0").rstrip(".") + " GE"
+            gloss = "" if glossed[0] else f" ({GE_GLOSS})"
+            glossed[0] = True
+            return lb.fmt_ge(round(v * 1000)).rstrip("0").rstrip(".") + " GE" + gloss
         return str(v)
     return PLACEHOLDER.sub(fill, text)
 
@@ -1338,7 +1486,11 @@ def check_headline(t, d):
     m, p = d["m"], par_design(t)
     if d.get("exact") is None or "area_um2" not in m or "time_ps" not in m:
         raise BuildError(f"{t.name}: {d['name']} has no sky130 weighing: no ranked line")
-    line = (f"ranked (sky130 A0'): {m['area_um2']} um^2 x {m['time_ps']} ps = "
+    if "cycles" in m and "period_ps" in m:        # a clocked design: cycles x period, as check.py shows them
+        factors = f"{m['cycles']} cycle{'' if m['cycles'] == 1 else 's'} x {m['period_ps']} ps"
+    else:
+        factors = f"{m['time_ps']} ps"
+    line = (f"ranked (sky130 A0'): {m['area_um2']} um^2 x {factors} = "
             f"{combined.um2ns(d['exact']):.2f} {combined.UNIT_ASCII}")
     if p is None or p["exact"] is None:
         return line + "; par: none recorded"
@@ -1421,7 +1573,7 @@ def statement_html(site, t, here, slugger):
             site.warn(f"{path}: the task text does not name the banned run-time operator"
                       f"{'s' if len(missing) > 1 else ''} {' '.join(missing)} (in a code span); it is the page's one "
                       "statement of the bans")
-        text = fill_placeholders(site, t, raw, path)
+        text = fill_placeholders(site, t, raw, path, gloss_ge=True)
         # the text quotes sky130's numbers (area, time, score; GE and depth are the same on either library) and
         # compares designs by them: the ASAP7 view says so above it, as it does on the netlist card
         quotes = any(m.group(2) in LIBRARY_FIELDS for m in PLACEHOLDER.finditer(raw))
@@ -1457,6 +1609,8 @@ def circuit_header(site, t):
 
 
 def interface_html(site, t):
+    """The module header the design must have (the README's), or, for a task whose README has none, the ports as a
+    table (2026-11-11: not both; the header holds the same ports, directions and widths)."""
     task = t.task
     parts = []
     header = circuit_header(site, t)
@@ -1464,6 +1618,7 @@ def interface_html(site, t):
         parts.append("<p>Write a module with exactly this header: port names, directions, widths and order "
                      "matter, and so do the module's name and its parameters.</p>")
         parts.append(page.code_block(header, "sv", name=f"{task['top']}.sv"))
+        return "\n".join(parts)
     ports = task.get("ports", {})
     rows = [[code(p["name"]), "input", esc(p["width"])] for p in ports.get("inputs", [])]
     rows += [[code(p["name"]), "output", esc(p["width"])] for p in ports.get("outputs", [])]
@@ -1481,7 +1636,8 @@ def solution_wall_factor():
 
 
 def facts_html(t):
-    """The task at a glance: top module, parameters, scoring point, budgets, banlist, axioms."""
+    """The task at a glance: top module, parameters, scoring point, a depth budget (only when the task has one), the
+    banned operators (why: folded), axioms, the proof time limit (2026-11-11: no "depth budget: none" row)."""
     task = t.task
     facts = [("top module", code(task["top"]))]
     if task.get("parameters"):
@@ -1491,19 +1647,21 @@ def facts_html(t):
         facts.append(("parameters", "none: one fixed size"))
     facts.append(("scoring point", esc(point_text(t.point))))
     budget = lb.effective_depth_budget(task)
-    facts.append(("depth budget", esc(budget) if budget is not None else "none"))
+    if budget is not None:
+        facts.append(("depth budget", esc(budget)))
     ops = task.get("banlist", {}).get("operators", [])
     banned = " ".join(code(o) for o in ops) if ops else "none"
     if bans_order_comparisons(ops):
         banned += (", and the run-time ordering comparisons " + " ".join(code(o) for o in ORDER_COMPARISONS)
                    + " (Yosys builds each as its own adder, an " + code("$alu") + "; equality stays allowed)")
     comment = t.banlist_note or task.get("banlist", {}).get("_comment")
-    facts.append(("banned run-time operators", banned + (f'<p class="muted">{md_inline(comment)}</p>' if comment else "")))
+    why = page.details("why", f'<p class="muted">{md_inline(comment)}</p>', cls="reveal") if comment else ""
+    facts.append(("banned run-time operators", banned + why))
     facts.append(("allowed axioms", ", ".join(code(a) for a in task.get("allowed_axioms", []))))
     # the limit counts CPU seconds (decided 2026-11-05); check.py's SOLUTION_WALL_FACTOR gives the wall-clock backstop
     limit = task.get("time_limit_s")
-    facts.append(("proof time limit", esc(f"{limit} s of CPU time (a wall-clock backstop of "
-                                          f"{solution_wall_factor() * limit:g} s stops a proof that waits)")
+    facts.append(("proof time limit", esc(f"{limit} s of CPU time (wall-clock backstop "
+                                          f"{solution_wall_factor() * limit:g} s)")
                   if isinstance(limit, (int, float)) else esc(f"{limit}")))
     return page.dl(facts)
 
@@ -1551,39 +1709,59 @@ def properties_html(site, t, here):
     if decl:
         body += page.code_block(decl, "lean", name=name, cls="code excerpt")
     href = rel_link(here, trusted_page(t.task["statement"]["module"]))
-    body += (f'<div class="prop-path"><span>{esc(t.spec)}</span>'
+    body += (f'<div class="prop-path"><span>{esc(shown_path(t.spec))}</span>'
              + page.button(href, "Open in code", "quiet sm", arrow=True) + "</div>")
     card = page.prop_card(re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).upper(),
                           status=None, body_html=body, id_="prop-statement", open_=True)
     return page.props_panel([("props-properties", "Properties", 1, card), rejects], hook="properties", title_tag="h4")
 
 
+SPEC_FOLD = "spec-detail"                             # the id of the trusted statement's fold
+
+
+def spec_fold_summary(t):
+    """The fold's summary, from the counts of what it holds: '11 properties · 36 definitions · what does not count
+    (7) · Spec.lean, verbatim · its trusted text' (a task without a properties.json: 'the statement · ...')."""
+    if t.props:
+        n_props = sum(1 for p in t.props.properties if p.kind == "property")
+        head = [f"{n_props} propert{'y' if n_props == 1 else 'ies'}", counted(len(t.props.definitions), "definition")]
+    else:
+        head = ["the statement"]
+    return " · ".join(head + [f"what does not count ({len(t.rejects)})", f"{code('Spec.lean')}, verbatim",
+                              "its trusted text"])
+
+
 def spec_html(site, t, here):
+    """The trusted statement: a lead naming the constant and its file, then ONE closed fold (2026-11-11: about this
+    task, for checking) holding the property cards, the definitions and "What does not count" (the tabs),
+    Spec.lean verbatim and its trusted text. A link into it (#does-not-count, #prop-*, #def-*, #reject-*, #closure)
+    opens it (site.js)."""
     spec_text = read_text(t.spec)
     spec_link = page.link(rel_link(here, f"tasks/{t.name}/Spec.lean"), code("Spec.lean"))
-    split = (" Below it is split into the properties a circuit must have, one card each: what the property "
-             "guarantees in plain words, and its exact Lean text. Every proved reference has all of them."
-             if t.props else " The proved references meet it.")
-    parts = [f"<p>A proof must establish the task's trusted statement, the constant "
-             f"{code(t.task['statement']['constant'])} of {spec_link} (module {code(t.task['statement']['module'])})."
-             f"{split} The last tab, {page.link('#does-not-count', 'what does not count')}, lists the designs the "
-             "checker rejects.</p>",
-             properties_html(site, t, here),
+    held = ("the statement split into its properties, in plain words and in Lean, the definitions they use,"
+            if t.props else "the statement in plain words and in Lean,")
+    lead = (f"<p>A proof must establish the task's trusted statement, the constant "
+            f"{code(t.task['statement']['constant'])} of {spec_link} (module {code(t.task['statement']['module'])})."
+            f" Every proved reference meets it. Below, closed: {held} and {page.link('#does-not-count', 'what does not count')}, the designs the "
+            "checker rejects.</p>")
+    parts = [properties_html(site, t, here),
              page.details(f"{code('Spec.lean')}, verbatim ({line_count(spec_text)} lines)",
                           page.code_block(spec_text, "lean", src=t.spec))]
     own = [(mod, path) for mod, path in t.closure if path is not None and not is_shared_trusted(mod)]
     rows = []
     for mod, path in own:            # the file under the module's name: the task column is narrow
         cells = trusted_row(mod, path, here)
-        rows.append([design_cell(cells[0], "", f'<span class="cell-meta">{esc(path)}</span>')] + cells[1:2] + cells[3:])
+        rows.append([design_cell(cells[0], "", f'<span class="cell-meta">{esc(shown_path(path))}</span>')]
+                    + cells[1:2] + cells[3:])
     parts.append("<h4 id=\"closure\">Its trusted text</h4>")
     parts.append("<p>The modules specific to this task. Like every task, it also rests on the "
                  + page.link(rel_link(here, SHARED_TRUSTED_PAGE), "shared trusted base")
                  + " (the ls-sv semantics of SystemVerilog and svGolf's statement helpers), and a proof may "
                  "import any module of the ls-sv library. Nothing else is trusted: proof helpers are "
                  "kernel-checked like any submission.</p>")
-    parts.append(page.table(["module", "role", "lines", "sha256"], rows, numeric=(2,), cls="closure", stack=True))
-    return "\n".join(parts)
+    parts.append(page.table(["module", "role", "lines", "sha256 (first 12)"], rows, numeric=(2,), cls="closure",
+                            stack=True))
+    return lead + "\n" + page.details(spec_fold_summary(t), "\n".join(parts), cls="spec-fold", id_=SPEC_FOLD)
 
 
 SHARED_TRUSTED_PAGE = "trusted/index.html"
@@ -1598,7 +1776,7 @@ def is_shared_trusted(mod):
 def trusted_row(mod, path, here):
     text = read_text(path)
     return [page.link(rel_link(here, trusted_page(mod)), code(mod)), esc(module_role(mod)),
-            code(path), str(line_count(text)), code(sha256(text.encode("utf-8"))[:12])]
+            code(shown_path(path)), str(line_count(text)), code(sha256(text.encode("utf-8"))[:12])]
 
 
 def trusted_page(mod):
@@ -1734,17 +1912,21 @@ def rating_build():
                       for n in ("ppa.py", "ppa_pins.json", "canon.ys", "svgolf.ys", "svgolf_seq.ys")]}
 
 
-def rating_build_sentence(here):
-    """The score card's line on the build the numbers come from (task pages), from `rating_build()`."""
-    b = rating_build()
-    y, a, d = b["yosys"], b["abc"], b["determinism"]
-    o = d["other_build"]
-    return (f"Rated with Yosys {esc(y['version'])} (git {code(y['git_sha1'][:8])}, {esc(y['build'])}, "
-            f"{esc(y['compiler'])}) and its {code(a['binary'])} ({esc(a['version'])}): the flow is deterministic on "
-            f"that build (measured on {d['designs']} designs). Another build of the same version can break ABC's ties "
-            f"differently (measured: {o['designs_differing']} {esc(o['task'])} designs, up to "
-            f"{o['max_delay_change_pct']:g}% in delay), so a number made on another platform may differ slightly: "
-            + page.link(rel_link(here, f"rules.html#{RATING_BUILD_ANCHOR}"), "the build and its hashes") + ".")
+def score_line(t):
+    """The score card's one line under the plot (task pages; decided 2026-11-11, in place of the long caption): the
+    build the numbers are rated with (`rating_build()`'s Yosys version, linked to the rules page's section on it, which
+    holds every version, hash and the determinism measurements), how the score is measured and how to reproduce one;
+    in the ASAP7 view, first, what that course is."""
+    here = t.page
+    a7 = t.pdk == "asap7"
+    how = (page.link(rel_link(here, f"rules.html#{ASAP7_ANCHOR}"), "How ASAP7 is scored") if a7 else
+           page.link(rel_link(here, "rules.html#scoring"), "How the score is measured"))
+    parts = (["ASAP7, cells only: no wires, no place and route"] if a7 else []) + [
+        "Rated with " + page.link(rel_link(here, f"rules.html#{RATING_BUILD_ANCHOR}"),
+                                  f"Yosys {esc(rating_build()['yosys']['version'])}"),
+        how, page.link(rel_link(here, REPRODUCE_PAGE), "Reproduce a score")]
+    # a line never starts with the dot: it stays with the item before it (a no-break space)
+    return '<p class="small score-links">' + " · ".join(parts) + "</p>"
 
 
 def rating_build_html():
@@ -1775,6 +1957,78 @@ def rating_build_html():
             + page.table(["what", "version, build", "sha256"], rows) + "</section>")
 
 
+TASK_PAGE_NUMBERS = "task-page-numbers"
+TASK_PAGE_IDS = (TASK_PAGE_NUMBERS, "par-record-under-par", "clock-period", "score-chart")
+
+
+def anchored_heading(level, id_, title):
+    """A rules-page heading with its own `#` link, as md.py writes the README's."""
+    return (f'<h{level} id="{id_}">{esc(title)} <a class="anchor" href="#{id_}" '
+            f'aria-label="link to this section">#</a></h{level}>')
+
+
+def score_terms_html(tasks):
+    """The rules page's section on the numbers of a task page (decided 2026-11-11: the task page's score card keeps
+    one line and a closed note, and links here for the rest): par, record and under par; the time of each kind of task
+    and the clock period; how to read the score chart. The task names of each kind are the listed tasks' (the tutorial
+    is not one), each kind's time in `time_words`' words."""
+    kinds = {}
+    for t in tasks:
+        if t.listing != "tutorial":
+            kinds.setdefault((metrics.is_clocked(t.task), metrics.has_latency(t.task)), []).append(t)
+
+    def item(key, lead, tail=""):
+        ts = kinds.get(key)
+        if not ts:
+            return None
+        names = ", ".join(esc(n) for n in sorted(t.name for t in ts))
+        return f"{lead} ({names}): {time_words(ts[0], ' in ns')}{tail}"
+
+    items = [i for i in (
+        item((False, False), "a combinational task"),
+        item((True, True), "a task with a latency",
+             f". The latency is the n of the solution's line {code('-- svgolf-latency: n')}, which the checker reads "
+             f"from the Lean file, never from the {code('.sv')}. The proof holds the design to it: after every start, "
+             f"the design has answered at most that many cycles after the cycle that samples {code('start')} (cycle "
+             "0); the task's property cards say what answering is. The post-synthesis check holds the netlist to it "
+             "too"),
+        item((True, False), "a reactive task")) if i]
+    kinds_html = "<ul>" + "".join(f"<li>{i}{'.' if k == len(items) - 1 else ';'}</li>"
+                                  for k, i in enumerate(items)) + "</ul>"
+    return ("<section>" + anchored_heading(2, TASK_PAGE_NUMBERS, "The numbers on a task page")
+            + anchored_heading(3, "par-record-under-par", "Par, record and under par")
+            + "<p>Par is the score of the task's best proved reference: a design that ships with the task, written or "
+              "adapted and proved by the maintainers. It is the bar to beat: a design beats par when it is accepted "
+              "with a score below par's. It stands on the board as a row of its own, marked par, and is no player's "
+              "entry. Record is the best accepted score so far: par while no "
+              "submission beats it, so a tie with par leaves the record at par.</p>"
+              "<p>Under par is how far the record is "
+              "below par, as a share of par's score: 30% under par means that the record's score is 30% lower than "
+              "par's; it is 0% while par is the record.</p>"
+              "<p>A design without a weighing on the chosen course has no "
+              "score: the tables list it after the scored designs, by its GE columns. A dash in place of par, record "
+              "or under par means that no design of the task has a weighing on that course yet. Each course (sky130, "
+              "ASAP7) has its own par, record and board, and a score on one is never compared with a score on the "
+              "other.</p>"
+            + anchored_heading(3, "clock-period", "The time, and the clock period")
+            + "<p>The time in a score depends on the task's kind (its badge on the task page):</p>" + kinds_html
+            + "<p>On a clocked task the area includes the flip-flops. The clock period (what "
+            + code("score/ppa.py") + " calls the register-to-register period) is the longest path from an input or a "
+              "flip-flop to an output or a flip-flop (clock-to-Q and setup included), so paths from the inputs and to "
+              "the outputs count too, not only the paths between two flip-flops. The clock is ideal: no clock tree "
+              "and no skew. The inputs are driven and the outputs loaded as " + page.link("#scoring", "Scoring")
+            + " says: on sky130 the task's input drive behind a 50 ps ramp and 10 fF on each output bit; ASAP7's own "
+              "setup is under " + page.link(f"#{ASAP7_ANCHOR}", "The ASAP7 view") + ". On either course the score "
+              "counts the cells only: no wires, no place and route.</p>"
+            + anchored_heading(3, "score-chart", "Reading the score chart")
+            + "<p>The chart on a task page draws every entry by the date it entered and by its score: the players' "
+              "records and the proved references, which are the first entries, dated by when they joined the task. "
+              "The step line is the best score so far, the dashed line is par, and a dotted level is a baseline's "
+              "score: scored, never proved. An entry without a date is not drawn. The same numbers are in the page's "
+              "tables: the Leaderboard (the records, each with its date, and par), Proved references (each with the "
+              "date it joined the task) and Baselines.</p></section>")
+
+
 def time_words(t, unit=""):
     """What the ranked time of task `t` is, with `unit` (' in ns') after the quantity: the critical-path delay
     (combinational), the latency in cycles times the period (a latency kind), the period itself (a reactive task:
@@ -1787,37 +2041,42 @@ def time_words(t, unit=""):
 
 
 def asap7_banner(here):
-    """The ASAP7 view's line at the top of a page that shows golf scores (shown in that view only)."""
-    return ('<div class="pdk-asap7 pdk-banner"><p><strong>Golf scores on ASAP7</strong>, a predictive 7 nm library: '
-            "never fabricated, and like sky130's score it counts no wires. sky130, a real 130 nm process, is the "
-            "default. " + page.link(rel_link(here, f"rules.html#{ASAP7_ANCHOR}"), "How ASAP7 is scored, and its quirks")
+    """The ASAP7 course's line at the top of a page that shows golf scores (shown in that view only)."""
+    return ('<div class="pdk-asap7 pdk-banner"><p><strong>Golf scores on ASAP7</strong>, cells only: a predictive 7 nm '
+            "library, never fabricated; no wires, no place and route. The ranked course is sky130's, the default. "
+            + page.link(rel_link(here, f"rules.html#{ASAP7_ANCHOR}"), "How ASAP7 is scored, and its quirks")
             + ".</p></div>")
 
 
-def asap7_words(here, *, short=False):
-    """What the ASAP7 view's numbers are, said where they appear: a predictive 7 nm library, never fabricated,
-    wire-free like sky130's score, with a link to how it is scored and its quirks (the rules page)."""
+def asap7_words(here):
+    """What the ASAP7 course's numbers are, said where they appear (a record's measuring note):
+    a predictive 7 nm library, never fabricated, cells only like sky130's score, with a link to how it is scored and
+    its quirks (the rules page)."""
     link = page.link(rel_link(here, f"rules.html#{ASAP7_ANCHOR}"), "how ASAP7 is scored, and its quirks")
-    if short:
-        return f"ASAP7: a predictive 7 nm library, never fabricated; no wires, like sky130's score ({link})."
-    return ("<strong>ASAP7 view.</strong> These numbers are on ASAP7 (asap7sc7p5t), a predictive 7 nm library made for "
-            "research: it has never been fabricated, so no chip can confirm them. Like sky130's score they count no "
-            f"wires. sky130, a real 130 nm process, is the default view ({link}).")
+    return (f"ASAP7: a predictive 7 nm library, never fabricated; cells only, like sky130's score: no wires, no place "
+            f"and route ({link}).")
 
 
-def score_definition(t):
+SCORE_TERMS = "score-terms"                 # the score card's closed note (its ASAP7 copy: "score-terms-asap7")
+SCORE_TERMS_TEXT = "score-terms-text"       # its paragraph, which the page head's labels link
+
+
+def score_definition(t, *, levels=False, undated=0, chart=True):
+    """The body of the score card's closed note (decided 2026-11-11): the page's one definition of the score and of
+    Par, Record and Under par, in the view's library, with links to the rules page's "The numbers on a task page" for
+    the rest. The clock period, the rating build and how to reproduce a score are the rules page's (the card's line
+    links them). `levels`: the chart draws baselines; `undated`: how many entries it cannot draw; `chart`: a chart is
+    drawn (a preview's card and a card with no weighed design have none)."""
     clocked = metrics.is_clocked(t.task)
     time = time_words(t, " in ns")
-    # score/ppa.py, the clocked flow (`--seq`): the period is the latest arrival at an output or at a flop's D (plus
-    # setup), over paths that start at an input or at a flop's Q
-    period = ("The clock period (what score/ppa.py calls the register-to-register period) is the longest path from "
-              "an input or a flip-flop to an output or a flip-flop (clock-to-Q and setup included), so paths from the "
-              "inputs and to the outputs count too, not only the paths between two flip-flops. " if clocked else "")
     lib = PDK_NAME[t.pdk]
-    extra = (" " + asap7_words(t.page) + " " if t.pdk == "asap7" else " ")
+    rules = rel_link(t.page, "rules.html")
+    more = " · ".join((page.link(f"{rules}#par-record-under-par", "par, record and under par"),
+                       page.link(f"{rules}#clock-period", "the clock period" if clocked else "the time"),
+                       page.link(f"{rules}#score-chart", "reading this chart" if chart else "reading the score chart")))
     return (f"<strong>Score</strong> = area × time: the {lib} cell area of the scored netlist in µm² "
             f"{'(flip-flops included) ' if clocked else ''}times {time}, from the pinned flow, so "
-            f"{esc(combined.UNIT)}. Lower is better. "
+            f"{esc(combined.UNIT)}. Lower is better. It counts the cells only: no wires, no place and route. "
             + ("It is the one ranked number: " if t.pdk == "sky130" else "In this view ")
             + "Par (the best proved reference's score, the bar to beat), Record (the best accepted score so far, par "
             "while no submission beats it), Under par (how far the record is below par, as a share of par's score) and "
@@ -1825,19 +2084,41 @@ def score_definition(t):
                "the leaderboard use it; the records' ranked score is sky130's, the default view. ")
             + "The Pareto "
             "front, area in GE (NAND2 gate equivalents), depth and the other numbers are for exploring, "
-            f"under {page.link('#explore', 'compare the designs')}; "
-            f"{page.link(rel_link(t.page, REPRODUCE_PAGE), 'reproduce a score')} says how to get the same numbers."
-            + extra + period + rating_build_sentence(t.page))
+            f"under {page.link('#explore', 'compare the designs')}."
+            + (" The dotted levels are baselines: scored, never proved." if levels else "")
+            + ((f" {undated} undated entry is not drawn; the tables below list it." if undated == 1 else
+                f" {undated} undated entries are not drawn; the tables below list them.") if undated else "")
+            + f" In full on the rules page: {more}.")
+
+
+def score_note(t, **kw):
+    """The score card's line and its closed note under the plot (`score_line`, `score_definition`); the note's id is
+    `SCORE_TERMS` and its paragraph's `SCORE_TERMS_TEXT` (the page head's labels link it), both suffixed in the ASAP7
+    copy by `both`."""
+    return (score_line(t) + page.details("What the score, Par, Record and Under par mean",
+                                         f'<p id="{SCORE_TERMS_TEXT}">{score_definition(t, **kw)}</p>', cls="note",
+                                         id_=SCORE_TERMS))
+
+
+def score_desc_tail(t):
+    """The score chart's description ends by naming the tables that hold its numbers: Baselines only on a task that
+    has that card (a task without baselines has none, 2026-11-11)."""
+    if t.baselines:
+        return ("The same entries as numbers: the Leaderboard (the records, with their dates), Proved references (with "
+                "the date each joined the task) and Baselines.")
+    return ("The same entries as numbers: the Leaderboard (the records, with their dates) and Proved references (with "
+            "the date each joined the task).")
 
 
 def score_html(site, t, here):
     """The score card's body: the combined score over time (svgplot.score_chart, on a linear and a
-    log axis; charts.js switches), its legend and definition, and every entry by date as a table.
+    log axis; charts.js switches), its legend, then one line and a closed note (`score_note`; the entries' numbers are
+    the page's tables: the Leaderboard, Proved references with the date each joined, Baselines).
     With no weighed design, what the score will start from."""
     if t.preview:
         return (f'<div class="chart-slot empty" id="over-time" data-hook="score-chart"><p>This task is a preview: '
                 f"nothing of it is ranked yet, so no score history is drawn. Its designs are measured under "
-                f"{page.link('#explore', 'compare the designs')}.</p><p class=\"small\">{score_definition(t)}</p></div>")
+                f"{page.link('#explore', 'compare the designs')}.</p>{score_note(t, chart=False)}</div>")
     es = entries(t)
     lv = [d for d in t.designs if d["kind"] == "baseline" and d["exact"] is not None]
     ms = [m for m in task_metrics(t) if m.key in ("adp", "area_um2", "time_ps")]
@@ -1848,7 +2129,7 @@ def score_html(site, t, here):
                  else "There is no par yet.")
         return (f'<div class="chart-slot empty" id="over-time" data-hook="score-chart"><p>No design of this task '
                 f"has {PDK_A[t.pdk]} weighing yet, so the chart has nothing to draw: the score needs the "
-                f"{PDK_NAME[t.pdk]} area and time. {start}</p><p class=\"small\">{score_definition(t)}</p></div>")
+                f"{PDK_NAME[t.pdk]} area and time. {start}</p>{score_note(t, chart=False)}</div>")
     p = par_design(t)
     par = {"value": p["m"]["adp"], "label": f"par: {p['name']}, {combined.fmt(p['m']['adp'])} {combined.UNIT}"} \
         if p and p["exact"] is not None else None
@@ -1860,19 +2141,13 @@ def score_html(site, t, here):
     svgs = {(log, compact): svgplot.score_chart(
                 pts, par=par, levels=levels, log=log, unit=combined.UNIT, value_fmt=combined.fmt,
                 until=until or None, compact=compact,
-                title=f"{t.name}: the score of each entry by date" + (", log scale" if log else ""))
+                title=f"{task_word(t)}: the score of each entry by date" + (", log scale" if log else ""),
+                desc_tail=score_desc_tail(t))
             for log in (False, True) for compact in (False, True)}
     if not svgs[(False, False)]:
         return ('<div class="chart-slot empty" id="over-time" data-hook="score-chart"><p>No entry has a date: '
-                "the history of this task cannot be drawn here.</p></div>")
+                f"the history of this task cannot be drawn here.</p>{score_note(t, chart=False)}</div>")
     undated = [d for d in es if not d["date"]]
-    rows = []
-    for d in sorted(es, key=lambda d: (d["date"] or "~", d["exact"], d["id"])):
-        rows.append([esc((d["date"] or "–")[:10]), page.link(d["href"], esc(d["name"])), esc(kind_text(d)),
-                     esc(combined.fmt(d["m"]["adp"])), esc(breakdown(d, t))])
-    for d in lv:
-        rows.append(['<span class="muted">–</span>', page.link(d["href"], esc(d["name"])), esc(kind_text(d)),
-                     esc(combined.fmt(d["m"]["adp"])), esc(breakdown(d, t))])
     variants = "".join(
         f'<div class="chart-variant" data-scale="{"log" if log else "linear"}" '
         f'data-size="{"compact" if compact else "wide"}"{" hidden" if log else ""}>{svgs[(log, compact)]}</div>'
@@ -1888,15 +2163,7 @@ def score_html(site, t, here):
     return (f'<div class="chart-slot" id="over-time" data-hook="score-chart">'
             f'<figure class="chart-figure"><div class="chart-box" data-score-chart>{variants}</div>{named}'
             + legend_html({d["kind"] for d in es}, front="the best score so far", par=bool(par), levels=bool(lv))
-            + f"<figcaption>{score_definition(t)} Dots are the entries by date; the proved references are the "
-              "first entries, dated by when they joined the task."
-            + (" The dotted levels are baselines: scored, never proved." if lv else "")
-            + (f" {len(undated)} undated {'entry is' if len(undated) == 1 else 'entries are'} in the table only."
-               if undated else "")
-            + "</figcaption></figure>"
-            + page.details("every entry by date", page.table(heads("date", "design", "kind", f"score ({combined.UNIT})",
-                                                            "area × time"), rows, numeric=(3,)))
-            + "</div>")
+            + "</figure>" + score_note(t, levels=bool(lv), undated=len(undated)) + "</div>")
 
 
 def nocase(text_html):
@@ -1997,13 +2264,9 @@ def point_note(t):
     if len(t.views) < 2:
         return ""
     v = scored_view(t)
-    others = [esc(o["full"]) for o in t.views if not o["scored"]]
     what = ("a preview, so nothing of it is ranked yet" if t.preview else "the ranked numbers")
     return (f'<p class="point-note small" data-point-note><strong>{esc(v["full"])}</strong>, the scored point: '
-            f'{what}. The same designs are also measured at {and_list(others)}: <span class="measured">'
-            f"{MEASURED}</span>, the same proved "
-            f"designs through the same pinned flow at other parameters (the tables below, and "
-            f'{page.link("#scaling", "how the designs scale")}).</p>')
+            f'{what}. The other points are <span class="measured">{MEASURED}</span> (the tables below).</p>')
 
 
 def explorer_html(site, t, here):
@@ -2059,10 +2322,11 @@ def explorer_html(site, t, here):
             + f'<figure class="chart-figure"><div class="chart-box" data-explorer>{svg}</div>'
             + legend_html(kinds, front="the Pareto front of the proved designs")
             + "<figcaption>Lower is better on both axes. The step line joins the proved designs that no other "
-              "proved design beats on both; baselines are shown for scale. Choose any two numbers to find the "
-              "best design for your own trade-off. "
-              f'<span data-explorer-note>{len(pts)} of {len(t.designs)} designs have both numbers'
-              f"{'' if not missing else ' (the rest lack one)'}.</span></figcaption></figure></div>"
+              "proved design beats on both; baselines are shown for scale. "
+              # the one sign that designs are missing from the plot: hidden while every design has both numbers
+              # (charts.js sets `hidden` again when it rewrites the count for other axes)
+              f'<span data-explorer-note{"" if missing else " hidden"}>{len(pts)} of {len(t.designs)} designs have '
+              f"both numbers{'' if not missing else ' (the rest lack one)'}.</span></figcaption></figure></div>"
             + tables + data_script(page_data(t), "task-data"))
 
 
@@ -2198,9 +2462,8 @@ def scaling_html(t):
            f"{esc(t.measured['scale']['label'])}: 1 is par, and a line under it beats par at that size, so where two "
            "lines cross one design starts to pay off against the other." if relative else
            f"{esc(m.label)} of each design against {esc(t.measured['scale']['label'])}.")
-    return (f'<h3 id="scaling">How the designs scale <a class="anchor" href="#scaling" '
-            f'aria-label="link to this section">#</a></h3>'
-            '<p class="pdk-asap7 pdk-note small">On sky130 in either view: the designs are measured at the other '
+    # one closed fold (2026-11-11): the measured, unranked numbers are for going deeper; the fold carries the id
+    body = ('<p class="pdk-asap7 pdk-note small">On sky130 in either view: the designs are measured at the other '
             "points on sky130 alone (score/measured/), and the ASAP7 view weighs each design at the scoring point "
             "only.</p>"
             f'<div class="chart-slot" data-hook="scaling">{controls}'
@@ -2215,6 +2478,7 @@ def scaling_html(t):
               "</figcaption></figure></div>"
             + page.details(f"every design at every point: {esc(m.axis())}",
                            page.table(heads(*heads_), rows, numeric=tuple(range(1, len(heads_))), cls="designs")))
+    return page.details(f"How the designs scale ({MEASURED})", body, cls="scaling-fold", id_="scaling")
 
 
 def scaling_dropped(t):
@@ -2383,22 +2647,25 @@ def references_html(t, here):
         if ref["record_hash"]:
             meta += f'<span class="cell-meta">record: {record_link(t, here, ref["record_hash"])}</span>'
         cls = " ".join(c for c, on in (("par-row", t.par is ref), ("par-a7", a7_par)) if on) or None
+        # when it joined the task: the date the score chart plots it at (one in both views)
+        d = design_of(t, "reference", ref["stem"])
+        joined = (d["date"] if d else
+                  reference_date(t, ref, next((r for r in t.ref_records if r["record_hash"] == ref["record_hash"]),
+                                              None)))
         rows.append(page.Row([
             design_cell((code(ref["stem"]) if t.preview else page.link(rel_link(here, reference_page(t, ref)),
                                                                         code(ref["stem"]))) + " " + tags,
-                        md_inline(ref["description"]), meta), score,
+                        md_inline(ref["description"]), meta),
+            f'<time datetime="{esc(joined[:10])}">{esc(joined[:10])}</time>' if joined
+            else '<span class="muted">–</span>', score,
             area, time, ge_depth_cell(s), vsp,
             str(ref["proof_lines"]), file_links(here, base, (".sv", ".lean"))],
             cls=cls, id_=f"ref-{ref['stem']}"))
     return ("<p>Proved and accepted designs that ship with the task, written or adapted by the maintainers. They are "
-            "the first entries, and <strong>par</strong>, the bar to beat, is the one with the best score "
-            f"(area × time, {esc(combined.UNIT)}, from the {pdk_text('sky130', 'ASAP7')} area and time; a design "
-            f"without {pdk_text('a sky130', 'an ASAP7')} "
-            "weighing has no score and comes after, by its extra GE columns). A reference that was also recorded "
-            "links its record under its name: the record holds that reference's design <em>and</em> proof, "
-            "matched by the sha256 of both files.</p>"
-            + page.table(heads("design", f"score ({combined.UNIT})", "area (µm²)", "time (ps)", "GE · depth",
-                               "vs par", "proof lines", "files"), rows, numeric=(1, 2, 3, 4, 5, 6),
+            "the board's first entries; <strong>par</strong>, the bar to beat, is the one with the best score. A "
+            "reference that was also recorded links its record, matched by the sha256 of both files.</p>"
+            + page.table(heads("design", "joined", f"score ({combined.UNIT})", "area (µm²)", "time (ps)",
+                               "GE · depth", "vs par", "proof lines", "files"), rows, numeric=(2, 3, 4, 5, 6, 7),
                          cls="designs-list", stack=True))
 
 
@@ -2410,8 +2677,10 @@ def design_cell(name_html, what_html, meta_html=""):
 
 
 def baselines_html(t, here):
+    """The Baselines card's body: its lead and, folded, the table (2026-11-11); "" for a task without baselines, which
+    then has no Baselines card."""
     if not t.baselines:
-        return "<p>No baselines for this task.</p>"
+        return ""
     rows = []
     for b in t.baselines:
         s = b["score"]
@@ -2435,8 +2704,10 @@ def baselines_html(t, here):
     return ("<p><strong>Not entries.</strong> Designs scored by the pinned flow (with the banlist lifted) but "
             "never accepted: unproved, simulation-only, or using an operator the task bans. They show how much "
             "room there is.</p>"
-            + page.table(heads("design", f"score ({combined.UNIT})", "area (µm²)", "time (ps)", "GE · depth",
-                               "vs par", "file"), rows, numeric=(1, 2, 3, 4, 5), cls="designs-list", stack=True))
+            + page.details("every baseline with its numbers",
+                           page.table(heads("design", f"score ({combined.UNIT})", "area (µm²)", "time (ps)",
+                                            "GE · depth", "vs par", "file"), rows, numeric=(1, 2, 3, 4, 5),
+                                      cls="designs-list", stack=True)))
 
 
 def reject_group(stage, stages):
@@ -2503,13 +2774,96 @@ def repo_link(repo_url, repo):
     return None
 
 
+def site_url(config):
+    """config.json `site_url`, the address the site is published at (https, ending in `/`), or None."""
+    url = config.get("site_url")
+    if url is not None and not (isinstance(url, str) and re.fullmatch(r"https://[^/?#\s]+/(?:[^?#\s]*/)?", url)):
+        raise BuildError(f"config.json: site_url {url!r} is not an https address ending in /")
+    return url
+
+
+def page_url(url, path):
+    """The published address of the output page `path` (`index.html` as its directory), or None without a
+    `site_url`."""
+    if not url:
+        return None
+    if path == "index.html" or path.endswith("/index.html"):
+        path = path[:-len("index.html")]
+    return url + path
+
+
+def not_found_page(site):
+    """404.html: what the host serves for an address with no page, at any depth, so its links go from the site's
+    root (`<base>`, from `site_url`)."""
+    web = repo_web(site.config.get("repo_url"))
+    links = [("index.html#tasks", "the tasks"), ("rules.html", "the rules"), ("proving.html", "the proving guide")]
+    items = "".join(f'<li><a href="{href}">{esc(text)}</a></li>' for href, text in links)
+    if web:
+        items += f'<li><a href="{esc(web)}">the repository</a></li>'
+    body = (page.page_head(title_html="Page not found")
+            + page.doc(f"<p>No page at this address. Try one of these:</p><ul>{items}</ul>"))
+    site.page("404.html", "Page not found", body, description="No page at this address.", not_found=True,
+              header_pdk=False)                    # no scores here, so no course selector (2026-11-12)
+
+
+def sitemaps(site):
+    """sitemap.xml: the published address of every page but the 404 page, in path order; robots.txt (allow all,
+    and the sitemap) only where the site is a host's root, since crawlers read robots.txt there and nowhere else
+    (RFC 9309, section 2.3). Nothing without a `site_url`."""
+    url = site_url(site.config)
+    if not url:
+        return
+    pages = sorted(p for p in site.files if p.endswith(".html") and p != "404.html")
+    locs = "".join(f"<url><loc>{esc(page_url(url, p))}</loc></url>\n" for p in pages)
+    site.add("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + locs + "</urlset>\n")
+    if urllib.parse.urlsplit(url).path == "/":
+        site.add("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {url}sitemap.xml\n")
+
+
+def repo_web(repo_url):
+    """The public repository's web address (no `.git`, no trailing slash), or None."""
+    if not repo_url:
+        return None
+    url = repo_url.rstrip("/")
+    return url[:-len(".git")] if url.endswith(".git") else url
+
+
+def foot_repo(repo_url):
+    """The footer's links into the public repository (decided 2026-11-11): the licence, the source, its issues and
+    how to contribute; none without a public repository (`repo_url` null: the licence is then plain text)."""
+    web = repo_web(repo_url)
+    if not web:
+        return []
+    return [("Apache-2.0", repo_link(web, "svgolf/LICENSE" if LAYOUT == "standalone" else "LICENSE")),
+            ("Source", web), ("Issues", f"{web}/issues"),
+            ("Contributing", repo_link(web, "svgolf/CONTRIBUTING.md"))]
+
+
+def issues_md(config):
+    """About's "its issues": a link to the public repository's issues, plain words without one."""
+    web = repo_web(config.get("repo_url"))
+    return f"[its issues]({web}/issues)" if web else "its issues"
+
+
 # Step 0 of every "How to submit", of the tutorial and of llms.txt: the tools, then the two one-time
 # commands. The versions are read from the repository (lean-toolchain, requirements.txt, the flow pin).
-LAKE_BUILD_COST = ("about 6 minutes and 1 GB of disk the first time, on a laptop that already had the Lean toolchain "
-                   "(README.md's Step 0 says what was measured where; elan's first download of the toolchain comes on "
-                   "top): Lake clones proglib (formerly lean-surfaces) and its packages from "
-                   "github.com, so it needs network access there, and builds the LeanModels.Sv modules svGolf "
-                   "uses; Mathlib is cloned, never built")
+# `{library}` is the library's name (config.json `library`, filled by lake_build_cost)
+LAKE_BUILD_COST = ("about 6 minutes and 1 GB of disk the first time on a laptop that already had the Lean toolchain, "
+                   "and about 20 minutes, plus 8 for elan's first download of the toolchain, on a slower Linux machine "
+                   "(README.md's Step 0 says what was measured where): Lake clones {library} (formerly lean-surfaces) "
+                   "and its packages from github.com, so it needs network access there, and builds the LeanModels.Sv "
+                   "modules svGolf uses; Mathlib is cloned, never built")
+# the task page's shorter form (2026-11-11; llms.txt keeps LAKE_BUILD_COST)
+LAKE_BUILD_SHORT = ("about 6 minutes and 1 GB of disk the first time on a laptop that already had the Lean toolchain, "
+                    "and about 20 minutes, plus 8 for elan's first download of the toolchain, on a slower Linux "
+                    "machine; it needs network access to github.com, since it clones the Lean libraries svGolf builds "
+                    "on (Mathlib is cloned, never built)")
+
+
+def lake_build_cost(config):
+    """LAKE_BUILD_COST with the library's name (plain text: llms.txt)."""
+    return LAKE_BUILD_COST.format(library=config["library"]["name"])
 LATENCY_KINDS = metrics.LATENCY_KINDS               # check.py's: a clocked task's Goal takes the latency
 
 
@@ -2537,18 +2891,19 @@ def clone_commands(repo_url):
 
 def step0_html(site, here, id_=None):
     """Step 0: what to install, then (from the clone) `lake build` and the liberty, once per machine. `id_`: an
-    anchor on its first line (How to submit's, `step-0`)."""
+    anchor on its first line (`step-0`: How to submit's, or on the tutorial the walk-through's, which How to submit
+    there points to)."""
     v = prerequisites(site)
+    rating = page.link(rel_link(here, "rules.html") + "#" + RATING_BUILD_ANCHOR, "the rating build")
     tools = ("<ul>"
-             f"<li>{page.link('https://github.com/leanprover/elan', 'elan')}, which installs the Lean toolchain "
-             f"that <code>lean-toolchain</code> pins (<code>{esc(v['lean'])}</code>) on first use;</li>"
-             f"<li>Yosys {esc(v['yosys'])} with its <code>yosys-abc</code> (every pinned tool and file: "
-             f"{page.link(rel_link(here, REPRODUCE_PAGE), 'Reproduce a score')});</li>"
+             f"<li>{page.link('https://github.com/leanprover/elan', 'elan')}, which installs the pinned Lean toolchain "
+             f"(<code>{esc(v['lean'])}</code>) on first use;</li>"
+             f"<li>Yosys {esc(v['yosys'])} with its <code>yosys-abc</code>: the board is rated with one build of it "
+             f"({rating}); another build may differ slightly;</li>"
              # check/postsynth.py tool(): "the postsynth stage needs Verilator 5, a C++ compiler, make and Yosys"
-             "<li>Verilator 5, a C++ compiler and <code>make</code>, for the post-synthesis check (it compiles "
-             "Verilator's model of the netlist);</li>"
-             "<li>Python 3.12 with <code>python3.12 -m pip install -r requirements.txt</code> "
-             f"(<code>{esc(v['pyslang'])}</code>, the extractor's SystemVerilog frontend).</li></ul>")
+             "<li>Verilator 5, a C++ compiler and <code>make</code>, for the post-synthesis check;</li>"
+             f"<li>Python 3.12 (the block below installs <code>{esc(v['pyslang'])}</code>, the SystemVerilog "
+             "frontend).</li></ul>")
     cmds = (clone_commands(site.config.get("repo_url"))
             + "python3.12 -m pip install -r requirements.txt\n"
             "# the trusted Lean and the checker's evaluator\n"
@@ -2558,7 +2913,7 @@ def step0_html(site, here, id_=None):
     anchor = f' id="{esc(id_)}"' if id_ else ""
     return (f"<p{anchor}><strong>Step 0, once per machine.</strong> Install:</p>{tools}"
             + page.code_block(cmds, "bash", name="step 0", term=True)
-            + f"<p class=\"small muted\"><code>lake build</code> takes {esc(LAKE_BUILD_COST)}.</p>")
+            + f"<p class=\"small muted\"><code>lake build</code> takes {esc(LAKE_BUILD_SHORT)}.</p>")
 
 
 def design_module(t):
@@ -2682,12 +3037,13 @@ def proving_anchor(number):
     return md.Slugger().slug(m.group(1))
 
 
-def lean_contract_html(t, here, skeleton=None):
+def lean_contract_html(t, here, skeleton=None, library=None):
     """What the Lean file must be: the generated module it imports, a skeleton, what is free. A latency kind's
     goal takes the solution's latency `lat`, pinned at the scoring point by its header line (check.py's
-    goal_text). `skeleton`: (href, words) when the page's "Start a new design" card shows a Solution.lean (the
+    goal_text). `skeleton`: (href, words) when How to submit's last part, "Proving a new design", shows a Solution.lean (the
     README's skeleton, or the whole file): the contract then points to it rather than show a second skeleton, and
-    leaves the proving guide's section to the card's route, which names it (2026-11-09: one statement of each)."""
+    leaves the proving guide's section to that part's route, which names it (2026-11-09: one statement of each).
+    `library`: config.json's, named under the generated module, whose `LeanModels.*` import is its (2026-11-11)."""
     stmt = t.task["statement"]
     first = rel_link(here, "proving.html") + "#0-the-loop"
     if t.kind in LATENCY_KINDS:
@@ -2722,10 +3078,14 @@ def lean_contract_html(t, here, skeleton=None):
             f"the trusted module <code>Submission.Design</code>; {goal}:</p>"
             + page.code_block(design_module(t), "lean", name="Submission.Design (generated: you never write it)"))
     free = "File names and paths are free (here <code>solution.sv</code> and <code>Solution.lean</code>); "
+    # the library its `LeanModels.*` import comes from, named where the imports are shown (decided 2026-11-11)
+    if library:
+        head += (f"<p>The <code>LeanModels.*</code> modules are {page.link(library['url'], esc(library['name']))}'s, "
+                 "the library of ls-sv and its tactics.</p>")
     if skeleton:
         href, words = skeleton
         return (head + f"<p>Your <code>Solution.lean</code> imports it and proves {proves}, as "
-                f"{page.link(href, words)} shows. " + free
+                f"{page.link(href, words)}, below, shows. " + free
                 + fixed.replace("@Q", f" (in <code>namespace Submission</code>, {qualified})").rstrip() + "</p>")
     return (head + f"<p>Your <code>Solution.lean</code> imports it and proves {proves}:</p>"
             + page.code_block(solution_skeleton(t), "lean", name="Solution.lean (a skeleton)")
@@ -2778,9 +3138,9 @@ def submit_commands(t, card=None):
     real = ("# the real check: prints \"accepted\": true; its\n"
             "#    post-synthesis check is LIGHT by default (a subset of\n"
             "#    the vectors, for local feedback), so stderr also says\n"
-            "#    \"accepted, but the check was INCOMPLETE ... rerun with\n"
-            "#    --postsynth full\": expected, since step 3 runs the\n"
-            "#    full one itself\n"
+            "#    \"accepted, but the check was INCOMPLETE ...\n"
+            "#    leaderboard.py add runs the full check itself\":\n"
+            "#    expected, step 3 is that command\n"
             f"python3.12 check.py tasks/{name} solution.sv Solution.lean\n")
     record = ("# record it: the whole check again, full and sandboxed\n"
               f"python3.12 leaderboard/leaderboard.py add --task {name} \\\n"
@@ -2843,8 +3203,8 @@ def ppa_loop_html(t):
             "or the task's function, and needs no proof: run step 1 before you prove.</p>")
 
 
-# the same facts under the "Start a new design" card's text on its two commands (which How to submit shows first; that
-# text says what the first one prints, and step 1's comment what the second ends with)
+# the same facts under the "Proving a new design" card's text on its two commands (which How to submit shows first;
+# that text says what the first one prints, and step 1's comment what the second ends with)
 NEW_DESIGN_PPA = ("<code>score/ppa.py</code> is the inner loop of golfing; its ranked numbers are "
                   "<code>area_um2_sky130</code> and <code>delay_ps_sky130</code> in what it prints. It runs only the "
                   "source gate and the pinned flow: it does not check the banlist, the 4-state rules, whether ls-sv can "
@@ -2874,32 +3234,36 @@ def commands_once(t, body_html, cmds):
                                  "command is on a task page once, in How to submit")
 
 
-def submit_html(site, t, repo_url, card=None, skeleton=None, checks=""):
-    """How to submit, the path of a first submission (2026-11-11, from the second newcomer study): the two files;
-    Step 0; the copy of par's pair to start from; the four commands; what "done" is; what the first two do; the Lean
-    file; where the record goes. Without a public repository (`repo_url` null) only the local flow is shown; with
-    one, the clone and the pull request. `card`: the task's "Start a new design" card (NewDesignCard), whose two
+def submit_html(site, t, repo_url, card=None, skeleton=None, checks="", fresh=""):
+    """How to submit, the path of a first submission (2026-11-11): the two files;
+    Step 0 (on the tutorial a pointer to the walk-through's); the copy of par's pair to start from; the four
+    commands; what "done" is; where the record goes and the handle; then, folded, what the first two commands do,
+    the Lean file and the sandbox (2026-11-11: what is needed to act stays visible, the explanations fold); last,
+    on a task with a card, "Proving a new design" (decided 2026-11-11: the card's content is How to submit's last
+    part, no card of its own). Without a public repository (`repo_url` null) only the local flow is shown; with
+    one, the clone and the pull request. `card`: the task's "Proving a new design" card (NewDesignCard), whose two
     commands are the first two here and whose text on them (`checks`, new_design_parts) follows them; `skeleton`:
-    (href, words) of the card's Solution.lean, which the Lean file then points to rather than show a second one."""
+    (href, words) of the card's Solution.lean, which the Lean file then points to rather than show a second one;
+    `fresh`: the card's own part as the page shows it (new_design_parts), or "" for none."""
     here = t.page
     data_dir = f"leaderboard/data/{t.name}/"
     lat = t.kind in LATENCY_KINDS
     cmds = submit_commands(t, card)
-    if repo_url:
+    if submissions_open(site.config):
+        # the record route (HANDOFF_MD), then this task's submit command
         intro = ""
-        hand_in = (f"Then open a pull request against {page.link(repo_url, esc(repo_url))} that adds them; CI "
-                   "re-verifies it. There is no submission server: nothing is sent anywhere by these commands.")
+        where = f"<code>{esc(data_dir)}</code>, the directory a pull request adds."
+        # the command that hands a record in is a block with a Copy button, as steps 0 to 3 are (decided 2026-11-12)
+        submit_cmd = f"python3.12 leaderboard/leaderboard.py submit --task {t.name} --record HASH"
+        hand = (f"<p><strong>Hand it in</strong>: {md_inline(HANDOFF_MD)} With <code>HASH</code> as step 3 prints it "
+                "(<code>--dry-run</code> first shows the steps and the pull request's text, and changes nothing):</p>"
+                + page.code_block(f"{submit_cmd} --dry-run\n{submit_cmd}\n", "bash", name="shell", term=True)
+                + "<p>For a private trial, add <code>--data-dir DIR</code> to step 3: the record then goes to "
+                "<code>DIR</code> and the board stays as it is.</p>")
     else:
-        intro = ("<p><strong>Public submissions open when the svGolf repository is published.</strong> Until "
-                 "then, this is the flow on a machine that has the repository: check a solution, then record "
-                 "it locally.</p>")
-        hand_in = "Nothing is sent anywhere: there is no submission server."
-    if repo_url:
-        where = (f"<code>{esc(data_dir)}</code>, the directory a pull request adds. {hand_in} For a private "
-                 "trial, add <code>--data-dir DIR</code>: the record then goes to <code>DIR</code> and the "
-                 "board stays as it is.")
-    else:
-        where = f"<code>{esc(data_dir)}</code>, the board of the machine it runs on. {hand_in}"
+        intro = f"<p>{md_inline(handoff_md(site.config))}</p>"
+        where = f"<code>{esc(data_dir)}</code> on your machine; nothing is sent anywhere."
+        hand = ""
     # the two files (interface_html, lean_contract_html), before Step 0; after it, par's pair as the start (the
     # tutorial's walk-through, above, copies its own pair)
     files = ("<p><strong>You hand in two files</strong>: <code>solution.sv</code>, a module with the exact header "
@@ -2908,33 +3272,41 @@ def submit_html(site, t, repo_url, card=None, skeleton=None, checks=""):
              + "." + (f" {page.link('#first-submission', 'Your first submission')}, above, copies a reference pair "
                       "and runs each command below with what it prints." if t.listing == "tutorial" else "") + "</p>")
     copy = reference_copy(t) if t.listing != "tutorial" else ""
+    # par's design adapted from licensed code (licence_ids, as the Files card says): the copy keeps its notice
+    lic = licence_ids(read_text(t.par["sv"])) if copy else []
+    keep = (f". Its header carries a licence notice ({', '.join(code(i) for i in lic)}): keep it in your copy. Copy it"
+            if lic else ": copy it")
     start = (f"<p><strong>Start from the reference pair</strong> under {page.link('#files', 'Files')}, "
-             f"{code(t.par['stem'])}, a complete and accepted one: copy it, from the same directory:</p>"
+             f"{code(t.par['stem'])}, a complete and accepted one{keep}, from the same directory:</p>"
              + page.code_block(copy, "bash", name="shell", term=True)) if copy else ""
-    proof = f"write its proof ({page.link('#new-design', NEW_DESIGN)}, below, gives the route)" if card else \
+    proof = f"write its proof ({page.link('#new-design', NEW_DESIGN)}, below)" if card else \
         f"write its proof (the {page.link(rel_link(here, 'proving.html'), 'proving guide')} shows how)"
     then = (f"<p><strong>Then, for each design</strong>, from the same directory: find it without Lean and check it once "
-            f"without a proof{', at the latency you mean to claim' if lat else ''} (the golfing loop and step 1), "
-            f"{proof}, then check the pair and record it (steps 2 and 3):</p>")
+            f"without a proof (the golfing loop and step 1), {proof}, then check the pair and record it (steps 2 and "
+            "3):</p>")
     # leaderboard.py cmd_add: "added <task>/<hash12>: <player>, <score>, ..." once the record is written, else
-    # "REFUSED: the submission was not added:" with the reasons
+    # "REFUSED: the submission was not added:" with the reasons; where to read a refusal: the checker's stages, the
+    # refusal register, the task's rejected designs
+    stages = page.link(rel_link(here, "rules.html") + "#checker-stages", "the checker's stages")
     done = (f"<p><strong>Done</strong>: step 3 prints <code>added {esc(t.name)}/HASH: YOUR_HANDLE, …</code> once the "
-            "pair has passed the whole check, full and sandboxed, and its record is written (what it writes, and where: "
-            "below); otherwise it prints <code>REFUSED</code> with the reasons and records nothing. Step 2's "
+            "pair has passed the whole check, full and sandboxed, and its record is written; otherwise it prints "
+            f"<code>REFUSED</code> with the reasons and records nothing (what each stage refuses: {stages}; what to "
+            f"write instead: {page.link(rel_link(here, 'refusals.html'), 'Refusals')}; examples: "
+            f"{page.link('#does-not-count', 'What does not count')}). Step 2's "
             "<code>\"accepted\": true</code>, with its INCOMPLETE line, is feedback for you, not a record.</p>")
     # the card's text on its two commands, under a lead-in that names them as How to submit's first two
     lead_in = "<strong>The golfing loop and step 1</strong>, the first two commands above. "
     checks = f"<p>{lead_in}{checks[3:]}" if checks.startswith("<p>") else (f"<p>{lead_in}</p>{checks}" if checks else "")
     loop = (checks + f"<p>{NEW_DESIGN_PPA}</p>") if card else ppa_loop_html(t)
-    after = ("<p>Step 3 writes your record's three files (<code>.json</code>, <code>.sv</code> and "
-             f"<code>.lean</code>, named by the record's hash) to {where} Repeat <code>--assisted-by</code> for "
-             "each tool or AI system that helped, or leave it out.</p>"
-             # leaderboard.py: PLAYER_RE, MAX_NOTES; the record page's "player" and "notes" rows, the board's player
-             f"<p><code>YOUR_HANDLE</code> is your public name: the board and the record's page show it. It is 1 to "
-             f"{handle_max()} characters, letters, digits, <code>.</code>, <code>_</code> or <code>-</code>, the first "
-             f"a letter or a digit (<code>{esc(lb.PLAYER_RE.pattern)}</code>). <code>--notes</code> is optional: one "
-             "line on the design "
-             f"(at most {lb.MAX_NOTES} characters), shown on the record's page."
+    after = ("<p>Step 3 writes the record's three files (<code>.json</code>, <code>.sv</code>, <code>.lean</code>, "
+             f"named by its hash) to {where} Repeat <code>--assisted-by</code> for each tool or AI system that "
+             "helped, or leave it out.</p>"
+             # leaderboard.py: PLAYER_RE (handle_max fails the build on another shape of it), MAX_NOTES; the record
+             # page's "player" and "notes" rows, the board's player
+             f"<p><code>YOUR_HANDLE</code> is your public name on the board and the record's page. It is 1 to "
+             f"{handle_max()} characters: the letters a to z and A to Z, the digits, <code>.</code> <code>_</code> or "
+             "<code>-</code>, the first a letter or a digit. <code>--notes</code> is one optional line (at most "
+             f"{lb.MAX_NOTES} characters) shown on the record's page."
              # leaderboard.py add_submission: --from-check only outside leaderboard/data; README "Official records"
              + (" In a private trial (<code>--data-dir DIR</code>), <code>add --from-check RESULT.json</code> records "
                 "the JSON that a <code>check.py … --postsynth full --ppa require</code> run printed instead of "
@@ -2951,28 +3323,29 @@ def submit_html(site, t, repo_url, card=None, skeleton=None, checks=""):
                "(Step 0). On a shared machine whose Lean calls go through a wrapper, set "
                "<code>SVGOLF_LEAN_WRAP</code>; <code>check.py</code> and <code>leaderboard.py</code> both read "
                "it, and <code>SVGOLF_LEAN_WRAP_ONCE=1</code> takes the wrapper once for a whole run.</p>")
-    return (intro + files + step0_html(site, here, id_="step-0") + start + then
-            + page.code_block(cmds, "bash", name="shell", term=True) + done + loop
-            + lean_contract_html(t, here, skeleton=skeleton) + after
-            + page.details("the sandbox, and machines without one", sandbox))
+    # the tutorial's walk-through, above, has Step 0 (its id), word for word the same: here a pointer to it
+    step0 = (f'<p><strong>Step 0, once per machine</strong>: in {page.link("#step-0", "Your first submission")}, '
+             "above.</p>" if t.listing == "tutorial" else step0_html(site, here, id_="step-0"))
+    lean_parts = ("the module, the import, <code>def lat</code>, the theorem, the latency line; the latency is "
+                  "declared here, never in the <code>.sv</code>" if lat else "the module, the import, the theorem")
+    # the ASAP7 course only (2026-11-11): its par is an ASAP7 number, and the commands print sky130's
+    a7_cmds = ('<p class="pdk-asap7 pdk-note small">The commands print sky130 numbers, the ranked ones; add '
+               "<code>--pdk asap7</code> to <code>score/ppa.py</code> for this design's ASAP7 numbers.</p>")
+    # the last part, on a task with a card: the route of a design of your own (decided 2026-11-11)
+    new = (f'<section id="new-design" class="nd-part"><h3>{esc(NEW_DESIGN)} <a class="anchor" href="#new-design" '
+           f'aria-label="link to this section">#</a></h3>{fresh}</section>') if fresh else ""
+    return (intro + files + step0 + start + then + a7_cmds
+            + page.code_block(cmds, "bash", name="shell", term=True) + done + after + hand
+            + page.details("What the golfing loop and step 1 check, and what only step 1 catches", loop)
+            + page.details(f"The Lean file: what <code>Solution.lean</code> must contain ({lean_parts})",
+                           lean_contract_html(t, here, skeleton=skeleton, library=site.config["library"]))
+            + page.details("the sandbox, and machines without one", sandbox)
+            + new)
 
 
 def preview_html(t):
     """A preview's status line: why its submissions are not ranked yet (content/tasks/<t>.json)."""
     return f'<p class="preview-note"><strong>Preview.</strong> {md_inline(t.preview_note)}</p>'
-
-
-def score_tips_html(site, t, here):
-    """"What moves the score": content/tasks/<t>.json's `score_tips`, observations (Markdown inline, with
-    placeholders), or "" when the task has none."""
-    src = f"{CONTENT}/tasks/{t.name}.json"
-    tips = (site.content(f"tasks/{t.name}.json") or {}).get("score_tips") or []
-    if not tips:
-        return ""
-    items = "".join(f"<li>{md_inline(fill_placeholders(site, t, x, src), site.resolver(src, here))}</li>"
-                    for x in tips)
-    return ("<p>What players have seen move the ranked sky130 numbers: observations, not promises (the pinned flow "
-            f"is the judge, and <code>score/ppa.py</code> measures a variant in seconds).</p><ul>{items}</ul>")
 
 
 PROBE_FILE = """\
@@ -3071,11 +3444,14 @@ def tutorial_html(site, t, here):
     headline = check_headline(t, p)
     n = t.name
 
-    def step(title, intro_html, cmd, out=None, out_name="what it prints"):
-        body = f"<h3>{title}</h3>{intro_html}" + page.code_block(cmd, "bash", name="shell", term=True)
+    def step(title, intro_html, cmd, out=None, out_name="what it prints", fold=None):
+        """One numbered step; `fold`: the step is optional, and shows only this summary until opened."""
+        body = intro_html + page.code_block(cmd, "bash", name="shell", term=True)
         if out:
             body += page.code_block(out, None, name=out_name)
-        return f"<li>{body}</li>"
+        if fold:
+            return f"<li>{page.details(fold, body, cls='walk-fold')}</li>"
+        return f"<li><h3>{title}</h3>{body}</li>"
     out = TUTORIAL_OUT
     steps_html = "".join([
         step("Copy the reference pair",
@@ -3097,12 +3473,12 @@ def tutorial_html(site, t, here):
              "the " + page.link(rel_link(here, "proving.html") + "#0-the-loop", "proving guide, section 0") +
              ", has a longer probe and its whole output for the adder.</p>",
              "cat > Probe.lean <<'EOF'\n" + out["probe_file"] + "EOF\nLEAN_PATH=stage/build lake env lean Probe.lean\n",
-             out["probe"]),
+             out["probe"], fold="Probe the design (optional: how the tactics read it)"),     # folded, 2026-11-11
         step("Check it with the proof",
              "<p>Your proof, the comparator, the kernel replay, the score and the post-synthesis check: about "
              "a minute. The post-synthesis check runs LIGHT by default (a subset of the vectors, for local "
-             "feedback), so stderr also says <code>accepted, but the check was INCOMPLETE</code> … <code>rerun "
-             "with --postsynth full</code>: expected, since the next step runs it in full itself.</p>",
+             "feedback), so stderr also says <code>accepted, but the check was INCOMPLETE</code> … <code>leaderboard.py "
+             "add runs the full check itself</code>: expected, the next step is that command.</p>",
              f"python3.12 check.py tasks/{n} solution.sv Solution.lean\n",
              fill_out(out["full"], HEADLINE=headline, AREA=area, PS=ps), "what it prints (excerpt)"),
         step("Record it",
@@ -3115,7 +3491,8 @@ def tutorial_html(site, t, here):
                       VECTORS=(rec.get("postsynth") or {}).get("vectors"), PPAV=(rec.get("ppa") or {}).get("ppa_version"),
                       DRIVE=t.drive, AXT=(f"{m['adp']:.2f}" if m.get("adp") is not None else "–"))),
     ])
-    return (step0_html(site, here)
+    # Step 0 carries the page's `step-0`: How to submit, below, points here rather than repeat it
+    return (step0_html(site, here, id_="step-0")
             + f'<ol class="steps walk">{steps_html}</ol>'
             + "<p><strong>Then golf.</strong> Change <code>solution.sv</code>, score each variant with "
             "<code>score/ppa.py</code>, run the check without a proof before you prove, and prove it: "
@@ -3123,15 +3500,15 @@ def tutorial_html(site, t, here):
             + page.link(rel_link(here, "tasks/add/index.html"), "the adder") + " is the first real task.</p>")
 
 
-# "Start a new design": the from-scratch card of a task (decided 2026-11-05), the section of that name at the top of
-# the task's README.md. The card is chosen by the task's kind, and the build checks that it names that kind's route.
-# On the task page it comes after the two columns (decided 2026-11-10: the page opens with the score card, then the
-# two columns from "This task"), and "How to participate" and "How to submit" link it. The page shows each part of it
-# once (new_design_parts): the README's opening restates the task for a reader of the README alone, so the page
+# "Proving a new design": the from-scratch card of a task (decided 2026-11-05), the section of that name at the top
+# of the task's README.md (one name on the page and in the README, decided 2026-11-11). The card is chosen by the
+# task's kind, and the build checks that it names that kind's route. On the task page it is How to submit's last
+# part (decided 2026-11-11; before, a card of its own after the two columns), which How to submit's steps link. The
+# page shows each part of it once (new_design_parts): the README's opening restates the task for a reader of the README alone, so the page
 # shows none of it (the task section states it); the two commands are the first two of How to submit, with what
 # they do under them (2026-11-11: How to submit is the path of a first submission, every command in it); the card
-# shows the route with its steps, and the rest of the README's card, verbatim, folded.
-NEW_DESIGN = "Start a new design"
+# shows the route paragraph, and the rest of the README's card, its step list first, verbatim, folded.
+NEW_DESIGN = "Proving a new design"
 NEW_DESIGN_OPTION = re.compile(r"(?<![\w-])--[a-z][a-z-]*")
 NEW_DESIGN_FOLD = "proof-in-detail"                  # the id of the card's folded part (How to submit links it)
 NEW_DESIGN_ROUTE = {"comb-family": ("sv_structure", "sv_interface", "sv_equations", "Library lemmas"),
@@ -3151,10 +3528,11 @@ def reviewed_hash(text):
 
 
 class NewDesignCard:
-    """The README's "Start a new design" section, cut into the parts the page shows differently: `lines` (the
+    """The README's "Proving a new design" section, cut into the parts the page shows differently: `lines` (the
     section's lines), `blocks` (md.split_blocks), `fence` (the commands), `route` (the route paragraph), `shown` (the
-    first block of the folded rest: the route is followed by its code block, a whole Solution.lean, and by its step
-    list, both shown), `first_line` (the README line of `lines[0]`)."""
+    first block of the folded rest: a code block that follows the route, a whole Solution.lean, is shown with it),
+    `steps` (the route's step list, the block at `shown` when it is a list, else None: since 2026-11-11 the first
+    part of the fold), `first_line` (the README line of `lines[0]`)."""
 
     def __init__(self, readme, lines, first_line):
         self.readme, self.lines, self.first_line = readme, lines, first_line
@@ -3169,10 +3547,10 @@ class NewDesignCard:
                              "paragraph starting `**The route`, after the commands); "
                              + ("no code block" if self.fence is None else "no route paragraph"))
         k = self.route + 1
-        for kind in ("fence", "list"):
-            if k < len(bl) and bl[k][2] == kind:
-                k += 1
+        if k < len(bl) and bl[k][2] == "fence":
+            k += 1
         self.shown = k
+        self.steps = k if k < len(bl) and bl[k][2] == "list" else None
 
     def src(self, a, b):
         """The README's lines of blocks a..b-1."""
@@ -3228,18 +3606,19 @@ def new_design_card(site, t):
 
 
 def new_design_skeleton(card):
-    """How to submit's pointer to the card's Solution.lean, (href, words), or None when the card has none."""
+    """How to submit's pointer to the card's Solution.lean, (href, words), or None when the card has none: the card is
+    How to submit's last part, below the Lean file's fold that points there ("... in Proving a new design, below")."""
     where = card.skeleton() if card else None
     if where == "shown":
         return ("#new-design", f"the whole <code>Solution.lean</code> in {esc(NEW_DESIGN)}")
     if where == "folded":
-        return (f"#{NEW_DESIGN_FOLD}", f"the skeleton in {esc(NEW_DESIGN)} (The proof in detail)")
+        return (f"#{NEW_DESIGN_FOLD}", "the skeleton in The proof in detail")
     return None
 
 
 def new_design_parts(site, t, here, slugger, card=None):
-    """The README's "Start a new design" section as the page shows it: (checks, card), the HTML How to submit shows
-    under its first two commands (what they do) and the card's own; ("", "") for a task with no card (`card`: the
+    """The README's "Proving a new design" section as the page shows it: (checks, card), the HTML How to submit
+    shows under its first two commands (what they do) and the card's own, How to submit's last part; ("", "") for a task with no card (`card`: the
     task's NewDesignCard, else read here).
 
     The card's parts, in its order, and where the page shows each (the README itself is not changed):
@@ -3253,10 +3632,12 @@ def new_design_parts(site, t, here, slugger, card=None):
        where the README's text restates the task's facts (it must name every option the README's names): `checks`,
        shown under How to submit's commands;
     4. the route, the first block that starts `**The route`: verbatim (where to start, the reduction, the
-       reference proof), with the code block (a whole Solution.lean) and the step list that follow it; and the
-       size of every reference proof it names whose size it does not give (from the References table's count);
-    5. the rest (the layout, the skeleton, the library lemmas): verbatim, in one disclosure, "The proof in
-       detail" (id NEW_DESIGN_FOLD), its summary the bold lead-ins it holds.
+       reference proof), with the code block (a whole Solution.lean) that follows it;
+    5. the rest (the route's step list, the layout, the skeleton, the library lemmas): verbatim, in one disclosure,
+       "The proof in detail" (id NEW_DESIGN_FOLD), right after the route (2026-11-11: the step list too; the
+       paragraph's closing colon is followed by the fold's summary), its summary "The route step by step" when it
+       holds the step list, then the bold lead-ins it holds; then, shown, the size of every reference proof the
+       route names whose size it does not give (from the References table's count).
     The page shows its own text in place of parts 1 and 3, so content/tasks/<t>.json `new_design_reviewed` pins
     what it last checked them against (`opening`, and `checks` with `new_design_checks`; reviewed_hash): a README
     edit there is a warning (fatal under --strict) that prints the new text, until the page says what it adds."""
@@ -3302,8 +3683,17 @@ def new_design_parts(site, t, here, slugger, card=None):
                              "explains for its commands")
         pin("checks", said, "its text on what the two commands do")
         checks = site.render_md(checks_md, source=info_src, here=here, slugger=slugger).html
-    # 4. the route: its paragraph, the whole proof when it follows as code, its steps; the size of each proof it names
+    # 4. the route: its paragraph, and the whole proof when it follows as code
     parts.append(render(route, card.shown))
+    # 5. the rest, folded, its step list first
+    bl = card.blocks
+    if card.shown < len(bl):
+        heads = (["The route step by step"] if card.steps is not None else []) + [
+            md.render_inline(m.group(1), source=readme, line=card.first_line + b[0])
+            for b in bl[card.shown:] if b[2] == "text" for m in [re.match(r"\*\*(.+?)\*\*", card.lines[b[0]])] if m]
+        summary = ('The proof in detail<span class="nd-more">' + " · ".join(heads) + "</span>")
+        parts.append(page.details(summary, render(card.shown, len(bl)), cls="nd-detail", id_=NEW_DESIGN_FOLD))
+    # the size of each proof the route names, shown after the fold
     said = card.src(route, route + 1)
     sizes = []                                       # (path, code lines) of the proofs it names without a size
     for stem in dict.fromkeys(re.findall(r"reference/([\w-]+)\.lean", said)):
@@ -3313,40 +3703,13 @@ def new_design_parts(site, t, here, slugger, card=None):
     if sizes and card.blocks[route + 1][2] != "fence":          # not when the whole proof is shown under it
         parts.append(f"<p>{' and '.join(p for p, _ in sizes)}, named above, "
                      f"{'is' if len(sizes) == 1 else 'are'} {' and '.join(str(n) for _, n in sizes)} code lines long.</p>")
-    # 5. the rest, folded
-    bl = card.blocks
-    if card.shown < len(bl):
-        heads = [md.render_inline(m.group(1), source=readme, line=card.first_line + b[0])
-                 for b in bl[card.shown:] if b[2] == "text" for m in [re.match(r"\*\*(.+?)\*\*", card.lines[b[0]])] if m]
-        summary = ('The proof in detail<span class="nd-more">' + " · ".join(heads) + "</span>")
-        parts.append(page.details(summary, render(card.shown, len(bl)), cls="nd-detail", id_=NEW_DESIGN_FOLD))
     return checks, "\n".join(p for p in parts if p)
 
 
 def new_design_html(site, t, here, slugger, card=None):
-    """The "Start a new design" card's body as the page shows it, or "" for a task with no card: the second part of
-    `new_design_parts`."""
+    """The "Proving a new design" card's body as the page shows it (How to submit's last part), or "" for a task with
+    no card: the second part of `new_design_parts`."""
     return new_design_parts(site, t, here, slugger, card)[1]
-
-
-def participate_html(t, here, *, new_design=False):
-    """How to participate, in four steps (zk.golf's list): the details are the sections they link (with
-    `new_design`, the page has a "Start a new design" card, which step 2 names). Step 4 names the score and links
-    the Score card, whose caption is its one definition on the page (2026-11-09)."""
-    start = (f"{page.link('#new-design', NEW_DESIGN)}, below, gives the route, and " if new_design else "")
-    last = (f"Beat par: an accepted design whose {page.link('#score', '<strong>score</strong>')} (area × time) is below "
-            f"that of the best proved reference. The {page.link('#leaderboard', 'leaderboard')} ranks by it.")
-    if t.preview:
-        last = ("Golf the score. This task is a preview: submissions are not ranked yet ("
-                + page.link("#leaderboard", "why") + ").")
-    return page.steps([
-        f"Write a circuit with the task's exact {page.link('#interface', '<strong>interface</strong>')}.",
-        f"Prove in Lean 4 that it meets the {page.link('#spec', '<strong>trusted statement</strong>')}; "
-        f"{start}the {page.link(rel_link(here, 'proving.html'), 'proving guide')} shows how.",
-        f"Check and record it ({page.link('#submit', 'how to submit')}): the checker accepts the pair or says "
-        f"which stage refused it, as it does for each design under {page.link('#does-not-count', 'what does not count')}.",
-        last,
-    ])
 
 
 def reference_copy(t):
@@ -3361,22 +3724,21 @@ def reference_copy(t):
 def task_page(site, t):
     here = t.page
     task = t.task
-    reserved = ("numbers", "score", "statement", "interface", "spec", "closure", "participate", "leaderboard",
+    reserved = ("numbers", "score", "statement", "interface", "spec", "closure", SPEC_FOLD, "leaderboard",
                 "over-time", "facts", "files", "explore", "scaling", "references", "baselines", "does-not-count",
-                "submit", "what-moves-the-score", "first-submission", "props-properties",
+                "submit", "first-submission", "props-properties",
                 "props-definitions", "new-design", NEW_DESIGN_FOLD,
                 "step-0") + tuple(f"reject-{g}" for g, _, _ in REJECT_GROUPS)
     slugger = md.Slugger(reserved)
-    tags = [status_badge(task, t.listing)]
-    if t.listing == "tutorial":
-        tags.append(page.badge("tutorial", "tutorial"))
+    tutorial = t.listing == "tutorial"
+    # (2026-11-12) the tutorial's title says "Tutorial" (`page_title`), so no badge says it a second time
+    tags = [status_badge(task, t.listing, submissions_open(site.config))]
     tags.append(page.badge(KIND_SHORT.get(t.kind, t.kind), "plain"))
     tags.append(page.badge(f"scored at {point_text(t.point)}", "plain"))
 
-    def h(i, title, *, own_id=False):
-        """A section head of the task card; the anchor names the section (or the head itself)."""
-        hid = f' id="{i}"' if own_id else ""
-        return (f'<h3{hid}>{esc(title)} <a class="anchor" href="#{i}" '
+    def h(i, title):
+        """A section head of the task card; the anchor names the section."""
+        return (f'<h3>{esc(title)} <a class="anchor" href="#{i}" '
                 f'aria-label="link to this section">#</a></h3>')
 
     def sec(i, content_html):
@@ -3393,14 +3755,16 @@ def task_page(site, t):
         return "".join(page.button(rel_link(here, base + ext), f"{t.par['stem']}{ext}", "quiet sm", download=True)
                        for ext in (".sv", ".lean"))
     files.append(both(t, par_files, inline=True))
+    # the tutorial (TUTORIAL_MARK): "Tutorial: <title>" with no task-id chip and no number, "tutorial" in the crumbs
     head = page.page_head(
         crumbs_html=(f'<a href="{rel_link(here, "index.html")}"><span class="back" aria-hidden="true">‹</span>Tasks</a>'
-                     f" / {esc(t.name)}"),
-        number=t.number, title_html=f'{esc(t.title)} <span class="task-id">{code(t.name)}</span>',
+                     f" / {'tutorial' if tutorial else esc(t.name)}"),
+        number=None if tutorial else t.number,
+        title_html=esc(page_title(t)) if tutorial else f'{esc(t.title)} <span class="task-id">{code(t.name)}</span>',
         sub_html=esc(t.subtitle) if t.subtitle else None, tags_html=" ".join(tags),
         aside_html=f'<section id="numbers">{preview_html(t) if t.preview else both(t, lambda: big_numbers(t))}</section>')
-    # one line to the path of a first submission (How to submit, the second card of the left column); the tutorial's
-    # walk-through follows the score card directly
+    # one line to the path of a first submission (How to submit, across the page under the two columns); the
+    # tutorial's walk-through follows the score card directly
     first = "" if t.listing == "tutorial" else \
         f'<p class="small first-link">First submission: {page.link("#submit", "How to submit")}</p>'
     score = page.card(both(t, lambda: score_html(site, t, here)) + first, tag="section", id_="score",
@@ -3408,31 +3772,30 @@ def task_page(site, t):
     statement = sec("statement", statement_html(site, t, here, slugger))
     interface = sec("interface", h("interface", "Interface") + interface_html(site, t))
     spec = sec("spec", h("spec", "The trusted statement") + spec_html(site, t, here))
-    # the card is rendered after the statement, as before (the same heading ids), and shown after the two columns
+    # the card is rendered after the statement, as before (the same heading ids), and shown as How to submit's last part
     card = new_design_card(site, t)
     checks, fresh = new_design_parts(site, t, here, slugger, card)
+    # 2026-11-11: no "How to participate" (its four steps were How to submit's path a second time)
     task_card = page.card(
-        statement + interface + spec
-        + h("participate", "How to participate", own_id=True) + participate_html(t, here, new_design=bool(fresh)),
+        statement + interface + spec,
         tag="article", label_html="This task",
         actions_html=page.button(rel_link(here, "proving.html"), "Proving guide", arrow=True))
     submit = page.card(submit_html(site, t, site.config.get("repo_url"), card=card if fresh else None,
-                                   skeleton=new_design_skeleton(card) if fresh else None, checks=checks),
+                                   skeleton=new_design_skeleton(card) if fresh else None, checks=checks, fresh=fresh),
                        tag="section", id_="submit", label_html="How to submit")
-    tips = score_tips_html(site, t, here)
-    if tips:
-        submit += page.card(tips, tag="section", id_="what-moves-the-score", title_html="What moves the score")
     walk = ""
     if t.listing == "tutorial":
         walk = page.card(tutorial_html(site, t, here), tag="section", id_="first-submission",
                          title_html="Your first submission, step by step")
+    # the legend names a row's middle number on a task with a latency: its cycles (2026-11-11)
+    legend = "area × cycles × clock period" if t.kind in LATENCY_KINDS else "area × time"
     if t.preview:
         board = page.card(preview_html(t), tag="section", id_="leaderboard", title_html="Not ranked yet")
     else:
         board = page.card(both(t, lambda: leaderboard_html(site, t, here) + board_table_html(site, t, here)),
                           tag="section", id_="leaderboard", title_html="Leaderboard", flush=True,
                           actions_html=f'<span class="label">by score{pdk_text("", " · ASAP7")}</span>',
-                          foot_html=(f'<div class="legend-row"><span>score: area × time, {esc(combined.UNIT)}</span>'
+                          foot_html=(f'<div class="legend-row"><span>score: {legend}, {esc(combined.UNIT)}</span>'
                                      '<span class="lg-par">par</span></div>'))
     facts = page.card(facts_html(t), id_="facts", label_html="At a glance")
     # par's design adapted from licensed code (licence_ids: what its record page's sources card says): a copy keeps
@@ -3441,29 +3804,34 @@ def task_page(site, t):
     lic_html = (f'<p class="small muted">{code(t.par["stem"] + ".sv")} is adapted from licensed code '
                 f'({", ".join(code(i) for i in lic)}): a design derived from it keeps the copyright and licence '
                 "notices of its header.</p>" if lic else "")
+    # the cards that exist (2026-11-11: a task without baselines has no Baselines card)
+    files_note = (f'Every reference and baseline is under {page.link("#references", "Proved references")} and '
+                  f'{page.link("#baselines", "Baselines")}.' if t.baselines else
+                  f'Every reference is under {page.link("#references", "Proved references")}.')
     downloads = page.card('<div class="btn-row">' + "".join(files) + "</div>" + lic_html
-                          + f'<p class="small muted">Every reference and baseline is under '
-                            f'{page.link("#references", "proved references")} and '
-                            f'{page.link("#baselines", "baselines")}.</p>',
+                          + f'<p class="small muted">{files_note}</p>',
                           id_="files", label_html="Files")
     explore = page.card(both(t, lambda: explorer_html(site, t, here)) + scaling_html(t), tag="section", id_="explore",
                         title_html="Compare the designs",
                         actions_html=f'<span class="label">{pdk_text("", "ASAP7 · ")}any two numbers · lower is '
                                      'better</span>')
+    # a card with nothing in it is not shown (a task without baselines has no Baselines card, 2026-11-11)
     wide = [page.card(content, tag="section", id_=i, title_html=esc(title), title_id=None)
             for i, title, content in (
                 ("references", "Proved references", references_html(t, here)),
-                ("baselines", "Baselines", baselines_html(t, here)))]
-    # "Start a new design", under the two columns (decided 2026-11-10: nothing stands between the score card and the
-    # columns): the route of a design of your own, which no other part of the page gives
-    start = page.card(fresh, tag="section", id_="new-design", title_html=NEW_DESIGN) if fresh else ""
+                ("baselines", "Baselines", baselines_html(t, here))) if content]
+    # the card's content is How to submit's last part (decided 2026-11-11): no card of its own after the columns.
+    # How to submit spans the page's width under the two columns (decided 2026-11-12): in the left column its last
+    # part's code ran past the column's edge and the column ran long beside a blank half
     body = (head + score + walk
-            + f'<div class="split"><div class="col">{task_card}{submit}</div>'
+            + f'<div class="split"><div class="col">{task_card}</div>'
               f'<div class="col">{board}{facts}{downloads}</div></div>'
-            + start + explore + "".join(wide))
+            + submit + explore + "".join(wide))
     commands_once(t, body, submit_commands(t, card if fresh else None))
-    site.page(here, f"{t.title} ({t.name})", body, scripts=("charts.js",), scores=True,
-              description=f"svGolf task {t.name}: {t.title}." + (f" {t.subtitle}" if t.subtitle else ""))
+    # the tutorial's <title> and description name it as one, not by its slug
+    site.page(here, page_title(t) if tutorial else f"{t.title} ({t.name})", body, scripts=("charts.js",), scores=True,
+              description=(f"svGolf tutorial: {page_title(t).split(': ', 1)[1]}." if tutorial
+                           else f"svGolf task {t.name}: {t.title}.") + (f" {t.subtitle}" if t.subtitle else ""))
     # the files the page offers, byte-identical
     site.copy(f"tasks/{t.name}/Spec.lean", t.spec)
     if t.props:
@@ -3483,14 +3851,16 @@ def properties_source_page(site, t):
     data = read_bytes(tp.file)
     text = data.decode("utf-8")
     crumbs = (f'<a href="{rel_link(here, "index.html")}"><span class="back" aria-hidden="true">‹</span>Tasks</a>'
-              f' / <a href="{rel_link(here, t.page)}">{esc(t.name)}</a> / Properties.lean')
+              f' / <a href="{rel_link(here, t.page)}">{esc(task_word(t))}</a> / Properties.lean')
     rows = [[page.link(f"#{p.decl}", code(p.name)), code(p.short), str(p.line),
              page.link(rel_link(here, t.page) + f"#prop-{p.name}", "the card")] for p in tp.properties]
     th = tp.theorem
     rows.append([page.link(f"#{th.decl}", code(th.short)), "the theorem", str(th.line), ""])
     dl_ = page.button(rel_link(here, f"tasks/{t.name}/Properties.lean"), "Properties.lean", "quiet sm", download=True)
     body = (page.page_head(crumbs_html=crumbs, title_html=code("Properties.lean"),
-                           sub_html=f"The trusted statement of {code(t.name)} as named properties: proved, not trusted.",
+                           sub_html=f"The trusted statement of "
+                                    f"{task_ref_html(t)} as named "
+                                    "properties: proved, not trusted.",
                            aside_html=page.stats([page.Stat("Properties", str(sum(1 for p in tp.properties
                                                                                   if p.kind == "property"))),
                                                   page.Stat("Lines", str(line_count(text)))]))
@@ -3500,12 +3870,14 @@ def properties_source_page(site, t):
                 f"{page.link('#' + th.decl, code(th.short))} proves that the statement holds exactly when they all "
                 "do, and Lean's kernel checks it, so this file adds nothing to what is trusted.</p>"
                 + page.table(["property", "Lean name", "line", "on the task page"], rows, numeric=(2,))
-                + page.dl([("file", code(tp.file)), ("module", code(tp.module)), ("sha256", code(sha256(data)))])
-                + page.code_block(text, "lean", src=tp.file, name=tp.file, actions_html=dl_, cls="code source",
+                + page.dl([("file", code(shown_path(tp.file))), ("module", code(tp.module)),
+                           ("sha256", code(sha256(data)))])
+                + page.code_block(text, "lean", src=tp.file, name=shown_path(tp.file), actions_html=dl_,
+                                  cls="code source",
                                   body_html=leansrc.anchored_html(text, leansrc.declarations(text)))))
-    site.page(here, f"Properties.lean ({t.name})", body,
-              description=f"svGolf task {t.name}: the trusted statement as named properties, with the proof that "
-                          "they are exactly the statement")
+    site.page(here, f"Properties.lean ({task_word(t)})", body,
+              description=f"svGolf {'tutorial' if t.listing == 'tutorial' else 'task ' + t.name}: the trusted "
+                          "statement as named properties, with the proof that they are exactly the statement")
     site.copy(f"tasks/{t.name}/Properties.lean", tp.file)
 
 
@@ -3571,7 +3943,7 @@ def gates_html(score, ge_table):
 # detail pages (a record's, or a proved reference's without a record): the overview (Area,
 # Performance and Score cards, standing.py); the sources; two columns, the netlist card (the schematic,
 # the critical-path data of site/schematics/ (gen_schematics.py) and the cells, as tabs) beside the
-# record's or the reference's facts; the area-time plot, reproduce (the order: the owner, 2026-11-09)
+# record's or the reference's facts; the area-time plot, reproduce (the order decided 2026-11-09)
 # ---------------------------------------------------------------------------
 
 SCHEMATICS = "svgolf/site/schematics"
@@ -3757,13 +4129,13 @@ def meter(ax, segs):
 
 
 def beats_html(ax):
-    """An axis's beats/matches line over the field; none for an empty field (said once, under the cards)."""
+    """An axis's standing over the field: the meter and its count line ("1 of 1 other player beaten, 0 equal."); none
+    for an empty field (said once, under the cards). The line "Beats x% · matches y%" said the count again in shares
+    and went (2026-11-11)."""
     if ax["n"] == 0:
         return ""
     return (meter(ax, ("beaten", "matched", "behind"))
-            + f'<p class="beats"><strong>Beats {esc(ax["beats_text"])}</strong> <span class="muted">· matches '
-              f'{esc(ax["matches_text"])}</span></p><p class="fine">{ax["beaten"]} of {other_players(ax["n"])} '
-              f'beaten, {ax["matched"]} equal.</p>')
+            + f'<p class="fine">{ax["beaten"]} of {other_players(ax["n"])} beaten, {ax["matched"]} equal.</p>')
 
 
 def vs_par_row(s, st, axis, fmt_v, par):
@@ -3829,16 +4201,16 @@ def board_rows(s, st, designs):
     return [("board", where), ("Pareto", front)]          # the front of the designs on this page (the plot's, linked)
 
 
-def board_field_html(st):
-    """The board's standing against the field: beaten, level, trade off, ahead (none for an empty field), across
-    the card under its rows, as the beats/matches line is above them. The four words are defined once, in the note
-    under the cards (a definition in brackets after "0 beaten" read as a claim)."""
+def board_field_words(st):
+    """The board's standing against the field: beaten, level, trade off, ahead ("" for an empty field). Since
+    2026-11-11 the first paragraph of the overview's closed note, which defines the four words (on the Score card it
+    used "beaten" in another sense than the count line above it; a definition in brackets after "0 beaten" read as a
+    claim)."""
     b = st["board"]
     if b["n"] == 0:
         return ""
-    return ('<div class="mboard">' + meter(b, ("beaten", "level", "tradeoff", "ahead"))
-            + f'<p class="fine">On the board, of {other_players(b["n"])}: {b["beaten"]} beaten, {b["level"]} level, '
-              f'{b["tradeoff"]} trade off, {b["ahead"]} ahead.</p></div>')
+    return (f'On the board, of {other_players(b["n"])}: {b["beaten"]} beaten, {b["level"]} level, '
+            f'{b["tradeoff"]} trade off, {b["ahead"]} ahead.')
 
 
 def critical_words(p):
@@ -3921,10 +4293,9 @@ def dashboard_html(s, st, par, designs):
         f"{esc(exact)} µm² × {esc(thin(time))} ps",
         beats_html(st["axes"]["score"]),
         [vs_par_row(s, st, "score", lambda v: f"{combined.fmt(combined.um2ns(v, pdk))} {combined.UNIT}", par),
-         among_row(st, "score")] + board_rows(s, st, designs), cls="score-card",
-        after_html=board_field_html(st))
+         among_row(st, "score")] + board_rows(s, st, designs), cls="score-card")
     n_p, n_r = st["field_players"], st["field_records"]
-    empty = (f'<p class="fine">No other player has a ranked record on {code(t.name)} yet: the beats and matches '
+    empty = (f'<p class="fine">No other player has a ranked record on {task_ref_html(t)} yet: the beats and matches '
              "lines come with the first one.</p>" if not field else "")
     nref = sum(1 for x in designs if x["kind"] == "reference")
     nrec = sum(1 for x in designs if x["kind"] == "record")
@@ -3936,7 +4307,7 @@ def dashboard_html(s, st, par, designs):
              f"This design is the only one with {PDK_NAME[pdk]} numbers on this page, so the cards have no “on this page” or "
              "“Pareto” row.")
     counts = ("each player counts once, at their best, and ties are exact at the recorded unit; " if field else "")
-    field_note = (f"The field is the ranked records of {code(t.name)}'s other players at this "
+    field_note = (f"The field is the ranked records of {task_ref_html(t)}'s other players at this "
                   f"revision ({n_p} player{'' if n_p == 1 else 's'}, {n_r} record{'' if n_r == 1 else 's'}), never "
                   f"the references, the baselines or a rejected design; {counts}advisory, recomputed at every build, "
                   "never stored in a record and never used by the ranking.")
@@ -3950,15 +4321,15 @@ def dashboard_html(s, st, par, designs):
         "Area: ASAP7 A0′ (asap7_a0_v1), the same scored netlist, each gate its least-area ASAP7 build, repaired by "
         "buffering." + (f" Time: NLDM, inputs driven by {drive_words(p)}, 2.5 fF per output bit, no wires; a table "
                         "read below its grid is read at its floor." if not clocked else "")
-        + " " + asap7_words(s.here, short=True))
+        + " " + asap7_words(s.here))
     ranked = (("Area, time and score are ranked (the leaderboard orders by the score)" if pdk == "sky130" else
                "Area, time and score order this view's board (by the score); the records' ranked score is sky130's, "
                "the default view")
               + "; a number tagged extra, derived or research is shown, never ranked. Fmax-equivalent = 10⁶ / time "
               "in ps, for comparison with sites that quote Fmax.")
     more = page.details("how these numbers are measured and compared",
-                        "".join(f'<p class="fine">{x}</p>' for x in (measured, ranked, field_note, board_words, among)
-                                if x),
+                        "".join(f'<p class="fine">{x}</p>' for x in (board_field_words(st), measured, ranked,
+                                                                       field_note, board_words, among) if x),
                         cls="reveal")
     note = f'<div class="dash-note">{empty}{more}</div>'
     return f'<div class="dash">{area_card}{time_card}{score_card}</div>{note}'
@@ -3996,7 +4367,7 @@ def area_time_html(s, par):
     def chart(view, compact):
         return svgplot.area_time_chart(pts, subject=s.d["id"], view=view, x_label=f"{lib} area (µm²)",
                                        y_label="time (ps)", front=front, par=par_curve, compact=compact,
-                                       title=f"{t.name}: this design's {lib} area against time, among the task's designs")
+                                       title=f"{task_word(t)}: this design's {lib} area against time, among the task's designs")
     variants = "".join(f'<div class="chart-variant" data-view="{v}" data-size="{"compact" if c else "wide"}"'
                        f'{" hidden" if v == "all" else ""}>{chart(view, c)}</div>'
                        for v, view in views for c in (False, True))
@@ -4015,10 +4386,9 @@ def area_time_html(s, par):
                 f'{esc(combined.fmt(combined.um2ns(standing.score(par), pdk)))}\u00a0{nocase(esc(combined.UNIT))}</span>'
                 '</li>' if par else "")
              + "</ul>")
-    fitted = (f"Fitted to the cluster: {beyond} design{'' if beyond == 1 else 's'} beyond the view, counted at its "
-              "edge (◂ ▸ ▴ ▾); “All designs” shows them." if beyond else
-              "Every design is in view." if len(pts) < standing.MIN_FIT else
-              "Fitted to the cluster; every design is in view.")
+    # said only when the fit hides a design (2026-11-11; the legend names the Pareto front)
+    fitted = (f" Fitted to the cluster: {beyond} design{'' if beyond == 1 else 's'} beyond the view, counted at its "
+              "edge (◂ ▸ ▴ ▾); “All designs” shows them." if beyond else "")
     rows = []
     for d in sorted(designs, key=score_key):
         name = code(d["name"]) if d["kind"] != "record" else esc(d["name"])
@@ -4032,10 +4402,8 @@ def area_time_html(s, par):
     return (f'<div class="chart-slot" data-hook="area-time">{tools}'
             f'<figure class="chart-figure"><div class="chart-box" data-area-time>{variants}</div>{legend}{extra}'
             f"<figcaption>{lib} area (x) against {'the ranked' if pdk == 'sky130' else 'the ' + lib} time (y); lower "
-            "left is better on both. The step line is "
-            "the Pareto front of the entries (the proved references and the players' ranked records); a design under "
-            "par's score curve has a better score than par. Baselines are drawn for scale: scored, never proved. "
-            f"{fitted}</figcaption></figure></div>"
+            "left is better on both. A design under par's score curve has a better score than par. Baselines are "
+            f"drawn for scale: scored, never proved.{fitted}</figcaption></figure></div>"
             + page.details("the designs as numbers, by score", table))
 
 
@@ -4068,28 +4436,23 @@ def schematic_html(s):
         lead = (f"<strong>Drawn at {esc(at)}, a display instance; scored at {esc(scored_at)}.</strong> Only this "
                 "drawing and the notes under it are at the smaller size: the critical path, the cells and every other "
                 "number on this page are the scored netlist's.")
-        how = (f"It is the same design through the same pinned flow at a smaller size ({code('ppa.py --param')}), so "
-               f"that what it does can be seen: {counted(disp['cells_sky130'], 'cell')} here, "
-               f"{thin(sc['cells_sky130'])} at the scoring point. ")
+        how = (f"It is the same design through the same pinned flow at a smaller size ({code('ppa.py --param')}): "
+               f"{counted(disp['cells_sky130'], 'cell')} here, {thin(sc['cells_sky130'])} at the scoring point. ")
     if disp["drawn"] == "critical":
         how += (f"The drawing is its critical path ({counted(disp['drawn_cells'], 'cell')}, ending at "
                 f"{critical_words(disp)}, {thin(disp['delay_ps_sky130'])} ps), every cell of it, and each net that "
                 "enters or leaves the path drawn as a port named after the net: the whole netlist at this size is a "
                 "tangle of wires. The path's own nets are in the accent colour. ")
     elif sc.get("sequential"):
-        how += (f"The register-to-register critical path at {esc(at)} ({counted(path_cells, 'cell')}, ending at "
-                f"{critical_words(disp)}; a period of {thin(disp['delay_ps_sky130'])} ps there) is in the accent "
-                "colour. ")
-    else:
-        how += (f"The critical path at {esc(at)} ({counted(path_cells, 'cell')}, ending at {critical_words(disp)}, "
+        # where the path ends, the symbols and the link to its cells are the Critical path tab's (2026-11-11: shorter)
+        how += (f"The register-to-register critical path at {esc(at)} ({counted(path_cells, 'cell')}, a period of "
                 f"{thin(disp['delay_ps_sky130'])} ps there) is in the accent colour. ")
+    else:
+        how += (f"The critical path at {esc(at)} ({counted(path_cells, 'cell')}, {thin(disp['delay_ps_sky130'])} ps "
+                "there) is in the accent colour. ")
     how += ("Drawn by netlistsvg with svGolf's sky130 skin (derived from netlistsvg's default skin, as the drawing "
             "is: MIT licence, Copyright (c) 2016 Neil Turley, "
-            + page.link(rel_link(s.here, schematic_licence(s)), "the notice") + "): one symbol per cell function, "
-            "the cell above it, the "
-            "instance on hover; " + code("nor2b") + " and " + code("nand2b") + " are drawn with the bubble on their "
-            "inverted input. The cells of the path are listed under " + page.link("#critical-path", "Critical path")
-            + ", each a link to the cell here.")
+            + page.link(rel_link(s.here, schematic_licence(s)), "the notice") + ").")
     tools = ('<div class="sch-tools" data-schematic-tools hidden>'
              '<button type="button" data-zoom="out" aria-label="Zoom out">−</button>'
              '<button type="button" data-zoom="in" aria-label="Zoom in">+</button>'
@@ -4383,13 +4746,14 @@ def reproduce_asap7_html(s7):
             + " weighs every design of the task again and compares, bit for bit.</p>")
 
 
-def detail_head(s, title_html, status, lead, kind):
+def detail_head(s, title_html, status, lead, kind, chips=()):
     t, here = s.t, s.here
     tags = [status] if status else []
+    tags += list(chips)
     tags.append(page.badge(f"scored at {point_text(t.point)}", "plain"))
     return page.page_head(
         crumbs_html=(f'<a href="{rel_link(here, "index.html")}"><span class="back" aria-hidden="true">‹</span>'
-                     f'Tasks</a> / <a href="{rel_link(here, t.page)}">{esc(t.name)}</a> / {esc(kind)}'),
+                     f'Tasks</a> / <a href="{rel_link(here, t.page)}">{esc(task_word(t))}</a> / {esc(kind)}'),
         title_html=title_html, tags_html=" ".join(tags), lead_html=lead)
 
 
@@ -4542,7 +4906,13 @@ def record_page(site, t, rec, ge_tables):
     status = (both(t, lambda: page.badge("reference: par, not an entry" if ref is not None and t.par is ref
                                          else "reference: not an entry", "par"), inline=True) if is_ref
               else both(t, lambda: status_badge_of(t, rec) or "", inline=True))
-    head = detail_head(s, f"Record {code(h[:12])}", status, lead, "record")
+    # who made it, on which task, and when (decided 2026-11-11): no score in the title, since the score depends on the
+    # course and the title cannot switch with it; the record's hash is a chip, and keeps each <title> unique
+    who = ref["stem"] if is_ref and ref else rec["player"]
+    when = "reference" if is_ref and ref else rec["submitted_at"][:10]
+    head = detail_head(s, f"{esc(who)} on {esc('the tutorial' if t.listing == 'tutorial' else t.name)} · {esc(when)}",
+                       status, lead, "record",
+                       chips=[page.badge(f"record {h[:12]}", "plain")])
     overview, plot, netlist, s7 = detail_sections(site, s, ge_tables)
 
     def card(i, title_html, content_html):
@@ -4563,20 +4933,23 @@ def record_page(site, t, rec, ge_tables):
                    "none: this is the task's first submission")
     first = [] if is_ref or prev else [("previous frontier", f'<span id="diff">{none_before}</span>')]
     record = card("record", "The record", page.dl([
-        ("task", page.link(rel_link(here, t.page), code(t.name))),
+        ("task", page.link(rel_link(here, t.page), task_ref_html(t))),
         ("player", esc(rec["player"])),
         ("assisted by", esc("; ".join(rec["assisted_by"])) or "none (an unassisted claim)"),
         ("submitted", esc(rec["submitted_at"])),
         ("notes", esc(rec.get("notes") or "") or '<span class="muted">none</span>'),
         ("scoring point", esc(point_text(sc["scoring_point"]))),
-        ("design", f"{code(files['sv']['name'])} sha256 {code(files['sv']['sha256'])}"),
-        ("proof", f"{code(files['lean']['name'])} sha256 {code(files['lean']['sha256'])}"
-                  + (f": the proof of the reference {code(ref['stem'])} ({code(posixpath.basename(ref['lean']))}, "
-                     f"{ref['proof_lines']} code lines)" if is_ref and ref else "")),
-        ("canonical text", f"sha256 {code(rec.get('canonical_sha256', ''))}"),
-        ("record hash", code(h)),
         ("downloads", " ".join(page.link(rel_link(here, base + ext), code(h[:12] + ext)) for ext in (".sv", ".lean", ".json"))),
-    ] + first))
+    ] + first)
+        # the sha256 rows, for checking (2026-11-11: folded)
+        + page.details("hashes", page.dl([
+            ("design", f"{code(files['sv']['name'])} sha256 {code(files['sv']['sha256'])}"),
+            ("proof", f"{code(files['lean']['name'])} sha256 {code(files['lean']['sha256'])}"
+                      + (f": the proof of the reference {code(ref['stem'])} ({code(posixpath.basename(ref['lean']))}, "
+                         f"{ref['proof_lines']} code lines)" if is_ref and ref else "")),
+            ("canonical text", f"sha256 {code(rec.get('canonical_sha256', ''))}"),
+            ("record hash", code(h)),
+        ])))
     proof_card = card("proof", "The proof", page.dl([
         ("code lines", str(proof.get("lines"))),
         ("build time", esc(f"{proof.get('build_seconds')} s")),
@@ -4585,15 +4958,20 @@ def record_page(site, t, rec, ge_tables):
         ("imports", ", ".join(code(x) for x in proof.get("imports", []))),
     ]))
     flow_rows = [("Yosys", chk.get("yosys")), ("Verilator", chk.get("verilator")), ("Lean toolchain", chk.get("lean_toolchain")),
-                 ("svGolf revision", chk.get("svgolf_revision")), ("lean-surfaces revision", chk.get("lean_surfaces_revision")),
+                 ("svGolf revision", chk.get("svgolf_revision")),
+                 (f"{site.config['library']['name']} revision", chk.get("lean_surfaces_revision")),
                  ("canonicalization script", chk.get("canon_script_sha256")), ("scoring script", chk.get("script_sha256")),
                  ("GE table", chk.get("ge_table_sha256")), ("extractor", chk.get("extractor_sha256")),
                  ("canonical RTLIL", sc.get("rtlil_sha256"))]
     mism = lb.flow_mismatch(lb.flow_of(rec), t.flow)
     flow_note = ("<p>Checked under the pinned flow of this site's boards.</p>" if not mism else
                  f"<p>Checked under another flow ({esc(', '.join(mism))} differ): not ranked.</p>")
+    # the versions and hashes, folded (2026-11-11) under the tools' versions the record names ("Yosys 0.53")
+    named = [" ".join(str(v).split()[:2]) for v in (chk.get("yosys"), chk.get("verilator")) if v]
     checker = card("checker", "Checker and flow", flow_note
-                   + page.dl([(k, code(v) if v else '<span class="muted">not recorded</span>') for k, v in flow_rows])
+                   + page.details(esc(", ".join(named + ["the checker: versions and hashes"])),
+                                  page.dl([(k, code(v) if v else '<span class="muted">not recorded</span>')
+                                           for k, v in flow_rows]))
                    + page.details("the checker's files (sha256)", page.table(
                        ["file", "sha256"], [[f'<code>{esc(f).replace("/", "/<wbr>")}</code>', code(s_)]
                                             for f, s_ in sorted(chk.get("files", {}).items())], cls="hashes")))
@@ -4641,8 +5019,9 @@ def record_page(site, t, rec, ge_tables):
     body = head + detail_layout(overview, sources, [netlist], [record, proof_card],
                                 ([postsynth] if clocked_ps else []) + [plot, diff, reproduce],
                                 more=[checker] + ([] if clocked_ps else [postsynth]))
-    site.page(here, f"{t.name} record {h[:12]}", body, scripts=("charts.js",), scores=True,
-              description=f"svGolf {t.name}: record {h[:12]} by {rec['player']}")
+    site.page(here, f"{who} on {'the tutorial' if t.listing == 'tutorial' else t.name} · record {h[:12]}", body,
+              scripts=("charts.js",), scores=True,
+              description=f"svGolf {task_word(t)}: record {h[:12]} by {rec['player']}")
 
 
 def postsynth_clocked_html(t, ps):
@@ -4665,26 +5044,28 @@ def postsynth_clocked_html(t, ps):
     runs = f"{n_seeds} times, once per seed" if n_seeds else "once per seed"
     if t.kind == "react-family":
         rst = ((t.task.get("reset") or {}).get("port") if isinstance(t.task.get("reset"), dict) else None) or "rst"
-        what = (f"<p>At each point below, the check ran the scored netlist and ls-sv's reading of the design "
-                f"{esc(runs)}, each run from a power-up state and through a seeded stimulus of {esc(stim)}: a reset "
-                f"entry, then entries with {code(rst)} = 0, the last segment a long run without a reset. On every "
-                "cycle of every run the netlist's outputs met the task's guarantee, and the outputs sampled just "
-                "before each rising edge equalled the snapshot before (the Moore sample). Where the two runs start "
-                "from the same state (seed 0, the all-zeros power-up, unless the pinned flow turned a register into a "
-                "constant 1) the netlist's outputs equalled ls-sv's bit for bit; from two different power-ups a "
-                "correct design may answer differently, and ls-sv's outputs met the guarantee too. The check found "
-                f"{esc(agreed)}. The stimulus is a sample of the input traces: a guard against the two tools "
-                "disagreeing, not a proof.</p>")
+        # the verdict first (2026-11-11); the two runs from one state is the seeds' business, in their fold below
+        what = (f"<p>The check found {esc(agreed)}. At each point below it ran the scored netlist and ls-sv's reading "
+                f"of the design {esc(runs)}, each run from a power-up state and through a seeded stimulus of "
+                f"{esc(stim)}: a reset entry, then entries with {code(rst)} = 0, the last segment a long run without a "
+                "reset. On every cycle of every run the netlist's outputs met the task's guarantee, and the outputs "
+                "sampled just before each rising edge equalled the snapshot before (the Moore sample). The stimulus is "
+                "a sample of the input traces: a guard against the two tools disagreeing, not a proof.</p>")
+        same_state = (" Where the two runs start from the same state (seed 0, the all-zeros power-up, unless the pinned "
+                      "flow turned a register into a constant 1) the netlist's outputs equalled ls-sv's bit for bit; "
+                      "from two different power-ups a correct design may answer differently, and ls-sv's outputs met "
+                      "the guarantee too.")
     else:
         # a latency kind checks each point against its own latency, the solution's `lat` there (F8; the record's
         # `latency` per point, from check.py's `latency_at`)
         timed = (" Each point ran against its own latency, the solution's " + code("lat") + " at that point (the "
                  "table's latency column): every transaction had to finish within it."
                  if any(pt.get("latency") is not None for pt in points) else "")
-        what = (f"<p>At each point below, the check ran the scored netlist and ls-sv's reading of the design "
-                f"{esc(runs)}, each run from a power-up state and through a seeded stimulus of {esc(stim)}.{timed} "
-                f"The check found {esc(agreed)}. The stimulus is a sample of the inputs: a guard against the two tools "
-                "disagreeing, not a proof.</p>")
+        what = (f"<p>The check found {esc(agreed)}. At each point below it ran the scored netlist and ls-sv's reading "
+                f"of the design {esc(runs)}, each run from a power-up state and through a seeded stimulus of "
+                f"{esc(stim)}.{timed} The stimulus is a sample of the inputs: a guard against the two tools disagreeing, "
+                "not a proof.</p>")
+        same_state = ""
     scored = {k: v for k, v in (t.point or {}).items()}
     pt_names = [esc(point_text(pt.get("params") or {})) + (" (the scoring point)" if pt.get("params") == scored else "")
                 for pt in points]
@@ -4718,13 +5099,15 @@ def postsynth_clocked_html(t, ps):
              for pt in points for sd in pt.get("seeds") or []]
     seed_table = page.table(["point", "seed", "ls-sv power-up", "netlist randSeed", "clock cycles"]
                             + ([unit] if unit else []) + ["draw"], srows, numeric=(1, 4, 5) if unit else (1, 4))
-    return (what + page.dl(rows) + page.table(headers, trows, numeric=tuple(range(1, len(headers) - 1)))
+    # the run's facts folded under what they are (2026-11-11); the table of the points stays shown
+    return (what + page.details("the run: mode, seeds, stimulus, salt, the scored netlist's sha256", page.dl(rows))
+            + page.table(headers, trows, numeric=tuple(range(1, len(headers) - 1)))
             + page.details(f"every seed's run ({len(srows)})", "<p>A seed's draw is "
                            f"{code('sha256(salt, task, point, seed)')} (its first 12 digits below; check/postsynth.py "
                            f"{code('seed_draw')}). Everything random in the seed's run comes from it: the stimulus, "
                            f"ls-sv's power-up ({code('zeros')} for seed 0, else {code('seed:<k>')}) and the netlist's "
-                           f"Verilator {code('randSeed')}, which the all-zeros power-up of seed 0 does not use.</p>"
-                           + seed_table))
+                           f"Verilator {code('randSeed')}, which the all-zeros power-up of seed 0 does not use."
+                           f"{same_state}</p>" + seed_table))
 
 
 def licence_texts(site, t):
@@ -4748,7 +5131,7 @@ def reference_detail_page(site, t, ref, ge_tables):
     status = both(t, lambda: page.badge("par: the bar to beat" if t.par is ref else "proved reference", "par"),
                   inline=True)
     desc = f" {md_inline(ref['description'])}" if ref["description"] else ""
-    lead = (f"<p>A proved reference of {code(t.name)}, written or adapted by the maintainers and shipped with the "
+    lead = (f"<p>A proved reference of {task_ref_html(t)}, written or adapted by the maintainers and shipped with the "
             "task: its "
             f"design and its proof {code(posixpath.basename(ref['lean']))} ({ref['proof_lines']} code lines).{desc} "
             "It is " + both(t, lambda: 'par, the bar to beat' if t.par is ref else 'shown with par', inline=True)
@@ -4759,7 +5142,7 @@ def reference_detail_page(site, t, ref, ge_tables):
     sv_text, lean_text = read_text(ref["sv"]), read_text(ref["lean"])
     base = f"tasks/{t.name}/reference/{ref['stem']}"
     facts = page.card(page.dl([
-        ("task", page.link(rel_link(here, t.page), code(t.name))),
+        ("task", page.link(rel_link(here, t.page), task_ref_html(t))),
         ("design", f"{code(posixpath.basename(ref['sv']))} sha256 {code(ref['sha256'])}"),
         ("proof", f"{code(posixpath.basename(ref['lean']))}, {ref['proof_lines']} code lines"),
         ("tactics seen", ", ".join(code(x) for x in ref["tactics"]) or "none"),
@@ -4773,8 +5156,8 @@ def reference_detail_page(site, t, ref, ge_tables):
     reproduce = page.card(dual(reproduce_html(s), reproduce_asap7_html(s7)), tag="section", id_="reproduce",
                           title_html="Reproduce")
     body = head + detail_layout(overview, sources, [netlist], [facts], [plot, reproduce])
-    site.page(here, f"{t.name} reference {ref['stem']}", body, scripts=("charts.js",), scores=True,
-              description=f"svGolf {t.name}: the proved reference {ref['stem']}")
+    site.page(here, f"{task_word(t)} reference {ref['stem']}", body, scripts=("charts.js",), scores=True,
+              description=f"svGolf {task_word(t)}: the proved reference {ref['stem']}")
 
 
 def trusted_pages(site, tasks):
@@ -4810,13 +5193,14 @@ def trusted_pages(site, tasks):
         dl_ = page.button(rel_link(here, f"trusted/{mod}.lean"), f"{mod}.lean", "quiet sm", download=True)
         body = (page.page_head(crumbs_html=crumbs, title_html=code(mod), sub_html=esc(module_role(mod)),
                                aside_html=page.stats([page.Stat("Lines", str(line_count(text)))]))
-                + page.card(page.dl([("file", code(path)), ("sha256", code(sha256(data))),
+                + page.card(page.dl([("file", code(shown_path(path))), ("sha256", code(sha256(data))),
                                      ("statements that rely on it", ", ".join(
                                          page.link(rel_link(here, f"tasks/{u}/index.html#spec"), code(u))
                                          for u in users)),
                                      ("download", page.link(rel_link(here, f"trusted/{mod}.lean"),
                                                             code(f"{mod}.lean")))])
-                            + page.code_block(text, "lean", src=path, name=path, actions_html=dl_, cls="code source",
+                            + page.code_block(text, "lean", src=path, name=shown_path(path), actions_html=dl_,
+                                              cls="code source",
                                               body_html=leansrc.anchored_html(text, leansrc.declarations(text)))))
         site.page(here, mod, body, description=f"svGolf trusted base: {mod}")
         site.copy(f"trusted/{mod}.lean", path)
@@ -4829,31 +5213,43 @@ def trusted_pages(site, tasks):
 def task_card(t, here):
     """A task on the home page (zk.golf's challenge card): number, title, subtitle, par, record and
     how far under par. The whole card links to the task. No badges (decided 2026-11-06): only a task that
-    is not open for submissions says its status, and a preview that it is not ranked."""
+    is not open for submissions says its status, and a preview that it is not ranked. The tutorial's card has
+    TUTORIAL_MARK in the number's place and its page's title, without the slug (2026-11-12)."""
     tags = ("" if t.task.get("status") == "ready" and not t.preview
             else f'<div class="tags">{status_badge(t.task, t.listing)}</div>')
-    return (f'<li class="task-card"><div class="task-card-top"><span class="task-no">{esc(t.number)}</span>'
-            f'<span class="label">{esc(KIND_SHORT.get(t.kind, t.kind))} · {code(t.name)}</span></div>'
-            f'<h3>{page.link(rel_link(here, t.page), esc(t.title))}</h3>'
+    tutorial = t.listing == "tutorial"
+    # the tutorial's mark sits in the number's box, so that its title lines up with its row's (2026-11-12)
+    mark = (f'<span class="task-no"><span class="label label-accent task-start">{esc(TUTORIAL_MARK)}</span></span>'
+            if tutorial else f'<span class="task-no">{esc(t.number)}</span>')
+    # the tutorial's card is titled as its page is, without the slug (decided 2026-11-12)
+    slug = "" if tutorial else f" · {code(t.name)}"
+    return (f'<li class="task-card"><div class="task-card-top">{mark}'
+            f'<span class="label">{esc(KIND_SHORT.get(t.kind, t.kind))}{slug}</span></div>'
+            f'<h3>{page.link(rel_link(here, t.page), esc(page_title(t)))}</h3>'
             + (f"<p>{esc(t.subtitle)}</p>" if t.subtitle else "")
             + f'{tags}' + (preview_html(t) if t.preview else both(t, lambda: big_numbers(t, notes=False))) + "</li>")
 
 
 def home_page(site, tasks):
-    """index.html. A compact hero (title, lead, the buttons, the drawing), the task cards with the note on
-    par and record under them, then home.md's FIRST `## ` section, the steps on one task as a numbered list,
-    in two columns, then the rest of home.md (decided 2026-11-06: the steps after the task cards; the
-    buttons in the hero, no strip of counts)."""
+    """index.html. A compact hero (the headline and its sub-line, config.json `headline`; home.md's lead, the
+    buttons, the drawing), the course: its control ("The course",
+    sky130 or ASAP7 · cells only; decided 2026-11-11, the page's one selector, so the header has none here), the
+    closed note on par and record above the task cards, and the cards; then home.md's FIRST `## ` section, the steps on
+    one task as a numbered list, in two columns, then the rest of home.md (decided 2026-11-06: the steps after the task
+    cards; the buttons in the hero, no strip of counts)."""
     here = "index.html"
     src = f"{CONTENT}/home.md"
-    text = fill_home(site, tasks, read_text(src), src)
+    text = fill_home(site, tasks, read_text(src).replace("{{handoff}}", handoff_md(site.config))
+                     .replace("{{library}}", library_md(site.config))
+                     .replace("{{salt}}", salt_md([r for t in tasks for r in t.records])), src)
     secs = md.split_sections(text)
     lines = text.split("\n")
-    if not secs or secs[0][0] != 1:
-        raise BuildError(f"{src}: the home page starts with its '# ' title")
-    _, title, start, _ = secs[0]
+    # the headline is config.json's (one source, decided 2026-11-11): home.md opens with the lead, not a '# ' title
+    if any(s[0] == 1 for s in secs):
+        raise BuildError(f"{src}: no '# ' title: the front page's headline is site/config.json `headline`")
+    title, accent, sub_html, sub_text = site_headline(site.config)
     first_h2 = next((s[2] for s in secs if s[0] == 2), len(lines))
-    lead = site.render_md("\n".join(lines[start + 1:first_h2]), source=src, here=here, first_line=start + 2).html
+    lead = site.render_md("\n".join(lines[:first_h2]), source=src, here=here, first_line=1).html
     how = next((s for s in secs if s[0] == 2), None)
     if how is None:
         raise BuildError(f"{src}: no '## ' section: the first one is the steps on one task")
@@ -4867,12 +5263,12 @@ def home_page(site, tasks):
                 page.button(rel_link(here, "proving.html"), "The proving guide", "quiet")]
     if site.config.get("repo_url"):
         buttons.append(page.button(site.config["repo_url"], "The repository", "quiet"))
-    head_title = md_inline(title).replace("then golf", '<span class="accent">then golf') + "</span>" \
-        if "then golf" in title else md_inline(title)
+    head_title = (md_inline(title[:-len(accent)]) + f'<span class="accent">{md_inline(accent)}</span>' if accent
+                  else md_inline(title))
     # the hero (style.css's pixel golf course), compact: the text and the buttons in the sky beside the
-    # drawn green (pixelart.py, decorative)
+    # drawn green (pixelart.py, decorative); the sub-line opens the lead
     hero = (f'<header class="hero hero-compact"><div class="hero-sky"><div class="hero-text">'
-            f'<h1>{head_title}</h1><div class="hero-lead">{lead}</div>'
+            f'<h1>{head_title}</h1><div class="hero-lead"><p class="hero-sub">{sub_html}</p>{lead}</div>'
             f'<div class="btn-row">{"".join(buttons)}</div></div>'
             f'<div class="hero-art">{pixelart.scene()}</div></div></header>')
     # the steps: a numbered list (step 1 in the left column, the others on the right), then what follows it
@@ -4886,33 +5282,57 @@ def home_page(site, tasks):
     steps_html = (f'<section class="how" aria-labelledby="{esc(hid)}"><h2 id="{esc(hid)}">{md_inline(how_title)} '
                   f'<a class="anchor" href="#{esc(hid)}" aria-label="link to this section">#</a></h2>'
                   f'{how_body}</section>')
+    shown = tut + listed
+
+    def dashed(pdk):
+        """Whether a card of that course shows "–" (a task with no design weighed on its library)."""
+        out = False
+        for t in shown:
+            with t.view(pdk):
+                out = out or headline(t)["par"] is None
+        return out
+
     def note(lib, more=""):
+        """The course note (2026-11-11: a closed note above the cards, the task page's words)."""
+        dash = dashed("sky130" if lib == "sky130" else "asap7")
         return ("<strong>Par</strong> is the best proved reference that ships with the task: a design the "
-                "maintainers wrote or adapted and proved, the bar to beat, never an entry. <strong>Record</strong> is "
-                "the best accepted design so far; with no submissions it is par. "
+                "maintainers wrote or adapted and proved, the bar to beat, never a player's entry. "
+                "<strong>Record</strong> is the best accepted score so far: par while no submission beats it. "
                 + ("Both are the one ranked number, area × time" if lib == "sky130" else
                    "In this view both are area × time, the number it orders by,")
-                + f" on the {lib} cell library ({esc(combined.UNIT)}), lower is better; “–” marks a task whose "
-                f"designs are not weighed on {lib} yet. <strong>Under par</strong> is how far the record is below "
-                f"par, as a share of par's score (0% while par is the record).{more}")
+                + f" on the {lib} cell library ({esc(combined.UNIT)}), lower is better; it counts the cells only: no "
+                "wires, no place and route. "
+                + (f"“–” marks a task whose designs are not weighed on {lib} yet. " if dash else "")
+                + "<strong>Under par</strong> is how far the record is below par, as a share of par's score (0% while "
+                f"par is the record).{more}")
     pre = (" <strong>Preview</strong> marks a task whose statement is still being revised: its designs are shown and "
            "measured, and its submissions are not ranked until then." if previews else "")
-    notes = dual(note("sky130", pre), note("ASAP7", pre + " " + asap7_words(here, short=True)), inline=True)
-    cards = "".join(task_card(t, here) for t in tut + listed + previews)
-    # the library selector, on the home page beside the task cards (decided 2026-11-09: a dropdown on the front page)
-    pick = ('<div class="pdk-home">' + page.pdk_select("pdk-select-home", "Golf scores on", cls="pdk-pick pdk-pick-home")
+    # the ASAP7 note does not say again what the banner and the helper line right above it say (2026-11-11: the
+    # library, never fabricated, cells only, how it is scored)
+    notes = dual(note("sky130", pre), note("ASAP7", pre), inline=True)
+    cards = "".join(task_card(t, here) for t in shown + previews)
+    # the course control (decided 2026-11-09: a dropdown on the front page; 2026-11-11: it is "The course" itself, the
+    # kicker its label, the page's only selector): without JavaScript the kicker reads "The course sky130"
+    head = ('<div class="course-pick">'
+            '<label class="label label-accent" for="pdk-select-home">The course</label>'
+            + page.pdk_select("pdk-select-home", None, cls="pdk-pick pdk-pick-home")
+            + '<noscript><span class="course-fixed">sky130</span></noscript>'
+            + "<h2>Tasks</h2>"
             + '<p class="pdk-what small muted">'
-            + pdk_text("sky130: SkyWater's open 130 nm process, the default.",
-                       "ASAP7: a predictive 7 nm library, never fabricated. "
+            + pdk_text("sky130: SkyWater's open 130 nm process, the default and the ranked course. Its scores count "
+                       "the cells only: no wires, no place and route.",
+                       "ASAP7: a predictive 7 nm library, never fabricated. Cells only, like sky130: no wires, no place "
+                       "and route. Not ranked: the ranked course is sky130. "
                        + page.link(rel_link(here, f"rules.html#{ASAP7_ANCHOR}"), "How it is scored"))
             + "</p>"
-            + page.pdk_nojs("The golf scores are on sky130. Seeing them on ASAP7 needs the library selector, which "
-                            "needs JavaScript.", cls="pdk-nojs small muted")
+            + f'<p class="first-entries small muted">{md_inline(FIRST_ENTRIES_MD)}</p>'
+            + page.pdk_nojs("The scores are on sky130; the ASAP7 course needs JavaScript.", cls="pdk-nojs small muted")
             + "</div>")
     parts = [hero,
-             f'<section class="course"><div class="section-head" id="tasks"><div><p class="label label-accent">'
-             f'The course</p><h2>Tasks</h2></div>{pick}</div>'
-             f'<ul class="task-cards">{cards}</ul><p class="course-note">{notes}</p></section>',
+             f'<section class="course"><div class="section-head" id="tasks">{head}</div>'
+             + page.details("What the score, Par, Record and Under par mean", f'<p class="course-note">{notes}</p>',
+                            cls="note course-note-fold")
+             + f'<ul class="task-cards">{cards}</ul></section>',
              steps_html]
     # the rest of home.md: a section that is a numbered list as cards, any other as a card
     for level, sec_title, s0, s1 in secs:
@@ -4926,8 +5346,10 @@ def home_page(site, tasks):
             parts.append(head + body.replace("<ol>", '<ol class="loop">', 1))
         else:
             parts.append(head + page.card(body))
-    site.page(here, site.config["site_name"], "\n".join(parts), active="index.html", scores=True,
-              description="svGolf: prove a SystemVerilog circuit correct in Lean, then golf its area and delay.")
+    name = site.config["site_name"]
+    first = title[:1].lower() + title[1:] if title[1:2].islower() else title
+    site.page(here, f"{name}: {title.rstrip('.')}", "\n".join(parts), active="index.html", scores=True,
+              header_pdk=False, description=f"{name}: {first} {sub_text}")
 
 
 # ---------------------------------------------------------------------------
@@ -4940,12 +5362,12 @@ def stages_table(refusals):
     return page.table(["stage", "what it does", "refuses"], rows)
 
 
-def rules_page(site, refusals):
+def rules_page(site, refusals, tasks=()):
     here = "rules.html"
     cfg = site.config["pages"]["rules"]
     src = cfg["source"]
     text = site.doc_text(src)
-    slugger = md.Slugger(["checker-stages", RATING_BUILD_ANCHOR])
+    slugger = md.Slugger(["checker-stages", RATING_BUILD_ANCHOR, *TASK_PAGE_IDS])
     secs = doc_sections(text, cfg["sections"], site.config.get("omit", {}).get(src, []))
     parts, toc = [], []
     for title, fragment, first in secs:
@@ -4953,6 +5375,9 @@ def rules_page(site, refusals):
         parts.append(f"<section>{r.html}</section>")
         toc.append((r.headings[0][2], r.headings[0][1]))
         if title == cfg.get("rating_build_after"):
+            # after Scoring (and its "The ASAP7 view"): what a task page's numbers mean, then the rating build
+            parts.append(score_terms_html(tasks))
+            toc.append((TASK_PAGE_NUMBERS, "The numbers on a task page"))
             parts.append(rating_build_html())
             toc.append((RATING_BUILD_ANCHOR, "The build ratings use"))
         if title == cfg["stages_after"]:
@@ -4960,10 +5385,11 @@ def rules_page(site, refusals):
                          'href="#checker-stages" aria-label="link to this section">#</a></h2>'
                          "<p><code>check.py</code> runs the stages in this order and stops at the first that "
                          "refuses; the stage is what a rejection names. The table is the refusal register's text, which "
-                         "calls proglib by its former name, lean-surfaces.</p>" + stages_table(refusals) + "</section>")
+                         f"calls {esc(site.config['library']['name'])} by its former name, lean-surfaces.</p>"
+                         + stages_table(refusals) + "</section>")
             toc.append(("checker-stages", "The checker's stages"))
     body = (page.page_head(title_html="Rules", sub_html=(
-                f"From {code(src)} of the repository: the rules, the checker's stages, scoring, the banlist "
+                f"From {code(shown_path(src))} of the repository: the rules, the checker's stages, scoring, the banlist "
                 f"and the leaderboard. Everything the checker refuses, and why: "
                 f"{page.link('refusals.html', 'Refusals')}. How to get a recorded score again, bit for bit: "
                 f"{page.link(REPRODUCE_PAGE, 'Reproduce a score')}."))
@@ -4990,7 +5416,7 @@ def reproduce_page(site):
         r = site.render_md(rest, source=src, here=here, first_line=first + 1, slugger=slugger)
         parts.append(f"<section>{r.html}</section>")
     body = (page.page_head(title_html="Reproduce a score", sub_html=(
-                f"From {code(src)} of the repository. The ranked score, the sky130 A0′ area and time, is a pure "
+                f"From {code(shown_path(src))} of the repository. The ranked score, the sky130 A0′ area and time, is a pure "
                 "function of the design's text, the pinned flow and tool build, the pins and the task's scoring point and input "
                 f"drive; these steps give every recorded number again. Scoring in general: "
                 f"{page.link('rules.html#scoring', 'the rules')}."))
@@ -5019,10 +5445,15 @@ def doc_body(r, title):
     return page.page_head(title_html=head) + page.doc(html_, toc)
 
 
-def content_page(site, name, here, title):
+def content_page(site, name, here, title, description=""):
+    """A page of site/content/<name> (Markdown); `{{library}}` is the library's name, linked (config.json `library`),
+    `{{handoff}}` the sentence on how a record reaches the board (`handoff_md`) and `{{issues}}` the public
+    repository's issues (`issues_md`)."""
     path = f"{CONTENT}/{name}"
-    r = site.render_md(read_text(path), source=path, here=here)
-    site.page(here, title, doc_body(r, title), active=here)
+    text = (read_text(path).replace("{{library}}", library_md(site.config))
+            .replace("{{handoff}}", handoff_md(site.config)).replace("{{issues}}", issues_md(site.config)))
+    r = site.render_md(text, source=path, here=here)
+    site.page(here, title, doc_body(r, title), active=here, description=description)
 
 
 ROADMAP_STATUS = (("done", "Done"), ("in-progress", "In progress"), ("planned", "Planned"),
@@ -5030,6 +5461,8 @@ ROADMAP_STATUS = (("done", "Done"), ("in-progress", "In progress"), ("planned", 
 
 
 def roadmap_page(site):
+    """roadmap.html from content/roadmap.json. An item of status `handoff` is the record route: "done" once a record can
+    be handed in (`submissions_open`), else "planned"; `{{handoff}}` in a text is `handoff_md`'s sentence."""
     here = "roadmap.html"
     path = f"{CONTENT}/roadmap.json"
     data = json.loads(read_text(path))
@@ -5038,6 +5471,9 @@ def roadmap_page(site):
     toc = []
     known = {k for k, _ in ROADMAP_STATUS}
     for item in data["items"]:
+        if item["status"] == "handoff":
+            item["status"] = "done" if submissions_open(site.config) else "planned"
+        item["text"] = item["text"].replace("{{handoff}}", handoff_md(site.config))
         if item["status"] not in known:
             raise BuildError(f"{path}: item {item['title']!r}: unknown status {item['status']!r}")
     for status, label in ROADMAP_STATUS:
@@ -5053,7 +5489,7 @@ def roadmap_page(site):
         toc.append((status, esc(label)))
     body = (page.page_head(title_html="Roadmap", lead_html=site.render_md(data["intro"], source=path, here=here).html)
             + page.doc("\n".join(parts), toc))
-    site.page(here, "Roadmap", body, active=here, description="Where svGolf is going.")
+    site.page(here, "Roadmap", body, active=here, description="What svGolf has, and what comes next.")
 
 
 def refusal_state(e):
@@ -5121,13 +5557,17 @@ def refusals_page(site, refusals):
                  + "".join(f"<li>{md_inline(x)}</li>" for x in sg["lifting"]) + "</ul>")
     parts.append('<h2 id="limits">Known limits (not refusals)</h2><ul>'
                  + "".join(f"<li>{md_inline(x)}</li>" for x in sg["limits"]) + "</ul>")
-    parts.append('<h2 id="more">Where to read more</h2><p>Paths in the proglib repository:</p><ul>'
-                 + "".join(f"<li>{code(x['path'])}: {md_inline(x['what'])}</li>" for x in sg["links"]) + "</ul>")
+    # each path under its repository's name, as that repository shows it (svGolf's without svgolf/, 2026-11-11)
+    lib = site.config["library"]["name"]
+    parts.append('<h2 id="more">Where to read more</h2><ul>'
+                 + "".join(f"<li>{'svGolf' if x['path'].startswith('svgolf/') else esc(lib)}'s "
+                           f"{code(shown_path(x['path']))}: {md_inline(x['what'])}</li>" for x in sg["links"])
+                 + "</ul>")
     toc += [("ls-sv", "The language tier"), ("lifting", "Lifting a refusal"), ("limits", "Known limits")]
     body = (page.page_head(title_html="What the checker refuses, and what you can write",
                            sub_html=f"Rendered from the refusal register {code(src)} (version {esc(d.get('version'))}) of "
-                                    "proglib, the repository formerly named lean-surfaces, as the register's own text still "
-                                    "calls it.")
+                                    f"{md_inline(library_md(site.config))} (its own text still calls the repository "
+                                    "lean-surfaces, its former name).")
             + page.doc("\n".join(parts), toc, wide=True))
     site.page(here, "Refusals", body, active=here, description="Every refusal the svGolf checker makes, and why.")
 
@@ -5204,10 +5644,17 @@ def task_data(t, reference_player):
 def llms_txt(site, tasks):
     repo_url = site.config.get("repo_url")
     v = prerequisites(site)
-    how = (f"Records are made locally with leaderboard/leaderboard.py (written to leaderboard/data/<task>/, the "
-           f"directory a pull request adds) and handed in by pull request to {repo_url}." if repo_url else
-           "Public submissions open when the svGolf repository is published; until then, records are made "
-           "locally with leaderboard/leaderboard.py (written to leaderboard/data/<task>/).")
+    if submissions_open(site.config):
+        how = ("Records are made locally with leaderboard/leaderboard.py add (written to leaderboard/data/<task>/, the "
+               f"directory a pull request adds). {HANDOFF_MD} The public repository is {repo_url}; the command is "
+               "python3.12 leaderboard/leaderboard.py submit --task <task> --record HASH (--dry-run prints its steps "
+               "first).")
+    elif repo_url:
+        how = ("Records are made locally with leaderboard/leaderboard.py (written to leaderboard/data/<task>/). "
+               + HANDOFF_NONE_MD)
+    else:
+        how = ("Public submissions open when the svGolf repository is published; until then, records are made "
+               "locally with leaderboard/leaderboard.py (written to leaderboard/data/<task>/).")
     clone = []
     if repo_url:
         top = posixpath.basename(repo_url.rstrip("/"))
@@ -5229,10 +5676,11 @@ def llms_txt(site, tasks):
                       f"# python3.12 check.py tasks/{lat_ex.name} solution.sv --unproved --latency {unproved_latency(lat_ex)}"]
                      if lat_ex else [])
     lines = ["# svGolf", "",
-             "> A competition for SystemVerilog hardware: write a "
+             f"> {site_headline(site.config)[0]} A competition for SystemVerilog hardware: write a "
              + (f"circuit (combinational, or clocked on a clocked task such as `{clocked.name}`)" if clocked else
                 "combinational circuit")
-             + ", prove in Lean 4 that it meets a task's trusted statement, and get scored by "
+             + f", prove in Lean 4 with {site.config['library']['name']} ({site.config['library']['url']}) that it "
+             "meets a task's trusted statement, and get scored by "
              "a pinned flow. The one ranked number is area x time on the sky130 cell library (flow A0'): the cell "
              "area in um^2 (flip-flops included) times the critical-path delay (on a clocked task, the "
              "register-to-register clock period, times the latency in cycles where the task has one), in um2*ns, "
@@ -5240,9 +5688,13 @@ def llms_txt(site, tasks):
              "it; to beat par is to be accepted with a smaller area x time than the task's best proved reference. "
              "The Pareto front of area and time, area in NAND2 gate equivalents (GE), depth in gates and the other "
              "flows are exploration columns. [Reproduce a score](reproduce.html) says how to get the same numbers. "
-             "sky130 is the default; the site can also show every golf score on ASAP7, a predictive 7 nm library "
-             "(the same netlists weighed by score/ppa.py --pdk asap7; leaderboard.py board --pdk asap7; data/site.json "
-             "`asap7`; [the rules](rules.html#" + ASAP7_ANCHOR + ") say how).",
+             "sky130 is the default; the site can also show every golf score on ASAP7, a predictive 7 nm library, "
+             "never fabricated (the same netlists weighed by score/ppa.py --pdk asap7; leaderboard.py board --pdk "
+             "asap7; data/site.json `asap7`; [the rules](rules.html#" + ASAP7_ANCHOR + ") say how). Both libraries' "
+             "scores count the cells only: no wires, no place and route.",
+             "",
+             # what a task page's note and the rules define (2026-11-11), linked as the page links it
+             f"Par, record and under par, the clock period and the score chart: rules.html#{TASK_PAGE_NUMBERS}.",
              "",
              f"All paths below are relative to this file. There is no submission server. {how} Par, the bar to "
              f"beat, is a task's best proved reference; the records of {site.config['reference_player']} are the "
@@ -5256,7 +5708,7 @@ def llms_txt(site, tasks):
              "lake build                                      # the trusted Lean and the checker's evaluator",
              "python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty, checked by its hash",
              "```", "",
-             f"`lake build` takes {LAKE_BUILD_COST}.", "",
+             f"`lake build` takes {lake_build_cost(site.config)}.", "",
              "## The commands (task `add`; any task: tasks/<name>)", "",
              "```bash",
              "# the golfing inner loop: the ranked area and delay in about 2 s, no Lean (--path: the critical path)",
@@ -5267,7 +5719,7 @@ def llms_txt(site, tasks):
              *latency_lines,
              "# 2. the real check: prints \"accepted\": true; its post-synthesis check is LIGHT by default (a subset "
              "of the vectors, for local feedback), so stderr also says \"accepted, but the check was INCOMPLETE ... "
-             "rerun with --postsynth full\": expected, since step 3 runs the full one itself",
+             "leaderboard.py add runs the full check itself\": expected, step 3 is that command",
              "python3.12 check.py tasks/add solution.sv Solution.lean",
              "# 3. record it (the whole check again, full mode, OS sandbox); --data-dir DIR for a private trial",
              "python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by \"TOOL OR MODEL\" "
@@ -5278,8 +5730,8 @@ def llms_txt(site, tasks):
              "rules, whether ls-sv can read the design, the post-synthesis simulation or the task's function, and "
              "needs no proof: step 1 must still pass before you prove. Every run of check.py that reaches its ppa "
              "stage ends its stderr with the ranked headline `ranked (sky130 A0'): <area> um^2 x <delay> ps = <axt> "
-             "um2*ns; par <par axt> (<par ref>)`, or `ranked: liberty missing, run python3.12 score/ppa.py "
-             "--fetch-liberty`.", "",
+             "um2*ns; par <par axt> (<par ref>)` (a clocked task: `<area> um^2 x <n> cycles x <period> ps = <axt> "
+             "um2*ns; ...`), or `ranked: liberty missing, run python3.12 score/ppa.py --fetch-liberty`.", "",
              "## The Lean contract", "",
              "A submission is two files, here solution.sv (the task's exact module header) and Solution.lean; names "
              "and paths are free. The checker extracts the .sv itself and generates the trusted module "
@@ -5371,6 +5823,9 @@ class _Links(html.parser.HTMLParser):
         self.ids, self.refs = set(), []
 
     def handle_starttag(self, tag, attrs):
+        if tag == "base":                  # the 404 page's: where its relative addresses resolve from
+            self.base = dict(attrs).get("href")
+            return
         for k, v in attrs:
             if k == "id" and v:
                 self.ids.add(v)
@@ -5389,6 +5844,8 @@ def check_links(files):
             parsed[path] = p
     errors = []
     for path, p in sorted(parsed.items()):
+        if getattr(p, "base", None) is not None and "/" in path:
+            errors.append(f"{path}: a <base> on a page below the root (its links are checked from its own directory)")
         for ref in p.refs:
             if re.match(r"^[a-z][a-z0-9+.-]*:", ref):
                 continue
@@ -5499,6 +5956,8 @@ def build_site(*, offline=False, strict=False, revision=None, config=None, denyl
     site.add("site.js", read_bytes("svgolf/site/site.js"))
     site.add("charts.js", read_bytes("svgolf/site/charts.js"))
     site.add("pdk.js", read_bytes("svgolf/site/pdk.js"))
+    site.add("favicon.svg", pixelart.favicon_svg())
+    site.add("favicon-32.png", pixelart.favicon_png())
     home_page(site, tasks)
     for t in tasks:
         task_page(site, t)
@@ -5509,13 +5968,17 @@ def build_site(*, offline=False, strict=False, revision=None, config=None, denyl
                 reference_detail_page(site, t, ref, ge_tables)
         licence_texts(site, t)
     trusted_pages(site, tasks)
-    rules_page(site, refusals)
+    rules_page(site, refusals, tasks)
     reproduce_page(site)
     doc_page(site, "proving", "proving.html", "Proving")
     refusals_page(site, refusals)
     roadmap_page(site)
-    content_page(site, "about.md", "about.html", "About")
+    content_page(site, "about.md", "about.html", "About",
+                 description="What svGolf asks of a design, why its statements are written as they are, and how it "
+                             "differs from zk.golf.")
+    not_found_page(site)
     machine_outputs(site, tasks)
+    sitemaps(site)
     errors = check_links(site.files) + check_denylist(site.files, site.config["denylist"], copies=site.copies,
                                                       player_text=site.player_text)
     if strict:

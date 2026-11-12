@@ -11,8 +11,8 @@ attacks through `check.py`, scores, simulation).
 
 Not imported here, so not in the default `lake build`: the refutations of
 `add`, `mul` and `clmul` (`tests.add.negative.Refute`, `tests.mul.negative.Refute`,
-`tests.clmul.negative.Refute`). They wait for the int32 port round: the pinned
-ls-sv's loader refuses their `only_n16.sv` (`PDesign.int32Agrees`), so they do
+`tests.clmul.negative.Refute`). They do not build at the pinned library yet: the
+pinned ls-sv's loader refuses their `only_n16.sv` (`PDesign.int32Agrees`), so they do
 not build at the pin. They are unchanged, and `tests/run.py`'s `negatives` step
 still builds each one and pins its known failure (`PENDING_REFUTES`); once one
 builds, that step fails until it is imported here again.

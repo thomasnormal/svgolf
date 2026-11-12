@@ -15,3 +15,9 @@ __pycache__/
 
 # nightly reports (nightly.py)
 /nightly/
+
+# the staging directory the docs' commands name (check.py --stage-dir stage)
+/stage/
+
+# a virtual environment for the Python tools (README.md, Step 0)
+/.venv/

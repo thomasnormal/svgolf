@@ -1,7 +1,7 @@
 # svGolf PPA cost models: study and spike (WP-X0, 10/30)
 
 > **Update, WP-X1 (10/30): the library is now `sky130_fd_sc_hd` (tt_025C_1v80), not Nangate45** (Nangate's licence restricts
-> benchmarking the library; the maintainers: "I agree that skywater is probably best"). [sky130.md](sky130.md) redoes the study on
+> benchmarking the library; the maintainers chose SkyWater). [sky130.md](sky130.md) redoes the study on
 > sky130 with measurements: the library facts and the GE table (NOT is 1.0 GE, ANDNOT/ORNOT are single 1.667 GE cells,
 > flip-flops 5.33 / 6.67 GE), a cell policy and fixed timing setup, the pinned abstract-gate flow priced in sky130 cells (A0')
 > against a real `abc -liberty` mapping (A1') on the add, mul and aes_sbox designs, a noise policy with measured tie bands,

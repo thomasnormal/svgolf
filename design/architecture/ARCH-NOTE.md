@@ -8,7 +8,7 @@
 > - **CITED**: a paper or URL. "via digest" means the citation comes from a researcher's digest and I did not re-fetch it.
 > - **JUDGED**: my estimate. Every design choice in this note is JUDGED unless it cites a ruling. All sizes are relative and JUDGED; none is a schedule.
 >
-> **Governing ruling** (decided 2026-11-02, verbatim, binding): "SystemVerilog's exact operational and elaboration semantics are the semantic authority. Cycle semantics and module contracts are first-class derived abstractions for the synthesizable hardware fragment. Every cycle model or contract used by automation carries a refinement theorem back to the exact semantics."
+> **Governing ruling** (decided 2026-11-02, binding): SystemVerilog's exact operational and elaboration semantics are the semantic authority. Cycle semantics and module contracts are first-class derived abstractions for the synthesizable hardware fragment. Every cycle model or contract used by automation carries a refinement theorem back to the exact semantics.
 >
 > **Standing rulings 1–7** bind everything below:
 > 1. Preserve the structure of loops, generate blocks and parameters.
@@ -96,7 +96,7 @@ The maintainers asked whether the general architecture documents were checked, s
 >      - A4: no self-reading `always_comb`;
 >      - A5: no x/z digits outside case-item patterns;
 >      - A6: a default-less fully covering case is admissible, with its x-hold outside the known-input rely.
->    - Relayed to the codex ls-sv agent on 11-02. It was adding symbolic qualified cases that day, and was asked to make a violation loud or an explicit obligation, never a silent fall-through.
+>    - Sent to the ls-sv library's maintainers on 2026-11-02. It was adding symbolic qualified cases that day, and was asked to make a violation loud or an explicit obligation, never a silent fall-through.
 > 3. **The Day-6 census amends §3.2 and the tier pricing.**
 >    - Over 831 public sv-tests files, 28 (3.4%) reach a design the `sv_comb` tactics read. The distance is testbench constructs.
 >    - 126 clean envelopes (and 18 RB0 ones) fail because the extractor emits an `Initial` process kind that the Lean envelope parser rejects. That is a loud refusal at the wrong layer; it was relayed to ls-sv.
@@ -160,11 +160,11 @@ The maintainers asked whether the general architecture documents were checked, s
 >      - package enums in parameter defaults 55;
 >      - `LocalDecl` 45.
 >      92% of the X8 cores' `always_comb` text is in modules that do not load.
->    - The fragment's own next construct is a dynamic element select as a target. Package parameters are the biggest lever on both sides (98 hidden, plus 7 of the 14 fragment failures), and they are loader and envelope work: the ranking went to the codex ls-sv agent on 11-03.
+>    - The fragment's own next construct is a dynamic element select as a target. Package parameters are the biggest lever on both sides (98 hidden, plus 7 of the 14 fragment failures), and they are loader and envelope work: the ranking went to the ls-sv library's maintainers on 2026-11-03.
 >    - The extractor crashes on cva6 (Python's 4300-digit int-to-string limit).
 >    - Design-level reach today is 4 single-process designs. Another 9 clean designs need a multi-process composition over E.
 >
-> **OUTSIDE REVIEW (gpt-6-pro, 2026-11-02) and the lead's verdicts.** The review approves the layering (E authority, D views, L library, S statements, X executor) and asks for changes before the note is settled. Each point was checked; these verdicts amend the note below.
+> **OUTSIDE REVIEW (2026-11-02) and the maintainers' verdicts.** The review approves the layering (E authority, D views, L library, S statements, X executor) and asks for changes before the note is settled. Each point was checked; these verdicts amend the note below.
 >
 > 1. **E is "exact" but narrowed: accepted as a naming fix.** E is *the authoritative semantics of the declared SystemVerilog profile*. The profile is recorded: process atomicity (§4.7) as a declared departure in the §5.0a register, canonical headers, and the list of constructs in each E milestone. Constructs outside the profile are elaboration refusals; reachable `unsupported` nodes stay a dynamic refusal; a failed view hypothesis is a view refusal. The three-refusal split of §4.1 stays.
 > 2. **Fairness: accepted as "legal schedules", not as a new fairness hypothesis.** Today's oracle already has `choose_perm`: every invocation returns a *permutation of the whole ready list* (`docs/sv-r1-scheduler.md` §2.3, `Semantics.lean:155`), so no ready process can be skipped. E's `Choice` keeps that type, and R-COMB/R-DESIGN2 quantify over legal choices. For the acyclic fragment R-COMB needs no separate fairness assumption, because a rank measure bounds the activations under every legal choice (JUDGED; X1 confirms or refutes it).

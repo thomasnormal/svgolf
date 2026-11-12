@@ -32,7 +32,7 @@ current step is expected of it:
 | **WS3** | Product track: loops | agent L | `arch-loop` | heavy | G1: nested `clmul` for every N, tactic-free |
 | **WS4** | Measurements | agent M | `arch-measure` | light (one `#eval` batch at a time) | X3, X8, X6, X9, X10 reports |
 | **WS5** | Governance and documents | lead | `svgolf-prep` | none | `docs/sv-kernel.md`, debt rows, departure row, Stmt2 freeze guard |
-| — | Extractor retain-mode twins, Xcelium rows for loop semantics | codex ls-sv agent (proposed; the maintainers relay) | master | — | `--retain-loops` default plan; 200-trip Xcelium row |
+| — | Extractor retain-mode twins, Xcelium rows for loop semantics | the ls-sv library (proposed) | master | — | `--retain-loops` default plan; 200-trip Xcelium row |
 
 **Rules every workstream follows.**
 - **One Lean slot, FIFO** (a slot wrapper), acquisitions of at most about 15 minutes, `LEAN_NUM_THREADS=2`, no root `lake build`,
@@ -197,7 +197,7 @@ merged):
     `fdiv16/rnz_dropped` timed out at 151 s under load: re-run it alone.
   - Merge master's newest commits into `integ1102` (including `c64ebdac`, the loop fuel change), rebuild, scoped suite.
 - **WS5**: record the decisions as decided in `ARCH-NOTE.md`; write the agent briefs (from this plan).
-- **The maintainers**: relay the three codex messages (§5).
+- **The maintainers**: send the requests of §5.
 
 ### Day 1 — Tue 11-03
 
@@ -303,37 +303,35 @@ merged):
 
 | day | item |
 |---|---|
-| 0 | relay the codex messages (§5) |
+| 0 | send the requests (§5) |
 | 3 | read the G-A gate note (go or re-plan) |
 | 5 | week-1 review; review the Task v2 skeleton draft; review the `fdivp` trusted spec |
 | 6 | G-B result (whether the general E core starts in week 3) |
 | 10 | week-2 review; week-3 scope |
 | any | approve family-doc proposals (ARCH-NOTE §10.2) if the other lanes agree |
 
-## 5 Messages for the codex agents (the maintainers relay)
+## 5 Requests to the library's maintainers (2026-11-02)
 
-**ls-sv.** (1) the maintainers ruled the architecture: `svgolf/design/architecture/ARCH-NOTE.md` on `svgolf-prep` (exact profile semantics E is the
+**ls-sv.** (1) the maintainers ruled the architecture: `design/architecture/ARCH-NOTE.md` (exact profile semantics E is the
 authority; cycle views and contracts are derived, each with a refinement theorem; no fuel in definitions; one AST; `Stmt2` frozen, no new
 constructors). (2) Until `Sv.Ast` exists, new constructs stay retained in `PStmt`/envelope form; please add no new lowering and no new fuel
-cap. `c64ebdac` is the right direction; the target is the trip list from the header (a `TripSchema`), with no fuel. (3) Proposed split: you
-own the extractor's retain-mode twins of today's proof-path rewrites (USERFN inlining, local hoisting, `@*`, net→variable, unrolling) behind
+cap. `c64ebdac` is the right direction; the target is the trip list from the header (a `TripSchema`), with no fuel. (3) Proposed split: the library
+owns the extractor's retain-mode twins of today's proof-path rewrites (USERFN inlining, local hoisting, `@*`, net→variable, unrolling) behind
 flags, defaults unchanged, plus Xcelium rows for the loop semantics (N = 0, 1, 126, 127, 200, `<=`, descending, `+= c`, nested, shadowing);
-our side owns the Lean semantics and refinement theorems. (4) Your recent extractor progress made seven svGolf attack expectations stale; we
-are updating them, nothing to do. Before pushing a change to a core Sv file, please run `tools/check_sv_chain.sh` (and `tools/triad.sh`'s new
-`--dependents` once it lands). (5) Two tests that looked like yours failed on master on 11-01: `test_let_expressions::test_subroutine_in_expansion_is_not_guessed`
-and 13 cases of `test_oracle_disagreements.py` ("25 != 23"). Please re-check them on current head.
+svGolf's side owns the Lean semantics and refinement theorems. (4) The library's recent extractor progress made seven svGolf attack
+expectations stale; svGolf updates them. Before a change to a core Sv file, `tools/check_sv_chain.sh` runs (and `tools/triad.sh`'s new
+`--dependents` once it lands). (5) Two of the library's tests failed on 2026-11-01: `test_let_expressions::test_subroutine_in_expansion_is_not_guessed`
+and 13 cases of `test_oracle_disagreements.py` ("25 != 23"); they are worth a re-check on the current head.
 
-**ls-python.** (1) Hosted CI on master has had no green run since 10-22 (the last 40 master runs: 25 failed, 15 in progress). One log
-(run 41421627995) shows Lean errors in `LeanModels/Python/PayloadBlind.lean` and a Python step with `failures=13`; the doc says
-`PayloadBlind` moved to the sunfish repository. Please check whether that is yours. (2) `docs/family-architecture.md` says Python's
-definition is the monadic interpreter, while `docs/python-architecture.md` says every theorem is stated over `Semantics.lean`; could you
-reconcile them, and publish one line "theorems are stated over X; the adequacy edge to the definition is Y"? (3) The SV architecture study
-proposes three family-level refinements (ARCH-NOTE §10.2): a three-way fuel-placement rule (structural-in-disguise: no fuel; defunctionalized
-concurrency or suspension: total step plus closure; direct recursion: the §3.4 index, which Python keeps), trusted statements over an
-observation interface, and direction-labelled views (Exact, OverApprox, UnderApprox) in Core. Nothing changes for Python; your objections
-are wanted before anything goes into the family doc.
+**The library's Python part.** (1) Its two architecture documents (`docs/family-architecture.md`,
+`docs/python-architecture.md`) name different definitions as the one its theorems are stated over: one line that says
+which, and the adequacy edge to the other, would settle it. (2) The SV architecture study proposes three family-level
+refinements (ARCH-NOTE §10.2): a three-way fuel-placement rule (structural-in-disguise: no fuel; defunctionalized
+concurrency or suspension: total step plus closure; direct recursion: the §3.4 index, which Python keeps), trusted
+statements over an observation interface, and direction-labelled views (Exact, OverApprox, UnderApprox) in Core. Nothing
+changes for Python; objections are wanted before anything goes into the family doc.
 
-**ls-cpp.** FYI, and objections welcome before anything goes into the family doc: the SV study (`svgolf/design/architecture/ARCH-NOTE.md`
+**The library's C++ part.** For information, and objections welcome before anything goes into the family doc: the SV study (`design/architecture/ARCH-NOTE.md`
 §10.2) proposes that parameters are a ∀-dimension of a definition with no cap or default point leaking into meaning (templates are the C++
 case), loops with canonical headers read as folds over a decision list (Std's `Spec.forIn_list`), names as structured data never concatenated
 strings, trusted statements over an observation interface, and one shared contract shape (rely, guarantee, ghost state, arcs, realizability).

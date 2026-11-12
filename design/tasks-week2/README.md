@@ -1,7 +1,7 @@
 # svGolf week 2: which ambitious tasks next (WP-T0 task study, 10/30)
 
-Decided 10/30: "Try something more ambitious. Take inspiration from zk.golf. Eventually we want to do full CPUs, so
-start thinking about non-combinatorics, asynchronous stuff, etc." This directory is the study: zk.golf read from
+Decided 2026-10-30: more ambitious tasks, with zk.golf as the model; the long-term aim is whole CPUs, so clocked and
+asynchronous designs come into view. This directory is the study: zk.golf read from
 outside, the current proof fragment, 27 candidates with statement sketches, measured baselines from the repo's own
 scorer, drafts that compile, and a recommendation. Nothing outside `svgolf/design/tasks-week2/` was edited.
 

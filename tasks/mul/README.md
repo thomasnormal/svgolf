@@ -6,12 +6,12 @@ and fast at `N = 16`.
 
 **Par** is the proved two-row-leaf tree `mul_tree_h`: **8563.2128 um^2 x 5992 ps =
 51 310.8 um2*ns**. The one ranked number is area x time, the sky130 A0' cell area
-in um^2 times the critical-path delay (decided 11/05; the svGolf README,
+in um^2 times the critical-path delay (decided 2026-11-05; the svGolf README,
 "Scoring"); to beat par is to be accepted with a smaller product. The Pareto
 frontier of area and time, the GE area and the depth are extra columns, for
 exploring.
 
-## Start a new design
+## Proving a new design
 
 A new multiplier is your own `solution.sv` (the header below; `+ - * / % **` are banned at run time) and a
 `Solution.lean` that proves it for every `N ≥ 1`. Find the design without Lean, then check it once
@@ -28,7 +28,8 @@ and leaves it staged in `stage/` for probe files ([PROVING.md, section 0](../../
 
 **The route: the `sv_comb` tactics, then the arithmetic of your rows** ([PROVING.md, sections
 1 to 3](../../PROVING.md#1-the-shape-of-a-proof); complete proofs: `reference/mul_n.lean`, the array, 70 code
-lines; `reference/mul_wallace.lean`, a Wallace tree as a tape of rows, 264; `reference/mul_tree_h.lean`, par):
+lines; `reference/mul_wallace.lean`, a Wallace tree as a tape of rows, 264; `reference/mul_tree_h.lean`, par,
+307):
 
 1. `sv_structure (lexRank := key N)`: one driver per bit and no combinational loop (`CombDesign ∧ Acyclic`),
    ordered by your key, a lexicographic triple per site (`mulKey` in `mul_n.lean`: row, column, phase).
@@ -188,7 +189,7 @@ below `2^31`.
   decrementing forms are read; a stride (`i += 2`) or a parameter amount
   (`i = i + K`) is refused at the `design` stage (an ls-sv limit, not a rule).
 * Axioms: `propext`, `Classical.choice`, `Quot.sound`. No `bv_decide` (it runs an
-  external SAT solver, which the checker does not support: `svgolf/README.md`,
+  external SAT solver, which the checker does not support: the repository's `README.md`,
   "`bv_decide`"; fixed-size subgoals can use `decide +kernel`), no `native_decide`,
   no `sorry`.
 * Proof time limit: 300 CPU s (`task.json`), the one limit of every task (svGolf `README.md`,
@@ -207,7 +208,7 @@ below `2^31`.
   (`tests/mul/results/check.json` is an older record of the by-hand one: 8.4 s). The limit was
   900 s (ten times the slowest, 83.6 s then); it will be re-set after the proof-speed package.
 * **Scoring at `N = 16`**, no depth budget. The ranked number is area x time
-  on sky130 A0' (A0' decided 11/03, the product 11/05; svGolf `README.md`,
+  on sky130 A0' (A0' decided 2026-11-03, the product 2026-11-05; svGolf `README.md`,
   "Scoring"): the cell area in um^2 times the critical-path delay of the
   scored netlist of the pinned two-stage Yosys + ABC flow, weighed by
   `score/ppa.py` (`sky130_a0_v3`). The Pareto frontier of area and time (the
@@ -272,7 +273,7 @@ python3.12 check.py tasks/mul solution.sv Solution.lean
 built from full adders in generate loops (row `i` adds the upper `N` bits of
 row `i - 1` to `pp[i]`); output bit `i < N` is bit 0 of row `i`, the top
 `N` bits are the upper bits of the last row. It is the `mul2d` design
-`Examples/system-verilog/mul2d` of proglib (formerly lean-surfaces) under the task's header.
+`Examples/system-verilog/mul2d` of Proglib (formerly lean-surfaces) under the task's header.
 
 The statement is proved **for every `N ≥ 1`** (standard axioms only; nothing
 unrolled, nothing bit-blasted) twice for this design, and once more for each of two
@@ -281,16 +282,16 @@ multiplier's two proofs are for the same design
 (`reference/mul_n_byhand.sv` is a byte-identical copy of `reference/mul_n.sv`
 that goes with the by-hand proof; `tests/run.py` checks the bytes):
 
-* `reference/mul_n.lean` (70 code lines, 213 before WP-P3/P4) uses the `sv_comb` tactics of
-  proglib: `sv_structure` (`CombDesign ∧ Acyclic` in one theorem, goals closed by
+* `reference/mul_n.lean` (70 code lines, 213 before 2026-10-31) uses the `sv_comb` tactics of
+  Proglib: `sv_structure` (`CombDesign ∧ Acyclic` in one theorem, goals closed by
   `intros; sv_rowmajor; omega`, from a 12-line lexicographic key `(row, column, phase)`
   and `maxHeartbeats 400000`), `sv_interface` (the ports), `sv_equations` (the eleven equations of the 2-D
   netlist, one `eq_*` per group of assigns, and their knownness), and the
   library `LeanModels.Sv.CombLib` (`MulNetlistView`, `ripple_row`, the row
   induction `ideal_mul_view`). `sv_cover` closes the six coverage goals of the nested 2-D reads
   (`cover_2`, `cover_4` to `cover_8`) by solving the loop indices of each writer from the read (its 2-D
-  rule, WP-P4; before it they were closed by hand, about 75 lines), and `sv_bridge` closes the twelve
-  fields of `MulNetlistView` from the printed equations (WP-P3; before it `mul_final`, about 80 lines,
+  rule, since 2026-10-31; before it they were closed by hand, about 75 lines), and `sv_bridge` closes the twelve
+  fields of `MulNetlistView` from the printed equations (since 2026-10-31; before it `mul_final`, about 80 lines,
   restated every equation and cast its indices).
   [PROVING.md](../../PROVING.md), section 3, walks through the file.
 * `reference/mul_n_byhand.lean` (1385 code lines) proves it with no tactic. Its
@@ -332,14 +333,14 @@ conditional. Two choices keep every index and bound AFFINE in `N` and the genvar
 `a` (`S[N-1+j][c] = ae[c+2N-1-j] & b[j]`), so no write ever leaves its vector, and every sum is taken
 modulo `2^(2N)`, exactly the product width, so the dropped top carries need no argument.
 
-The proof (`reference/mul_tree.lean`, 322 code lines since WP-P3/P4, 571 before; standard axioms; PROVING.md, section 8) is
+The proof (`reference/mul_tree.lean`, 322 code lines since 2026-10-31, 571 before; standard axioms; PROVING.md, section 8) is
 the tactic proof of the array multiplier with a different arithmetic core. By part: `sv_structure`
 (40 goals for `CombDesign`, 69 for `Acyclic`, all `intros; sv_rowmajor; omega`, and a
 13-line lexicographic key `(stage, node order, phase)`; 20 lines), the ports (`sv_interface`), `sv_equations` (20 equations, 18 of them used by the glue, and 38 obligations, of
-which `cover_2` to `cover_8` are the coverage goals of the heap reads, closed by `sv_cover`; until WP-P4 one
+which `cover_2` to `cover_8` are the coverage goals of the heap reads, closed by `sv_cover`; until 2026-10-31 one
 macro per kind of read, `covS`, `covC`, `covX`, `covY`, `covT`, `covR`, named the writer and left the window
 arithmetic to `cov_leaf`, 99 lines with the cases), the printed equations to clean Boolean facts (18
-`sv_bridge eq_x` lines in `solution`; until WP-P3 `tree_final`, 173 lines, restated every equation and
+`sv_bridge eq_x` lines in `solution`; until 2026-10-31 `tree_final`, 173 lines, restated every equation and
 had one `show` / `rw` / `exact` per field), and 250 lines of plain
 Lean for the arithmetic: a row of 3:2 counters preserves the column-weighted sum (`csa_row`), so a 4:2
 node preserves the value of its two pairs (`node_sum`), so the sum of the node values over the CUT
@@ -375,14 +376,14 @@ index and bound (`3*g+k`, `N+1+2*g`, `N+2+2*g`, `3*N-3`) is affine in `N` and th
 generate nesting levels (the CSA loop over `g`, the column loops inside it), six labelled blocks
 (`g_leaf`, `g_lc`, `g_csa`, `g_sum`, `g_car`, `g_fin`).
 
-The proof (`reference/mul_wallace.lean`, 264 code lines since WP-P3/P4, 423 before; standard axioms; PROVING.md, section 9) has
+The proof (`reference/mul_wallace.lean`, 264 code lines since 2026-10-31, 423 before; standard axioms; PROVING.md, section 9) has
 the same five parts as the tree's, with a simpler arithmetic core. By part: `sv_structure` (35 goals
 for `CombDesign`, 61 for `Acyclic`, all `intros; sv_rowmajor; omega`, and a 9-line lexicographic
 key `(stage, g)`; 18 lines), the ports (`sv_interface`), `sv_equations` (11 equations, all bridged to clean
 Boolean facts by 11 `sv_bridge eq_x` lines in `solution`, and 25 obligations: 18 one-liners,
 `cover_1` by `sv_cover`, `inputsKnown_1-2`, and four coverage goals, `cover_2` to `cover_5`, the reads of
 the tape, closed by `sv_cover`, which solves the adder `g := ((r - N - 1) / 2).toNat` from the row and
-leaves the parity to `omega`). Until WP-P3/P4 the glue was `tape_final` (115 lines) and the coverage the
+leaves the parity to `omega`). Until 2026-10-31 the glue was `tape_final` (115 lines) and the coverage the
 macros `covT` (the position of the row and its parity) and `covK`, 60 lines with the cases. About 200 lines of plain Lean for the arithmetic: a row of 3:2 counters preserves
 the column-weighted sum (`csa_row`), so replacing the rows `3g, 3g+1, 3g+2` of the live WINDOW
 `[3g, N+1+2g)` of the tape by the two rows appended by CSA `g` preserves the window's sum modulo
@@ -404,7 +405,7 @@ decides. `b` is zero-extended to `2H+1` bits (`bb`, with `assign bb[2*H:N] = '0`
 of an odd `N` has a zero row. (It must be `integer`: a 2-state `localparam int` with a `/` is wrapped at
 2^31 by the elaborated design, and the tactics refuse it.)
 
-The proof (`reference/mul_tree_h.lean`, 307 code lines since WP-P3/P4, 522 before; standard axioms; PROVING.md, section 10) has the
+The proof (`reference/mul_tree_h.lean`, 307 code lines since 2026-10-31, 522 before; standard axioms; PROVING.md, section 10) has the
 five parts of the tree's: `sv_structure` (39 goals for `CombDesign`, 65 for `Acyclic`, all `intros;
 sv_rowmajor; omega`; an 11-line key; 18 lines), the ports (`sv_interface`: the valuation of a design with
 localparams, `Summary.val`, is the tactic's business), `sv_equations` (36 obligations: 28
@@ -419,14 +420,14 @@ references and the examples build unchanged).
 
 | | by hand (`mul_n_byhand.lean`) | tactics (`mul_n.lean`) | tactics, tree (`mul_tree.lean`) | tactics, Wallace tape (`mul_wallace.lean`) | tactics, two-row leaves (`mul_tree_h.lean`) |
 |---|---|---|---|---|---|
-| code lines (WP-P3/P4: 70, 322, 264, 307; before: 213, 571, 423, 522) | 1385 | 70 | 322 | 264 | 307 |
+| code lines (since 2026-10-31: 70, 322, 264, 307; before: 213, 571, 423, 522) | 1385 | 70 | 322 | 264 | 307 |
 | elaboration, best of two (wall s / CPU s) | 7.5 / 13.3 | 30.0 / 31.0 | 79.3 / 80.9 | 36.9 / 41.1 | 86.5 / 79.9 |
 | `check.py` `solution` stage (s) | 11.3 | 30.2 | 74.4 | 40.9 | 83.6 |
 | axioms (the comparator's report) | `propext`, `Classical.choice`, `Quot.sound` | the same | the same | the same | the same |
 
 Code lines and elaboration are measured as in the svGolf `README.md`
 ("Proof effort"); the tactic proof took about 2.3 times the CPU time (the elaboration and `check.py` rows are the
-measurements before WP-P; PROVING.md section 11 has the later ones) and is now a twentieth of the length
+measurements before 2026-10-30; PROVING.md section 11 has the later ones) and is now a twentieth of the length
 (`mul_n`). What the tactic proof leaves to the player, as
 `sv_structure?` and `sv_equations?` print it:
 
@@ -437,14 +438,14 @@ measurements before WP-P; PROVING.md section 11 has the later ones) and is now a
   `sv_bridge` per field of `MulNetlistView`) and 22
   obligations: `inRange_1-9`, `width_1-2`, `bitRead` and `cover_3`
   (`intros; omega`), `cover_1`, `cover_2` and `cover_4-8` (`sv_cover`; the 2-D ones solve
-  the writer's loop indices from the read, until WP-P4 by hand: name the writer, then `cov_leaf`) and
+  the writer's loop indices from the read, until 2026-10-31 by hand: name the writer, then `cov_leaf`) and
   `inputsKnown_1-2` (`inKnown_ofBitVec`).
 
 Validation (`tests/mul/validate/`): Verilator exhaustive at `N = 1..8` and
 100 000 random vectors (plus corners) at `N = 12, 16, 24, 32` (`sim.py --plan
 full`, no mismatch); ls-sv's own `run2` on the extracted envelope, exhaustive
 at `N = 1..5` and 303 / 43 random vectors at `N = 8 / 16` (`RunAgree.lean`, no
-disagreement; the proof covers every `N` anyway). History (before 10/29, when
+disagreement; the proof covers every `N` anyway). History (before 2026-10-29, when
 svGolf still simulated with Icarus 12): Icarus did the exhaustive points and
 only 300 random vectors at `N = 12, 16`, because it is impractically slow on
 this design at large `N` (every bit write to a packed 2-D array wakes every

@@ -1,14 +1,14 @@
 # Allowing `bv_decide` in submissions: the comparator re-verifies the certificate (WP-BV)
 
 > **STATUS (2026-11-01, G3): DORMANT.** The maintainers ruled, after this note's sandbox widening was explained to them (`fork`, the exec of
-> `cadical`, a writable `TMPDIR`): "maybe that's a bad idea. Let's not support external solvers for now." `check.py`'s
+> `cadical`, a writable `TMPDIR`), that external solvers are not supported for now. `check.py`'s
 > `BV_DECIDE_SUPPORTED` is False: `allow_bv_decide: true` is an infrastructure error, the comparator is never given `--bv-decide`
 > (without it every `bv_decide` axiom is rejected with a message that names the policy), the sandbox Spec never gets the solver,
 > and a refused `bv_decide` proof carries a hint. Everything below describes the work that is KEPT, dormant, so that enabling it is a
 > small change (section 11). Where the text says "allowed", "accepted" or "defaults to true", read "when the constant is True".
 
-Design note, 2026-11-01 (G0; section 10 records the as-built facts of G1 and G2). Decided 2026-11-01: "we should remove the
-bitblast ban, since we have the proof time limit anyway"; "Submissions shouldn't be allowed to declare new axioms".
+Design note, 2026-11-01 (G0; section 10 records the as-built facts of G1 and G2). Decided 2026-11-01: the bit-blasting ban
+goes, since the proof time limit bounds it anyway, and a submission may not declare new axioms.
 Toolchain `leanprover/lean4:v4.33.0-rc1`; every claim about Lean below is read off its sources
 (`~/.elan/toolchains/.../src/lean`) and was measured with the probes in `$SCRATCH/wpbv/probe` (the spike that
 decided the design is `BvRecheck-spike.lean` next to this file).

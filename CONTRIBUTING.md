@@ -2,7 +2,7 @@
 
 For a competitor or an outside contributor. svGolf is a zk.golf-style competition for SystemVerilog: for each task
 you write a circuit, prove in Lean that it meets the task's trusted statement, and are scored by a pinned synthesis
-flow weighed on the sky130 standard cells: area in um^2 and time in ps, the ranked score (decided 11/03), with area in
+flow weighed on the sky130 standard cells: area in um^2 and time in ps, the ranked score (decided 2026-11-03), with area in
 NAND2 gate equivalents and depth as extra columns; `score/PPA.md`, "Reproduce a score", gives every number again. [README.md](README.md) has the rules and the checker in full;
 this page is the route through them: how to play, how to extend the tool when a design needs something it cannot
 read yet, and what you may and may not touch.
@@ -14,8 +14,9 @@ read yet, and what you may and may not touch.
 | change a task statement, the checker or the scoring | section 8 |
 | run the regression | section 9 |
 
-Every command and path below exists in this tree (checked when this page was written); numbers come from
-README.md or PLAN2.md unless stated.
+Every command below exists in this tree, and every path is svGolf's but those of section 7, which are Proglib's: the
+repository svGolf requires as the Lake package `lean-models` (in a clone of svGolf's public repository, under
+`.lake/packages/lean-models/` after `lake build`). Numbers come from README.md unless stated.
 
 ## 1. What you need
 
@@ -54,10 +55,10 @@ README.md or PLAN2.md unless stated.
 parameters stay allowed.) Start with `_example`, then `add`: a one-line function, a complete
 for-every-width proof to start from, and an (area, delay) frontier to golf. `fdivp` is a far goalpost (proved for every format, but a hard
 first task). `arbiter` is the first clocked task: a controller whose statement holds on every cycle of every input
-trace, not a function. Its README's "Start a new design" and PROVING.md section 20 are the route; its score is the
+trace, not a function. Its README's "Proving a new design" and PROVING.md section 20 are the route; its score is the
 area, flip-flops included, times the register-to-register clock period, one decision per cycle.
 `matmul` and `sorter` are clocked with a latency: the proof also proves the cycle count the solution declares,
-and the score is the area times that count times the clock period. Their READMEs' "Start a new design" and
+and the score is the area times that count times the clock period. Their READMEs' "Proving a new design" and
 PROVING.md section 19 are the route; there `check.py --unproved` also takes `--latency n`, the latency you mean
 to claim.
 
@@ -211,6 +212,7 @@ be the three standard ones: end the file with the `#print axioms` check the refe
 python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
     --sv solution.sv --lean Solution.lean      # runs check.py in FULL mode; writes leaderboard/data/add/
                                                # (what a pull request adds); --data-dir DIR: a private trial
+python3.12 leaderboard/leaderboard.py submit --task add --record HASH    # hand it in: its pull request (--dry-run first)
 python3.12 leaderboard/leaderboard.py board  --task add            # the table by area x time (md or json)
 python3.12 leaderboard/leaderboard.py pareto --task add            # the (area, time) frontier, for exploring
 python3.12 leaderboard/leaderboard.py verify --offline            # hashes and area arithmetic, milliseconds
@@ -218,11 +220,12 @@ python3.12 leaderboard/leaderboard.py verify                      # also rescore
 python3.12 leaderboard/leaderboard.py verify --full               # re-runs check.py on every stored pair
 ```
 
-There is **no submission server yet**: `add` writes a record on your machine and sends nothing. A record is
+There is **no submission server**: `add` writes a record on your machine and sends nothing. A record is
 self-verifying through `verify --full`, which re-runs the whole check (the faster levels do not re-derive a clocked
-record's latency from its proof), so a pull request carrying the record directory is a possible hand-off, but how
-records reach a public board is an open decision (README.md, "Leaderboard"); until it is taken, use `--data-dir` so
-your records stay out of the repository's own.
+record's latency from its proof). To hand in a record, `leaderboard.py submit` opens a pull request that adds its
+three files; a check on the pull request verifies every record and runs the full check on the added ones, and a
+maintainer re-makes the ranked number on the rating build when the pull request is merged. For a private trial, use
+`--data-dir` so your records stay out of the repository's own (README.md, "Leaderboard").
 
 A record is one JSON file, `data/<task>/<record_hash>.json`, with your `.sv` and `.lean` copied next to it
 (`leaderboard/README.md` has the full schema, `svgolf-leaderboard-record/1`):
@@ -234,12 +237,12 @@ A record is one JSON file, `data/<task>/<record_hash>.json`, with your `.sv` and
 | `files` | base names and sha256 of the exact bytes of both files; `canonical_sha256` of the source gate's text |
 | `score` | the extra GE columns: `area_mge` (integer milli-GE, exact), `area_ge`, `depth`, `num_gates`, `gates`, the scoring point, `rtlil_sha256` |
 | `ppa` | the ranked score: the sky130 A0' columns, `area_e4um2_sky130` (1e-4 um^2) and `delay_ps_sky130` (a clocked record: `score.time_ps`, cycles x period), with the hashes they were weighed under and `setup.input_drive` |
-| `checker` | who judged: the svgolf and proglib (formerly lean-surfaces) revisions (`svgolf_revision`, `lean_surfaces_revision`), Lean toolchain, Yosys and Verilator versions, hashes of the pinned scripts, the GE table and the checker's own files |
+| `checker` | who judged: the svGolf and Proglib (formerly lean-surfaces) revisions (`svgolf_revision`, `lean_surfaces_revision`), Lean toolchain, Yosys and Verilator versions, hashes of the pinned scripts, the GE table and the checker's own files |
 | `proof` | axioms, `build_seconds`, code `lines`, `imports`, `tactics` found in the file |
 | `postsynth` | point, vectors, mode (`full`, or `light` for a marked local record), seed |
 | `record_hash` | sha256 of the canonical JSON of the rest; it is the file name |
 
-The ranked number is area x time, the sky130 A0' area times the time (A0' decided 11/03, the product 11/05), lower is
+The ranked number is area x time, the sky130 A0' area times the time (A0' decided 2026-11-03, the product 2026-11-05), lower is
 better; `leaderboard.py board` and `export` list the records by it (decided 2026-11-05; `#` is the rank, equal products
 share one, listed as the site lists them), with the Pareto layer of the two factors, the GE area and depth as extra
 columns (`pareto` prints the frontier, an exploration view, ties kept); no depth budget unless a task
@@ -249,9 +252,12 @@ reproduce a recorded number bit for bit: `score/PPA.md`, "Reproduce a score".
 
 ## 7. Adding an SV feature to ls-sv by pull request
 
+The paths of this section are Proglib's (the Lake package `lean-models`; in a clone of svGolf's public repository,
+under `.lake/packages/lean-models/` after `lake build`), and the pull request goes to Proglib's repository.
+
 Contestants may add a construct ls-sv does not read yet, and **the maintainers approve every such PR**. Because the ls-sv
 semantics defines what "the design" means in a task's statement, a feature is not done when it parses: it counts as
-supported only when all of the following exist (PLAN2.md, track T2). The precedents to read are `git show --stat
+supported only when all of the following exist. The precedents to read are `git show --stat
 d9eba5b2` (binary `~^`, 35 files) and `5a4c4cc5` (genvar step `i = i + 1`).
 
 | step | what | where |
@@ -285,7 +291,7 @@ subjects are short and imperative, one logical change per commit; the PR says wh
 A pull request to a trusted file is a **statement change**, and the practice of this repository is:
 
 * it is reviewed and approved by the maintainers, and prepared as a diff or a draft, never edited in place without that
-  (PLAN2.md, risks; `design/fdiv-param/Task.lean.patch` is the example);
+  (`design/fdiv-param/Task.lean.patch` is the example);
 * a new or changed `Spec.lean` comes with a written review for the maintainers (the precedent is `tasks/aes_sbox/REVIEW.md`:
   the statement in words, its sources, the cheating surfaces and their defences), non-vacuity checks (the input names are distinct; a witness in
   range; golden values by `decide`), refutations of the wrong designs (`tests/<task>/negative/Refute.lean`), and its
@@ -307,16 +313,19 @@ imports in `tasks.lean`/`tests.lean` (README.md, "A task directory"); `tests/run
 ```bash
 python3.12 tests/run.py                                   # everything; exit 0 iff all pass
 python3.12 tests/run.py --only add --skip attacks         # one task, a step skipped
-python3.12 tests/run.py --skip build,modes,references,drafts,negatives,baselines,validate,attacks   # no Lean
+python3.12 tests/run.py --skip build,comparator,modes,references,drafts,negatives,baselines,ppa,validate,attacks,sandbox   # no Lean
 python3.12 tests/run.py --full                            # with the heavy simulation plans (hours)
 ```
 
-Steps: `layout`, `build`, `unit`, `leaderboard`, `modes`, `canon`, `references`, `drafts`, `negatives`, `baselines`,
-`validate`, `attacks`, `sandbox`. `--sandbox {off,auto,require}` is handed to every `check.py` call (default `auto`; the
-`sandbox` step always uses `require` and skips, with a message, where there is no mechanism). The no-Lean selection above runs `layout`, `unit`, `leaderboard` and `canon`: 44 checks in
-about 75 s. The whole suite is 386 checks and took 3154 s on the last merged tree (PLAN2.md): plan for most of an
-hour. The unit tests need no Lean and run directly: `python3.12 score/test_score.py`, `score/test_srcgate.py`, `tests/checker/test_advisories.py`,
+Steps: `layout`, `build`, `unit`, `comparator`, `leaderboard`, `modes`, `canon`, `references`, `drafts`, `negatives`,
+`baselines`, `ppa`, `validate`, `attacks`, `sandbox`. `--sandbox {off,auto,require}` is handed to every `check.py` call (default `auto`; the
+`sandbox` step always uses `require` and skips, with a message, where there is no mechanism). The no-Lean selection above runs `layout`, `unit`, `leaderboard` and `canon` (they need
+Yosys, Verilator and the built `svgolf-eval`, and run no Lean). The whole suite takes an hour or more on a laptop (README.md, "Tests"). The unit tests need no Lean and run directly: `python3.12 score/test_score.py`, `score/test_srcgate.py`, `tests/checker/test_advisories.py`,
 `tests/leaderboard/test_leaderboard.py`, `tests/imports/test_allowlist.py`.
+
+**Working on the site.** `python3.12 site/build.py --offline` writes the site to `site/_out/` (git-ignored; `--out DIR`
+elsewhere, `--strict` makes every warning an error); `python3 -m http.server -d site/_out -b 127.0.0.1` serves it for a
+look. Its tests need no Lean and no Yosys: `python3.12 -m unittest discover -s tests/site` (about two minutes).
 
 **Lean-slot etiquette.** At most one Lean or `lake` process at a time on a shared or small machine; it is the one
 scarce resource (the reference machine is a 16 GB laptop). Run with `LEAN_NUM_THREADS=2` and `nice -n 19`,
@@ -333,8 +342,43 @@ and rejects the run (rerun it).
 | [README.md](README.md) | the rules, the layout, the checker stages, scoring, the banlist, the leaderboard, the tests |
 | [PROVING.md](PROVING.md) | how to prove a task with the `sv_comb` tactics; what they accept and refuse |
 | [REFUSALS.md](REFUSALS.md) | every refusal the checker and ls-sv make, why, and what to write instead (generated from `docs/sv-refusals.json`) |
-| [PLAN2.md](PLAN2.md), [PLAN.md](PLAN.md) | the lead's plans: work packages, decisions taken, open questions |
+| [PLAN.md](PLAN.md), [PLAN2.md](PLAN2.md), [PLAN4.md](PLAN4.md) | the maintainers' working plans: history, not the rules (the rules are README.md's) |
 | [leaderboard/README.md](leaderboard/README.md) | records, verification, boards |
 | `tasks/<name>/README.md`, `REVIEW.md` | a task's text, and the review of its trusted statement |
-| `design/` | design notes (always-comb, fdiv-param, ppa, sequential, week-2 tasks, word-level operators) |
+| [`design/`](design/README.md) | the maintainers' working notes: history, not maintained (its README lists the folders) |
 | lean-surfaces' `docs/sv-*.md` | the ls-sv documents: charter, envelope schema, refusal register, Xcelium reference, changelog |
+
+## 11. For the maintainers: merging a record's pull request
+
+The check on a record's pull request (`leaderboard/pr_check.py`, the `records` workflow) is advisory: it runs the
+pull request's own files on a hosted machine whose Yosys is not the rating build's, so it compares no score. At
+merge a maintainer runs the full check on the rating build (README.md, "The build ratings use") and, where the
+record was made under another build, re-makes its ranked number there. For pull request `N` adding record `HASH` of
+task `TASK`:
+
+```bash
+gh workflow run records.yml -f pull_request=N      # the hosted check again, by hand (or -f ref=BRANCH)
+gh pr checkout N                                   # on the rating build: the pull request's head
+python3.12 leaderboard/pr_check.py --base "$(git merge-base origin/main HEAD)"     # the full check, sandboxed
+```
+
+Merge it. Then, on `main`, `leaderboard.py board --task TASK` ranks the record if it was made on the rating build;
+if it lists it as not ranked (checked under another flow), re-make it with the player's own fields:
+
+```bash
+D=$(mktemp -d); J=leaderboard/data/TASK/HASH.json
+python3.12 -c 'import json, sys; r = json.load(open(sys.argv[1])); print(r["player"], r["submitted_at"],
+    r["files"]["sv"]["name"], r["files"]["lean"]["name"], r["assisted_by"], repr(r["notes"]))' "$J"
+cp leaderboard/data/TASK/HASH.sv "$D/SV_NAME"; cp leaderboard/data/TASK/HASH.lean "$D/LEAN_NAME"
+git rm -q leaderboard/data/TASK/HASH.json leaderboard/data/TASK/HASH.sv leaderboard/data/TASK/HASH.lean
+python3.12 leaderboard/leaderboard.py add --task TASK --player PLAYER --date DATE --assisted-by "TOOL" \
+    --notes "NOTES" --sv "$D/SV_NAME" --lean "$D/LEAN_NAME"      # the full check, sandboxed, on the rating build
+python3.12 leaderboard/leaderboard.py asap7 --write --task TASK      # the record's ASAP7 columns
+git add leaderboard/data/TASK leaderboard/asap7/TASK.json
+git commit -m "leaderboard: TASK: PLAYER's record re-made on the rating build"
+```
+
+One `--assisted-by` per entry of the record's `assisted_by` (none for an empty list). The old record goes (the git
+history keeps it), so a record is on the board once. With the first record of a player outside the maintainers,
+update the line on who made the records so far: `FIRST_ENTRIES_MD` in `site/build.py` and the same sentence in
+README.md, "Leaderboard".

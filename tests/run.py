@@ -77,6 +77,9 @@ STEPS, in order:
               stream mutants and the arbiter's reactive check: the goalpost passes,
               a Mealy output, an unreset grant and fixed priority each fail on
               their own clause),
+              tests/checker/test_postsynth_unknown.py (Yosys: an unknown-valued
+              constant in the netlist is refused where Yosys's own reader shows
+              something reading it, and accepted where nothing does),
               score/test_ppa.py (the sky130 PPA columns, stage 1),
               score/test_ppa_opensta.py (ppa.py's STA against OpenSTA's recorded
               arrivals, cell arcs to clocked periods, the input-drive convention),
@@ -894,6 +897,8 @@ def step_unit():
                        ("tests/checker/test_clocked.py", [PY, "tests/checker/test_clocked.py"]),
                        # the clocked score, post-synthesis check and negatives (real Yosys/Verilator/ls-sv)
                        ("tests/checker/test_clocked_post.py", [PY, "tests/checker/test_clocked_post.py"]),
+                       # the unknown-constant rule on hand-written netlists, as Yosys's own reader shows them
+                       ("tests/checker/test_postsynth_unknown.py", [PY, "tests/checker/test_postsynth_unknown.py"]),
                        ("score/time_limits.py --selftest",
                         [PY, "score/time_limits.py", "--selftest"]),
                        # the sky130 PPA columns: the real-library tests skip when the pinned liberty

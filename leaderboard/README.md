@@ -13,6 +13,7 @@ version, with the rules of the game, is in [../README.md](../README.md),
 ```
 leaderboard/
   leaderboard.py                  the CLI and the library (pure functions + thin commands)
+  pr_check.py                     the check of a pull request that adds records ("Handing a record in")
   README.md                       this file
   data/<task>/<record_hash>.json  the record
   data/<task>/<record_hash>.sv    the submitted design, byte for byte
@@ -39,10 +40,11 @@ python3.12 leaderboard/leaderboard.py pareto --task T --axes area_um2_sky130_map
 python3.12 leaderboard/leaderboard.py seed-references [--task T [--ref STEM ...]]   # the proved references
 python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7     # the ASAP7 view (also pareto, export): below
 python3.12 leaderboard/leaderboard.py asap7 [--task T] [--rescore | --write]   # the ASAP7 view's columns
+python3.12 leaderboard/leaderboard.py submit --task T --record HASH [--dry-run]   # hand a record in: below
 ```
 
 `add` takes `--date YYYY-MM-DD` (default: today, UTC; this is the only place
-the clock is read), `--require-clean` (refuse if the svgolf revision or the revision of proglib,
+the clock is read), `--require-clean` (refuse if the svgolf revision or the revision of Proglib,
 formerly lean-surfaces, is unknown or `+dirty`), `--lean-wrap CMD` (else `$SVGOLF_LEAN_WRAP`,
 which `check.py` reads itself), `--data-dir DIR`. Exit status: 0 success, 1
 refused or verification failed, 2 usage or infrastructure error (an
@@ -53,7 +55,7 @@ it; the leaderboard itself runs on any Python 3.9+.
 **Official records are full.** `add` runs `check.py` with `--ppa require --postsynth full` (its
 post-synthesis check on the task's whole vector budget; `check.py`'s own default is
 the lighter `light` mode, a deterministic subset for local feedback), `verify --full`
-re-runs it the same way, and `seed-references` records in full mode. `--ppa require` (WP-X3)
+re-runs it the same way, and `seed-references` records in full mode. `--ppa require`
 is the sky130 columns of `score/ppa.py` (see "The sky130 PPA columns" below): the pinned liberty
 must be present (and readable), else `check.py` answers with an infrastructure error (exit status 2) and a
 live `add` writes nothing; a light record (`add --postsynth light`) asks for the columns too. `add --from-check RESULT.json`
@@ -148,6 +150,58 @@ ranks them by area x time:
 | 1 | svgolf-reference | Claude (Anthropic) | 51310.77 | 8563.2128 | 5992 | 1 | 2025.905 | 62 | 307 | 2026-11-05 | `4f925aec8e6e` |
 | 2 | svgolf-reference | Claude (Anthropic) | 90423.95 | 8290.4512 | 10907 | 1 | 1962.576 | 88 | 1385 | 2026-11-05 | `8cd856ed5b94` |
 
+## Handing a record in (decided 2026-11-11)
+
+To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files; a check on the pull
+request verifies every record and runs the full check on the added ones, and a maintainer re-makes the ranked number
+on the rating build when the pull request is merged. There is no submission server: `add` sends nothing, and the
+pull request is the hand-off.
+
+```bash
+python3.12 leaderboard/leaderboard.py submit --task add --record HASH --dry-run   # the steps and the text; changes nothing
+python3.12 leaderboard/leaderboard.py submit --task add --record HASH             # opens the pull request
+```
+
+`submit` takes a record of the board's own data directory (`leaderboard/data`, where `add` writes without
+`--data-dir`), named by its hash or the first 12 characters or more of it, as `add` prints it. It runs `verify
+--offline` on it and refuses a failed or stale record and a light one (which never ranks), then builds the record's
+board line: its area x time and rank among the players' records, par and whether it is under par, as the site ranks
+them (under the rating build's flows that `tests/expected.json` pins), or why it is not ranked. With your git and
+the GitHub command-line tool `gh` (and its login) it then makes a commit of exactly the record's three files on the
+public repository's `main`, through a temporary git index (your working tree, index and branches are not touched;
+git writes only objects and `FETCH_HEAD`), forks the repository if you have no fork, pushes the commit to the branch
+`record-<task>-<hash12>` of your fork (a fork under the repository's own name: one you renamed fails at the push,
+with git's message), and opens the pull request. Its title is the record and its score; its text
+has the parts of `.github/pull_request_template.md` (Record: the task, your handle, `assisted_by`, the files; Board
+line; Checks: the offline check's line). `--dry-run` prints all of it as a shell script and changes nothing; without
+`gh` on PATH, `submit` prints the same steps for doing by hand (fork on github.com, push, open the pull request with
+the printed text). The public repository is `site/config.json`'s `repo_url`, or `--repo URL`. Exit status: 0 the
+pull request is open or the steps were printed, 1 the record is refused, 2 usage or a step that failed (named, with
+git's or gh's message).
+
+**The check on the pull request** is `leaderboard/pr_check.py`; the public repository's `records` workflow runs it
+on every pull request that touches `leaderboard/data/`. From the merge commit and its first parent it reads what the
+pull request changes and accepts only added records, each with its three files: an edited or removed record, or any
+other file, is refused, and the full check is not run (a pull request that changes the checker would bring the
+checker it runs). Then it runs `verify --offline` on every record and `verify --full` on the added ones alone
+(`check.py` again, the whole check), and writes each added record's board line, both outputs, whether the machine's
+Yosys is the rating build's, and that the ranked number is re-made on the rating build at merge (the commands are
+in ../CONTRIBUTING.md, "For the maintainers"), to the job summary.
+A record's file must be a plain one (git's mode 100644: not a symbolic link, not an executable), a record under
+`svgolf-reference`, the proved references' handle, is refused, and the two refs are resolved to commits first (one
+that begins with `-` is refused).
+It informs and ranks nothing: it runs the pull request's own files, with no secret and a read-only token. The
+workflow builds Yosys 0.53 and Verilator 5.042 from the release archives the rating build's packages come from, and
+runs the check with `--sandbox off`: the hosted machine is fresh for each job and holds no secret, Ubuntu 24.04
+restricts the user namespaces bubblewrap needs, and Lean has not yet been run inside the Linux sandbox
+(../README.md, "Sandbox"). Run by hand (Actions > records > Run workflow), the workflow checks a pull request by
+its number, or a branch, tag or commit of the repository against its merge base with `main`, with the same script.
+The version line Yosys prints names the compiler it was built with, which there is not the
+rating build's, so `verify --full` there calls an added record stale for the flow (not a failure) and compares the
+proof, the canonical text, the axioms and the latency, not the score (the summary says which). Run by hand: `python3.12 leaderboard/pr_check.py --base REF [--head REF] [--summary
+FILE]`, in a checkout of the pull request. Exit status: 0 every check passed, 1 a check failed or the pull request
+changes more than records, 2 usage or git.
+
 ## The record (schema `svgolf-leaderboard-record/1`)
 
 `record_hash` is the sha256 of the record's **canonical JSON** (sorted keys,
@@ -172,28 +226,28 @@ shortest round-trip text, which another implementation has to reproduce.)
 | `files` | `{sv: {name, sha256}, lean: {name, sha256}}`: base names as submitted, sha256 of the exact bytes (also the content of the stored copies) |
 | `canonical_sha256` | sha256 of the source gate's canonical text (`stages.source.canonical_sha256`): what the extractor, the banlist and Yosys all read |
 | `score` | the extra GE columns: `area_mge` (integer milli-GE, the exact value), `area_ge` (= `area_mge / 1000`), `depth`, `num_gates`, `gates` (count per gate type), `top`, `scoring_point` (the parameter values, e.g. `{"N": 16}`), `rtlil_sha256` (the canonical RTLIL: equal RTLIL, equal score); for a CLOCKED result also check.py's clocked ranked score `area_um2`, `period_ps`, `cycles`, `time_ps` (= `cycles` x `period_ps`, the time the boards rank) and `ffs`, checked against the `ppa` block (`period_ps` its `delay_ps_sky130`, `area_um2` its `area_um2_sky130`) |
-| `checker` | who judged: `svgolf_revision` (git HEAD of the svgolf checkout: for a record made in the development tree, where svGolf is the `svgolf/` directory of proglib, a commit of that repository, possibly unpublished (on 2026-11-10 none of those the stored records name was), and not a commit of the public svGolf repository; `+dirty` if the trusted base has uncommitted changes: `check.py`, `check/`, `score/`, `SvGolf/`, the lake files, the tasks' `Spec.lean`, `IEEE754.lean` and `task.json`; read before the check ran), `lean_surfaces_revision` (as `check.py` records it, `+dirty` if `LeanModels/Sv` or `extractors/sv` has uncommitted changes; the records in `leaderboard/data` name development commits whose `LeanModels/Sv` and `extractors/sv` equal those of the revision `lakefile.toml` pins, MEASURED 2026-11-10), `lean_toolchain` (the `lean-toolchain` file), `yosys` (version line), `verilator` (version line; of a clocked record, the scoring point's check), `extractor_sha256` (the extractor program: `extract.py` alone for a checkout from before `lower_proc.py`, else the digest of both files, `check/envelope.py` `extractor_sha256`), `canon_script_sha256`, `script_sha256`, `ge_table_sha256` (the pinned flow of the record's kind: `score/svgolf.ys` and `score/ge.json` for a combinational record, `score/svgolf_seq.ys` and `score/ge_seq.json` for a clocked one), `flow` (OPTIONAL, decided 2026-11-07: `"seq"` in a record of a clocked task, the clocked flow; absent in a combinational record, whose flow is `"comb"`, and in every record made before the clocked format), `files` (sha256 of the checker's own files: `check.py`, `check/*`, `score/*`, `lean-toolchain`, `lakefile.toml`), `statement` (OPTIONAL, decided 2026-11-07: the trusted statement the record was checked under, the sha256 of each file of it, read before the check ran: the task's statement module, task.json `statement.module`, and every svgolf/ module it imports transitively, e.g. `tasks/add/Spec.lean` and `SvGolf/Task.lean`, plus `SvGolf/TaskSeq.lean` and `SvGolf/TaskReact.lean` for a clocked kind that rests on them and `tasks/fdivp/IEEE754.lean` for fdivp; `leaderboard.py` `statement_files`; absent in a record made before 2026-11-07). The board, par, `pareto --axes`, the site and `verify` compare it with the task's statement as it is now (`current_statement`): a record checked under another statement, or one that names none, is stale and not ranked, whatever its score |
+| `checker` | who judged: `svgolf_revision` (git HEAD of the svgolf checkout: for a record made in the development tree, where svGolf is the `svgolf/` directory of Proglib's repository, a commit of that repository, possibly unpublished (on 2026-11-10 none of those the stored records name was), and not a commit of the public svGolf repository; `+dirty` if the trusted base has uncommitted changes: `check.py`, `check/`, `score/`, `SvGolf/`, the lake files, the tasks' `Spec.lean`, `IEEE754.lean` and `task.json`; read before the check ran), `lean_surfaces_revision` (as `check.py` records it, `+dirty` if `LeanModels/Sv` or `extractors/sv` has uncommitted changes; the records in `leaderboard/data` name development commits whose `LeanModels/Sv` and `extractors/sv` equal those of the revision `lakefile.toml` pins, MEASURED 2026-11-10), `lean_toolchain` (the `lean-toolchain` file), `yosys` (version line), `verilator` (version line; of a clocked record, the scoring point's check), `extractor_sha256` (the extractor program: `extract.py` alone for a checkout from before `lower_proc.py`, else the digest of both files, `check/envelope.py` `extractor_sha256`), `canon_script_sha256`, `script_sha256`, `ge_table_sha256` (the pinned flow of the record's kind: `score/svgolf.ys` and `score/ge.json` for a combinational record, `score/svgolf_seq.ys` and `score/ge_seq.json` for a clocked one), `flow` (OPTIONAL, decided 2026-11-07: `"seq"` in a record of a clocked task, the clocked flow; absent in a combinational record, whose flow is `"comb"`, and in every record made before the clocked format), `files` (sha256 of the checker's own files: `check.py`, `check/*`, `score/*`, `lean-toolchain`, `lakefile.toml`), `statement` (OPTIONAL, decided 2026-11-07: the trusted statement the record was checked under, the sha256 of each file of it, read before the check ran: the task's statement module, task.json `statement.module`, and every svgolf/ module it imports transitively, e.g. `tasks/add/Spec.lean` and `SvGolf/Task.lean`, plus `SvGolf/TaskSeq.lean` and `SvGolf/TaskReact.lean` for a clocked kind that rests on them and `tasks/fdivp/IEEE754.lean` for fdivp; `leaderboard.py` `statement_files`; absent in a record made before 2026-11-07). The board, par, `pareto --axes`, the site and `verify` compare it with the task's statement as it is now (`current_statement`): a record checked under another statement, or one that names none, is stale and not ranked, whatever its score |
 | `proof` | `axioms` (sorted; from the comparator, walked through kernel values), `build_seconds` (compiling `Solution.lean` only), `lines` (code lines: blank lines and comments, including doc comments and nested block comments, stripped; `import` lines count), `imports`, `tactics` (the watched tactics found in the code: `sv_*` tactics, `omega`, `grind`, `decide`, `induction`, `simp`, `bv_decide`, `native_decide`; lexical, not a claim about the proof term), `uses_comb_view` / `uses_comb_eq` (the proof imports `LeanModels.Sv.CombView*` / `CombEq*`) |
-| `ppa` | OPTIONAL (absent in every record made before the sky130 columns, which stay valid; hashed when present; the schema string is unchanged: additive, like `postsynth.mode`). check.py's `ppa` object of the run: `available: true`, `ppa_version`, `area_um2_sky130` (= `area_e4um2_sky130` / 10^4), `area_e4um2_sky130` (integer, 1e-4 um^2), `delay_ps_sky130` (integer ps), `unit_depth` (= `score.depth`, checked), `cells_sky130` (= `score.num_gates`, plus 1 if `constants`: the priced tie cell; checked, and equal to the sum of `cell_hist_sky130`), `cell_hist_sky130`, `constants`, `critical`, `setup`, `liberty_file`, and the hashes `liberty_sha256`, `ppa_pins_sha256`, `ppa_script_sha256`, `netlist_sha256`, and (WP-X4) the optional sub-object `mapped` (flow A1': `{"available": true, ...}` with `ppa_mapped_version`, `area_um2_sky130_mapped_v1` (= `area_e4um2_sky130_mapped_v1` / 10^4), `area_e4um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, `mapped_cells_sky130_v1` (= the sum of `mapped_cell_hist_sky130_v1`), `mapped_levels_sky130_v1`, `mapped_buffers_sky130_v1`, `mapped_inverters_sky130_v1`, `equivalence`, the hashes and the Yosys/ABC builds; its `rtlil_sha256` must be the record's `score.rtlil_sha256`; or `{"available": false, "reason": "..."}` for a design the mapping could not weigh; an old reader accepts the key, extra keys of `ppa` are allowed); or `{"available": false, "reason": "..."}` for a design the pinned flow could not weigh (recorded only from a `--ppa require` run: under `auto` a missing liberty would look the same). THE RANKED SCORE: the boards rank `area_e4um2_sky130` and the time (`delay_ps_sky130`; a clocked record's `score.time_ps`); a record without the key, or with an unavailable one, is not ranked |
-| `postsynth` | the post-synthesis check that passed. A combinational record: `point`, `vectors` (those the run used), `mismatches` (0), `salted` (whether `$SVGOLF_POSTSYNTH_SALT` was set), `seed`, `mode` (`"full"` or `"light"`; absent in records made before the modes existed, which read as full) and `full_vectors` (what the full mode would have used; equal to `vectors` for a full record; absent in those same records). Additive: the schema is unchanged. A CLOCKED record (`checker.flow` `"seq"`, decided 2026-11-07) has exactly `mode` (`"light"` when one point ran light, else `"full"`), `mismatches` (0), `netlist_sha256` (the scored netlist: the scoring point's, and `ppa.netlist_sha256`) and `points`, one per point of the task in check.py's order, each exactly `point` (check.py's name, `N=8`, `default` for a parameterless top), `params` (`{"N": 8}`), `mode`, `mismatches` (0), `netlist_sha256` (that point's netlist), `latency` (the latency that point was checked at, `null` when the kind declares none: since 2026-11-08 (the rule `check.py` calls F8), each point's own `lat p`, the kernel's value of the proved latency function there; the scoring point's is the declared n, and `score.cycles` is it, or 1; the points declare one all or none) and `seeds`, the seeds 0 to n-1 in order, each with `seed`, `cycles` (stimulus entries), `segments` (react-family) or `transactions` (tx-family, stream-family) as a count (a seq-family seed counts only its cycles), and, where the check recorded them, `reset_cycles`, `salted`, `seed_sha256` and (F5, decided 2026-11-07: everything random in a seed's run derives from `$SVGOLF_POSTSYNTH_SALT` and is recorded) the power-ups' draws `netlist_randseed` (Verilator's `randSeed`, 1 to 2^31 - 1) and `lssv_start` (`zeros` or ls-sv's `seed:<k>`); the run's timings are not kept. `validate_record` holds the points to the record's own score and `ppa` block; acceptance holds them to the task |
+| `ppa` | OPTIONAL (absent in every record made before the sky130 columns, which stay valid; hashed when present; the schema string is unchanged: additive, like `postsynth.mode`). check.py's `ppa` object of the run: `available: true`, `ppa_version`, `area_um2_sky130` (= `area_e4um2_sky130` / 10^4), `area_e4um2_sky130` (integer, 1e-4 um^2), `delay_ps_sky130` (integer ps), `unit_depth` (= `score.depth`, checked), `cells_sky130` (= `score.num_gates`, plus 1 if `constants`: the priced tie cell; checked, and equal to the sum of `cell_hist_sky130`), `cell_hist_sky130`, `constants`, `critical`, `setup`, `liberty_file`, and the hashes `liberty_sha256`, `ppa_pins_sha256`, `ppa_script_sha256`, `netlist_sha256`, and (since 2026-11-01) the optional sub-object `mapped` (flow A1': `{"available": true, ...}` with `ppa_mapped_version`, `area_um2_sky130_mapped_v1` (= `area_e4um2_sky130_mapped_v1` / 10^4), `area_e4um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, `mapped_cells_sky130_v1` (= the sum of `mapped_cell_hist_sky130_v1`), `mapped_levels_sky130_v1`, `mapped_buffers_sky130_v1`, `mapped_inverters_sky130_v1`, `equivalence`, the hashes and the Yosys/ABC builds; its `rtlil_sha256` must be the record's `score.rtlil_sha256`; or `{"available": false, "reason": "..."}` for a design the mapping could not weigh; an old reader accepts the key, extra keys of `ppa` are allowed); or `{"available": false, "reason": "..."}` for a design the pinned flow could not weigh (recorded only from a `--ppa require` run: under `auto` a missing liberty would look the same). THE RANKED SCORE: the boards rank `area_e4um2_sky130` and the time (`delay_ps_sky130`; a clocked record's `score.time_ps`); a record without the key, or with an unavailable one, is not ranked |
+| `postsynth` | the post-synthesis check that passed. A combinational record: `point`, `vectors` (those the run used), `mismatches` (0), `salted` (whether `$SVGOLF_POSTSYNTH_SALT` was set), `seed`, `mode` (`"full"` or `"light"`; absent in records made before the modes existed, which read as full) and `full_vectors` (what the full mode would have used; equal to `vectors` for a full record; absent in those same records). Additive: the schema is unchanged. A CLOCKED record (`checker.flow` `"seq"`, decided 2026-11-07) has exactly `mode` (`"light"` when one point ran light, else `"full"`), `mismatches` (0), `netlist_sha256` (the scored netlist: the scoring point's, and `ppa.netlist_sha256`) and `points`, one per point of the task in check.py's order, each exactly `point` (check.py's name, `N=8`, `default` for a parameterless top), `params` (`{"N": 8}`), `mode`, `mismatches` (0), `netlist_sha256` (that point's netlist), `latency` (the latency that point was checked at, `null` when the kind declares none: since 2026-11-08 (the rule `check.py` calls F8), each point's own `lat p`, the kernel's value of the proved latency function there; the scoring point's is the declared n, and `score.cycles` is it, or 1; the points declare one all or none) and `seeds`, the seeds 0 to n-1 in order, each with `seed`, `cycles` (stimulus entries), `segments` (react-family) or `transactions` (tx-family, stream-family) as a count (a seq-family seed counts only its cycles), and, where the check recorded them, `reset_cycles`, `salted`, `seed_sha256` and (F5, decided 2026-11-07: everything random in a seed's run derives from `$SVGOLF_POSTSYNTH_SALT` and is recorded) the power-ups' draws `netlist_randseed` (Verilator's `randSeed`, 1 to 2^31 - 1) and `lssv_start` (`zeros` or ls-sv's `seed:<k>`); the run's timings are not kept. `validate_record` holds the points to the record's own score and `ppa` block; acceptance holds them to the task. A netlist bit tied to an unknown value that nothing reads (accepted since 2026-11-11) is listed in `check.py`'s result (`netlist_unread_unknown`) and on its stderr, not in the record |
 | `notes` | free text (at most 2000 characters) |
 | `record_hash` | as above |
 
 A real record is `data/_example/*.json` (every key above except the optional `ppa`, which that file predates, and nothing else).
 
-## The sky130 PPA columns (WP-X3, WP-X4): the ranked score
+## The sky130 PPA columns: the ranked score
 
-The ranked number is flow A0''s area x time (A0' decided 11/03, the product 11/05): a record made since the wiring
+The ranked number is flow A0''s area x time (A0' decided 2026-11-03, the product 2026-11-05): a record made since the wiring
 carries the columns `score/ppa.py` computes on the scored netlist (flow A0': area in um^2, delay in ps; units and what
 is NOT claimed in [../score/PPA.md](../score/PPA.md) and the README's "Scoring"), `combined.py` multiplies them,
 `board` and `export` rank the records by the product, and `pareto` lists the Pareto frontier of the two factors
-(`RANKED_AXES`: `area_um2_sky130`, `time_ps`), an exploration view, with the GE area and depth as extra columns; since WP-X4 the record also
+(`RANKED_AXES`: `area_um2_sky130`, `time_ps`), an exploration view, with the GE area and depth as extra columns; since 2026-11-01 the record also
 carries the sub-object `ppa.mapped` (flow A1': the same design's canonical RTLIL mapped by a real `abc -liberty` run,
 weighed by the same STA), an unranked research column. A record is ranked only when its columns are comparable with the
 ones weighed now (`unranked_reason`: the task's scoring point, the current flow, the current `ppa_version`, liberty and
 pins file, and the task's input drive); a record without them is not ranked until it is backfilled (checked again under
 `--ppa require`). "Reproduce a score" in [../score/PPA.md](../score/PPA.md) re-derives every ranked number bit for bit.
-Since 11/04 (`ppa_version` `sky130_a0_v2`) A0' is weighed on the netlist REPAIRED by buffering only (balanced buffer trees
+Since 2026-11-04 (`ppa_version` `sky130_a0_v2`) A0' is weighed on the netlist REPAIRED by buffering only (balanced buffer trees
 on every net over its driver's limits, replicated tie cells, nothing resized; the record's `ppa.repair` counts them, and
 `cells_sky130` = `cells_before` + `buffers` + `tie_cells`), and `check.py` rejects a design the repair cannot make
 electrically legal, so such a design never reaches a record (score/PPA.md, "The repair and the legality check"); since
@@ -222,7 +276,7 @@ were computed under another `ppa_version`, liberty or pins file than the current
 input drive than the task's now (`ppa.setup.input_drive` against `task.json` `input_drive`, else the pins' default: a task
 field, outside the pins file, so a task that changes it never has its old and new records ranked together) (for the mapped axes:
 another `ppa_mapped_version`, liberty, `score/ppa_mapped_pins.json` or `score/ppa_mapped.ys`; the Yosys and ABC builds are part
-of the flow check; a record whose design the mapping could not weigh, or that was made before WP-X4, has no mapped columns). The output
+of the flow check; a record whose design the mapping could not weigh, or that was made before 2026-11-01, has no mapped columns). The output
 carries no noise band: the pinned flow is deterministic (the same design text gives the same integers on every run,
 README "Scoring"), so the board compares the exact integers and a difference of any size is a difference between the
 scored netlists. Without `--axes`, `pareto` prints the frontier of the ranked number's two factors, each row with its
@@ -305,8 +359,7 @@ records are append-only and never edited.
   fresh record is always within it. The board uses it for the same ranking,
   so records made before the budget was set or lowered are flagged.
 
-With both, the smaller one ranks. The value for `mul` is an open question
-(PLAN.md); no task has a budget today.
+With both, the smaller one ranks. The value for `mul` is not set; no task has a budget today.
 
 **Scores are comparable exactly when the flow, the point, the sky130 pins and
 the input drive agree.** The board ranks only records whose `canon_script_sha256`,
@@ -324,7 +377,7 @@ numeric, of the current `ppa_version`, liberty and pins file
 --sv data/<task>/<hash>.sv --lean data/<task>/<hash>.lean ...` makes a new
 record under the new flow; the stale one stays as history). `--all-flows`
 ranks every record that carries sky130 columns (nothing is compared: flow,
-pins or drive). A bump of the flow or of proglib therefore re-checks
+pins or drive). A bump of the flow or of Proglib therefore re-checks
 the leaderboard: the stale list is the to-do list.
 
 **`assisted_by`** names the tools and AI systems that helped write the design
@@ -344,7 +397,7 @@ fails; a record checked under another flow is `stale`, not a failure.
 | level | what | cost |
 |---|---|---|
 | `--offline` | the record is well-formed (a clocked record's points, seeds and netlist held to its own score and `ppa` block, the scoring point's latency to the score's cycles, and the points declaring a latency all or none; another point's latency is held to the kernel's `lat p` only by acceptance and `--full`); `record_hash` is the hash of its canonical JSON and its file name; both stored files exist with the recorded sha256; the area equals the sum of the gate weights of the GE table of the record's flow, `score/ge.json` or, for a clocked record, `score/ge_seq.json` (when that is the recorded table); a record whose flow is not its task's kind's is `stale`; so is one checked under another trusted statement than the task's now, or made before records named theirs (`checker.statement`); the axioms are within the task's allowed set; a `ppa` object agrees with the record's own score (unit depth, cell count, histogram, area arithmetic); a `ppa` object of the current `ppa_version`, liberty and pins names the timing setup the task's configuration gives now: its `setup.input_drive` another than the task's (`task.json` `input_drive`, else the pins' default) makes the record `stale`, not comparable and not ranked (the task changed its drive: the record is not wrong), and a `pi_slew_ps` or `po_load_ff` other than the pins file's is a failure. Also notes which checker files have changed since the record | milliseconds; no tools |
-| default | `--offline`, plus a rescore: `score/score.py` on the stored design at the task's scoring point (source gate, then the two-stage Yosys flow; `score.py --seq`, the clocked flow, for a clocked record, and `ppa.py --seq` for its columns): area, depth, gate mix, canonical text hash and canonical RTLIL hash must equal the record's. For a record with a `ppa` object the same single flow runs through `score/ppa.py` (its `score` is `score.py`'s result unchanged) and the columns must reproduce exactly (`area_e4um2_sky130`, `delay_ps_sky130`, `unit_depth`, `cells_sky130`, the histogram, `netlist_sha256`, the whole `setup`, and, when the record has `ppa.mapped`, the mapped area, delay, cells, histogram, levels and mapped netlist hash: the same flow also maps once, +0.3 to 1.4 s); without the pinned liberty on the verifying machine, or when the record was weighed under another `ppa_version`/liberty/pins, that comparison is a NOTE, never a failure; weighed under another input drive than the fresh weighing's (the task's now), the record is `stale` and its A0' columns are not compared (a record that claims a drive its numbers were not weighed under is therefore never "reproduced": stale under the task's drive, a failure once the task's drive is the claimed one) | one Yosys run per record (7 s for the five seeded records, the `mul` one and the sky130 columns and the A1' mapping of each included, 11/04); no Lean, no Verilator |
+| default | `--offline`, plus a rescore: `score/score.py` on the stored design at the task's scoring point (source gate, then the two-stage Yosys flow; `score.py --seq`, the clocked flow, for a clocked record, and `ppa.py --seq` for its columns): area, depth, gate mix, canonical text hash and canonical RTLIL hash must equal the record's. For a record with a `ppa` object the same single flow runs through `score/ppa.py` (its `score` is `score.py`'s result unchanged) and the columns must reproduce exactly (`area_e4um2_sky130`, `delay_ps_sky130`, `unit_depth`, `cells_sky130`, the histogram, `netlist_sha256`, the whole `setup`, and, when the record has `ppa.mapped`, the mapped area, delay, cells, histogram, levels and mapped netlist hash: the same flow also maps once, +0.3 to 1.4 s); without the pinned liberty on the verifying machine, or when the record was weighed under another `ppa_version`/liberty/pins, that comparison is a NOTE, never a failure; weighed under another input drive than the fresh weighing's (the task's now), the record is `stale` and its A0' columns are not compared (a record that claims a drive its numbers were not weighed under is therefore never "reproduced": stale under the task's drive, a failure once the task's drive is the claimed one) | one Yosys run per record (7 s for the five seeded records, the `mul` one and the sky130 columns and the A1' mapping of each included, 2026-11-04); no Lean, no Verilator |
 | `--full` | `check.py --ppa require` again on the stored `.sv` and `.lean`, every stage: it must accept, with the same canonical text and axioms, a clocked record the same latency at every point (the kernel's `lat p`, whatever the flow), and (same flow) the same score and (same flow, `ppa_version`, liberty, pins) the same `ppa` columns; the pinned liberty must be present. Under another flow (Yosys or script hashes differ) the record is `stale` and neither the score nor the columns are compared: the netlist, its area and its hash legitimately differ. A record made before the columns has nothing to reproduce: it is rechecked with `--ppa off` and never needs the liberty | the cost of the original check (10 to 90 s per record on a free Lean slot, plus waiting for it; hours for a large board) |
 
 `check.py` has no "cheap stages only" flag (`--unproved` still builds the
@@ -361,41 +414,18 @@ not intact (hash, name, shape) and say so. `submitted_at`, `player`,
 
 ## Records in the tree
 
-`data/` holds eleven proved references (`_example` `band` and `band_lp`,
-`add_n_byhand`, `aes_sbox` `sbox_bp` and `sbox_table`, `clmul_n`, `fdivp`
-`fdivp`, `fdivp_newton` and `fdivp_srt`, `mul_n_byhand` and `mul_tree_h`) as
-player `svgolf-reference`, `assisted_by` `["Claude (Anthropic)"]`, notes
-`reference solution`, each from a real `check.py --ppa require` run (their
-stored files are byte-identical to `tasks/*/reference/` at the time). The first
-five were re-seeded on 2026-11-04 under `sky130_a0_v3`, so they carry the ranked
-sky130 columns (four replace the records of 10-29, the same design and proof
-files made before the columns; the git history keeps them). The record
-fingerprint is strict (a score is tied to an exact checker), so after a change
-to a checker file the references are re-seeded as a routine step: on 2026-11-05,
-after `check.py` and `check/envelope.py` changed, the ten records made before it
-were re-seeded from the same files, with the same score, `ppa` columns and
-post-synthesis vectors (only the checker hashes and revisions, the build time
-and the record hash differ). On 2026-11-06, after the statement gained the
-parameter range and `LoopFree` and `check.py`, `score/banlist.py`,
-`score/fourstate.py` and `score/srcgate.py` changed, all eleven were re-seeded
-the same way, with the same score, `ppa` columns, post-synthesis vectors and
-stored `.sv`: nine from their proofs as updated for the range, the two `aes_sbox`
-ones from the same files (new: the proof files of the nine, the checker hashes
-and revisions, the build time, the date and the record hash). The four player
-records were made under the statement before that change; three of their
-proofs (`select-six`, `late-carry`, `plus-minus-two`) read the range as `1 ≤ N`
-and were rejected at `solution` by the checker of 2026-11-06. On 2026-11-07 a
-record started naming the statement it was checked under (`checker.statement`,
-decided 2026-11-07), so a record that names none, or another, is stale and not
-ranked: all eleven reference records were re-seeded again from the same files
-(`seed-references --require-clean`, the sandbox, `--ppa require`, full post-synthesis; MEASURED: every score, `ppa` block, post-synthesis record, canonical hash and stored `.sv` and `.lean` equal to the record it replaces; new: `checker.statement`, the checker hashes and revisions, the build time, the date and the record hash), and the three study records were re-recorded with their proofs
-ported by the maintainers, one line each (`have hN' : 1 ≤ N := hN` to `hN.1`,
-nothing else), the design, player, assistance, date and credit kept and the
-notes saying so (`add --require-clean`; MEASURED: score, `ppa`, post-synthesis record, canonical hash, stored `.sv`, player, assistance and date equal to the old record's). The fourth player record, `tower-shuffle`
-(aes_sbox), made on 2026-11-05 and accepted by `verify --full` under the current
-statement on 2026-11-06, names no statement: it is stale and unranked until it
-is re-recorded, a step for the maintainers to decide. `seed-references` does it for every `ready` task (`--task T
---ref STEM` for one reference): it runs `check.py` on each reference that is
+`data/<task>/` holds the board's records: the proved references, as player `svgolf-reference` (`assisted_by`
+`["Claude (Anthropic)"]`, notes `reference solution`, each from a real `check.py --ppa require` run, their stored
+files byte-identical to `tasks/<task>/reference/` when they were recorded), and the players' records. The record
+fingerprint is strict (a score is tied to an exact checker and statement), so after a change to a checker file or a
+statement the references are re-seeded as a routine step, from the same files, with the same score, `ppa` columns
+and post-synthesis vectors (new: the checker hashes and revisions, the statement, the build time, the date and the
+record hash). A player's record made before such a change is not ranked until it is made again; the maintainers
+have re-recorded such records with the design, the player, the assistance and the date kept (`add
+--require-clean`; a proof ported to a changed statement says so in its notes). The git history keeps every earlier record and says when each was made; the site shows what the board
+ranks now. Only `seed-references` records under `svgolf-reference` (decided 2026-11-12: `add`, `submit` and the
+pull-request check refuse the handle), and par is the best of the task's listed references.
+`seed-references` records the references of every `ready` task (`--task T --ref STEM` for one reference): it runs `check.py` on each reference that is
 not already recorded (same player, same two files), so after a reference
 changes it adds a new record for the new files and leaves the old one; with
 nothing changed it is instant. Baselines
@@ -440,5 +470,10 @@ a seed, a light point, a mismatch, a latency, a netlist, the flow) is refused, a
 own latency at each point (`latency_at`; a result without it to the declared n everywhere) and `verify --full`
 to a fresh check's, and every way a stored clocked record
 can be inconsistent is invalid; each clocked kind keeps its own count (transactions, segments, none); and the kinds,
-flow files and seed default agree with `check.py`, `check/postsynth.py`, `score/score.py` and `score/points.py`. The
+flow files and seed default agree with `check.py`, `check/postsynth.py`, `score/score.py` and `score/points.py`; and
+the record route (decided 2026-11-11): `submit --dry-run`'s script and text with nothing changed, the steps without
+`gh`, its refusals, its steps run with git on a test repository of their own (the fork's branch is `main` plus
+exactly the three files; the clone's branch, index and working tree unchanged), the board line and the template's
+parts; `pr_check.py` on a test repository with the two commits (an added record passes, a failed full check and an
+edited record fail, an edit, a removal, another file and half a record are refused without running `check.py`). The
 tests inject the check and rescore results; none runs Lean or Yosys.

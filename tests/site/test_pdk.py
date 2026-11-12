@@ -128,28 +128,37 @@ class PdkTest(unittest.TestCase):
     # ---- the selector
 
     def test_every_page_has_the_selector_in_its_header_and_says_what_without_javascript(self):
+        """Every page but the front page and the 404 page carries the course selector, "Course", in its header
+        (2026-11-11: the front page has its own control, "The course", beside its task cards, and no second one;
+        2026-11-12: the 404 page shows no scores)."""
         for path in sorted(p for p in self.files if p.endswith(".html")):
             h = self.raw(path)
             with self.subTest(page=path):
                 head = h[h.index('<header class="site-header">'):h.index("</header>")]
-                self.assertRegex(head, r'<div class="pdk-pick" data-pdk-pick hidden><label for="pdk-select">')
-                self.assertRegex(head, r'<select id="pdk-select" data-pdk-select autocomplete="off"><option '
-                                       r'value="sky130" selected>sky130</option><option value="asap7">ASAP7</option>'
-                                       r'</select>')
-                self.assertIn("<noscript>", head)
-                self.assertIn("the ASAP7 view needs JavaScript", text_of(head))
                 # pdk.js in the head, not deferred, before the page is drawn; the other scripts deferred
                 self.assertRegex(h[:h.index("</head>")], r'<script src="(\.\./)*pdk\.js"></script>\n<script src="(\.\./)*site\.js" defer>')
+                if path in ("index.html", "404.html"):
+                    self.assertNotIn("pdk-select", head)
+                    continue
+                self.assertRegex(head, r'<div class="pdk-pick" data-pdk-pick hidden><label for="pdk-select">Course')
+                self.assertRegex(head, r'<select id="pdk-select" data-pdk-select autocomplete="off"><option '
+                                       r'value="sky130" selected>sky130</option><option value="asap7">ASAP7 · cells '
+                                       r'only</option></select>')
+                self.assertIn("<noscript>", head)
+                self.assertIn("the ASAP7 course needs JavaScript", text_of(head))
         self.assertIn("pdk.js", self.files)
         with open(os.path.join(SITE, "pdk.js"), "rb") as fh:
             self.assertEqual(self.files["pdk.js"], fh.read())
 
     def test_the_home_page_has_the_dropdown_beside_the_task_cards(self):
+        """The front page's course control (2026-11-11): the kicker "The course" is the select's label, its options
+        sky130 and ASAP7 · cells only; without JavaScript the scores are sky130's and a line says so."""
         h = self.raw("index.html")
         tasks = h[h.index('id="tasks"'):h.index('<ul class="task-cards">')]
-        self.assertIn('<select id="pdk-select-home" data-pdk-select autocomplete="off">', tasks)
-        self.assertIn("Golf scores on", text_of(tasks))
-        self.assertIn("Seeing them on ASAP7 needs the library selector, which needs JavaScript", text_of(tasks))
+        self.assertIn('<label class="label label-accent" for="pdk-select-home">The course</label>', tasks)
+        self.assertIn('<select id="pdk-select-home" data-pdk-select autocomplete="off"><option value="sky130" '
+                      'selected>sky130</option><option value="asap7">ASAP7 · cells only</option></select>', tasks)
+        self.assertIn("The scores are on sky130; the ASAP7 course needs JavaScript.", text_of(tasks))
         self.assertIn(f'href="rules.html#{build.ASAP7_ANCHOR}"', tasks)
 
     def test_the_rules_say_how_asap7_is_scored_and_that_sky130_is_the_default(self):
@@ -196,6 +205,53 @@ class PdkTest(unittest.TestCase):
                 self.assertIn("Score = area × time: the ASAP7 cell area", text_of(section(a7, "score")))
                 self.assertIn("ASAP7 · area × time", text_of(a7))
 
+    def test_how_to_submit_says_its_commands_print_sky130_numbers_in_the_asap7_course(self):
+        """In the ASAP7 course a task's par is an ASAP7 number while How to submit's commands print sky130's
+        (2026-11-11): a line right above the commands says so, and how to get the design's ASAP7 numbers; the sky130
+        course has no such line."""
+        line = ("The commands print sky130 numbers, the ranked ones; add --pdk asap7 to score/ppa.py for this design's "
+                "ASAP7 numbers.")
+        for t in self.listed:
+            with self.subTest(task=t):
+                a7, sky = section(self.view(f"tasks/{t}/index.html", "asap7"), "submit"), \
+                    section(self.view(f"tasks/{t}/index.html", "sky130"), "submit")
+                self.assertEqual(text_of(a7).count(line), 1)
+                self.assertNotIn(line, text_of(sky))
+                at = a7.index("The commands print sky130 numbers")
+                self.assertRegex(a7[at:], r"^[^<]*(<code>[^<]*</code>[^<]*)*</p>\s*<div class=\"codebox")
+                self.assertIn("leaderboard.py add", a7[at:].split("</pre>", 1)[0])
+
+    def test_both_courses_say_they_count_the_cells_only(self):
+        """The two courses (2026-11-11): neither counts wires or place and route, and each says so where it is chosen
+        (the front page's helper line and its closed note above the cards) and, on ASAP7, in the banner of every page
+        that shows golf scores; the ranked course is sky130's."""
+        h = self.raw("index.html")
+        head = h[h.index('id="tasks"'):h.index('<ul class="task-cards">')]
+        notes = re.findall(r'<details class="note course-note-fold"><summary>(.*?)</summary>\s*<p class="course-note">',
+                           head)
+        self.assertEqual(notes, ["What the score, Par, Record and Under par mean"])
+        for pdk in ("sky130", "asap7"):
+            with self.subTest(view=pdk):
+                v = self.view("index.html", pdk)
+                course = text_of(v[v.index('id="tasks"'):v.index('<ul class="task-cards">')])
+                what = text_of(re.search(r'<p class="pdk-what[^"]*">(.*?)</p>', v, re.S).group(1))
+                self.assertIn("no wires, no place and route", what)
+                self.assertIn("ranked course is sky130" if pdk == "asap7" else "the default and the ranked course", what)
+                note = text_of(re.search(r'<p class="course-note">(.*?)</p>', v, re.S).group(1))
+                self.assertIn("it counts the cells only: no wires, no place and route", note)
+                self.assertIn("par while no submission beats it", note)
+                # said once (2026-11-11): what the ASAP7 library is stays in the banner and the helper line
+                self.assertNotIn("never fabricated", note)
+                self.assertEqual("never fabricated" in what, pdk == "asap7")
+                self.assertEqual("<strong>Golf scores on ASAP7</strong>, cells only: " in v, pdk == "asap7")
+                self.assertNotIn("Golf scores on", course)          # the old label of the control
+        for path in ["index.html"] + [f"tasks/{t}/index.html" for t in self.listed]:
+            with self.subTest(page=path):
+                banner = re.search(r'<div class="pdk-asap7 pdk-banner">(.*?)</div>', self.raw(path), re.S)
+                self.assertIsNotNone(banner)
+                self.assertIn("no wires, no place and route. The ranked course is sky130's, the default.",
+                              text_of(banner.group(1)))
+
     def test_the_asap7_boards_are_leaderboards_and_differ_where_the_libraries_do(self):
         for t in self.listed:
             sky, a7 = self.boards(t)
@@ -216,7 +272,8 @@ class PdkTest(unittest.TestCase):
         task = self.task("mul")
         sky_par = lb.par_of(task, [r for r in self.records if r["task"] == "mul"], flow=pinned_flow(task),
                             identity=lb.ppa_identity(), input_drive=lb.ppa_setup_now(task).get("input_drive"),
-                            statement=lb.current_statement_or_none(task))
+                            statement=lb.current_statement_or_none(task),
+                            names=lb.reference_names(lb.DEFAULT_TASKS, task))
         self.assertLess({r["player"]: r for r in sky["ranking"]}["plus-minus-two"]["exact"], sky_par["exact"])
 
     def test_par_record_and_under_par_in_both_views(self):
@@ -229,10 +286,10 @@ class PdkTest(unittest.TestCase):
                 best = min([exact] + [r["exact"] for r in a7["ranking"]])
                 self.assertIn(flat(combined.fmt(combined.um2ns(best, "asap7"))), head)
                 pct = round((exact - best) * 100 / exact)
-                self.assertIn("0%" if pct == 0 else f"−{pct}%", head)
-                card = self.view("index.html", "asap7")
-                card = card[card.index(f"<code>{t}</code>"):]
-                card = card[:card.index("</li>")]
+                self.assertIn("0%" if pct == 0 else f"{pct}%", head)       # no minus sign (2026-11-11)
+                self.assertNotIn("−", head)
+                cards = self.view("index.html", "asap7").split('<li class="task-card">')[1:]
+                (card,) = [c.split("</li>", 1)[0] for c in cards if f'href="tasks/{t}/index.html"' in c.split("</li>", 1)[0]]
                 self.assertIn(flat(combined.fmt(combined.um2ns(exact, "asap7"))), text_of(card))
                 # the sky130 view keeps the sky130 numbers
                 self.assertNotIn(flat(f"{combined.fmt(combined.um2ns(exact, 'asap7'))} µm²·ns {stem}"),
@@ -356,7 +413,8 @@ class PdkTest(unittest.TestCase):
             task = self.task(t)
             sky_par = lb.par_of(task, [r for r in self.records if r["task"] == t], flow=pinned_flow(task),
                                 identity=lb.ppa_identity(), input_drive=lb.ppa_setup_now(task).get("input_drive"),
-                                statement=lb.current_statement_or_none(task))
+                                statement=lb.current_statement_or_none(task),
+                                names=lb.reference_names(lb.DEFAULT_TASKS, task))
             pars = {"sky130": sky_par["exact"] if sky_par else None, "asap7": self.a7_par(t)[1]}
             for pdk, board in (("sky130", sky), ("asap7", a7)):
                 lst = section(self.view(f"tasks/{t}/index.html", pdk), "leaderboard")
@@ -412,15 +470,28 @@ class PdkTest(unittest.TestCase):
         self.assertTrue(seen["par"] and seen["not"], seen)
 
     def test_the_home_selector_may_shrink_on_a_phone(self):
-        """The home page's selector block sits in the course head's flex line; the rule that keeps the heading at its
-        width must not keep it at its one-line width (2026-11-09: the front page scrolled sideways on a phone)."""
+        """The home page's course control sits in the course head's flex line; the rule that keeps the heading at its
+        width must not keep it at its one-line width (2026-11-09: the front page scrolled sideways on a phone; since
+        2026-11-11 the block is `.course-pick`)."""
         with open(os.path.join(SITE, "style.css"), encoding="utf-8") as fh:
             css = fh.read()
-        rule = re.search(r"\.course > \.section-head > \.pdk-home \{([^}]*)\}", css)
+        rule = re.search(r"\.course > \.section-head > \.course-pick \{([^}]*)\}", css)
         self.assertIsNotNone(rule)
         self.assertIn("min-width: 0", rule.group(1))
         self.assertRegex(rule.group(1), r"flex: 1 1 auto")
         self.assertGreater(rule.start(), css.index(".course > .section-head > div {"))
+
+    def test_the_header_label_leaves_the_line_on_a_small_phone(self):
+        """The header's "Course" label is visually hidden, its name kept for a screen reader, on every width where it
+        would wrap the header beside "ASAP7 · cells only" (2026-11-11: measured to 351 px, so under 22rem)."""
+        with open(os.path.join(SITE, "style.css"), encoding="utf-8") as fh:
+            css = fh.read()
+        block = re.search(r"@media \(max-width: (\d+(?:\.\d+)?)rem\) \{\s*\.site-header \.pdk-pick label \{([^}]*)\}", css)
+        self.assertIsNotNone(block)
+        self.assertGreaterEqual(float(block.group(1)), 22)
+        for prop in ("position: absolute", "width: 1px", "height: 1px", "overflow: hidden", "clip-path: inset(50%)"):
+            self.assertIn(prop, block.group(2))
+        self.assertNotIn("display: none", block.group(2))         # the select keeps its accessible name
 
     def test_a_design_without_a_bound_asap7_entry_is_a_build_warning(self):
         """`asap7_gaps`: a design the ASAP7 view would show without a bound entry, or a task without its file, is a

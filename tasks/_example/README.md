@@ -50,10 +50,10 @@ implies below `2^31`.
   `$alu`, its own adder, and the backstop rejects the `$alu` cells it
   builds. Equality (`== !=`) and comparisons over parameters stay allowed.
 * Axioms: `propext`, `Classical.choice`, `Quot.sound`. No `bv_decide` (not
-  supported, `svgolf/README.md`, "`bv_decide`"; `tests/run.py` `bv_decide_subgoal_*`).
+  supported, the repository's `README.md`, "`bv_decide`"; `tests/run.py` `bv_decide_subgoal_*`).
 * Proof time limit: 300 CPU s, the one limit of every task (svGolf `README.md`, "Proof effort": the references compile in at most 3.3 CPU s, three cold runs each, 2026-11-06; it was 600 s, then 120 s of wall clock).
 * Scored at `N = 16`, no depth budget. The one ranked number is area x
-  time on sky130 A0' (A0' decided 11/03, the product 11/05; svGolf
+  time on sky130 A0' (A0' decided 2026-11-03, the product 2026-11-05; svGolf
   `README.md`, "Scoring"): the cell area in um^2 times the critical-path
   delay of the scored netlist of the pinned two-stage flow, weighed by
   `score/ppa.py` (`sky130_a0_v3`). Par, the reference `band`, is

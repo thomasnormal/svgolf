@@ -1,7 +1,7 @@
 # Validation of the trusted IEEE 754 spec (`tasks/fdivp/IEEE754.lean`)
 
 Untrusted tooling: the differential validation of `SvGolf.IEEE754.divide`, the trusted spec of the task `fdivp`
-(`../IEEE754.lean`; what it says is in `../README.md`, "The trusted spec"). The spec was validated as `svgolf/spec/` and
+(`../IEEE754.lean`; what it says is in `../README.md`, "The trusted spec"). The spec was validated as `spec/` and
 moved into the task on 2026-11-03 with its content unchanged; the five characterization theorems it states are proved
 in the task's reference proof (`../reference/fdivp.lean`, section `IEEE754Proofs`, checked by `check.py` like any
 submission).
@@ -34,7 +34,7 @@ in all four).
 All oracles were written for this task in Python 3 standard library only. No external code
 was downloaded, built or run (no SoftFloat/TestFloat).
 
-Results of the full run (`python3.9 validate.py`, 2026-10-27, about 30 minutes, at `svgolf/spec/validate/`),
+Results of the full run (`python3.9 validate.py`, 2026-10-27, about 30 minutes, at `spec/validate/`),
 repeated after the last change to the spec's code (the named `zero` encoder):
 **57,366,801 spec evaluations, 0 mismatches** in every comparison, and every mutant caught.
 Later edits were docstring-only; the final build gives byte-identical results to the validated
@@ -79,22 +79,22 @@ clause, and 4 kernel-`decide` checks.
 
 The spec is the module `tasks.fdivp.IEEE754` of the svgolf Lake project (library `tasks`), so the Lean side is an
 ordinary build; its five characterization theorems are proved in the reference proof, which `check.py` checks
-(`tests/run.py --only fdivp`, step `references`). From the repository's root (Python 3.9 matches the repo's harness pin;
-any Python 3 works):
+(`tests/run.py --only fdivp`, step `references`). From svGolf's root (Python 3.9 matches the repo's harness pin;
+any Python 3 works; the scripts find the Lake project from their own path):
 
 ```bash
-lake build tasks.fdivp.IEEE754                            # spec + golden vectors + kernel decides
-tasks/fdivp/spec_validate/check.sh                        # the same build, plus compiling the runner
-python3 tasks/fdivp/spec_validate/validate.py --quick     # smoke test, ~11 min, ~13M spec evaluations
-python3 tasks/fdivp/spec_validate/validate.py             # full run, ~30 min, ~57M spec evaluations
+lake build tasks.fdivp.IEEE754                                   # spec + golden vectors + kernel decides
+tasks/fdivp/spec_validate/check.sh                               # the same build, plus compiling the runner
+python3 tasks/fdivp/spec_validate/validate.py --quick            # smoke test, ~11 min, ~13M spec evaluations
+python3 tasks/fdivp/spec_validate/validate.py                    # full run, ~30 min, ~57M spec evaluations
 ```
 
 Both scripts accept `LEAN_WRAP` (a prefix for every `lake` call, such as a slot-limiting
 wrapper); `validate.py` also accepts `FPSPEC_OUT` (a scratch directory for the vector files;
 the default is `<tmpdir>/fpspec_out`). `validate.py --only oracle,toy,b16,b16modes,b32,mutants`
 selects groups. `validate.py` builds `tasks.fdivp.IEEE754` with `lake build` and runs
-`lake env lean --run tasks/fdivp/spec_validate/Run.lean` from the repository's root. The module was `spec.IEEE754`
-(`svgolf/spec/IEEE754.lean`) until 2026-11-03, and `svgolf.spec.IEEE754` while the spec was compiled by hand from the
+`lake env lean --run tasks/fdivp/spec_validate/Run.lean` from svGolf's root. The module was `spec.IEEE754`
+(`spec/IEEE754.lean`) until 2026-11-03, and `svgolf.spec.IEEE754` while the spec was compiled by hand from the
 repository root; the file has no import, and each move changed only the importers' import lines, no byte of it (sha256
 `4819c7290aa152f18c16706da82f086c0994cc285bde3fb6e6391449ae6c987b`, `REVIEW.md`). On 2026-11-04 the binary16 and binary32 instances were
 renamed after their formats (`divBinary16`, `divBinary32`; `divide` unchanged; sha256

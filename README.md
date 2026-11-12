@@ -1,22 +1,45 @@
 # svGolf
 
+**Hardware golf, with proofs.** Write a circuit in SystemVerilog, prove it in
+Lean with [Proglib](https://github.com/thomasnormal/proglib) for every size the
+task allows, and compete on area × time.
+
 svGolf is a [zk.golf](https://zk.golf)-style competition for SystemVerilog
 hardware. For each task you:
 
 1. write a circuit in SystemVerilog;
 2. prove in Lean that it meets the task's **trusted statement**, under the
-   ls-sv semantics of [proglib](https://github.com/thomasnormal/proglib/tree/bb5e58e00a6373562e7e31aed059b30befeca461)
-   (formerly lean-surfaces; the sv-0.2 tier: `load_design_sv2`, `run2`, the
-   `⊨₂` judgment and `Terminates2`);
+   ls-sv semantics of [Proglib](https://github.com/thomasnormal/proglib/tree/bb5e58e00a6373562e7e31aed059b30befeca461)
+   (formerly lean-surfaces; [The statement](#the-statement) says which part of it);
 3. get scored by a pinned synthesis flow, weighed on the sky130 standard
    cells (flow A0'). The one ranked number is **area x time**: the cell area
    in um^2 times the critical-path delay (on a clocked task, cycles x the
-   clock period), in um2*ns, lower is better (decided 11/05; [Scoring](#scoring)).
+   clock period), in um2*ns, lower is better (decided 2026-11-05; [Scoring](#scoring)).
    Par, the record and "under par" use it; to beat par is to be accepted
    with a smaller area x time than the task's best proved reference. The
    Pareto frontier of area and time, area in NAND2 gate equivalents, depth
    in gates and the other flows are exploration columns. Every number can
    be reproduced bit for bit ("Reproduce a score" under [Scoring](#scoring)).
+
+The site, <https://thomasnormal.github.io/svgolf/>, shows the tasks, the board and every record with its
+proof. To play, clone the repository:
+
+```bash
+git clone https://github.com/thomasnormal/svgolf
+```
+
+**Platforms.** macOS and Linux; Windows is not supported. The ranked numbers are rated on one build, the
+Homebrew Yosys 0.53 for macOS arm64 ("The build ratings use", under [Scoring](#scoring)). On Linux the sandbox
+is not yet checked end to end ([Sandbox](#sandbox)). **Tools:** elan (it installs Lean), Yosys 0.53 with
+`yosys-abc`, Verilator 5, a C++ compiler, `make` and Python 3.12: Step 0 of the [Quick start](#quick-start).
+
+| where | what |
+|---|---|
+| [the site](https://thomasnormal.github.io/svgolf/) | the tasks, the board, the rules, every record and its proof |
+| `tasks/<name>/README.md` | one task: its statement in words, what is banned, par (`_example` is the tutorial, `add` the first real task) |
+| [PROVING.md](PROVING.md) | how to write the proof: the loop, the tactics, worked references |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | the route through the rules, adding a construct to ls-sv, the regression |
+| [REFUSALS.md](REFUSALS.md) | every refusal the checker makes, why, what to write instead, and which are meant to be lifted later (generated from Proglib's refusal register `docs/sv-refusals.json` by its `tools/gen_sv_refusals.py`) |
 
 **Read these, in this order:** a task's `tasks/<name>/README.md` (`tasks/_example/` is the tutorial,
 `tasks/add/` the first real task: the statement, what is banned, par); [Quick start](#quick-start)
@@ -30,18 +53,15 @@ met without computing anything, so the statements, the checker and the
 scoring are all built to be hard to game. `SvGolf/Task.lean` explains the
 statement; "Checker v0 limits" below says what is not covered yet.
 
-Every refusal the checker makes, why, what you can write instead, which
-refusals are meant to be lifted later (and what has to exist first) and
-which never will be: [REFUSALS.md](REFUSALS.md) (generated from
-`docs/sv-refusals.json` of proglib by `tools/gen_sv_refusals.py`).
-
 ## Quick start
 
 **Step 0, once per machine.** Install [elan](https://github.com/leanprover/elan) (it installs the Lean
 toolchain that `lean-toolchain` pins, `leanprover/lean4:v4.33.0-rc1`, on first use), Yosys 0.53 with its
-`yosys-abc` (the pinned flow), Verilator 5, a C++ compiler and `make` (the post-synthesis stage compiles
+`yosys-abc` (the pinned flow; the ranked numbers are made with one build of it, "The build ratings use"),
+Verilator 5, a C++ compiler and `make` (the post-synthesis stage compiles
 Verilator's model of the netlist, and without them `check.py` stops with the infrastructure error
-"postsynth: `c++` is not on PATH ..."; "Checking" says which compiler) and Python 3.12. Then:
+"postsynth: `c++` is not on PATH ...", or names the compiler `$CXX` sets; "Checking" says which compiler) and
+Python 3.12. Then:
 
 ```bash
 python3.12 -m pip install -r requirements.txt   # pyslang 11.0.0, the extractor's SystemVerilog frontend
@@ -49,7 +69,11 @@ lake build                                      # the trusted Lean and the check
 python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty (12.8 MB, checked by its hash)
 ```
 
-In the first `lake build` of a clone of the public repository, Lake clones proglib and its packages from
+Where the system marks its Python externally managed (`pip` refuses to install), make a virtual environment
+first and run every command inside it: `python3.12 -m venv .venv && . .venv/bin/activate` (`.venv/` is
+git-ignored).
+
+In the first `lake build` of a clone of the public repository, Lake clones Proglib and its packages from
 github.com (it needs network access there) and builds the `LeanModels.Sv` modules svGolf uses; Mathlib is
 cloned, never built. Measured from a fresh clone: about 6 minutes, and about 1 GB of clones on disk, on an
 Apple M2 Pro laptop with 16 GB and the toolchain already installed (2026-11-05); on a slower Linux machine
@@ -81,6 +105,13 @@ python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assi
     --sv solution.sv --lean Solution.lean
 ```
 
+**After step 3.** To hand in a record, `leaderboard.py submit` opens a pull request that adds its three
+files; a check on the pull request verifies every record and runs the full check on the added ones, and a
+maintainer re-makes the ranked number on the rating build when the pull request is merged. For the adder:
+`python3.12 leaderboard/leaderboard.py submit --task add --record HASH`, HASH as step 3 prints it; `--dry-run`
+prints the steps first. It uses your git and the GitHub command-line tool `gh` (without `gh` it prints the
+steps for doing by hand).
+
 **The golfing inner loop** needs no Lean and takes about 2 seconds:
 
 ```bash
@@ -89,7 +120,10 @@ python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped --path   # ... 
 ```
 
 It runs the source gate and the pinned flow and prints `ppa.area_um2_sky130` and `ppa.delay_ps_sky130`, whose
-product is the ranked number (`--no-mapped` leaves out the extra flow A1'). It does not check the banlist,
+product is the ranked number (`--no-mapped` leaves out the extra flow A1'); its last line on stderr says them in one
+line, `ppa (sky130 A0'): area 460.4416 um^2, delay 2611 ps; area x delay = 1202.21 um2*ns` for the adder's par. A
+clocked task's run (`--seq`) gives the period instead, and with `--latency n` the ranked score, area x n cycles x
+period. It does not check the banlist,
 the 4-state rules, whether ls-sv can read the design, the post-synthesis simulation or the task's function,
 and it needs no proof: run `--unproved` before you prove.
 
@@ -178,7 +212,7 @@ proof.
   then strips every comment, and the extractor, the banlist and Yosys all
   read that canonical text (`score/srcgate.py`).
 * **No host access (also the source gate).** The checker runs untrusted text
-  on the organizer's machine, and the tools it runs read more than the text:
+  on the maintainers' machines, and the tools it runs read more than the text:
   Yosys's `read_verilog` opens the file of a `$readmemh` / `$readmemb` itself
   while it reads the design (measured with the pinned Yosys 0.53: the file's
   contents become the memory's initial value, so one submitted text scores
@@ -211,8 +245,8 @@ proof.
   instead: every process that runs submitted text runs in an operating-system
   sandbox (see "Sandbox" under "Checking"), and the same sandbox is the second layer under Yosys and
   Verilator for the constructs the gate would miss. Only the reading of files was ruled on (decided
-  2026-10-31); the rest of the family (writes, programs, the environment, dumps, DPI) is the
-  register authors' extension of that ruling, awaiting confirmation.
+  2026-10-31); the rest of the family (writes, programs, the environment, dumps, DPI) is refused by the
+  refusal register's rows, which extend that ruling.
 * **No x or z value may arise (the 4-state rules).** ls-sv, like IEEE 1800
   simulation, computes with unknown values: `if (x)` takes the else branch,
   a case item or `==` operand with a `z` bit never matches a known input.
@@ -275,7 +309,7 @@ proof.
     last two itself and keeps an asynchronous reset (as `alwaysFFR`), which the
     statement's clock discipline (`ClockedBy clk none`) refuses (a comment in
     `SvGolf/TaskReact.lean` still says the loader drops the three; it is out of
-    date, and the next round that edits the trusted text corrects it);
+    date: a comment, not part of the statement);
   * Moore outputs (`MooreOut`): no combinational path from an input port, the
     reset included, to an output port, so register every output. What a
     snapshot shows is on the wire for the whole next clock period;
@@ -299,14 +333,14 @@ proof.
     equal the previous snapshot (the Moore sample).
 * **A clocked task with a latency (`kind` `tx-family`: `matmul`; `stream-family`:
   the `sorter`)** has the reactive task's clock rules and these (the statements
-  `TxTask.StatementV2` and `StreamTask.StatementV2`, txtask-v2, in
+  `TxTask.StatementV2` and `StreamTask.StatementV2`, the second clocked statement, in
   `SvGolf/TaskSeq.lean`, final since 2026-11-08 and amended 2026-11-09 before
   any record of these tasks was published; the tasks' READMEs give the
   handshakes; some comments of the trusted text predate the amendment and are
-  out of date: `SvGolf/TaskSeq.lean` twice calls everything before its v2
-  section txtask-v1, unchanged but for the distinct names, and it and both
+  out of date: `SvGolf/TaskSeq.lean` twice calls the earlier statement by its old name
+  (txtask-v1), unchanged but for the distinct names, and it and both
   tasks' `Spec.lean` call the v2 clock discipline v1's, which is now `ClockedBy
-  clk none`; the next round that edits the trusted text corrects them):
+  clk none`; comments, not part of the statement):
   * the latency line: `Solution.lean` declares its latency in exactly one header
     line `-- svgolf-latency: n` (a decimal number of cycles, 1 to 999999999) and
     defines `Submission.lat`, one `Nat` per parameter; the goal is the task's
@@ -340,7 +374,7 @@ proof.
     where the netlist and ls-sv start from the same state (seed 0, all zeros),
     the netlist equals ls-sv on the flag (`done`, `out_valid`) at every cycle and
     on the payload where it is claimed; from different power-up states ls-sv's
-    own run must meet the statement's claims (L5 of the two tasks' REVIEW.md,
+    own run must meet the statement's claims (the tasks' reviews,
     fixed 2026-11-08), so a correct
     design whose flag timing within the latency depends on an unreset register
     is not refused;
@@ -387,17 +421,31 @@ proof.
     compares against (so a difference hidden behind `a == 16'hBEEF` is
     found), and seeded random vectors; all deterministic, the seed recorded;
   * it fails closed: an ls-sv run that does not complete, an `x` or `z` in
-    ls-sv's outputs, an unknown-valued constant in the netlist, a netlist
-    Verilator will not lint, build or run cleanly, a harness that prints the
+    ls-sv's outputs, an unknown-valued constant that a gate, a flip-flop or
+    an output reads (Yosys's own reading of the netlist decides; a constant
+    nothing reads, which Yosys leaves for example where it removed an unused
+    register bit, is accepted and listed in the check's result), a net bit
+    with more than one driver of which one is an unknown-valued constant,
+    read or not, and a netlist that defines a box module (`(* blackbox *)`,
+    `whitebox`) or has a cell that is neither a gate of Yosys's cell
+    library nor a module the netlist defines (decided 2026-11-12: where
+    Yosys's view of the netlist could hide an unknown, the rule fails safe;
+    its scope is the netlist's unknown constants, so two known drivers of
+    one bit are left to Verilator's lint and to the comparison itself), a
+    netlist Verilator will not lint, build or run cleanly, a harness that prints the
     wrong number of rows, the two schedules disagreeing, or different ports
     all reject;
-  * **Verilator is a 2-state simulator** (decision 10/29: svGolf simulates with
+  * **Verilator is a 2-state simulator** (decided 2026-10-29: svGolf simulates with
     Verilator, not Icarus), so the netlist side has no `x` or `z`, and this
     stage cannot see an unknown the netlist computes. It does not need to:
     Yosys's gate cells (`simcells.v`) are total Boolean functions, so an
     unknown can only come from an unknown-valued constant in the netlist
-    (`1'hx`; scanned for, and such a netlist is rejected on every vector,
-    the report showing what a 2-state model reads) or from an undriven or
+    (`1'hx`; where a gate pin, a flip-flop or an output reads one, the
+    netlist is rejected, on every vector of a combinational task, the report
+    showing what a 2-state model reads, and the message naming the wires
+    that hold it and their readers, and, from a second Yosys run made only
+    then that keeps the design's names, the bits in your own words; one nothing reads is in the fan-in of no
+    observed output, so every value it could take gives the same rows) or from an undriven or
     unconnected net or pin (Verilator's lint runs with `-Wall` and every
     warning fatal except `DECLFILENAME` and `UNUSEDSIGNAL`: UNDRIVEN,
     PINMISSING, PINCONNECTEMPTY, MULTIDRIVEN, UNOPTFLAT and the WIDTH family
@@ -410,7 +458,7 @@ proof.
     ls-sv's outputs, the netlist's, and Verilator's reading of the source
     (also 2-state) as a third opinion, with who agrees with whom. File it:
     either ls-sv or Yosys is wrong about your design;
-  * **light and full** (WP-C2). The default `light` mode is a safety net for
+  * **light and full**. The default `light` mode is a safety net for
     local feedback: it runs a deterministic SUBSET of the full vectors (a
     light rejection is always a full rejection) in seconds instead of
     minutes. Competition and verification runs, `leaderboard.py add` /
@@ -462,7 +510,7 @@ proof.
   Trying them is golf (decided 2026-10-31 and 2026-11-05): a golfer searches
   gate forms and statement orders with the pinned flow before submitting. Not every structural choice survives synthesis, though:
   ABC re-derives the logic, and some RTL carry-structure choices (a final
-  adder that steps two bits at a time instead of one, in the dry run) score
+  adder that steps two bits at a time instead of one, in an early trial) score
   identically to the milli-GE. Score a block standalone with `score/score.py`
   before building a proof around it. See "Scoring".
 
@@ -470,7 +518,7 @@ proof.
 
 ```
 svgolf/
-  lakefile.toml, lean-toolchain     the svGolf Lake project (requires proglib)
+  lakefile.toml, lean-toolchain     the svGolf Lake project (requires Proglib)
   SvGolf/Task.lean                  TRUSTED: the task-statement helpers (CombTask)
   SvGolf/Comb.lean                  proof helpers (untrusted, kernel-checked)
   SvGolf/LoadSv.lean                `load_sv`: load a design from its .sv (extracted at
@@ -508,7 +556,9 @@ svgolf/
   score/time_limits.json            ("Proof effort") and the cold runs it is applied to;
                                     neither is hashed by the checker
   leaderboard/leaderboard.py        the leaderboard: records of accepted submissions, Pareto
-                                    frontier, boards, verification (leaderboard/README.md)
+                                    frontier, boards, verification, `submit` (leaderboard/README.md)
+  leaderboard/pr_check.py           the check of a pull request that adds records (the `records`
+                                    workflow runs it); .github/pull_request_template.md its form
   leaderboard/data/<task>/          one <record_hash>.json per accepted submission, with its
                                     .sv and .lean next to it
   tests/leaderboard/                its tests (synthetic check results, no Lean)
@@ -545,7 +595,7 @@ svgolf/
                                     the base of its Mathlib attacks
   PROVING.md                        how to prove a task with the sv_comb tactics (a guide for
                                     contestants), with the tactic proofs of `add` and `mul`
-  PLAN.md                           the lead's plan (not part of the framework)
+  PLAN.md, PLAN2.md, PLAN4.md       the maintainers' working plans (history, not the rules)
 ```
 
 Extractor output is never committed (`.gitignore`: `*.sv.json`,
@@ -566,8 +616,8 @@ tasks/<name>/
                    property does (proved, NOT trusted; module `tasks.<name>.Properties`)
   properties.json  each property's name, Lean declaration and plain-words explanation, and the
                    definitions they use (the property cards of the task's page)
-  REVIEW.md        optional: the review of the trusted statement for the project owner (hard
-                   gate "reviewed trusted Spec.lean"): the statement in words, its sources, the
+  REVIEW.md        optional: the maintainers' review of the trusted statement (before a task is
+                   listed): the statement in words, its sources, the
                    cheating surfaces and their defences (`aes_sbox` has one)
   oracle.py        optional: a Python oracle of the task's function, for the advisory
                    functional check (NOT trusted; `oracle` in the task.json table)
@@ -578,7 +628,7 @@ tasks/<name>/
                    (module `tasks.fdivp.IEEE754`)
   spec_validate/   `fdivp` only: the spec's differential validation (untrusted tooling)
   (no proof library: a task ships no proved facts about designs; reusable proof code goes to
-  proglib's `LeanModels/Sv/Lib` (`LeanModels.Sv.Lib`), the rest into the
+  Proglib's `LeanModels/Sv/Lib` (`LeanModels.Sv.Lib`), the rest into the
   task's reference proof)
 ```
 
@@ -640,6 +690,9 @@ adding `import tasks.<name>.Spec` to `tasks.lean` (and
 
 ## The statement
 
+The statements are written over the sv-0.2 tier of Proglib's ls-sv semantics: `load_design_sv2`,
+`run2`, the `⊨₂` judgment and `Terminates2`.
+
 `SvGolf/Task.lean` (read its docstring) defines a combinational task as an
 interface (input and output ports with widths that are functions of `N`) and a
 function on `BitVec`s, and the statement `CombTask.Statement t sem` as: for
@@ -690,10 +743,10 @@ at elaboration time and caches the envelopes under `.lake/envelopes/` (set
 file under `tasks/` and `tests/`, every `task.json` (a design's top and probe
 points come from its task), the extractor and the extraction scripts
 (`lakefile.toml`), so changing a design re-elaborates the refutations, as
-proglib's own `lakefile.toml` does for its envelopes. `lake build SvGolf
+Proglib's own `lakefile.toml` does for its envelopes. `lake build SvGolf
 tasks svgolf-eval` (what the checker builds) needs no Python.
 
-**Three refutations wait for the int32 port round.** `tests/add`, `tests/mul` and
+**Three refutations do not build at the pinned library yet.** `tests/add`, `tests/mul` and
 `tests/clmul` each have a `negative/Refute.lean` that loads an `only_n16.sv`, and
 the pinned ls-sv's loader refuses that design (`PDesign.int32Agrees`: at the
 defaults an INT-class constant expression leaves the 32-bit range), so the three
@@ -701,7 +754,7 @@ modules do not build at the pin. `tests.lean` does not import them, so the defau
 `lake build` stays green. They are unchanged: `tests/run.py`'s `negatives` step
 builds each one alone (`lake build tests.add.negative.Refute`) and checks that it
 fails with that refusal (`PENDING_REFUTES`); one that builds fails the step until
-it is imported again. The int32 port round brings them back into `tests.lean`.
+it is imported again. Once the pinned library's loader takes their `only_n16.sv`, they go back into `tests.lean`.
 The same refusal stops `check.py` on the three `only_n16.sv` at the `design`
 stage, before the proof whose failure `tests/expected.json` records for them
 (`solution`), so the `negatives` step pins the design-stage refusal for those
@@ -769,7 +822,7 @@ theorem solution : Goal := by
 end Submission
 ```
 
-The clocked tasks have their own skeletons, in their `tasks/<name>/README.md`, "Start a new design" (the
+The clocked tasks have their own skeletons, in their `tasks/<name>/README.md`, "Proving a new design" (the
 task page shows the same text). `matmul` and `sorter` declare a latency in one line of its own in
 `Solution.lean`, `-- svgolf-latency: n` (not in the `.sv`; the references put it first), define `lat`, one
 `Nat` per parameter, and prove `theorem solution : Goal lat`: their generated `Goal` takes the latency,
@@ -789,7 +842,7 @@ proves the same without tactics: it walks the design's instantiation
 symbolically, proves the comb profile and acyclicity, and reduces the rest to
 one settled-state lemma.
 
-`LeanModels.Sv.*` includes proglib's `sv_comb` tactic library
+`LeanModels.Sv.*` includes Proglib's `sv_comb` tactic library
 (`sv_structure`, `sv_equations`, `sv_cover`, `sv_bridge` and the plain-Lean library
 `LeanModels.Sv.CombLib`: `CombView`, `CombViewThm`, `CombViewSound`,
 `CombViewMain`, `CombViewDiag`, `CombViewTactic`, `CombViewArith`, `CombViewPlain`,
@@ -809,7 +862,8 @@ the kernel and the `leanchecker` replay re-checks every declaration, and both
 accept the references.
 
 To develop a proof, run the checker once with `--keep` (or `--stage-dir
-DIR`): the result's `dev_hint` is the command that recompiles your
+DIR`; a later run replaces DIR only when it is empty or `check.py` made it, and refuses any
+other directory): the result's `dev_hint` is the command that recompiles your
 `Solution.lean` against the staged design, and an editor can work on that
 staged file. Before you have a proof, `--unproved --stage-dir DIR` stages the
 design and lets you compile probe files (`sv_structure?`, `sv_equations?`)
@@ -856,8 +910,8 @@ submissions import the whole library (decided 2026-11-01: "let's make the common
 **What it does to the trust story** (`P-TRUSTED-BASE`). Allowing Mathlib makes the `.olean`
 files of eight package checkouts something the comparator and `leanchecker` LOAD and, before
 this round, trusted: no stage re-checked a package's declarations, and a solution's own build
-ran arbitrary code with the checker's privileges (the sandbox of WP-S, "Sandbox" below, now denies
-that write; the replay below stays as the layer behind it), so it could write one. The review of WP-B found two
+ran arbitrary code with the checker's privileges (the sandbox, "Sandbox" below, now denies
+that write; the replay below stays as the layer behind it), so it could write one. The review of the Mathlib support found two
 runs that accepted a false statement this way (a package-free solution plants
 `Mathlib/Evil.olean`, a module with `theorem evil : False` added with the kernel check
 switched off, so no axiom anywhere in its value; the next run imports it and "proves" the goal
@@ -1047,20 +1101,20 @@ refuses it (decided 2026-11-06; "Leaderboard"). The stages, in order:
 |---|---|
 | `imports` | the Lean file's imports are on the allowlist (`IMPORT_ALLOW` in `check.py`: `Init`, `Std`, `Lean`, `LeanModels.Sv.*`, which includes the whole sv_comb tactic library, `SvGolf.*`, `tasks.*`, `Submission.Design`, and the eight module roots of Mathlib's package closure, `PACKAGE_ROOTS`; tested by `tests/imports/test_allowlist.py`, which recomputes that closure from the package sources) and include `Submission.Design`; comments are whitespace, so a comment between two imports on one line does not hide the second. For a solution that imports one of the packages, the `trusted` stage ends with a PROBE (`stages.packages`, with the revisions of the package checkouts): the generated `Submission.ImportProbe`, the package imports and nothing else, compiled alone. A module the player named that no package has a source for (a stale name) is rejected here; a package or module missing from the machine (not built, on no search-path entry, a checkout not at the revision the manifest pins) is an infrastructure error (exit 2), never a rejection ("Mathlib in submissions"). Checked AGAIN after the comparator against the imports Lean recorded in the compiled solution: a header the checker read differently from Lean is rejected here |
 | `source` | `score/srcgate.py` (see "Rules"): no directives, attributes, pragma comments, `unique`/`priority`, x/z literal digits outside a casez/casex item wildcard, or host access (`$readmemh`, `$fopen`, `$system`, `$value$plusargs`, `$dumpfile`, DPI, ...); every later stage reads the gate's comment-free canonical text, never the submitted file |
-| `extract` | the pinned proglib extractor (`extractors/sv/extract.py --top <top> --probe-points ...`, run through `check/envelope.py`, the one extraction path `load_sv` uses too) writes the envelope and the multi-point cross-check sidecar; a player's `.json` is never read. The probe points always include the scoring point (an extractor without `--probe-points` is an infrastructure error, not a skipped check). The top must have exactly the task's (non-local) parameters, by name, and (since 2026-11-07, every kind) exactly the task's ports at every probe point (at the defaults when the task has none): the input ports in declaration order with their widths are task.json's `ports.inputs`, the output ports its `ports.outputs`, and no port has another direction (`port_problems`: the statement's `Interface` at those points, before any proof; a port the extractor cannot read is left to `design`). |
+| `extract` | the pinned Proglib extractor (`extractors/sv/extract.py --top <top> --probe-points ...`, run through `check/envelope.py`, the one extraction path `load_sv` uses too) writes the envelope and the multi-point cross-check sidecar; a player's `.json` is never read. The probe points always include the scoring point (an extractor without `--probe-points` is an infrastructure error, not a skipped check). The top must have exactly the task's (non-local) parameters, by name, and (since 2026-11-07, every kind) exactly the task's ports at every probe point (at the defaults when the task has none): the input ports in declaration order with their widths are task.json's `ports.inputs`, the output ports its `ports.outputs`, and no port has another direction (`port_problems`: the statement's `Interface` at those points, before any proof; a port the extractor cannot read is left to `design`). |
 | `banlist` | `score/banlist.py`: pyslang front check (which also reads the errors of slang's analysis pass, `score/slangdriver.py`) and Yosys backstop |
 | `fourstate` | `score/fourstate.py` at every point the checker probes, the scoring point first, then the task's probe and backstop points (see "Rules"; at the scoring point only before 2026-11-06), stopping at the first point that fails: no parameter or constant expression with unknown bits, no constant or run-time select that can leave its declared range, no undriven or conflicting net or logic loop (Yosys `check -assert` after `proc; flatten`), and no error of slang's analysis pass (`score/slangdriver.py`). `stages.fourstate.points` has each point's verdict and time, `failed_point` the one that failed. A point nobody probes is not checked: this narrows, and does not close, the gap to a statement over every `N` ("Checker v0 limits"). Measured (standalone, all points, 2026-11-06, the proved references): `_example` 0.08 s (4 points), `add` 0.22 s (6), `clmul` 1.2 s (8), `fdivp` 0.5 to 1.0 s (8), `aes_sbox` 0.04 s (1), `mul` 3.3 to 15.0 s (7; `mul_tree` the most, 2.6 s of it at the scoring point), `matmul` 0.18 s (4), `sorter` 0.23 s (8); at the scoring point alone they were 0.02 to 2.6 s |
 | `trusted` | `lake build SvGolf tasks svgolf-eval` (not timed) |
-| `design` | compile the generated `Submission.Design`; ls-sv's loader refusals (the Lean-vs-slang cross-checks, the one-driver rule) reject here. So does a design that LOADS but that ls-sv cannot run (WP-C3): the generated module ends with an `#eval` that tests `Design2.hasUnsupported` of `design.sem` at the scoring point and at the other points of the extractor's cross-check that are not larger than it (the larger ones cost interpreter time, 25 s at `mul_tree`'s `N = 32`, and a design loud only there has no proof of its for-all-`N` statement anyway) and, on the first loud node, rejects with its kind and text and the point (`tests/_example/attacks/func_call.sv`: a correct `a & b` written through a user function; ls-sv has no function calls). No proof, score or leaderboard work happens before it; `stages.design.unsupported_free_points` counts the points checked |
+| `design` | compile the generated `Submission.Design`; ls-sv's loader refusals (the Lean-vs-slang cross-checks, the one-driver rule) reject here. So does a design that LOADS but that ls-sv cannot run: the generated module ends with an `#eval` that tests `Design2.hasUnsupported` of `design.sem` at the scoring point and at the other points of the extractor's cross-check that are not larger than it (the larger ones cost interpreter time, 25 s at `mul_tree`'s `N = 32`, and a design loud only there has no proof of its for-all-`N` statement anyway) and, on the first loud node, rejects with its kind and text and the point (`tests/_example/attacks/func_call.sv`: a correct `a & b` written through a user function; ls-sv has no function calls). No proof, score or leaderboard work happens before it; `stages.design.unsupported_free_points` counts the points checked |
 | `solution` | compile `Solution.lean` under the task's time limit, which counts the CPU seconds of the Lean process (user + system, every thread), with a wall-clock backstop of 5 times it for a proof that waits; `stages.solution` has `cpu_seconds` and the wall clock's `seconds` apart, and on a timeout `stopped_by` (`cpu` or `wall`); the rejection names the limit, both readings, and the last declaration the kernel finished and when ("When a proof hits the limit", under "Proof effort") |
 | `integrity` | nothing outside the solution's own `.olean` changed during that build: the whole staging tree and the trusted scripts by content (the `svgolf-eval` binary, Yosys's `simcells.v`, `score/ppa.py` with `score/ppa_pins.json`, `score/ppa_mapped.ys` and `score/ppa_mapped_pins.json`, and, since 2026-11-07, the clocked kinds' `score/svgolf_seq.ys`, `score/ge_seq.json` and `check/clocked_rules.py` included), the svGolf and `LeanModels.Sv` builds, the Lean SEARCH PATH (`lake env printenv LEAN_PATH`) for every solution, imports or not: the `.olean*` files of the package builds on it (Mathlib and friends: about 33,000 files, 0.3 s), every entry's top-level names, and the entries that do not exist, recorded as absent (a `Mathlib/` created in `Cli`'s unbuilt build directory, which `lake env` puts ahead of Mathlib's, would shadow it), the `lake-manifest.json` that pins the packages, the Lean toolchain, Yosys, Verilator (its scripts and binaries and its whole `VERILATOR_ROOT`, the runtime every model is compiled against), the C++ compiler, `make` and elan's settings by metadata (size, mtime, ctime, inode); checked again after the postsynth stage, and `check/sandbox/**` is in the fingerprinted trusted base. A tripwire, not a sandbox: it detects after the fact; the sandbox (below) makes the writes it watches for impossible, and the tripwire stays as the layer behind it. |
 | `comparator` | `check/Comparator.lean`, which imports the compiled modules WITHOUT running their initializers: the kernel (with `leanchecker`'s limits) accepts `theorem _ : Submission.Goal := Submission.solution`, and the same with the solution's own proof term; every axiom in the solution's dependency closure (walked through kernel values, not the `#print axioms` cache) is allowed; no `extern`/`implemented_by` in `Submission.*`; every `Init`/`Std`/`Lean`/`Lake` module resolves into the toolchain; and the dependency closure of the solution and the goal, minus the toolchain and `Submission.*`, is REPLAYED through the kernel (a package olean with a declaration added without kernel checking is rejected). It reports the imports Lean recorded for each module. Under `verify_time_limit_s`. |
 | `leanchecker` | `leanchecker` replays the submission's modules through the kernel (catches declarations added without kernel checking). Under `verify_time_limit_s`. |
 | `score` | `score/score.py` at the task's scoring point (the two-stage canonical flow), keeping the scored gate netlist; a depth over the task's budget rejects |
 | `postsynth` | `check/postsynth.py` (see "Rules" and "Post-synthesis modes" below): ls-sv (`svgolf-eval`, built in the `trusted` stage) and Verilator on the scored netlist agree on every vector of the run's set (`stages.postsynth.mode`: `light`, the default, a subset; or `full`, the task's whole `postsynth` budget); fail closed; a rejection is a bug report. The netlist model is built once per run, concurrently with ls-sv's evaluation (about 1.5 to 2 s of `verilator` + `make -j 2`, whatever the netlist), and the netlist side then costs about 0.4 microseconds per vector: the stage is ls-sv-bound. Measured standalone (2026-10-29, `check/postsynth.py`, unloaded; Icarus before, Verilator after): `_example` 0.3 s, 2.5 s; `add` (4132 vectors) 1.3 s, 2.0 s; the former 16-bit divider's goalpost (4543 vectors) 26.2 s, 19.9 s; `mul` reference (330 vectors) 46.0 s, 44.0 s. A small design pays the fixed build; a big one gains what Icarus spent per vector (about 1 ms on the former 16-bit divider). The process tree peaks at about 0.5 GB while the model compiles (`SVGOLF_VERILATOR_JOBS=1`: 0.4 GB, 1.4 s slower), 0.2 GB before |
-| `ppa` | `score/ppa.py` (WP-X3, see "Scoring" and `score/PPA.md`): the EXTRA sky130 columns of the very netlist the `score` stage kept and `postsynth` verified (no second synthesis): `area_um2_sky130`, `delay_ps_sky130`, `unit_depth`, the cell histogram, and the hashes of its inputs, as the result key `ppa` and the stage `stages.ppa` (`mode`, `seconds`, and `mapped_seconds`); WP-X4 adds, inside a weighed `ppa`, the sub-object `mapped` (flow A1': a real `abc -liberty` mapping of the canonical RTLIL of the same score run, `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, cells, histogram, cell levels; `{"available": false, "reason": ...}` for a design it cannot map, never a failure of the check). `--ppa auto` (the default) weighs it when the pinned liberty is present and otherwise records `ppa: {"available": false, "reason": ...}` with one line on stderr; `--ppa require` makes an absent or wrong liberty an infrastructure error (exit status 2, before any other work): competitions, `leaderboard.py add`/`verify --full` and `tests/run.py` (where the liberty exists) use it; `--ppa off` adds no key and no stage. A design the pinned flow cannot weigh (a cell outside its table, an undriven net, an x/z bit that a gate or an output reads, ...) carries its reason in `ppa` and never fails the check; the reader understands the dead public-named wires Yosys leaves of techmapped cells, so run-time bit selects, variable shifts, `case` muxes, constant tables and `/` or `%` by a variable all weigh (`score/tests/ppa/idioms.json`). Infrastructure errors (exit status 2, no verdict) are: a liberty that `require` cannot open (absent, unreadable, not the pinned file), in `require` a defect of `ppa.py`, a depth/gate-count disagreement with the `score` stage or a repaired netlist that is not the scored circuit, and, in every mode, a netlist file that is not the one `postsynth` verified (`netlist_sha256` is compared with `stages.postsynth.netlist_sha256`). Since `sky130_a0_v2` (11/04) the stage REJECTS one kind of design: one the repair (buffering only) cannot make electrically legal (`ppa: {"available": false, "illegal": true, "reason": ..., "legality": ...}`, the net named in the rejection; none is known on sky130). Nothing in `ppa` changes `accepted`, `stage` or any other field of a design whose netlist is legal (tested character for character against the checker from before the wiring, times, paths and tool identities aside: `tests/checker/test_ppa_wiring.py`). Measured (2026-10-31): 0.11 to 0.13 s under `auto` (the liberty's 12.8 MB are hashed and scanned for cells, about 0.10 s, then a few thousand gates are timed); under `--ppa require` the liberty is opened before the first stage, so `stages.ppa.seconds` is 0.00 to 0.02 s and the 0.10 s are spent up front; since `sky130_a0_v2` the repair is Python in `ppa.py`, 0.01 to 0.6 s per netlist, 1.3 s for matmul (two weighings and a read-back; 11/04) |
+| `ppa` | `score/ppa.py` (see "Scoring" and `score/PPA.md`): the EXTRA sky130 columns of the very netlist the `score` stage kept and `postsynth` verified (no second synthesis): `area_um2_sky130`, `delay_ps_sky130`, `unit_depth`, the cell histogram, and the hashes of its inputs, as the result key `ppa` and the stage `stages.ppa` (`mode`, `seconds`, and `mapped_seconds`); since 2026-11-01 it adds, inside a weighed `ppa`, the sub-object `mapped` (flow A1': a real `abc -liberty` mapping of the canonical RTLIL of the same score run, `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, cells, histogram, cell levels; `{"available": false, "reason": ...}` for a design it cannot map, never a failure of the check). `--ppa auto` (the default) weighs it when the pinned liberty is present and otherwise records `ppa: {"available": false, "reason": ...}` with one line on stderr; `--ppa require` makes an absent or wrong liberty an infrastructure error (exit status 2, before any other work): competitions, `leaderboard.py add`/`verify --full` and `tests/run.py` (where the liberty exists) use it; `--ppa off` adds no key and no stage. A design the pinned flow cannot weigh (a cell outside its table, an undriven net, an x/z bit that a gate or an output reads, ...) carries its reason in `ppa` and never fails the check; the reader understands the dead public-named wires Yosys leaves of techmapped cells, so run-time bit selects, variable shifts, `case` muxes, constant tables and `/` or `%` by a variable all weigh (`score/tests/ppa/idioms.json`). Infrastructure errors (exit status 2, no verdict) are: a liberty that `require` cannot open (absent, unreadable, not the pinned file), in `require` a defect of `ppa.py`, a depth/gate-count disagreement with the `score` stage or a repaired netlist that is not the scored circuit, and, in every mode, a netlist file that is not the one `postsynth` verified (`netlist_sha256` is compared with `stages.postsynth.netlist_sha256`). Since `sky130_a0_v2` (2026-11-04) the stage REJECTS one kind of design: one the repair (buffering only) cannot make electrically legal (`ppa: {"available": false, "illegal": true, "reason": ..., "legality": ...}`, the net named in the rejection; none is known on sky130). Nothing in `ppa` changes `accepted`, `stage` or any other field of a design whose netlist is legal (tested character for character against the checker from before the wiring, times, paths and tool identities aside: `tests/checker/test_ppa_wiring.py`). Measured (2026-10-31): 0.11 to 0.13 s under `auto` (the liberty's 12.8 MB are hashed and scanned for cells, about 0.10 s, then a few thousand gates are timed); under `--ppa require` the liberty is opened before the first stage, so `stages.ppa.seconds` is 0.00 to 0.02 s and the 0.10 s are spent up front; since `sky130_a0_v2` the repair is Python in `ppa.py`, 0.01 to 0.6 s per netlist, 1.3 s for matmul (two weighings and a read-back; 2026-11-04) |
 
-**Post-synthesis modes** (WP-C2, 10/30). `check.py --postsynth light|full`, or
+**Post-synthesis modes** (2026-10-30). `check.py --postsynth light|full`, or
 `SVGOLF_POSTSYNTH=light|full` (the flag wins; anything else is an error, never a
 silent default), selects how much of the vector budget the `postsynth` stage runs.
 
@@ -1108,9 +1162,9 @@ the floor is the netlist build: `add` cannot go under 2 s. The stage checks only
 SCORING point (`N = 16` for `mul`), in both modes; the other probe points are checked by
 the `design` stage's extractor cross-check, not simulated.
 
-**The `ppa` stage and `--ppa {auto,off,require}`** (WP-X3, 10/31). The sky130 columns were wired in as
-EXTRA, beside the GE board, and no submission that was accepted was rejected for them (superseded: decided 11/03, the
-board ranks them, see "Scoring"; 11/04, a design the repair, buffering only, cannot make electrically legal is rejected
+**The `ppa` stage and `--ppa {auto,off,require}`** (2026-10-31). The sky130 columns were wired in as
+EXTRA, beside the GE board, and no submission that was accepted was rejected for them (superseded: decided 2026-11-03, the
+board ranks them, see "Scoring"; 2026-11-04, a design the repair, buffering only, cannot make electrically legal is rejected
 at this stage), and every other field of the result is what it was (with `--ppa off` the result is the old one
 key for key and value for value; against the recorded old results only times, directories, tool identities, the
 envelope hash and the comparator's constants count are not compared, and between `off` and `auto` of one
@@ -1119,7 +1173,7 @@ repository: fetch it once with `python3.12 score/ppa.py --fetch-liberty` (into `
 size and sha256 checked before it is moved into place), or point `$SVGOLF_SKY130_LIB` at a copy (the hash is
 checked on every load). Without it `--ppa auto` still checks everything else and says so
 (`ppa: {"available": false, "reason": "liberty not found: ..."}`; stderr: `ppa: not computed: ...`).
-WP-X4 (11/01): a weighed `ppa` block also carries `mapped`, flow **A1'** (a real `abc -liberty` mapping of the canonical RTLIL of
+Since 2026-11-01 a weighed `ppa` block also carries `mapped`, flow **A1'** (a real `abc -liberty` mapping of the canonical RTLIL of
 the same score run: one more Yosys process, 0.3 to 1.4 s on the references, checked against the scored netlist on 2048 input
 vectors, then weighed by the same STA); `--ppa` semantics are unchanged (`off` maps nothing, `require` opens the liberty and the
 mapped-flow pins before any work), a design the mapping cannot weigh has `mapped: {"available": false, "reason": ...}` and the check
@@ -1144,7 +1198,11 @@ which sets `CXX` and `LINK` itself (both `c++` in Homebrew's Verilator
 5.042), and `make` takes those over the `$CXX` the stage passes in its
 environment, so the compiler they name must be on `PATH` too: where `CXX`
 named another compiler and no `g++` was on `PATH`, the build stopped with
-"make: g++: No such file or directory" (2026-11-10).
+"make: g++: No such file or directory" (2026-11-10). A model that the dynamic
+loader cannot start (glibc's "error while loading shared libraries:
+libatomic.so.1", 2026-11-11: a compiler installed outside the system trees,
+under the Linux sandbox, which mounts only those and the model) is an
+infrastructure error that names the library, never a rejection.
 `SVGOLF_VERILATOR_JOBS` (default 2) sets the parallelism of the
 model's C++ build.
 
@@ -1233,10 +1291,13 @@ slot, supervisor, sandbox, program (the slot's `LEAN_NUM_THREADS` is forwarded).
 | OS | mechanism | status |
 |---|---|---|
 | macOS | Seatbelt, `sandbox-exec -f PROFILE` (deprecated by Apple, unchanged for a decade; Chrome, Bazel and Nix use the same kernel interface). The profile is generated from the Spec: `(deny default)`, `system.sb` for dyld, `process-exec` of the listed programs, `file-read*` and `file-write*` of the listed trees, `(deny network*)`, `(allow signal (target self))`, `(deny file-link)`, and a GLOBAL `file-read-metadata` | measured: the whole checker, the references and the attacks below |
-| Linux | bubblewrap (`bwrap`): `--unshare-all --disable-userns --cap-drop ALL --clearenv`, a private `/tmp`, read-only mounts of exactly the Spec's trees (what is not mounted does not exist, and a Lean file finds no `/bin/sh`), `--bind` of the output directory | the self-test and the process-level tests (`tests/sandbox/test_sandbox.py`: tool specs, exec limits, secrets unreadable, writes confined, merged-`/usr` links) ran on Rocky Linux 9.8 with bwrap 0.6.3. **Lean was not run there**: the first Linux checker runs `tests/run.py --sandbox require` |
+| Linux | bubblewrap (`bwrap`): `--unshare-all --disable-userns --cap-drop ALL --clearenv`, a private `/tmp`, read-only mounts of exactly the Spec's trees (what is not mounted does not exist, and a Lean file finds no `/bin/sh`), `--bind` of the output directory | the self-test and the process-level tests (`tests/sandbox/test_sandbox.py`: tool specs, exec limits, secrets unreadable, writes confined, merged-`/usr` links) ran on Rocky Linux 9.8 with bwrap 0.6.3. **Lean was not run there**: the first Linux checker runs `tests/run.py --sandbox require`. So on Linux the sandbox is not yet checked end to end: an interpreter or tool outside the mounted trees can show as a refusal at `extract`, and Lean's CPU time is not measured inside it (2026-11-10) |
 
 Needs unprivileged user namespaces on Linux (Debian `kernel.unprivileged_userns_clone=1`; Ubuntu 24.04's AppArmor restriction
-needs a profile for `bwrap`). Seatbelt cannot nest (`sandbox_apply: Operation not permitted`): a checker already inside
+needs a profile for `bwrap`). Inside `bwrap` a tool's own install tree is mounted (the directory above the `bin/` of its
+resolved path), not every `PATH` entry: where a run stopped with `bwrap: execvp yosys: No such file or directory`
+(2026-11-11), setting `SVGOLF_YOSYS` to the full path of the Yosys binary let it run.
+Seatbelt cannot nest (`sandbox_apply: Operation not permitted`): a checker already inside
 another Seatbelt sandbox falls back (`auto`) or stops (`require`).
 
 **The self-test.** A sandbox that is not there is worse than none, so every `auto` and `require` start (0.3 s) runs a canary
@@ -1293,7 +1354,7 @@ secrets are invisible) is in the `attacks` step. The step skips, with a message,
 
 **Not supported for now.** `bv_decide` bit-blasts a goal about fixed-width `BitVec`s, asks an EXTERNAL SAT solver (the
 toolchain's `cadical`) for an UNSAT proof in the LRAT format, and closes the goal from it. The checker does not support it
-(decided 2026-11-01: "maybe that's a bad idea. Let's not support external solvers for now"). A task's `allow_bv_decide` is
+(decided 2026-11-01: no external solvers for now). A task's `allow_bv_decide` is
 therefore `false` or absent; `true` is an infrastructure error ("the checker does not support external SAT solvers");
 `check.py` never passes `--bv-decide` to the comparator; and a submission that uses the tactic is refused:
 
@@ -1309,7 +1370,7 @@ For a fixed-width fact use `decide +kernel` (no extra axiom, but the kernel enum
 symbolic proof the rules ask for anyway (PROVING.md).
 
 **Why.** The tactic writes a CNF and an LRAT file into the temporary directory and starts `cadical` as a child of `lean`. None of
-that is possible inside the compile's sandbox Spec, and WP-BV measured the minimum that would make it work: the toolchain's
+that is possible inside the compile's sandbox Spec, and a measurement found the minimum that would make it work: the toolchain's
 `bin/cadical` among the programs the compile may execute, `fork`, and one more fresh writable directory (`TMPDIR`). Without a
 writable `TMPDIR` the tactic fails with `operation not permitted`, then without `fork` the same, then without the `cadical`
 exec with "could not execute external process". The grant is a real widening: with `fork` a hostile file can also start further
@@ -1373,7 +1434,7 @@ environment variable, option or task key reads the constant (a test pins that).
   (a stray `.olean` in a package's build directory, say), and the next run's
   snapshot starts from that state. For the package oleans this is why the
   comparator replays the closure it uses instead of trusting the files.
-  A concurrent build of proglib's `LeanModels.Sv` oleans during a check
+  A concurrent build of Proglib's `LeanModels.Sv` oleans during a check
   trips it (the check rejects; rerun it).
 * **Frontends.** ls-sv reads the design through slang (pyslang 11); Yosys
   through its own `read_verilog -sv`. The source gate makes them read the
@@ -1509,13 +1570,12 @@ with the standard three axioms; `tests/run.py` re-checks both.
   `sv_equations?` print as goals: the per-task READMEs list them tag by tag
   (`tasks/add/README.md`, `tasks/mul/README.md`), [PROVING.md](PROVING.md) shows how each
   was closed. The ports (names, order, widths, which the task statement pins) are one line,
-  `sv_interface`, since WP-P; before it each tactic proof applied the soundness theorem
+  `sv_interface`, since 2026-10-30; before it each tactic proof applied the soundness theorem
   `CombView.Summary.sound` by hand (23 lines). The elaboration and `check.py` columns above are the
-  measurements before WP-P (the WP-P measurements are in PROVING.md, "Proof effort"); the code-line
-  column is the current file (before WP-P: 107, 235, 594, 446 and 546 lines for the five tactic references;
-  before WP-P3/P4, which replaced the multiplier references' glue theorem and coverage macros by `sv_bridge`
-  and the 2-D rule of `sv_cover`: 84, 213, 571, 423 and 522; the WP-P3/P4 measurements are in PROVING.md,
-  section 11).
+  measurements before 2026-10-30 (the later measurements are in PROVING.md, section 11); the code-line
+  column is the current file (before 2026-10-30: 107, 235, 594, 446 and 546 lines for the five tactic references;
+  before 2026-10-31, when `sv_bridge` and the 2-D rule of `sv_cover` replaced the multiplier references' glue
+  theorem and coverage macros: 84, 213, 571, 423 and 522; those measurements are in PROVING.md, section 11).
 * **The imports** of the tactic proofs are on the checker's allowlist
   already (`LeanModels.Sv.*`); `tests/imports/test_allowlist.py` pins that, and
   that the tactic library's own imports stay on it.
@@ -1525,7 +1585,7 @@ with the standard three axioms; `tests/run.py` re-checks both.
   accept both tactic proofs.
 
 **The proof time limit** (`time_limit_s` of `task.json`) is **300 s, the same for every task**
-(decided 2026-11-02, the value 2026-11-06; it replaces the 10/30 rule `max(120, ceil(4 x T))`). It was
+(decided 2026-11-02, the value 2026-11-06; it replaces the 2026-10-30 rule `max(120, ceil(4 x T))`). It was
 120 wall-clock seconds; it is 300 CPU seconds because CPU seconds count every elaboration thread
 (Lean elaborates in parallel: the references use up to 3.5 CPU seconds per wall-clock second,
 `fdivp_srt` 181.8 CPU s in 77.7 s; measured 2026-11-06, below). All proofs should be
@@ -1559,7 +1619,7 @@ recorded beside it and only informs. The target is T at most 150 CPU s, a 2x mar
 below were measured on 2026-11-06, three cold runs of every reference (`check.py --no-score`), because the runs recorded
 before were wall-clock seconds, made before the limit counted CPU (they are in the history of
 `score/time_limits.json`); those of `arbiter`, `matmul` and `sorter` on 2026-11-07, after the merge that brought the
-arbiter and the txtask-v2 proofs of `matmul_g1` and `sorter_ins`. CPU seconds do not follow the machine's load as the
+arbiter and the proofs of `matmul_g1` and `sorter_ins` under the second clocked statement. CPU seconds do not follow the machine's load as the
 wall clock does, but they are not independent of it either: in the sweep that started at a 1-minute load average of
 about 13 the same proof took 13 to 32% more CPU seconds than in the sweeps below 6 (`fdivp_srt` 181.8 against 160.2
 CPU s, `sbox_bp` 67.0 against 50.8), which the 2x margin covers. The recorded runs and what was controlled are in
@@ -1623,13 +1683,13 @@ tasks one after the other, with the project build warm and current and the OS fi
 
 ## Scoring
 
-**The ranked score is sky130 A0'** (decided 11/03): the scored netlist of the pinned flow below, each gate one sky130
+**The ranked score is sky130 A0'** (decided 2026-11-03): the scored netlist of the pinned flow below, each gate one sky130
 cell, repaired by buffering only and weighed with the pinned `sky130_fd_sc_hd` liberty (`score/ppa.py`). Its two
 numbers are the cell area in um^2 (`area_um2_sky130`, exact as `area_e4um2_sky130` in 1e-4 um^2) and the time in ps:
 the critical-path delay (`delay_ps_sky130`) of a combinational design, `cycles` x the register-to-register period of a
 clocked one (`check.py`'s clocked `time_ps`; a reactive task makes one decision per cycle, so `cycles` = 1 and its time
 is the period). **The one ranked number is their product, area x time** in um2*ns
-(decided 11/05; `leaderboard/combined.py` defines it, exactly, in 1e-4 um^2 x ps), lower is better: par, the record
+(decided 2026-11-05; `leaderboard/combined.py` defines it, exactly, in 1e-4 um^2 x ps), lower is better: par, the record
 and "under par" use it, and the site's leaderboard orders by it. The Pareto frontier of the two ("Leaderboard"), area
 in NAND2 gate equivalents (`area_mge`), depth (`ltp -noff`) and flow A1' are EXTRA columns for exploring: shown beside
 the score, ranked by nothing. "Reproduce a score" (the end of this section, and
@@ -1646,16 +1706,18 @@ reproduced bit for bit, by one build of the tools, and it is not a slower portab
   `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653`);
 * the liberty `sky130_fd_sc_hd__tt_025C_1v80.lib` (sha256
   `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5`), `score/ppa.py` (sha256
-  `1ef1b1c1904853711cbed9b3b5e275f333aade8f60361f8bbc61305c98c480ab`) and `score/ppa_pins.json` (`sky130_a0_v3`,
+  `2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150`) and `score/ppa_pins.json` (`sky130_a0_v3`,
   sha256 `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8`), with the scripts `score/canon.ys`
   (`bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b`) and `score/svgolf.ys`
   (`ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445`).
 
-Records made before this `score/ppa.py` (every record on the board on 2026-11-11) name the earlier file, sha256
+Records made before this `score/ppa.py` (every record on the board on 2026-11-12) name an earlier file, sha256
 `912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe`, in their checker files and as
-`ppa_script_sha256`. The change between the two adds the ASAP7 view (`--pdk asap7`, "The ASAP7 view", below) and
-leaves the sky130 output identical: rescoring all 23 records with this file on 2026-11-11 reproduced every stored
-sky130 field but that hash. So the records were not made again; `leaderboard.py verify` prints a note for the changed
+`ppa_script_sha256`. The changes since then add the ASAP7 view (`--pdk asap7`, "The ASAP7 view", below; that file
+was sha256 `1ef1b1c1904853711cbed9b3b5e275f333aade8f60361f8bbc61305c98c480ab`) and, on 2026-11-12, a summary line on
+stderr after the JSON and `--latency` (with `--seq`: the line then shows area x cycles x period), and leave the
+sky130 output identical: rescoring all 23 records with this file on 2026-11-12 reproduced every stored sky130 field
+but that hash, and every ASAP7 number. So the records were not made again; `leaderboard.py verify` prints a note for the changed
 file, and a note never changes a record's status. The ASAP7 view's numbers come from the same build and the same
 `score/ppa.py`, with `score/ppa_pins_asap7.json` and its five pinned liberty files in place of the sky130 pins and
 liberty.
@@ -1748,7 +1810,7 @@ references, the Sklansky, Kogge-Stone and comparison-carry adders), the
   16-bit divider's goalpost 2089.081 / 298 → 2046.093 / 300, Sklansky 127.658 / 28 → 124.992
   / 30). The score is a function of the design's expression structure: how
   you write `a & b` versus `b & a` is yours to golf. Decision
-  (10/29): accepted as golfable, not normalized. Measured on `mul_n` at
+  (2026-10-29): accepted as golfable, not normalized. Measured on `mul_n` at
   `N = 16`: one swapped operand moves the score by at most 0.03%; swapping
   every commutative operand adds 6.3% area at the same depth. Yosys hands
   ABC the same network in both cases (identical cell-type counts before
@@ -1757,7 +1819,7 @@ references, the Sklansky, Kogge-Stone and comparison-carry adders), the
   the order in which it receives the nodes. It is a property of heuristic
   logic synthesis, not of the pinned flow.
 
-**sky130 area and delay, two flows (A0' ranked since 11/03, repaired since 11/04: below).** Beside the extra GE
+**sky130 area and delay, two flows (A0' ranked since 2026-11-03, repaired since 2026-11-04: below).** Beside the extra GE
 columns `(area_ge_v1, depth_v1)`, every check (unless `--ppa off`) records `ppa`, the scored netlist weighed with the real
 `sky130_fd_sc_hd` liberty (`score/ppa.py`, [score/PPA.md](score/PPA.md)): `area_um2_sky130` (um^2, exact:
 `area_e4um2_sky130` is the integer in 1e-4 um^2; the sum of the cell areas of the repaired netlist),
@@ -1765,7 +1827,7 @@ columns `(area_ge_v1, depth_v1)`, every check (unless `--ppa off`) records `ppa`
 analysis, every input driven by the task's input drive (default `sky130_fd_sc_hd__buf_8`) fed by a 50 ps ramp, every
 output bit 10 fF, no wires), `unit_depth` (the GE
 columns' depth), `cells_sky130` and `cell_hist_sky130`, with the hashes of the liberty, `ppa_pins.json`, `ppa.py` and the
-weighed netlist, `setup` (the timing setup, its `input_drive` included), and `ppa_version` (`sky130_a0_v3` since 11/04,
+weighed netlist, `setup` (the timing setup, its `input_drive` included), and `ppa_version` (`sky130_a0_v3` since 2026-11-04,
 below). This is flow **A0'**: the pinned `abc -g`
 netlist re-expressed gate for gate as sky130 cells, then repaired by buffering only (no cell resized); no new synthesis and no mapping,
 so it is a function of the scored netlist (the one the GE columns count) and exact run to run. Beside it, as the sub-object `ppa.mapped`, flow **A1'**:
@@ -1776,12 +1838,12 @@ scored netlist on a sample of input vectors and weighed by the very same STA: `a
 (`ppa_mapped_version` `sky130_a1_v1`) and hashes. A1' is closer to a fabricated chip and more sensitive to the mapper than A0': over the
 18 reference and baseline designs of `score/tests/ppa/designs.json` it is a median 0.93x the repaired A0' in area and 1.04x in delay,
 and on the four proved multipliers it puts the array multiplier last in area where GE and A0' put it first. A0' is the ranked score
-(decided 11/03); A1' is an unranked research column; their fields are never swapped silently; the measured tables are in
+(decided 2026-11-03); A1' is an unranked research column; their fields are never swapped silently; the measured tables are in
 [score/PPA.md](score/PPA.md). The liberty is fetched, not vendored: `python3.12 score/ppa.py --fetch-liberty`. What they do
 NOT claim: a fabricated chip's picoseconds (one library, one corner, no wires, a repair rather than timing closure, a 130 nm
 process; the board ranks the exact integers of this model). **The numbers are not noisy.** The pinned flow is a
 deterministic function of the design's text: the same file gives the same area, time and netlist on every run (measured
-2026-11-05 on all 52 references, baselines, records and study designs of the ranked tasks, 14 to 16 runs each: serial and six
+2026-11-05 on all 52 references, baselines, records and trial designs of the ranked tasks, 14 to 16 runs each: serial and six
 at once, a dozen hash seeds, other temporary and working directories, two checkouts, two locales, other file names, two
 install paths; every number and every netlist byte equal), so anyone who runs the pinned tools gets the board's number, and
 there is no tie band and no best-of-k. The pinned tools include the Yosys and ABC BUILD ("The build ratings use", above):
@@ -1797,12 +1859,13 @@ forms and orders against the pinned flow is legitimate golf. A1' is ONE ABC scri
 and delay up to 20%). A clocked task's design is weighed through the clocked flow (`--seq`: its
 register-to-register period); every combinational idiom tried weighs once it reaches the stage, including run-time selects and shifts, `case` muxes and constant
 tables, dividers (`score/tests/ppa/idioms.json`). Some designs do not reach it: the `postsynth` stage refuses a netlist whose dead
-public-named wires are partly undriven or carry an x literal (a known gap of that stage, not of the columns: `score/PPA.md`, "Known gap").
+public-named wires are partly undriven (a known gap of that stage, not of the columns: `score/PPA.md`, "Known gap"; since 2026-11-11 an x
+literal on a wire nothing reads is accepted).
 `leaderboard.py pareto` lists the frontier of the A0' area and time (an exploration view: the ranked number is their product); `pareto --axes area_mge,depth` (or `area_um2_sky130_mapped_v1,mapped_delay_sky130_v1`)
 prints the Pareto frontier over other columns (opt-in; see "Leaderboard").
 
-**sky130 A0' is repaired, and an illegal netlist is rejected (`sky130_a0_v2`; decided 11/03: sky130 A0' is the ranked
-score; 11/04: the repair step everywhere, buffering only, and designs that produce illegal netlists rejected).** Before it is weighed, the A0' netlist is REPAIRED
+**sky130 A0' is repaired, and an illegal netlist is rejected (`sky130_a0_v2`; decided 2026-11-03: sky130 A0' is the ranked
+score; 2026-11-04: the repair step everywhere, buffering only, and designs that produce illegal netlists rejected).** Before it is weighed, the A0' netlist is REPAIRED
 BY BUFFERING ONLY (`ppa.py`'s own repair, `buffer_trees_v1`, the pins file's `repair` and `constants` sections): every
 input is driven by the task's input drive (inputs are not free; `buf_1` in v2, below for v3), every output BIT is a 10
 fF load, and every net over its driver's limits (a load over `max_capacitance` or past the timing tables, a transition
@@ -1817,14 +1880,14 @@ faster restructures it. A first version that let ABC buffer and size the netlist
 it shipped: it never load-checked the tie cell, it rejected loads ABC cannot see (an input or a flop Q wired to many
 output bits) that a golfer could not fix, and its sizing moved areas +2.4% to +40% unevenly. Details:
 [score/PPA.md](score/PPA.md), "The repair and the legality check". Measured on every reference and baseline at its
-scoring point (11/04): all legal, none rejected; three netlists need buffers (`fdivp_newton` 1, matmul G1 5, the matmul
+scoring point (2026-11-04): all legal, none rejected; three netlists need buffers (`fdivp_newton` 1, matmul G1 5, the matmul
 duplication probe 2), so every other area is v1's to the 1e-4 um^2; combinational delays +0.0% to +60.7% (median +5.3%,
 the driven inputs; `sbox_table`, whose inputs are heavily loaded, most); matmul's period 48,079 to 10,705 ps (its v1
 tables were extrapolated). Every task keeps v1's area and delay orders and Pareto frontiers, except matmul, where the
 flop-duplication probe (4.4x faster than the reference in v1) is now slower and leaves the frontier; score/PPA.md,
 "Rankings under `sky130_a0_v2`".
 
-**The input drive is the task's (`sky130_a0_v3`; decided 11/04: each task chooses the drive that is more realistic or
+**The input drive is the task's (`sky130_a0_v3`; decided 2026-11-04: each task chooses the drive that is more realistic or
 interesting for it).** A task's `task.json` may name `input_drive`, the cell in front of every primary input: one of the
 liberty's buffers `sky130_fd_sc_hd__buf_1` .. `buf_16`, its inverters `inv_1` .. `inv_16`, or `sky130_fd_sc_hd__dfxtp_1`
 (a register's Q), the allowlist of `score/ppa_pins.json` `timing.input_drive`; absent, the default
@@ -1841,7 +1904,7 @@ combinational delays -1,084 ps (`sbox_table`) to +25 ps (median -66), matmul's p
 pairs and 0 frontier changes on every task: no ranking moves. score/PPA.md, "The input drive" and "Rankings under
 `sky130_a0_v3`".
 
-**Loads per edge (`sky130_a0_v3`, before its release, 11/04).** A load pin presents its `rise_capacitance` to a rising
+**Loads per edge (`sky130_a0_v3`, before its release, 2026-11-04).** A load pin presents its `rise_capacitance` to a rising
 edge and its `fall_capacitance` to a falling one, as OpenSTA reads them; the STA had loaded every net with the pins'
 `capacitance` and was 0.5% to 2.8% off OpenSTA on the references. With the change it equals OpenSTA to 1 fs per arc
 (`score/test_ppa_opensta.py` records OpenSTA's numbers). MEASURED on every reference and baseline at its scoring point:
@@ -1856,8 +1919,8 @@ tool build, the pins and the task's scoring point and input drive, and each is r
 ```
 python3.12 score/ppa.py --fetch-liberty                     # once: the pinned liberty (sha256 ef34f999…5d23d5) into score/lib/
 python3.12 score/ppa.py SOLUTION.sv --task tasks/<name> --no-mapped --json out.json --netlist scored.v --repaired-netlist repaired.v
-python3.12 score/ppa.py SOLUTION.sv --task tasks/matmul --seq   # a clocked task
-python3.12 score/ppa.py SOLUTION.sv --task tasks/arbiter --seq  # a clocked task, reactive (one decision per cycle)
+python3.12 score/ppa.py SOLUTION.sv --task tasks/matmul --seq --latency 4   # a clocked task (stderr: area x 4 cycles x period)
+python3.12 score/ppa.py SOLUTION.sv --task tasks/arbiter --seq              # a clocked task, reactive (one decision per cycle)
 ```
 
 That is the source gate (`score/srcgate.py`: the canonical text), Yosys process 1 (`score/canon.ys`: read, `hierarchy
@@ -1874,7 +1937,7 @@ literally in a scratch copy on the `add` and `aes_sbox` references, bit for bit 
 ### The ASAP7 view
 
 **sky130 is the default; a reader may see the golf scores on ASAP7 instead** (decided 2026-11-09). The site's library
-selector, on the home page and in the header of every page, switches every golf score on the site between the two
+selector, on the home page and in the header of every other page, switches every golf score on the site between the two
 libraries: the boards and their order, par and the record, the ranks, the score and Pareto charts, each task's score
 card and each record's overview. The browser remembers the choice (where it allows it) and the address carries it:
 `?pdk=asap7`, and `?pdk=sky130` once a reader has chosen a library, so a copied link shows its recipient what its
@@ -1888,7 +1951,8 @@ on the library.
 
 **How ASAP7 is scored.** The same scored netlist as sky130's score (the pinned flow does not depend on the library),
 weighed by `score/ppa.py --pdk asap7` (flow A0', `asap7_a0_v1`): each gate its least-area ASAP7 build, repaired by
-buffering only, an illegal netlist rejected, no wires, timed by the same static analysis. The area is in um^2 (exact in
+buffering only, an illegal netlist rejected, no wires and no place and route (like sky130's score), timed by the same
+static analysis. The area is in um^2 (exact in
 1e-5 um^2), the time in ps (the critical-path delay; on a clocked task cycles x the register-to-register period). The
 library is asap7sc7p5t rev 28 (RVT, typical corner, 0.70 V, 25 C): five liberty files of The OpenROAD Project's
 OpenROAD-flow-scripts (commit `a1a6c3ff`, each file with its BSD 3-Clause licence header), fetched at pinned hashes,
@@ -1987,6 +2051,8 @@ GE area and depth, and `pareto` lists their frontier, also for exploring.
 # leaderboard/data/add/, the directory a pull request adds (--data-dir DIR: a private trial elsewhere)
 python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
     --sv solution.sv --lean Solution.lean
+# hand it in: the pull request that adds the record's three files (--dry-run: the steps, nothing sent)
+python3.12 leaderboard/leaderboard.py submit --task add --record HASH
 python3.12 leaderboard/leaderboard.py pareto --task add        # the (sky130 area, time) frontier (exploration)
 python3.12 leaderboard/leaderboard.py pareto --task add --axes area_mge,depth      # opt-in: the frontier over other columns (here GE)
 python3.12 leaderboard/leaderboard.py pareto --task add --axes area_um2_sky130_mapped_v1,mapped_delay_sky130_v1   # ... over flow A1''s columns
@@ -1996,22 +2062,26 @@ python3.12 leaderboard/leaderboard.py verify                  # re-verify every 
 python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks, Markdown
 ```
 
-* **There is no submission server yet.** `add` writes a record on your machine and nothing is
-  sent anywhere. A record is self-verifying (`verify --full` re-runs the whole check), so a
-  pull request carrying the record directory is a possible hand-off, but how records reach a public
-  board is an open decision (PLAN.md, "Open questions for the maintainers"); until it is taken, the board
-  is the maintainers' `leaderboard/data`, and running `add` without `--data-dir` writes into it:
-  `leaderboard/data/<task>/` is where the records of a pull request go, and `--data-dir DIR` keeps a
-  private trial out of it. **That directory takes only a record whose check the board ran itself**
-  (decided 2026-11-06, the universal-correctness audit): `add` refuses `--from-check` (a stored result,
-  never re-run) and `--sandbox off` there, and a check that did not run in the OS sandbox
+* **How a record reaches the board.** There is no submission server: `add` writes a record on your machine and
+  sends nothing. To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files; a
+  check on the pull request verifies every record and runs the full check on the added ones, and a maintainer
+  re-makes the ranked number on the rating build when the pull request is merged. `submit` first checks the
+  record with `verify --offline` and refuses a failed, stale or light one; the pull request's text gives the
+  task, the handle, `assisted_by` and the record's board line (its place on the board as the site shows it), in
+  the parts of `.github/pull_request_template.md`. The check is `leaderboard/pr_check.py`, which the
+  repository's `records` workflow runs on every pull request that touches `leaderboard/data/`: it refuses one
+  that changes anything but added records, and writes each added record's board line and the outcome to the job
+  summary. `leaderboard/data/<task>/` is where `add` writes without `--data-dir`, and what a pull request adds;
+  `--data-dir DIR` keeps a private trial out of it.
+  **That directory takes only a record whose check the board ran itself** (decided 2026-11-06, the
+  universal-correctness audit): `add` refuses `--from-check` (a stored result, never re-run) and `--sandbox off` there, and a check that did not run in the OS sandbox
   (`sandbox.active`); both options stay for a `--data-dir` trial.
 * **A record** is one JSON file per accepted submission,
   `leaderboard/data/<task>/<record_hash>.json`, with the submitted `.sv` and
   `.lean` copied next to it. It holds the player handle, `assisted_by`, the
   sha256 of both files and of the source gate's canonical text, the GE
   columns (`score`: `area_mge` in integer milli-GE, depth, gate counts, scoring point), the
-  checker's identity (the svgolf and proglib revisions, `svgolf_revision` and
+  checker's identity (the svGolf and Proglib revisions, `svgolf_revision` and
   `lean_surfaces_revision`, Lean toolchain, Yosys
   and Verilator versions, the sha256 of the two scripts, the GE table and the
   checker's files), the proof's facts (axioms, build seconds, code lines,
@@ -2060,7 +2130,7 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks,
   empty means unassisted. It is the submitter's word, shown next to every
   entry, and `--unassisted` ranks only the entries with an empty list. It does
   not change the ranking otherwise.
-* **The boards weigh the sky130 score** (decided 11/03; its product, area x time, is the ranked number since
+* **The boards weigh the sky130 score** (decided 2026-11-03; its product, area x time, is the ranked number since
   2026-11-05). `board` and `export` rank the records by the product of the A0' area
   (`ppa.area_e4um2_sky130`, exact in 1e-4 um^2) and time (`ppa.delay_ps_sky130`; a clocked record's `score.time_ps`,
   cycles x period) and show the Pareto layer of the two, the GE area and depth as extra columns; `pareto` lists the
@@ -2109,10 +2179,14 @@ time from `score/tests/ppa/expected_ppa.json`, the extra GE area and depth from
 | `mul` | Yosys's own `p = a * b` (banned `*`, banlist lifted) | 8825.9648, 6261 | 2081.227, 59 |
 | `fdivp` | the flat binary16 divider (the reference of the former 16-bit task, removed 2026-11-03) under the parametric header, right at `(5, 11)` only (simulation only; at `(5, 11)`) | 8734.6272, 35735 | 1944.775, 303 |
 
-The proved references are the first records (`svgolf-reference`,
+Every record so far was added by the maintainers: the proved references, and trial designs made with an AI
+assistant (each record names the tool). There are no outside entries yet. The proved references are the first
+records (`svgolf-reference`,
 `assisted_by` `["Claude (Anthropic)"]`, notes `reference solution`;
-`leaderboard.py seed-references` records them again; the records of
-`leaderboard/data` were re-seeded under `sky130_a0_v3` on 11/04, with the
+`leaderboard.py seed-references` records them again, and only it records under that handle (decided
+2026-11-12: `add`, `submit` and the pull-request check refuse it, and par is the best of the references
+task.json lists); the records of
+`leaderboard/data` were re-seeded under `sky130_a0_v3` on 2026-11-04, with the
 same design and proof files, so they carry the ranked columns, again on
 2026-11-05 after the checker's own files changed, with the same files and numbers,
 and on 2026-11-06 after the statement change, from the proofs updated for the
@@ -2138,8 +2212,8 @@ summary table (step, checks, failures, time):
   and the Dadda baselines reproducible from `gen_dadda.py`;
 * `build`: `lake build` (SvGolf, tasks, tests), so every refutation of a
   negative design is re-checked by the kernel, its design re-extracted by
-  `load_sv` when anything it depends on changed (but the three that wait for
-  the int32 port round, "Building", which `negatives` builds);
+  `load_sv` when anything it depends on changed (but the three that do not build
+  at the pinned library yet, "Building", which `negatives` builds);
 * `unit`: `score/test_score.py`, `score/test_srcgate.py`,
   `score/banlist.py --selftest`, `score/fourstate.py --selftest`, and
   `tests/checker/test_advisories.py` (the oracles against independent arithmetic, the
@@ -2149,7 +2223,7 @@ summary table (step, checks, failures, time):
   `tests/checker/test_design_stage.py` (the `design` stage rejecting an Unsupported
   construct, on check.py's real early stages with a fake Lean: 5 tests), `score/test_ppa.py`
   (the sky130 columns, stage 1: the netlist reader on escaped identifiers and dead wires, the eight idiom
-  designs of `score/tests/ppa/idioms.json` with goldens; flow A1' (WP-X4): the mapped netlist weighed by the same STA, the equivalence
+  designs of `score/tests/ppa/idioms.json` with goldens; flow A1': the mapped netlist weighed by the same STA, the equivalence
   sample, the pins, the loud reasons, the goldens of `expected_ppa_mapped.json`, bit-exactness across hash seeds and temp
   directories; its real-liberty tests are skipped where the pinned liberty is absent),
   `tests/checker/test_ppa_wiring.py` (the `--ppa` modes, the absent and the unreadable liberty, a netlist
@@ -2175,12 +2249,12 @@ summary table (step, checks, failures, time):
   `LeanModels.Python.*`, `LeanModels.Core.*`, another submission, `Lake`, `Cli`
   and lookalikes (`Mathlib2`) refused; header parsing; the import closure of the
   tactic library, 44 modules, inside the list, so a later change of
-  proglib that made a tactic module import something off the list fails
+  Proglib that made a tactic module import something off the list fails
   here, not in every reference proof; and the import closure of `Mathlib`,
   8,643 package modules in eight roots, recomputed from the package sources, so a
   Mathlib bump that reaches a package the checker does not admit fails here; the
   glued-import headers; `SvGolf/CoreSimp.lean` lists exactly the checker's package roots), and the
-  sandbox's own tests (WP-S, "Sandbox" under "Checking"): `tests/sandbox/test_env.py` (the environment
+  sandbox's own tests ("Sandbox" under "Checking"): `tests/sandbox/test_env.py` (the environment
   allowlist; an AST lint that every `subprocess` call of the checker passes `env=`),
   `tests/sandbox/test_sandbox.py` (profile and `bwrap` argument generation, the supervisor's limits, a
   self-test that must fail on a mechanism that does not sandbox, `configure`, the Lean plumbing with a stubbed
@@ -2236,8 +2310,8 @@ summary table (step, checks, failures, time):
   operators, `fourstate` for the two that read an undriven net, `solution`
   for the rest; every refutation is in the `tests` library), and its quoted
   scores (but the three `only_n16.sv`, rejected at `design` with the loader's
-  pinned refusal until the int32 port round, "Building"); and each refutation
-  that waits for that round, built alone, failing with its pinned refusal;
+  pinned refusal while the pinned library refuses them, "Building"); and each refutation
+  that does not build yet, built alone, failing with its pinned refusal;
 * `baselines`: every baseline scored (`score.py` applies no banlist, so a
   banned-operator baseline is scored "with the banlist lifted"), the
   banlist's verdict as expected, token identity where claimed, the 4-state
@@ -2308,7 +2382,7 @@ summary table (step, checks, failures, time):
   `unique`/`priority`, `fourstate` for x without a literal (a constant
   `1 / 0`, an undriven net, an out-of-range read), `banlist` for the
   loop-counter writes and `.sum()`, `design` for a design that loads with an
-  Unsupported node (WP-C3: the latent function-local x, the two latches, and
+  Unsupported node (the latent function-local x, the two latches, and
   `func_call.sv` / `assign_func.sv`, a correct `a & b` through a user function;
   the message must name the construct); and, where `tests/expected.json` says
   `postsynth_alone`, the postsynth check with the source gate and the
@@ -2323,7 +2397,7 @@ summary table (step, checks, failures, time):
   `--sandbox off`, because with the sandbox the write they attempt is denied before the tripwire has
   anything to see; `host_env_salt` is ACCEPTED only when the checker's secrets (the competition salt,
   tokens) are invisible to the Lean file.
-* `sandbox` (WP-S): the sandbox against real attacks, each through `check.py --sandbox require` on `_example`
+* `sandbox`: the sandbox against real attacks, each through `check.py --sandbox require` on `_example`
   (skipped, with a message, where the machine has no mechanism): `host_naive` (the 2026-10-31 finding: with
   `--sandbox off` ACCEPTED and the file outside the stage exists, the control that shows the attack is real;
   with the sandbox REJECTED at `solution`, "operation not permitted", no file), `host_catching` (every
@@ -2334,24 +2408,17 @@ summary table (step, checks, failures, time):
   (stopped by the supervisor's memory limit, output cap and the task's wall clock), and the two tripwire attacks with
   the sandbox ON. `tests/run.py --sandbox require` runs EVERY step's `check.py` calls with it.
 
-Runtime (measured 2026-10-29 with Verilator as the simulator, 226 checks
-without `validate`, 0 failed): 20 minutes of work when the Lean slot is free
-(build 30 s, canon 68 s, references 207 s, drafts 53 s, negatives 245 s,
-baselines 372 s, attacks 233 s) and 4 minutes for the quick `validate` plans
-(14 checks; `add`'s `validate.py` is 3 minutes, 90 s of them the C++ builds of
-45 designs-and-widths at about 2 s each; the former 16-bit divider's `sample` step was 3 s where
-the Icarus step was about 90 s). The ~60 `check.py` runs take 10 to 60 s each,
-the `mul` reference about 90 s with its postsynth stage; the 16-bit Dadda
-trees' postsynth checks are the long ones (83 and 162 s); the build is
-45 s to 90 s when the refutations re-elaborate (a changed design, task,
-extractor, or a comment in a `.sv`). On a machine whose one
-Lean slot another job holds, waiting comes on top: the runs of 2026-10-28
-took hours of wall clock for that reason. `--full` adds hours (`fdivp`'s
+Runtime: the whole suite takes an hour or more on a laptop, and waiting for the Lean slot comes on top on a
+machine where another job holds it. Of its parts (measured 2026-10-29, when the suite had fewer tasks): `add`'s
+`validate.py` is 3 minutes, 90 s of them the C++ builds of 45 designs-and-widths at about 2 s each; a `check.py`
+run takes 10 to 60 s, the `mul` reference about 90 s with its postsynth stage, the 16-bit Dadda trees'
+postsynth checks 83 and 162 s; the build is 45 s to 90 s when the refutations re-elaborate (a changed design,
+task, extractor, or a comment in a `.sv`). `--full` adds hours (`fdivp`'s
 exhaustive steps, the `mul` reference's full plan, `add`'s full
 `validate.py` and `verilator.py`, and the postsynth checks of every baseline
 at every scored point).
 
-The sky130 columns (WP-X3) add about 60 s to that (measured 2026-10-31, again after the review fixes): the `ppa` step
+The sky130 columns add about 60 s to that (measured 2026-10-31, again after the review fixes): the `ppa` step
 17 s run alone (the sixteen designs of `designs.json`, 12 s, and the eight netlist idioms, 5 s; in the full suite the
 `references` step has already weighed some of them), `tests/checker/test_ppa_wiring.py` 41 s in the `unit` step (28
 tests), `score/test_ppa.py` +7 s (34 tests, 17 to 23 s depending on load), `leaderboard` +1 s, and in each reference run the

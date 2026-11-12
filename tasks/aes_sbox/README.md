@@ -11,14 +11,14 @@ are banned in every task).
 
 **Par** is that proved circuit, `sbox_bp`: **892.1056 um^2 x 4297 ps = 3833.4 um2*ns**. The one
 ranked number is area x time, the sky130 A0' cell area in um^2 times the critical-path delay
-(decided 11/05; the svGolf README, "Scoring"); to beat par is to be accepted with a smaller product.
+(decided 2026-11-05; the svGolf README, "Scoring"); to beat par is to be accepted with a smaller product.
 The proved table `sbox_table` is 3445.8048 um^2 x 2288 ps = 7884.0 um2*ns. The GE area and the depth
 below, and the Pareto frontier of area and time, are extra columns, for exploring. Measure a design
 with the golfing inner loop, about 2 seconds and no Lean:
 `python3.12 score/ppa.py solution.sv --task tasks/aes_sbox --no-mapped [--path]` (the source gate and the
 pinned flow only: `check.py --unproved` must still pass before you prove).
 
-## Start a new design
+## Proving a new design
 
 A new S-box is your own `solution.sv` (the header below; no operator is banned but the run-time `/ % **` every
 task bans) and a `Solution.lean`. This
@@ -58,8 +58,8 @@ end Submission
   (no `?:`), every read inside its declared width; or an `always_comb` with a plain `case` table over literals
   (`reference/sbox_table.sv`);
 * **at most about 90 assigns, until the tactic's cost is fixed**: its cost grows steeply with the number of
-  assigns. Measured 2026-11-05 under load: 82 assigns proved in 70.6 s of the 120 s limit of the time; 139 assigns did not
-  finish within it; the 113-assign `sbox_bp.sv` and the 139-assign netlist did not finish in a 21-minute probe.
+  assigns. Measured 2026-11-05 under load: 82 assigns proved in 70.6 s, under the 120 s limit of then (the limit is
+  300 s of CPU time since 2026-11-06); 139 assigns did not finish within it; the 113-assign `sbox_bp.sv` and the 139-assign netlist did not finish in a 21-minute probe.
   Inlining every net read only once into its reader cut the tower-field netlist from 139 to 82 assigns;
 * inlining and reordering move the score (deterministically, like operand order and gate forms): after
   inlining, search statement orders again with `score/ppa.py`, a second or two per order. Using the pinned
@@ -145,11 +145,11 @@ surfaces and the defences).
   function is kernel evaluation), so no induction over a parameter is involved; the work is in the glue
   (`PROVING.md`, section 12: `sv_structure` and `sv_equations` decide the obligations of a flat netlist, so
   the reference is one `sv_structure` call, one `sv_equations` call and the arithmetic). `bv_decide` would suit a fixed-size subgoal, but it runs an external SAT solver, which the checker does not support
-  (decided 2026-11-01; `svgolf/README.md`, "`bv_decide`"): `allow_bv_decide` is `false`, and proofs use `propext`,
+  (decided 2026-11-01; the repository's `README.md`, "`bv_decide`"): `allow_bv_decide` is `false`, and proofs use `propext`,
   `Classical.choice`, `Quot.sound` only. `native_decide`, `sorry` and `admit` never pass.
 * **Proof time limit: 300 CPU s** (`task.json`), the one limit of every task (svGolf `README.md`, "Proof effort"): three cold runs of the reference's `solution` stage, 2026-11-06, measured 67.0, 51.9 and 50.8 CPU s (`score/time_limits.json`; `sbox_table` 26.0, 23.9 and 23.3 CPU s; in wall-clock seconds, 2026-10-31: 53.7, 51.0 and 50.9 s; the first limit, 385 s, came from 96.0, 95.1 and 90.9 s of a proof written before the tactics decided the flat netlist's obligations); the other stages of `check.py` add the comparator (19 s) and `leanchecker` (47 to 50 s), which the limit does not count.
 * **Scoring**: fixed size, no parameter override, no depth budget. The ranked number is area x time
-  on sky130 A0' (A0' decided 11/03, the product 11/05; svGolf `README.md`, "Scoring"): the cell area in
+  on sky130 A0' (A0' decided 2026-11-03, the product 2026-11-05; svGolf `README.md`, "Scoring"): the cell area in
   um^2 times the critical-path delay of the scored netlist of the pinned two-stage Yosys + ABC flow
   (`score/canon.ys`, `score/svgolf.ys`), weighed by `score/ppa.py` (`sky130_a0_v3`); par, the
   Boyar-Peralta reference, is 892.1056 um^2 at 4297 ps (`score/tests/ppa/expected_ppa.json`). The Pareto
@@ -239,7 +239,7 @@ equations under their stable names (`eq_y14_1`, …, `eq_y_1` … `eq_y_8`); the
 straight-line program over a packed `Nat` environment, evaluated by the kernel on all 256 inputs, plus one
 induction over the gate list. Axioms `propext`, `Classical.choice`, `Quot.sound`; no `native_decide`.
 
-### Proof effort (measured 2026-10-31, WP-P3b)
+### Proof effort (measured 2026-10-31)
 
 Sequential elaboration (`lake env lean -DElab.async=false`, `LEAN_NUM_THREADS=2`, CPU seconds, shared laptop):
 
@@ -252,9 +252,9 @@ Sequential elaboration (`lake env lean -DElab.async=false`, `LEAN_NUM_THREADS=2`
 | the other small lemmas | under 0.1 each | about 1 each |
 
 About 48 s of CPU for the file, `.olean` 18.2 MB; three cold `check.py` runs: `solution` stage 53.7, 51.0 and
-50.9 s (WP-A1, with the structure theorem applied by hand and `sv_equations` leaving 221 coverage goals:
+50.9 s (the first proof, with the structure theorem applied by hand and `sv_equations` leaving 221 coverage goals:
 99 s of CPU for the file, 654 lines, `solution` stage 96.0, 95.1 and 90.9 s). `sv_structure` on the same design
-is linear in the number of sites (12 s at 113; before WP-P3b: `n^1.9`, 63 s of `simp` at 60 gates, 4 min 23 s and then
+is linear in the number of sites (12 s at 113; before the flat-netlist tactics: `n^1.9`, 63 s of `simp` at 60 gates, 4 min 23 s and then
 `maximum recursion depth` at 113). The numbers, before and after, are in `PROVING.md`, section 12.
 
 ## Validation (`tests/aes_sbox/validate/`)

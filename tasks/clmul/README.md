@@ -8,7 +8,7 @@ RECURSIVE (Karatsuba is 20 % smaller than the schoolbook array at `N = 16` and 3
 below), so it is also the task that shows what the proof tactics need next. The reference array is **proved for
 every `N`** with the `sv_comb` tactics (`reference/clmul_n.lean`, 238 code lines, `solution` stage about 8 s).
 
-## Start a new design
+## Proving a new design
 
 A new carry-less multiplier is your own `solution.sv` (the header below; `+ - * / % **` are banned at run time)
 and a `Solution.lean` that proves it for every `N ≥ 1`. Find the design without Lean, then check it once
@@ -179,8 +179,8 @@ below `2^31`.
 * **Proof time limit: 300 CPU s** (`task.json`), the one limit of every task (svGolf `README.md`, "Proof effort"): three
   cold runs of the reference's `solution` stage, 2026-11-06, measured 10.4, 9.9 and 10.0 CPU s (`score/time_limits.json`; in wall-clock seconds, 2026-11-01: 7.42, 7.66 and 7.66 s); the other stages of
   `check.py` add the comparator (14 s) and `leanchecker` (13 to 14 s), which the limit does not count.
-* **Scoring at `N = 16`**, no depth budget. The one ranked number is area x time on sky130 A0' (A0' decided 11/03,
-  the product 11/05; svGolf `README.md`, "Scoring"): the cell area in um^2 times the critical-path delay of the
+* **Scoring at `N = 16`**, no depth budget. The one ranked number is area x time on sky130 A0' (A0' decided 2026-11-03,
+  the product 2026-11-05; svGolf `README.md`, "Scoring"): the cell area in um^2 times the critical-path delay of the
   scored netlist of the pinned two-stage Yosys + ABC flow, weighed by `score/ppa.py` (`sky130_a0_v3`, repaired by
   buffering only). Par, the proved array `clmul_n`, is 3429.5392 um^2 x 1114 ps = 3820.5 um2*ns. The Pareto frontier
   of area and time, area in NAND2 gate equivalents and depth in gates are extra columns, for exploring, and the
@@ -251,12 +251,12 @@ operands of every commutative operator gives 774.265 GE (recorded in `tests/expe
 Pinned flow (`score.py`, the two-stage canonical flow, Yosys 0.53), area in GE / depth in gates; every number is
 in `tests/expected.json` (with the gate mix) and re-measured by `tests/run.py`. The last two columns are the
 sky130 columns at `N = 16` (`score/ppa.py`, area um^2 / delay ps): A0' (`sky130_a0_v3`, the ranked sky130 score since
-11/03) = the scored netlist repaired by buffering only (no net of these designs is over its limits, so no buffer and no
+2026-11-03) = the scored netlist repaired by buffering only (no net of these designs is over its limits, so no buffer and no
 resized cell) and weighed by sky130 cell areas and an STA with every input driven by the task's input drive,
-`sky130_fd_sc_hd__buf_8` (the default); A1' = a real `abc -liberty` mapping (unranked). Re-measured 11/04 (`ppa.py SV
+`sky130_fd_sc_hd__buf_8` (the default); A1' = a real `abc -liberty` mapping (unranked). Re-measured 2026-11-04 (`ppa.py SV
 --task tasks/clmul --no-mapped`): against `sky130_a0_v2` (inputs driven by `buf_1`) the A0' areas are unchanged and the
 delays -53 to -171 ps, with the same orders and the same frontier (against the unrepaired `sky130_a0_v1`, v2's delays
-were +9.5 to +35.8%). Re-measured again 11/04 with every load pin read per edge (`sky130_a0_v3` before its release,
+were +9.5 to +35.8%). Re-measured again 2026-11-04 with every load pin read per edge (`sky130_a0_v3` before its release,
 `ppa.score_and_weigh` with the mapping): areas unchanged, A0' delays +0 to +14 ps, A1' +0 to +17 ps, the same orders and
 frontier.
 
@@ -279,7 +279,7 @@ tree is the array's twin in area (770.9 against 772.3) and one level shallower.
 ### Beyond the reference (what a better entry needs)
 
 The best designs here are recursive and the recursion has no parametric form in the proof fragment today: the
-tactics read a FLAT top module (instances and recursion are `le-recursion`, WP-I; PROVING.md, section 4), so a
+tactics read a FLAT top module (instances and recursion are `le-recursion`; PROVING.md, section 4), so a
 for-every-`N` Karatsuba needs either instances, or a fixed number of levels unrolled by generate loops with a
 padded split (`N` odd). The proofs of such designs are the bilinearity identity `(aL + x^m aH)(bL + x^m bH) =
 L + x^m (M + L + H) + x^2m H` over coefficient functions. Published bars to beat (recalled, not checked):
@@ -297,13 +297,13 @@ vector `abz = {1'b0, b, 1'b0, a}`; `probe/G3h.lean`), exists except for the cove
 of coefficient functions (`karatsuba_full`, `cl_sum`, `comb_spec`, about 150 lines), the structure theorem (`sv_structure (lexRank := …)`,
 about 60 s of CPU at 19 sites and 110 s at 27, with a raised heartbeat limit), the 15 `sv_bridge` fields of the three arrays, the
 combination equations and the whole chain from `sv_equations` to the Spec's `BitVec` all compile for the 19-site design.
-**What blocked it was `sv_cover`, and WP-COV has since fixed it** (2026-11-01): the whole coverage obligation was normalized as one
+**What blocked it was `sv_cover`, which has since been fixed** (2026-11-01): the whole coverage obligation was normalized as one
 conjunction first, `sv_simp` ran out of its 100000 steps on the larger designs, `try` swallowed the error and the site-witness form
-(`∃ b, (b = site₀ ∨ …) ∧ Q b`) was left behind; the fix renormalizes each goal after the split (G25-NOTE section 13). The 17 coverage
+(`∃ b, (b = site₀ ∨ …) ∧ Q b`) was left behind; the fix renormalizes each goal after the split (`design/always-comb/G25-NOTE.md`, section 13). The 17 coverage
 goals of the 19-site design (`design/tasks-week2/clmul/karatsuba/`) now close with the standard closer and no hand-written case split
 (`Examples/system-verilog/comb_karatsuba/cover.lean`, `k1u_covers`). The Karatsuba proof is NOT yet registered as a reference: the
 structure theorem takes about 60 s of CPU at 19 sites with a raised heartbeat limit, so registering it would raise the task's time
-limit from the floor (then 120 s); that is a decision for the lead and the maintainers.
+limit from the floor (then 120 s); that is the maintainers' decision.
 
 ## How people write clmul (and what our pipeline accepts today)
 
@@ -312,7 +312,7 @@ contestants use naturally are supported, not only the ones the tactics like. Thi
 for this task: 23 files from 19 repositories found with `gh search code` (`clmul`, `ghash`, `carry-less multiplier`)
 and a web search for Karatsuba over GF(2), fetched on 2026-11-01 as UNTRUSTED DATA (read with `cat`/`grep` only,
 never executed, nothing copied into the repository; only URLs, the licence GitHub reports and one-line snippets
-are recorded here). The eight-family survey that followed (`svgolf/design/real-world-sv/SURVEY.md`, section 6 and
+are recorded here). The eight-family survey that followed (`design/real-world-sv/SURVEY.md`, section 6 and
 the ranked gap list of section 4; 30 of its 331 entries are clmul, and its 241 reduced probes, `probes/cl__c*.sv`
 and `probe_results.json`, were run through the same `check.py --unproved --tactics`) reaches the same verdicts
 on every clmul-shaped probe I compared (c01 unpacked chain: `design`; c02 size cast: `design`; c05 to c09 procedural
@@ -325,14 +325,14 @@ every `N`, simulated in Verilator, run through `check.py --unproved --tactics` b
 |---|---|---|---|---|
 | 1 | **nested procedural loops, one XOR-accumulate per partial product** (`r[i] ^= a[i-j] & b[j]` into a vector bit; or a chain through an intermediate vector indexed `S[WIDTH*i+j]`) | `openhwfoundation/cv32e40x` `rtl/cv32e40x_alu.sv` (NOASSERTION); CORE-V-WALLY `clmul.sv` as `zeroasiccorp/logikbench` `logikbench/benchmarks/large/wally/rtl/clmul.sv` (MIT repo, file Apache-2.0 WITH SHL-2.1) and the copy `brlditos/tft-assignment` `src/ieu/bmu/clmul.sv` | `proc_nested_for`, `wally_chain` | **refused at `fourstate`**: "run-time index in `b[i]`: a signed 32-bit index addresses …, outside the declared range" (a procedural loop counter is an `int`, hence a run-time index); behind it ls-sv does not load the loop (the extractor marks `ForLoopStatement` Unsupported: register `st-for`, rank 1) |
 | 2 | **whole-word shift-and-XOR in a procedural loop or function**: `if (b[i]) p = p ^ (a << i)` | `fontamsoc/hw` `cpu/clmul.sv` (GPL-2.0, Verilog-2001 function `clmulFull`); `effanem/set_project` `rtl/gf64_mul.v`, `rtl/gf128_naive.v` (no licence listed); `akerlund/rtl_bch` `rtl/bch_gf.sv` (MIT, SystemVerilog function with `return`); `efectn/riscv-crypto-extensions` `rtl/units/clmul_unit.sv` (MIT, a 2-stage sequential unit around the loop); `karucore/karu64` (the reduced GF(2^128) form) | `proc_shift_xor`, `func_oldstyle_xor`, `func_shift_xor` | `proc_shift_xor`: **`fourstate`** as in 1. `func_oldstyle_xor`: **refused at `source`**: its counter `integer i` is declared outside the loop header (source gate item 7, the stopgap for ls-sv's procedural-loop defects). `func_shift_xor` (the `return` form): **refused at `banlist`** because the scorer's own Yosys frontend rejects `return` ("syntax error"): not even the pinned flow can read it. Behind both: a user function call is Unsupported in ls-sv (`ex-user-call`, rank 2) |
-| 3 | **generate-for word-wide partial products and an XOR tree/chain**: `pp[i] = b[i] ? a << i : '0`, then XOR (a hand-unrolled tree of fixed depth for 32 bits) | `lowRISC/ibex` `rtl/ibex_alu.sv` (Apache-2.0); `ycakbas/rv32imafb-core` `rtl/execute/bitmanip/clmul_unit.sv` (no licence listed; "assumes WIDTH is a power of 2") | `gen_word_pp_chain`, `gen_pp_zerofill` | **accepted up to the proof** (source, extract, banlist, fourstate, design, score, postsynth all pass; the oracle agrees). The tactics refuse it: `site g_pp#0: unbased unsized literal '0/'1 inside an expression` (the zero-extension replication `{{(N-1){1'b0}}, a}` is read since WP-B2 gate 4c), and with the zero-fill written as a loop, `generate-for header outside for (g = <int>; …)` (the start must be an integer literal, `for (i = N; …)` is refused); behind that: the `'0` fill inside `?:` (PROVING.md, section 4: "write a sized literal") and, at the base commit these results were measured on (`9388ea91`), the run-time shift `aw << i`, which WP-B2 gate 3a (`e862b83c`) has since added to the fragment: re-run `tests/run.py --only clmul` after merging it |
+| 3 | **generate-for word-wide partial products and an XOR tree/chain**: `pp[i] = b[i] ? a << i : '0`, then XOR (a hand-unrolled tree of fixed depth for 32 bits) | `lowRISC/ibex` `rtl/ibex_alu.sv` (Apache-2.0); `ycakbas/rv32imafb-core` `rtl/execute/bitmanip/clmul_unit.sv` (no licence listed; "assumes WIDTH is a power of 2") | `gen_word_pp_chain`, `gen_pp_zerofill` | **accepted up to the proof** (source, extract, banlist, fourstate, design, score, postsynth all pass; the oracle agrees). The tactics refuse it: `site g_pp#0: unbased unsized literal '0/'1 inside an expression` (the zero-extension replication `{{(N-1){1'b0}}, a}` is read since 2026-11-02), and with the zero-fill written as a loop, `generate-for header outside for (g = <int>; …)` (the start must be an integer literal, `for (i = N; …)` is refused); behind that: the `'0` fill inside `?:` (PROVING.md, section 4: "write a sized literal") and, at the base commit these results were measured on (`9388ea91`), the run-time shift `aw << i`, which the tactics (`e862b83c`) have since added to the fragment: re-run `tests/run.py --only clmul` after merging it |
 | 4 | **hand-unrolled flat expression**, one conditional word per bit of `b`, XORed in one assign (32 terms) | `chipsalliance/Cores-VeeR-EL2` `design/exu/el2_exu_mul_ctl.sv` (Apache-2.0, `{63{rs2_in[i]}} & {..., rs1_in, i'b0}`); `Arvern-Silicon/arvern` `rtl/verilog/arv_alu.v` (BSD-3-Clause) | none: fixed width by construction (a for-every-`N` statement cannot be met), the same class as the generated baselines | n/a |
 | 5 | **generate-for, one shift-and-add step per iteration, each an `always_comb` with a default and a conditional compound XOR** (`Z[i] ^= H[i-1]`) on 2-D packed arrays | `soc-hub-fi/Marian` `src/ip/crypto/gcm/src/mult_ghash.sv` (the RISC-V vector-crypto `vgmul`, with reduction) | `gen_always_step` | **refused at `design`**: ls-sv cannot run `AssignmentExpression:compound` (register `st-compound`, rank 17); a generate-local temporary (`logic [N-1:0] t;`) is refused the same way (`gen_local_column`, "generate-local declaration") |
-| 6 | **Karatsuba on module instances**: one level with three base multipliers, or per-width modules, or a recursive parameterized module | `effanem/set_project` `rtl/gf128_karatsuba.v` (three `gf64_mul` instances; no licence listed); `patwarind/Karatsuba_algorithm_for_Multiplication` `KA_131bit/*.v` (a module per width); `JC-S/Karatsuba_multiplier_HDL` `rtl/karat_mult_recursion.sv` (GPL-2.0; integer arithmetic, `nSTAGE` recursion with generate-if) | `inst_karatsuba_1level` (procedural base), `inst_karatsuba_1level_gen` (generate-array base), `inst_karatsuba_rec` (recursive) | `inst_karatsuba_1level`: `fourstate` (its procedural base). `inst_karatsuba_1level_gen`: **accepted up to the proof** (the loader, the scorer and postsynth handle instances); the tactics refuse module instances (WP-I). `inst_karatsuba_rec`: **refused at `extract`** ("no such module among top instances": a self-instantiating top, register `le-recursion`, rank 14) |
+| 6 | **Karatsuba on module instances**: one level with three base multipliers, or per-width modules, or a recursive parameterized module | `effanem/set_project` `rtl/gf128_karatsuba.v` (three `gf64_mul` instances; no licence listed); `patwarind/Karatsuba_algorithm_for_Multiplication` `KA_131bit/*.v` (a module per width); `JC-S/Karatsuba_multiplier_HDL` `rtl/karat_mult_recursion.sv` (GPL-2.0; integer arithmetic, `nSTAGE` recursion with generate-if) | `inst_karatsuba_1level` (procedural base), `inst_karatsuba_1level_gen` (generate-array base), `inst_karatsuba_rec` (recursive) | `inst_karatsuba_1level`: `fourstate` (its procedural base). `inst_karatsuba_1level_gen`: **accepted up to the proof** (the loader, the scorer and postsynth handle instances); the tactics refuse module instances. `inst_karatsuba_rec`: **refused at `extract`** ("no such module among top instances": a self-instantiating top, register `le-recursion`, rank 14) |
 | 7 | **unary reduction XOR per column**, `p[k] = ^(a & window of b)` | not seen in the files read (the style the task description names; written here for coverage) | `reduce_xor_column` | **accepted up to the proof**; the tactics refuse the indexed part select `bpad[… +: N]` |
 | 9 | **explicit size cast** to widen before shifting, `(2*N-1)'(a) << i` (the survey's commonest spelling of the word-wide partial product; 49 of its 331 entries use casts) | cv32e40x-style and `ibex`-style code in the survey's probes c01, c02 | `gen_size_cast` | **refused at `design`**: `ConversionExpression:Explicit` (register `cv-explicit`, rank 9) |
 | 10 | **unpacked partial-product / accumulator arrays**, `logic [2*N-2:0] pp [N]` | `lowRISC/ibex` (`clmul_and_stage[32]`), the cogs core; survey probe c01 | `gen_unpacked_pp` | **refused at `design`**: `decl 'pp': unpacked array storage outside E (UnpackedDecl:memory)` (parameter-sized unpacked arrays) |
-| 11 | **replicated-bit mask**, `(a << i) & {W{b[i]}}` | VeeR and scarv macros (the survey's second spelling of the shift-and-XOR accumulate) | `gen_mask_replication` | **accepted up to the proof**; the tactics read it since WP-B2 gate 4c (at this task's base commit the first refusal was the run-time shift, added by gate 3a, then the genvar amount, gate 4b, then the replication of a bit select, gate 4c): `sv_structure` and `sv_equations` accept it |
+| 11 | **replicated-bit mask**, `(a << i) & {W{b[i]}}` | VeeR and scarv macros (the survey's second spelling of the shift-and-XOR accumulate) | `gen_mask_replication` | **accepted up to the proof**; the tactics read it since 2026-11-02 (at this task's base commit the first refusal was the run-time shift, added by gate 3a, then the genvar amount, gate 4b, then the replication of a bit select, gate 4c): `sv_structure` and `sv_equations` accept it |
 | 12 | **Verilog-2001 nets**: `input wire` / `output wire`, `wire [N-1:0][N-1:0] r` | 13 of the survey's 30 clmul entries are Verilog (`effanem/set_project`, `Pim-aes-gcm`, `fontamsoc/hw`) | `verilog2001_wire` | **refused at `design`**: `decl 'a': unrecoverable packed dimensions` (register `dc-net-z`) |
 | 13 | **`always @*`** per row inside a generate-for (60 of the 331 surveyed entries use `always @*`) | the survey's SHA/MD5 and ALU entries, `effanem`'s Verilog | `always_star_rows` | **refused at `design`**: `TimedStatement:ImplicitEventControl` (registers `pr-implicit-event`, `pr-event-list`) |
 | 14 | **sequential / iterative** multipliers: one bit (or a few) per cycle under a start/done handshake | `allan70627/Pim-aes-gcm` `rtl/gf128_mul.v` (MIT); `lowRISC/opentitan` `hw/ip/aes/rtl/aes_ghash.sv` (Apache-2.0); `karucore/karu64` `rtl/zvk/karu_ghash.v` (BSD-3-Clause); `fontamsoc/hw` (a 2-cycle registered unit around style 2) | none | a different task class: the statement requires `Unclocked` and a combinational function (`always_ff` is refused by the statement); the sequential layer (`SeqTask`) is future work |

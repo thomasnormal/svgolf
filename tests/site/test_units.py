@@ -350,6 +350,11 @@ class ChartTest(unittest.TestCase):
             self.assertTrue(all(b - a >= (16 if compact else 15) - 0.11 for a, b in zip(ys, ys[1:])), ys)
             self.assertIn("a_very_long_…" if compact else "a_very_long_baseline_name…", [n for _, n in names])
         self.assertEqual(svgplot.line_chart(self.lines()[3:], x_label="N", y_label="y", x_ticks=[16], title="t"), "")
+        # the description counts the designs, singular for one (matmul's scaling chart said "1 designs")
+        self.assertIn("<desc>3 designs, y (y) against N (x), one line each",          # the one-point design is no line
+                      svgplot.line_chart(self.lines(), x_label="N", y_label="y", x_ticks=[8, 16, 32, 64], title="t"))
+        self.assertIn("<desc>1 design, y (y) against N (x), one line each",
+                      svgplot.line_chart(self.lines()[:1], x_label="N", y_label="y", x_ticks=[8, 16, 32, 64], title="t"))
 
     def test_tick_labels_say_the_tick_exactly(self):
         """svgplot.tick: num's form (k, M, 4 digits) unless that rounds the tick (fdivp's binary32 delays sit 2.5k apart:
@@ -509,6 +514,69 @@ class PixelArtTest(unittest.TestCase):
                 self.assertFalse(block & covered, "overlapping rectangles")
                 covered |= block
             self.assertEqual(covered, cells)
+
+
+class FaviconTest(unittest.TestCase):
+    """pixelart.py's favicon: the tab's mark, a 16 x 16 map in the day theme's colours, as SVG and as a 32 px PNG
+    whose bytes do not depend on the zlib build (2026-11-11)."""
+
+    TOKENS = {"k": "--px-ink", "g": "--px-chip-lo", "w": "--px-face", "p": "--px-gold", "f": "--px-flag",
+              "q": "--px-grass"}
+
+    def test_the_map_is_16_by_16_in_its_own_colours(self):
+        import pixelart
+        self.assertEqual(len(pixelart.FAVICON), 16)
+        for row in pixelart.FAVICON:
+            self.assertEqual(len(row), 16)
+            self.assertLessEqual(set(row) - {"."}, set(pixelart.FAVICON_FILLS))
+
+    def test_its_colours_are_the_day_themes_tokens(self):
+        import pixelart
+        with open(os.path.join(SITE, "style.css"), encoding="utf-8") as fh:
+            css = fh.read()
+        root = re.search(r"^:root \{(.*?)^\}", css, re.S | re.M).group(1)      # the day theme (the first :root)
+        self.assertEqual(set(pixelart.FAVICON_FILLS), set(self.TOKENS))
+        for ch, token in self.TOKENS.items():
+            with self.subTest(token=token):
+                m = re.search(rf"^\s*{re.escape(token)}:\s*(#[0-9a-fA-F]{{6}});", root, re.M)
+                self.assertIsNotNone(m, token)
+                self.assertEqual(pixelart.FAVICON_FILLS[ch].lower(), m.group(1).lower())
+
+    def test_the_svg_parses_and_is_16_by_16(self):
+        import xml.etree.ElementTree as ET
+        import pixelart
+        svg = pixelart.favicon_svg()
+        root = ET.fromstring(svg)
+        self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
+        self.assertEqual(root.get("viewBox"), "0 0 16 16")
+        self.assertEqual({p.get("fill") for p in root}, set(pixelart.FAVICON_FILLS.values()))
+        self.assertNotIn(b"<title", svg)
+        self.assertEqual(svg, pixelart.favicon_svg())
+
+    def test_the_png_is_32_px_rgba_stored_and_stable(self):
+        import struct
+        import zlib
+        import pixelart
+        png = pixelart.favicon_png()
+        self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+        chunks, at = {}, 8
+        while at < len(png):
+            n, kind = struct.unpack(">I4s", png[at:at + 8])
+            data = png[at + 8:at + 8 + n]
+            self.assertEqual(struct.unpack(">I", png[at + 8 + n:at + 12 + n])[0], zlib.crc32(kind + data) & 0xFFFFFFFF)
+            chunks[kind] = data
+            at += 12 + n
+        self.assertEqual(list(chunks), [b"IHDR", b"IDAT", b"IEND"])
+        w, h, depth, colour = struct.unpack(">IIBB", chunks[b"IHDR"][:10])
+        self.assertEqual((w, h, depth, colour), (32, 32, 8, 6))
+        self.assertEqual(chunks[b"IDAT"][:3], b"\x78\x01\x01")                # zlib header, one final stored block
+        raw = zlib.decompress(chunks[b"IDAT"])
+        self.assertEqual(len(raw), 32 * (1 + 32 * 4))
+        x, y = 16, 10                                                         # map row 5, column 8: the flag
+        at = y * (1 + 32 * 4) + 1 + x * 4
+        self.assertEqual(raw[at:at + 4], bytes.fromhex("ef5a2e") + b"\xff")
+        self.assertEqual(raw[1:5], b"\x00\x00\x00\x00")                       # a corner: transparent
+        self.assertEqual(png, pixelart.favicon_png())
 
 
 class CombinedTest(unittest.TestCase):

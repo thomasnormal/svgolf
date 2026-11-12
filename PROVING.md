@@ -1,8 +1,9 @@
 # Proving a svGolf task
 
 This guide is for contestants. It explains how to prove that your circuit meets a task's
-statement, using the `sv_comb` tactics (`sv_structure`, `sv_equations`, `sv_cover`, `sv_bridge`) of proglib
-(formerly lean-surfaces) and the plain-Lean library `LeanModels.Sv.CombLib`. Two complete, checked examples
+statement, using the `sv_comb` tactics (`sv_structure`, `sv_equations`, `sv_cover`, `sv_bridge`) of
+[Proglib](https://github.com/thomasnormal/proglib) (formerly lean-surfaces) and the plain-Lean library
+`LeanModels.Sv.CombLib`. Two complete, checked examples
 are the references of the `add` and `mul` tasks:
 
 | task | tactic proof (read this first) | by-hand proof (no tactics, the fallback) |
@@ -19,7 +20,9 @@ are the references of the `add` and `mul` tasks:
 Both proofs are for every `N` in their task's range (`1 ≤ N < 2^31` for `add`, `1 ≤ N < 2^30` for `mul`),
 accepted by `check.py`, and depend only on `propext`,
 `Classical.choice` and `Quot.sound`. [README.md](README.md) has the rules and the checker's
-stages; [REFUSALS.md](REFUSALS.md) lists everything the checker refuses.
+stages; [REFUSALS.md](REFUSALS.md) lists everything the checker refuses. Paths under `LeanModels/`, `docs/`,
+`extractors/` and `Examples/` are Proglib's (the Lake package `lean-models`; in a clone of svGolf's public repository,
+under `.lake/packages/lean-models/` after `lake build`); every other path is svGolf's.
 
 ## 0. The loop
 
@@ -318,7 +321,7 @@ generate block can share a rank.) `rippleRank` covers the module-level assigns a
 families only: it gives every site of a two-level family (`.fam l p [j, t]`) rank 0. For nested
 loops, write the rank as your own definition by cases on the site, which `sv_structure` unfolds
 because it is a named definition; the shape (from an accepted carry-select adder, 2026-11-05;
-`tasks/add/README.md`, "Start a new design", has it whole):
+`tasks/add/README.md`, "Proving a new design", has it whole):
 
 ```lean
 def myRank (N : Nat) : SiteId → Nat
@@ -358,7 +361,7 @@ theorem statement). For a separate `Acyclic` theorem, if you already have `hc : 
 `sv_structure (rank := ...) using hc` does not ask the `driverDisjoint` goals again (the comb
 profile already is the one-driver rule); the `inRange` goals stay.
 
-**A flat netlist leaves nothing (WP-P3b).** When every site is plain (no `generate` loop) and the design
+**A flat netlist leaves nothing (since 2026-10-31).** When every site is plain (no `generate` loop) and the design
 has no free parameter (`aes_sbox`; a CRC, a MixColumns network or a SECDED encoder written gate by gate),
 the four obligations (`inRange`, `auto`, `driverDisjoint`, `rankDecreases`) are closed statements about the
 list of sites, and `sv_structure` DECIDES them itself (`closeByDecide`, through the lemmas of
@@ -386,7 +389,7 @@ the task's `inputs`/`outputs` and leaves the width arithmetic to `simp` and `ome
 CombDesign (design.sem N)` in the context, and nothing else: no `Summary.sound`, `σL`, `Aff.eval`,
 `hauto`/`hin` obligations. A design with localparams (section 4) needs no change. A wrong port (a
 name, an order, a width) is reported by the tactic ("the declared ports do not match the task's
-interface"). (Until WP-P this step was a 23-line recipe applying `Summary.sound` by hand; it is
+interface"). (Until 2026-10-30 this step was a 23-line recipe applying `Summary.sound` by hand; it is
 still valid, nothing it uses was removed.)
 
 ### 2.3 Equations and knownness
@@ -462,7 +465,7 @@ is a conjunction with a quantified part, `… ∧ ∀ k, k < w → …`, the cov
 `sv_cover` itself, each part a call of its own; until 2026-11-04 the search spent its budget on such a conjunction as a
 whole and failed, and a cascade had to split it.)
 
-**A flat netlist has no `width_k` and no `cover_k` (WP-P3b).** For a design whose sites are all plain and that
+**A flat netlist has no `width_k` and no `cover_k` (since 2026-10-31).** For a design whose sites are all plain and that
 has no free parameter (`aes_sbox`), `sv_equations` DECIDES `auto`, `inRange`, `width`, `bitRead` and `cover`
 (closed statements about the site list: `LeanModels/Sv/CombViewPlain.lean`, `CombEqPlain.lean`) and returns
 the main goal and the `inputsKnown_k` goals only. A proof must not name the others (`case cover_5 => …` is
@@ -519,7 +522,7 @@ When the design is flat but the fast path does not apply (a free parameter that 
 the witness of a read of a net is a SITE:
 `∃ b, (b = site₀ ∨ … ∨ b = siteₘ₋₁) ∧ …`, a disjunction as long as the netlist. (A design WITH a generate loop never
 keeps this form: when the normalization of the whole coverage obligation runs out of `simp` steps and leaves it,
-`sv_equations` renormalizes each coverage goal on its own, WP-COV, and the goal comes out as the explicit disjunction of
+`sv_equations` renormalizes each coverage goal on its own (since 2026-11-01), and the goal comes out as the explicit disjunction of
 the 2-D rule; the one-level Karatsuba multiplier of `design/tasks-week2/clmul/karatsuba/`, 19 sites and 26 operand reads,
 is the case that needed it.) `sv_cover` picks the writer
 by NAME (the sites whose target is the signal the goal states), proves the membership directly and closes the
@@ -527,7 +530,7 @@ rest, so you write no `Or.inr (Or.inr … (Or.inl rfl))`; the search it replaces
 (`Examples/system-verilog/flat_net/sv_cover_site.lean`: 26 plain sites and a parameter; the normalization
 route still costs `maxHeartbeats 2000000` there).
 
-**Coverage of a 2-D read (WP-P4).** The `cover_k` goals of a design with 2-D arrays say that the cell a read
+**Coverage of a 2-D read (since 2026-10-31).** The `cover_k` goals of a design with 2-D arrays say that the cell a read
 observes lies in the window of some writer. The conjunct for the read `s[i][0]` of the array multiplier is
 
 ```
@@ -536,7 +539,7 @@ observes lies in the window of some writer. The conjunct for the read `s[i][0]` 
   ∨ (∃ a, 1 ≤ ↑a ∧ a < N ∧ rmN (↑N + 1) ↑a ↑N ≤ rmN (↑N + 1) i 0 ∧ rmN (↑N + 1) i 0 < rmN (↑N + 1) ↑a ↑N + 1)
 ```
 
-(a plain assign's window, the cells of the row loop, the cell `s[a][N]`). Until WP-P4 each such goal was closed by
+(a plain assign's window, the cells of the row loop, the cell `s[a][N]`). Until 2026-10-31 each such goal was closed by
 hand, by choosing the disjunct, naming the loop indices and handing the window arithmetic to a macro: 29 to 75
 lines in each multiplier reference (sections 3, 8, 9, 10 keep the numbers). `sv_cover` now closes them itself
 (`LeanModels/Sv/CombCover.lean`, tried before the older search):
@@ -626,13 +629,13 @@ hand: 1385). It has the same four parts as the adder; the differences are:
   `Acyclic`; `sv_equations` 22. All close by `intros; omega` or `sv_cover` **except**
   `inputsKnown_1/2` (as in the adder). That includes six **coverage** goals of the nested 2-D reads
   (`cover_2`, `cover_4` to `cover_8`): `sv_cover`'s 2-D rule solves the loop indices of each writer from the
-  read and walks the writers (section 2.3). Until WP-P4 they exceeded `sv_cover`'s search and were closed by
+  read and walks the writers (section 2.3). Until 2026-10-31 they exceeded `sv_cover`'s search and were closed by
   hand, each by naming the writer and calling a six-line `cov_leaf` macro, about 75 lines of the reference.
 * **The bridge and the arithmetic.** The arithmetic is `ideal_mul_view` of `CombLib`: the eleven equations
   are the fields of `MulNetlistView` (partial products, row 0, the ripple rows, the output bits); the
   library proves the row invariant `low bits so far + 2^i · row i = a · (b mod 2^(i+1))` by `ripple_row` and
   induction. The fields are `Nat`-indexed (`s (i - 1) (j + 1)`), the printed equations are not
-  (`st.boolAt "s" (rmN (↑N + 1) (↑i + -1) (↑j + 1))`). Until WP-P3 a theorem restated every printed equation
+  (`st.boolAt "s" (rmN (↑N + 1) (↑i + -1) (↑j + 1))`). Until `sv_bridge` (2026-10-31) a theorem restated every printed equation
   as a hypothesis (`mul_final`, 82 lines: the statement, then one `show` / `rw [show ((i - 1 : Nat) : Int) = …
   by omega]` / `exact` per field). Now `solution` instantiates the arithmetic lemma and closes each field with
   `sv_bridge`:
@@ -657,7 +660,7 @@ hand: 1385). It has the same four parts as the adder; the differences are:
   `if_pos` / `if_neg` (the packed `s[0] = {1'b0, pp[0]}`), `XF.getLsbD_bv` (an output bit). An instance
   the goal does not bind (`s 0 N`) is given explicitly. Section 6 lists the tactic and its error.
 
-### 3.1 The carry-less array: `mul` without carries (`clmul`, WP-T-CLMUL)
+### 3.1 The carry-less array: `mul` without carries (`clmul`)
 
 `tasks/clmul/reference/clmul_n.{sv,lean}` is `mul_n`'s array with XOR where `mul_n` has a full adder, and no carries:
 one 2-D signal `r` (`N` rows of `N` bits, `r[i][j] = r[i-1][j+1] ^ (a[i] & b[j])`), four generate loops, `p[i] = r[i][0]`
@@ -703,7 +706,7 @@ is 300 CPU s). It was written in one pass from the `mul` recipe; what differed:
   they are not measured with the tactics;
 * the number of iterations of a generate loop is at most `4 · Σ|parameters| + 60` (the generate
   fuel of ls-sv is `(Σ|parameters| + 2)² + 64`; this linear bound was `Σ|parameters| + 60` until
-  10/30, and a loop over `2*N` columns needs the larger one): `sv_structure` returns the
+  2026-10-30, and a loop over `2*N` columns needs the larger one): `sv_structure` returns the
   obligation as an `auto_k` goal `2 * ↑N ≤ 4 * ↑N + 60` (a closed form `omega` proves);
 * **localparams**: `localparam integer L = <e>;` (or `localparam int`, see below) where `<e>` is an
   integer constant expression built from integer literals, the parameters, EARLIER localparams, `+`,
@@ -750,12 +753,12 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 | `localparam integer H = N / N;` | ``localparam `H`: `/` by a non-literal is outside the v1 fragment (a localparam may divide by an integer literal)`` |
 | `localparam integer S = N << 1;` (any other operator) | ``localparam `S`: operator `<<` is outside the v1 fragment (a localparam may use + - *, / % by an integer literal, and `$clog2`)`` |
 | `localparam logic [7:0] K = 8'd3;` (any type but `int`/`integer`) | ``localparam `K`: only `int`/`integer` (32-bit signed) localparams are in the v1 fragment`` |
-| `-x` (unary minus) | ``site `plain#0`: unary operator `-` or `+` (outside the v1 fragment: it has `~` and `!`)`` (`~x`, `!x`, `p ? c : a`, reductions, `&&`, `\|\|`, `==`, `!=` are IN the fragment since WP-G S2: section 14) |
-| `x <<< y`, `x >>> y`, a signed `x >> y` (word-level operators that are not in the fragment yet; `+`, `-`, `*`, a width conversion of an operation, the six comparisons and the run-time shifts `<<`, `>>` are IN the fragment since WP-B2: sections 14 and 17) | ``site `plain#0`: operator `...` is outside the v1 fragment (it has the bitwise gates `&`, `\|`, `^`, the word-level `+`, `-` and `*`, the six comparisons, the run-time shifts `<<` and `>>` and the logical `&&`, `\|\|`; `<<<`, `>>>`, a signed `>>`, `/`, `%` and `**` are word-level operators it does not have yet)`` |
+| `-x` (unary minus) | ``site `plain#0`: unary operator `-` or `+` (outside the v1 fragment: it has `~` and `!`)`` (`~x`, `!x`, `p ? c : a`, reductions, `&&`, `\|\|`, `==`, `!=` are IN the fragment since 2026-10-31: section 14) |
+| `x <<< y`, `x >>> y`, a signed `x >> y` (word-level operators that are not in the fragment yet; `+`, `-`, `*`, a width conversion of an operation, the six comparisons and the run-time shifts `<<`, `>>` are IN the fragment since 2026-11-01: sections 14 and 17) | ``site `plain#0`: operator `...` is outside the v1 fragment (it has the bitwise gates `&`, `\|`, `^`, the word-level `+`, `-` and `*`, the six comparisons, the run-time shifts `<<` and `>>` and the logical `&&`, `\|\|`; `<<<`, `>>>`, a signed `>>`, `/`, `%` and `**` are word-level operators it does not have yet)`` |
 | `(a + b) * (a - b)` (a product neither of whose factors is a signal access) | ``site `plain#0`: a product neither of whose factors is a signal access (outside the v1 fragment: the elaboration folds a product of constants, so `*` is read with at least one factor a signal access, bare or zero-extended; write one factor into a signal first)`` |
 | `(a + b) << 1`, `a << (s + 1)`, `a << (N - 1)` (a shift whose left operand is an operation, or whose amount is an expression or a parameter) | ``site `plain#0`: operand of a shift that is not a signal access, a sized literal or an unsized constant (outside the v1 fragment: ...; write the operand into a signal first)`` |
-| a width conversion around a NESTED conversion or a constant that is not an unsized integer (around a signal access, a sized literal, a concatenation or an operation of the fragment the conversion is read since WP-B2: zero extension, truncation) | ``site `plain#0`: width conversion of a nested conversion or a constant that is not an unsized integer (outside the v1 fragment: ...)`` |
-| `c ? a : '0` (a fill inside an operator; a concatenation of literals and accesses is accepted there since WP-B2 gate 3b) | `site …: unbased unsized literal '0/'1 inside an expression (outside the v1 fragment; allowed as a whole right-hand side)` (write a sized literal) |
+| a width conversion around a NESTED conversion or a constant that is not an unsized integer (around a signal access, a sized literal, a concatenation or an operation of the fragment the conversion is read since 2026-11-01: zero extension, truncation) | ``site `plain#0`: width conversion of a nested conversion or a constant that is not an unsized integer (outside the v1 fragment: ...)`` |
+| `c ? a : '0` (a fill inside an operator; a concatenation of literals and accesses is accepted there since 2026-11-01) | `site …: unbased unsized literal '0/'1 inside an expression (outside the v1 fragment; allowed as a whole right-hand side)` (write a sized literal) |
 | `v ? a : b` with a multi-bit `v` | accepted; the `width` obligation is then FALSE (the condition must be one bit): write `\|v ? a : b` |
 | `always_comb` with a `case` (plain, constant items, a `default`, single-assignment arms) | accepted (section 15) |
 | `case` without `default` (a latch) | ``site `plain#0`: always_comb `case` has no `default`: it does not assign its target on every path (a latch)`` |
@@ -764,7 +767,7 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 | `case … inside`, `unique`/`priority case` | ``site `plain#0`: always_comb statement `case … inside` (outside the first fragment)`` |
 | a `case` item with an `x`/`z` bit (`2'b1x:`) | `sv_structure` accepts it; `sv_equations`: ``a right-hand side is outside the fragment of `sv_equations` (an expression over accesses and known literals ...)`` |
 | `always_comb` with an `if` and no `else` (a latch) | ``site `g_bit#1`: always_comb does not assign its target on every path (an `if` without `else` is a latch)`` |
-| `always_comb` that writes a window in two SEPARATE groups of statements (`y = a; z = b; if (e) y = b;`) | ``site `plain#0`: an always_comb body writes a window in two separate groups of statements (outside the second fragment: put the statements of one window together)`` (a body that writes SEVERAL windows, each in its own group, is accepted by `sv_structure` since WP-G S1b gate c: one site with further windows, `Examples/system-verilog/comb_multi`; `sv_equations` still refuses it) |
+| `always_comb` that writes a window in two SEPARATE groups of statements (`y = a; z = b; if (e) y = b;`) | ``site `plain#0`: an always_comb body writes a window in two separate groups of statements (outside the second fragment: put the statements of one window together)`` (a body that writes SEVERAL windows, each in its own group, is accepted by `sv_structure` since 2026-11-01: one site with further windows, `Examples/system-verilog/comb_multi`; `sv_equations` still refuses it) |
 | `always_comb` with a second UNCONDITIONAL assignment of the target (`y = a; y = b;`) | ``site `g_bit#1`: a second unconditional assignment of the target in an always_comb block (outside the second fragment: only `if (c) …;` overrides can follow the first statement)`` |
 | `always_comb` with an `if … else` after the first statement, a nested `begin … end` with several statements as a statement of a block, or an override writing another window | ``…: an `if … else` after the first statement of an always_comb block (outside the second fragment: only `if (c) …;` without `else` can follow, as a default-then-override body)`` / ``…: a `begin … end` with several statements as a statement of a block (outside the second fragment: write its statements in the outer block)`` / the `writes more than one window` message |
 | an override that READS the window it writes (`y = a; if (e) y = y ^ b;`) | the `noSelfRead` / `reads the window it writes` message of section 13 (SSA substitution of the earlier value is NOT modelled) |
@@ -773,15 +776,15 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 | a dynamic write `s[b] = ...` | `site g_bit#0: write to s[…] has a non-affine (dynamic) index: the driven window cannot be determined` |
 | a generate bound that is not affine (`for (j = 0; j < N/2; j++)`) | `generate bound is not affine` |
 | a 3-D packed array | `only scalar, 1-D and 2-D packed declarations are in the v1 fragment` |
-| a part select of a vector whose range is not zero-based (`logic [8:1] v; … v[4:2]`) | ``site `plain#0`: `v`: part selects need a zero-based descending dimension `[hi:0]` `` (accepted for `[hi:0]` since WP-B2 gate 4a) |
+| a part select of a vector whose range is not zero-based (`logic [8:1] v; … v[4:2]`) | ``site `plain#0`: `v`: part selects need a zero-based descending dimension `[hi:0]` `` (accepted for `[hi:0]` since 2026-11-01) |
 | a whole row of a 2-D array whose first range is not zero-based (`logic [4:1][2:0] r; r[1] = x`) | `structural check failed: site `plain#0`: the access `r[0]` does not match the declaration of `r` (a select needs zero-based descending packed dimensions `[hi:0]`, …)` |
 | three nested generate loops | `an inner generate loop holds a nested generate ...` |
 | `bit` or `signed` declarations | `declaration a is signed or 2-state (outside the v1 fragment ...)` |
-| a submodule instance (a hand-built full adder) | ``sv_structure: this design instantiates modules, and the `sv_comb` tactics cannot summarize module instances yet. …`` (the same text from `sv_interface` and `sv_equations`; WP-I step I0, pinned in `Examples/system-verilog/ripple_fa/comb_errors.lean`). The loader, the scorer and the post-synthesis check accept the design; flatten it in the source, or prove the structure by hand as `ripple_fa/gen.lean` does. Before I0 the message was `cannot read a load_design_sv2 family (X.sem N) off the design in the goal`, which did not mention instances |
+| a submodule instance (a hand-built full adder) | ``sv_structure: this design instantiates modules, and the `sv_comb` tactics cannot summarize module instances yet. …`` (the same text from `sv_interface` and `sv_equations` since 2026-11-01, pinned in `Examples/system-verilog/ripple_fa/comb_errors.lean`). The loader, the scorer and the post-synthesis check accept the design; flatten it in the source, or prove the structure by hand as `ripple_fa/gen.lean` does. Before then the message was `cannot read a load_design_sv2 family (X.sem N) off the design in the goal`, which did not mention instances |
 | a right-hand side the recognizer reads but `sv_equations` cannot (an `x` literal, a width mismatch) | `sv_equations: ...` from the decidable check: a long `decide` failure that does not name the site |
 
 **Patterns that stay in the fragment** (the layouts of the from-scratch designs accepted on
-2026-11-05; each task README's "Start a new design" has them for its task):
+2026-11-05; each task README's "Proving a new design" has them for its task):
 
 * blocks as the rows of 2-D arrays, `c[j][t]`, not a flat `c[K*j + t]`: `sv_cover` finds the assign
   that writes a read by solving ONE unknown per index equation (its fallback tries the context's
@@ -796,7 +799,7 @@ design may exist). Measured on small variants of the adder and on the prefix-add
 * with nested loops, your own rank by cases on the site (section 2.1).
 
 Some refusals are not source-located (the last row). Note that several of these are checker-legal
-designs: the checker only needs *a* proof. `docs/sv-refusals.md` of proglib (the language
+designs: the checker only needs *a* proof. `docs/sv-refusals.md` of Proglib (the language
 tier) and [REFUSALS.md](REFUSALS.md) (the checker) are the generated lists of what is refused
 elsewhere.
 
@@ -844,7 +847,7 @@ but the **reduction and the arithmetic still are**:
 | `sum_split`, `bitvec_eq_ofNat_of_val`, `ofBool_eq_ofNat` | from `s < 2^w ∧ t = s + 2^w · q` to `s = t % 2^w ∧ q = t / 2^w`, and to a `BitVec` equation |
 | `rowMajor_inj`, `lexLt`, `lexLt_wf` | `i*W + j = i'*W + j'` with `j, j' < W` gives the same row and column; the lexicographic order on pairs (a rank for 2-D dependencies) |
 
-`LeanModels/Sv/CombBridge.lean` (WP-P3): `SvState.cell st n W r c`, bit `(r, c)` of the 2-D signal `n` whose
+`LeanModels/Sv/CombBridge.lean` (since 2026-10-31): `SvState.cell st n W r c`, bit `(r, c)` of the 2-D signal `n` whose
 rows are `W` bits wide, in `Nat` coordinates (`st.boolAt n (rmN W r c)`), and the tactic `sv_bridge` (below).
 
 In `LeanModels/Sv/CombViewArith.lean`: `rmN W r c` (the row-major offset), `rmN_inj`,
@@ -865,7 +868,7 @@ whose bits are all known IS the `BitVec` of its Boolean bits: the port bridge); 
 | `sv_bridge e [with h₁, …]` | a `Nat`-indexed equation (a field of the arithmetic lemma) | closes it from the printed equation `e`, see below |
 | `sv_rowmajor` | goals that compare `rmN` windows | rewrites them lexicographically (`rmN_lt_iff`, `rmN_le_iff`) |
 
-**`sv_bridge`** (WP-P3, `LeanModels/Sv/CombBridge.lean`). `sv_equations` prints each equation with the index
+**`sv_bridge`** (`LeanModels/Sv/CombBridge.lean`, since 2026-10-31). `sv_equations` prints each equation with the index
 forms the summary computes: `Int` affine expressions of cast loop variables (`2 * ↑k + 1`, `↑N + ↑j + -1`),
 1-D reads through `Int.toNat`, 2-D reads through `rmN W r c`. An arithmetic lemma is stated over `Nat`-indexed
 Boolean functions (`S : Nat → Nat → Bool`, `S (2 * k + 1) c`, `k - 1`). `sv_bridge e` closes a goal of the
@@ -971,7 +974,7 @@ Habits that help:
   lakefiles changes it). `deterministic timeout ... maxHeartbeats` errors that
   name `simp` come from the tactics' own `simp` calls (a 2-D `Acyclic` with 50 goals needs
   `set_option maxHeartbeats 400000 in` before the theorem); `maximum recursion depth` no longer comes from
-  the tactics (they run with `maxRecDepth` 100000, WP-P3b), only from your own long terms. A timeout reported at the start of
+  the tactics (they run with `maxRecDepth` 100000), only from your own long terms. A timeout reported at the start of
   `theorem solution` means some tactic inside it is slow, with no hint which: state the heavy
   parts as separate lemmas (`add_final`-style, or the structure theorems) and compile them one at a
   time with `LEAN_PATH=... lake env lean`, so the slow one shows itself.
@@ -1009,7 +1012,8 @@ Habits that help:
   adders of `tests/add/baselines/` are refused today (conditional generate, non-affine indices). The Dadda trees of
   `tests/mul/baselines/` are generated per width (flat netlists of single-bit signals, "correct at
   this N, NOT a parametric or proved entry"): a for-all-`N` multiplier proof needs a parametric
-  design. The planned extensions (richer `always_comb` bodies, then instances) are in `PLAN.md`.
+  design. What the tactics do not read yet is on the [refusals page](REFUSALS.md) as `later`, each row with what has to exist first
+  (`sv_structure: outside the v1 fragment`).
   A parametric carry-save TREE (not a column-wise Wallace/Dadda tree) is inside the fragment after
   all, if its tree is indexed as a heap: see section 8; a row-wise Wallace tree is inside it too,
   if its rows are indexed as a tape: see section 9; a heap with `⌈N/2⌉` two-row leaves needs a
@@ -1017,7 +1021,7 @@ Habits that help:
 * **Coverage of 2-D reads is `sv_cover`'s rule, with limits.** It reads a writer whose loop indices have a
   unit coefficient or a literal divisor in the read's row and column (`a`, `N - 1 + j`, `N + 2g + 1`) and
   whose `∃`-variables are `Nat`; a writer with two unknowns in one equation, a nonlinear index or a
-  non-`Nat` binder takes the older search (it gave up on the multiplier's goals: until WP-P4 they were closed
+  non-`Nat` binder takes the older search (it gave up on the multiplier's goals: until 2026-10-31 they were closed
   by hand, 29 to 75 lines per reference).
 * **Elaboration is slower than a by-hand proof** (about 2.3 times the CPU time on these two), because
   the tactics normalize large goals with `simp`. Heartbeat limits can be hit: `mul_struct`
@@ -1035,8 +1039,8 @@ Habits that help:
 ## 8. A tree multiplier: what it needed, what was hard
 
 `tasks/mul/reference/mul_tree.{sv,lean}` is a parametric log-depth carry-save tree, proved for
-every `N ≥ 1` with the same tactics (571 code lines at WP-P, 322 since WP-P3/P4; `check.py` `solution` stage 74.4 s before WP-P, score
-2034.904 GE / depth 63 at `N = 16`). The dry run's friction log said a Dadda or Wallace tree needs a stage count
+every `N ≥ 1` with the same tactics (571 code lines on 2026-10-30, 322 since 2026-10-31; `check.py` `solution` stage 74.4 s before 2026-10-30, score
+2034.904 GE / depth 63 at `N = 16`). An early trial found that a Dadda or Wallace tree needs a stage count
 `⌈log_{3/2} N⌉`, column heights, a 3-D array, conditional generate and `localparam`, and that
 `sv_structure` refuses each. This reference needs none of them, because of four choices about the
 DESIGN; the tactics were not widened except for one bound (item 5):
@@ -1075,7 +1079,7 @@ DESIGN; the tactics were not widened except for one bound (item 5):
 **The proof** is the shape of section 3 with a different arithmetic: the tactics do the structure
 (`tree_struct`, the `CombDesign ∧ Acyclic` bundle: 40 and 69 goals, all `intros; sv_rowmajor; omega`;
 with the key `treeKey`), the ports and the equations (20 equations, of which the glue uses 18); the
-coverage goals are the nested 2-D reads of the heap, closed by `sv_cover` (section 2.3; until WP-P4 one
+coverage goals are the nested 2-D reads of the heap, closed by `sv_cover` (section 2.3; until 2026-10-31 one
 macro per kind of read, `covS`, `covC`, `covX`, `covY`, `covT`, `covR`, named the writer and left the window
 arithmetic to the `cov_leaf` of the `mul` reference: 99 code lines with the cases). The mathematics (`TreeArith`, plain Lean, 250 lines) is, in
 order:
@@ -1102,9 +1106,9 @@ select are what remove them); (b) the generate-fuel obligation of item 5, which 
 and not a property of the design; (c) the glue (`tree_final`, 173 lines): each of the 18
 hypotheses was the printed equation (copied from `sv_equations?`, replacing `↑N` by `(N : Int)`),
 and each field of `tree_mul` needed a cast conversion (`((N - 1 + j : Nat) : Int) = ↑N + ↑j + -1` by
-`omega`); since WP-P3 each field is one `sv_bridge eq_x` line (18 lines, `st.cell "S" (2 * N)` for the
+`omega`); since 2026-10-31 each field is one `sv_bridge eq_x` line (18 lines, `st.cell "S" (2 * N)` for the
 2-D functions); (d) the coverage goals, which `sv_cover` did not reach: with the macros it was a handful
-of lines per goal, and since WP-P4 `sv_cover` closes them (`all_goals … sv_cover`). **What the tactics did not need**: the nesting depth stays 2 (node loop, column
+of lines per goal, and since 2026-10-31 `sv_cover` closes them (`all_goals … sv_cover`). **What the tactics did not need**: the nesting depth stays 2 (node loop, column
 loop), the declarations are 1-D and 2-D, and there is no `localparam`, no `?:` and no `always`.
 **What a better tree would need**: the column-wise Wallace/Dadda reduction (fewer half adders) needs
 the stage and height tables of section 4's refusals; a Wallace/Dadda design that is regular enough
@@ -1113,7 +1117,7 @@ tape instead of a heap).
 
 ## 9. A Wallace tree as a tape: no heap, no stages
 
-`tasks/mul/reference/mul_wallace.{sv,lean}` (423 code lines at WP-P, 264 since WP-P3/P4; `check.py` `solution` stage 40.9 s before WP-P, score
+`tasks/mul/reference/mul_wallace.{sv,lean}` (423 code lines on 2026-10-30, 264 since 2026-10-31; `check.py` `solution` stage 40.9 s before 2026-10-30, score
 2113.894 GE / depth 62 at `N = 16`) is Wallace's reduction by groups of three rows, proved for every
 `N ≥ 1`. The design choice that keeps it in the fragment is again a numbering, now a TAPE: one 2-D
 array `T` of `3N-1` rows of `2N` bits holds the `N` partial products (rows `0 .. N-1`), an all-zero
@@ -1131,9 +1135,9 @@ goals, all `intros; sv_rowmajor; omega`; the rank is the key `(stage, g)` (`tape
 sum row and the carry row of the same adder share a rank, because both read only rows that EARLIER
 adders wrote: row `3g+k ≥ N+1` was written by adder `⌊(3g+k-N-1)/2⌋ < g`, which `omega` finds, using
 `g ≤ N-2`). The coverage goals (`cover_2` to `cover_5`) are all of the form "the tape cell `(r, c)` has
-a writer"; `sv_cover` closes them (WP-P4): the writer's adder index is `g := ((r - N - 1) / 2).toNat` for a
+a writer"; `sv_cover` closes them (since 2026-10-31): the writer's adder index is `g := ((r - N - 1) / 2).toNat` for a
 sum row and `((r - N - 2) / 2).toNat` for a carry row, and the parity of `r - N` is part of the condition
-`omega` decides (until WP-P4 one macro `covT r c` split on `r < N` (a partial-product row), `r = N` (the
+`omega` decides (until 2026-10-31 one macro `covT r c` split on `r < N` (a partial-product row), `r = N` (the
 dummy row), or `r ≥ N+1` and then on the parity of `r - N`, and handed the window arithmetic, `/ 2` included,
 to `cov_leaf`: 60 code lines with the cases; the rule costs about the same in seconds, 8 s of the file). The arithmetic (`TapeArith`, plain Lean, about 200
 lines, compiles in 2 s) is: `csa_row` (a row of 3:2 counters preserves the column-weighted sum, the
@@ -1145,7 +1149,7 @@ partial products and the dummy row, whose sum is `a · b`. The step `g → g+1` 
 and `csa_row` says that the sum is unchanged modulo `2^(2N)` (the dropped top carry is the witness).
 At `g = N-1` the window is the two last rows, and `ripple_row` finishes. The
 sliding window replaces the heap's cut of section 8, and there is no pairing case and no select
-vector, so the glue has 11 hypotheses instead of 18 (11 `sv_bridge` lines since WP-P3) and the whole file was 25 % shorter.
+vector, so the glue has 11 hypotheses instead of 18 (11 `sv_bridge` lines since 2026-10-31) and the whole file was 25 % shorter.
 
 **What a better tree would still need**: the column-wise Dadda schedule saves the half adders at
 the edges of every row (the tape is 8.2 % above the Dadda + ripple baseline at `N = 16`). Its column
@@ -1154,7 +1158,7 @@ heights are not affine; that remains open.
 
 ## 10. A tree with two-row leaves: the first design that needs a localparam
 
-`tasks/mul/reference/mul_tree_h.{sv,lean}` (522 code lines at WP-P, 307 since WP-P3/P4; `check.py` `solution` stage 83.6 s before WP-P, score
+`tasks/mul/reference/mul_tree_h.{sv,lean}` (522 code lines on 2026-10-30, 307 since 2026-10-31; `check.py` `solution` stage 83.6 s before 2026-10-30, score
 2025.905 GE / depth 62 at `N = 16`) is the heap of section 8 with its leaves taken TWO partial
 products at a time. There are `H = ⌈N/2⌉` leaves, each already a carry-save pair `(S, C) = (pp[2j],
 pp[2j+1])`, in a heap of `2H-1` nodes (the root is node 0, node `k` has the children `2k+1` and `2k+2`,
@@ -1176,7 +1180,7 @@ for (k = 0; k < H-1; k++) ...             // g_node: a 4:2 compressor on 2k+1, 2
 ```
 
 (`⌈N/2⌉` is not affine in `N`: before the localparam extension of the tactics this was a refusal,
-`local parameters are outside the v1 fragment`, and WP-D could only measure the design, not prove it.)
+`local parameters are outside the v1 fragment`, and the design could only be measured, not proved.)
 
 **What the tactics do with `H`** (section 4): `sv_structure?` prints a `localparams:` block (`H = (N + 1)
 / 2`) and the obligations come out with the definition inlined, `(↑N + 1) / 2`, in every window and
@@ -1184,7 +1188,7 @@ bound: `39 + 65` structure goals (`CombDesign`, `Acyclic`), all `intros; sv_rowm
 now with `H` in them (the part select `bb[2*H:N]` needs `N ≤ 2H ≤ N + 1`, which `omega` derives from the
 definition: floor division by a literal); `36` `sv_equations` obligations, `28` of them one-liners (the
 reads of `ae` and `bb`, `cover_1` and `cover_2`, are `omega` too), `inputsKnown_1-2`, and six
-coverage goals closed by `sv_cover` (until WP-P4 by five macros, `covS`, `covC`, `covX`, `covY`, `covR`, with the leaf / node
+coverage goals closed by `sv_cover` (until 2026-10-31 by five macros, `covS`, `covC`, `covX`, `covY`, `covR`, with the leaf / node
 threshold `((N : Int) + 1) / 2 - 1`; no `covT`, there is no select: the rule solves the leaf row
 `(N + 1) / 2 + j - 1` like any affine row). The rank key is the one of section 8 with
 `(N + 1) / 2 - 1 - k` for the node order.
@@ -1198,7 +1202,7 @@ threshold `((N : Int) + 1) / 2 - 1`; no `covT`, there is no select: the rule sol
   node is `node_sum`;
 * the ports step (`tree_interface`) is `sv_interface` as for any design: the valuation of a design with
   localparams is `Summary.val`, which the tactic unfolds itself (section 2.2);
-* the glue (`tree_final`, 154 lines instead of 173, until WP-P3) stated the printed equations with
+* the glue (`tree_final`, 154 lines instead of 173, until 2026-10-31) stated the printed equations with
   `((N : Int) + 1) / 2` and named `H` in its first step (`hHi : ((N : Int) + 1) / 2 = (((N + 1) / 2 : Nat) : Int)`,
   then `simp only [hHi] at …`); after that each fact was one `show` / `rw` / `exact` as in section 8. Now
   `refine HeapArith.heap_mul (H := (N + 1) / 2) …` and one `sv_bridge eq_x` per fact: `omega` reads the
@@ -1228,7 +1232,7 @@ a conditional generate, which is refused inside a generate loop; (4) a stage ind
 dimension. The row-wise schedules of sections 8, 9 and 10 avoid all four by numbering (heap, tape) and
 by gathering; a column-wise one has not been found that does.
 
-## 11. Proof effort and speed (WP-P, measured 2026-10-30)
+## 11. Proof effort and speed (measured 2026-10-30)
 
 How the proof files were measured, so that the numbers can be reproduced on another machine (all of it
 is `lake env lean` against a staged design, `check.py --unproved --stage-dir`):
@@ -1246,7 +1250,7 @@ is `lake env lean` against a staged design, `check.py --unproved --stage-dir`):
   times; `-Dprofiler=true` the cumulative categories (`simp`, `tactic execution`, `type checking`
   (kernel), `typeclass inference`).
 
-### Where the time goes (before WP-P)
+### Where the time went (before the speed work of 2026-10-30)
 
 `mul_wallace`, sequential elaboration, CPU seconds (the other references have the same shape):
 
@@ -1276,12 +1280,12 @@ is `lake env lean` against a staged design, `check.py --unproved --stage-dir`):
 * **A trap for profiles: the waits.** In the default asynchronous elaboration the ports theorem of
   `mul_wallace` showed 31 s of `decide +kernel` (`mul_tree`: 112 s), for a step of 0.3 s. `decide +kernel`
   makes an auxiliary lemma by a synchronous `addDecl`, which queues behind the kernel check of the
-  declarations before it; the theorem sat idle until the heaviest earlier theorem had finished. Since WP-P
+  declarations before it; the theorem sat idle until the heaviest earlier theorem had finished. Since 2026-10-30
   the tactics assign `of_decide_eq_true _ _ (Eq.refl true)` themselves after evaluating the decision natively
   (`closeByDecide`): no environment change, no wait (the ports theorem: 0.4 s in the same
   asynchronous trace).
 
-### What WP-P changed, and what it measured
+### What the speed work of 2026-10-30 changed, and what it measured
 
 * `sv_structure` on `CombDesign ∧ Acyclic`: one application of the soundness theorem and one round of
   obligations (section 2.1);
@@ -1307,7 +1311,7 @@ warm build, the full reference suite was run on this tree):
 
 The CPU column is the user time of the same runs, taken at different machine loads: only the heartbeat
 column compares. Cold `check.py` runs of the `solution` stage (wall seconds, `LEAN_NUM_THREADS=2` and `nice`
-on the loaded machine; before WP-P in brackets, from `score/time_limits.json`): `add_n` 6.1 and 6.6
+on the loaded machine; before the change in brackets, from `score/time_limits.json`): `add_n` 6.1 and 6.6
 (9.5 to 12.1), `mul_n` 29.6 (37.3), `mul_wallace` 34.9 (42.2), `mul_tree` 97.3 (87.1 to 100.0), `mul_tree_h`
 94.4 (69.2 to 71.3). The two trees are not faster in wall time: their longest theorem is the rank
 obligation (33 to 43 s), which the bundle does not shorten (the old `Acyclic` theorem already contained every
@@ -1320,7 +1324,7 @@ tables here count in thousands or millions); nothing in `check.py` or the lakefi
 theorem that needs more carries `set_option maxHeartbeats N in`.
 
 The `maxHeartbeats` column is a performance variable too: `mul_n`'s `solution` used 196.2 M of the default
-200 M heartbeats before WP-P and still does, so it now carries `set_option maxHeartbeats 400000 in` (a hair
+200 M heartbeats before the change and still does, so it now carries `set_option maxHeartbeats 400000 in` (a hair
 from the limit is a flaky proof); `mul_struct` passes at 400000 although it now proves two facts.
 
 **Critical path (asynchronous elaboration, `mul_wallace`).** Before: `tape_interface` 34.2 s (31.2 s waiting),
@@ -1331,7 +1335,7 @@ the import and the final kernel check, about 25 s, against the 37 to 42 s record
 stage before (`score/time_limits.json`). That is an ESTIMATE from traces taken on a loaded machine
 (one effective core: 51 s wall for 51 s of CPU): re-measure with `score/time_limits.py` on a quiet one.
 
-### WP-P3/P4: the glue and the coverage goals (measured 2026-10-31)
+### The glue and the coverage goals (measured 2026-10-31)
 
 Two things the player still wrote in every multiplier reference were not the mathematics: the glue between the
 printed equations and the `Nat`-indexed arithmetic (a theorem restating every printed equation, `mul_final` /
@@ -1341,7 +1345,7 @@ them.
 
 Code lines (comments and blank lines removed, the count of `leaderboard.py`):
 
-| reference | WP-P | `sv_bridge` (P3) | + 2-D `sv_cover` (P4) | glue before | coverage before |
+| reference | 2026-10-30 | `sv_bridge` | + 2-D `sv_cover` | glue before | coverage before |
 |---|---|---|---|---|---|
 | `mul_n` | 213 | 150 | 70 | 90 | 81 |
 | `mul_tree` | 571 | 420 | 322 | 179 | 99 |
@@ -1353,14 +1357,14 @@ Code lines (comments and blank lines removed, the count of `leaderboard.py`):
 "coverage" the macros, the `case cover_k` bodies and their closer.) The by-hand `mul_n_byhand.lean` is unchanged at 1385.
 
 Heartbeats of `theorem solution` (thousands, the units of `maxHeartbeats`; `run_cmd` markers, sequential
-elaboration; the glue theorem was a separate declaration before P3):
+elaboration; the glue theorem was a separate declaration before `sv_bridge`):
 
 | | `mul_n` | `mul_tree` | `mul_tree_h` | `mul_wallace` |
 |---|---|---|---|---|
-| WP-P: `solution` + glue theorem | 196,171 + 2,820 | 444,312 + 9,563 | 400,140 + 12,963 | 310,439 + 7,596 |
-| after P3 (glue inside) | 201,290 | 458,172 | 421,223 | 324,405 |
-| after P4 | 183,461 | 434,104 | 400,123 | 313,819 |
-| `set_option maxHeartbeats` on `solution`, WP-P / now | 400000 / 400000 | 4000000 / 600000 | 4000000 / 600000 | 4000000 / 500000 |
+| 2026-10-30: `solution` + glue theorem | 196,171 + 2,820 | 444,312 + 9,563 | 400,140 + 12,963 | 310,439 + 7,596 |
+| with `sv_bridge` (glue inside) | 201,290 | 458,172 | 421,223 | 324,405 |
+| with the 2-D `sv_cover` | 183,461 | 434,104 | 400,123 | 313,819 |
+| `set_option maxHeartbeats` on `solution`, 2026-10-30 / now | 400000 / 400000 | 4000000 / 600000 | 4000000 / 600000 | 4000000 / 500000 |
 
 The three tree references were far inside 4 M; 600000 and 500000 leave 38 to 59% over what they use.
 `mul_n` uses 92% of the default 200 M and keeps its 400000.
@@ -1376,14 +1380,14 @@ machine moves the unchanged parts by 3 to 8%, so read differences below that as 
 | of which the rank obligation | 9.8 | 34.5 | 25.6 | 10.7 |
 | `sv_equations` | 8.3 | 20.1 | 17.6 | 9.4 |
 | of which the cover obligation | 4.6 | 13.7 | 11.7 | 5.6 |
-| whole file (sum of the commands), WP-P / now | 30.1 / 31.3 | 85.7 / 88.2 | 71.6 / 72.8 | 40.8 / 41.7 |
+| whole file (sum of the commands), 2026-10-30 / now | 30.1 / 31.3 | 85.7 / 88.2 | 71.6 / 72.8 | 40.8 / 41.7 |
 
 Unprofiled, default asynchronous elaboration (wall): 28.9 / 72.7 / 62.1 / 36.0 s before, 25.2 / 67.3 / 54.0 /
 31.6 s after. The finding is that the glue and the coverage macros were never where the time goes: the glue
 is at most 1.3% of a file and the coverage 4 to 19%; **the rank obligation is 26 to 40% and the cover
-obligation inside `sv_equations` 14 to 16%**, and those are the tactics' own `simp` normalizations. P3 and P4
+obligation inside `sv_equations` 14 to 16%**, and those are the tactics' own `simp` normalizations. `sv_bridge` and the 2-D rule
 shorten the files by 44% and leave the seconds where they were. (`tests/run.py --only mul`: references 33/0,
-negatives 6/0.) One cost lesson of P4: the first version of the rule's last `omega` took the Wallace coverage
+negatives 6/0.) One cost lesson of the 2-D rule: the first version of the rule's last `omega` took the Wallace coverage
 from 8 s to 18.7 s, because `Int.toNat` and `/` each cost `omega` a case split and a negated conjunction of
 several writers multiplies them; skipping a writer that the hypotheses alone refute (one small `omega`) brought
 it back to 8.2 s and made the heartbeats lower than the macros'.
@@ -1398,18 +1402,18 @@ it back to 8.2 s and made the heartbeats lower than the macros'.
    triples that cannot overlap, or a reflective obligation compiler (the summary is a value at tactic
    time; the goals are linear arithmetic).
 2. The coverage obligation of `sv_equations` (6 to 22 s). (The coverage macros the player wrote, `covT`,
-   8 s in `mul_wallace`, are gone since WP-P4; the 2-D rule costs about the same.)
+   8 s in `mul_wallace`, are gone since 2026-10-31; the 2-D rule costs about the same.)
 3. The in-range and one-driver obligations (2 to 6 s each).
 4. The default `simp` that ends `sv_norm` and the loop `repeat (sv_eq_norm; try simp)` (3 s of the 6.4 s
    `cover` normalization of `mul_wallace`; 14 s of `mul_tree_h`'s 112 s): a fixed `simp only` list
    would save about a tenth of the file, at the price of the normal form no longer being whatever
    the default set produces.
 
-Since WP-P3b (section 12) candidates 1 to 3 are gone for a FLAT netlist with no parameter: the tactics decide
+Since 2026-10-31 (section 12) candidates 1 to 3 are gone for a FLAT netlist with no parameter: the tactics decide
 the five obligations as closed statements instead of normalizing them, so the rank, coverage, in-range and
 one-driver costs above do not occur there. For a design with loops the list stands as measured.
 
-### The proof's own share: four rules (perf track, 2026-11-04)
+### The proof's own share: four rules (2026-11-04)
 
 A profile of the references (thousands of heartbeats, `-Dtrace.profiler.useHeartbeats=true`, sequential) found that
 the largest single cost of `fdivp.lean` was not a tactic but the reference's own glue: `theorem chain`, 873 of 2 282,
@@ -1449,7 +1453,7 @@ the largest single cost of `fdivp.lean` was not a tactic but the reference's own
    design.pdesign [N]` from `sv_structure`, `obtain ⟨hc, ha, hso⟩`, and `sv_equations` does not normalize the two again
    (the synthetic chains of 24 sites: the equations theorem -16 to -28%).
 
-Per reference, before -> after this round (whole file, thousands of heartbeats, sequential, no profiler, the two
+Per reference, before -> after these rules (whole file, thousands of heartbeats, sequential, no profiler, the two
 heartbeat markers of `run_cmd` after the imports and at the end; seconds sequential on the shared machine, load 5 to 11;
 the nine references of the plain recognizer take the triple, the `always_comb` ones, the by-hand ones, the flat
 `aes_sbox` ones and the clocked ones are unchanged, to the heartbeat; check.py's `solution` stage, one cold run each
@@ -1469,11 +1473,11 @@ after: fdivp 29.7 s (64 to 72 s recorded on 2026-11-03), Newton 39.8 s (45 to 46
 
 The same rules apply to the glue of the other references; the Newton reference's `chain` was left as it is (112
 thousand heartbeats, 94 of them `omega`; `omega` is 20% of that file).
-The SRT reference (`fdivp_srt`, 69 sites, registered 2026-11-05) took the triple when it was merged onto this round:
+The SRT reference (`fdivp_srt`, 69 sites, registered 2026-11-05) took the triple when it was added after them:
 `fdiv_struct` 670 -> 672 thousand heartbeats, `solution` 959 -> 700 (`sv_equations` alone was 749 before), with
 `Elab.async false`; its `chain` is 90 thousand.
 
-## 12. A flat 113-gate netlist: the first fixed-size tactic proof (WP-A1 and WP-P3b, 2026-10-31)
+## 12. A flat 113-gate netlist: the first fixed-size tactic proof (2026-10-31)
 
 `tasks/aes_sbox/reference/sbox_bp.lean` proves the AES S-box task for the Boyar-Peralta netlist
 (`reference/sbox_bp.sv`): 113 continuous assigns over `^` and `&`, no generate loop, 105 internal nets, a
@@ -1481,12 +1485,12 @@ design with NO parameter (the statement is `CombTask.StatementFixed`; the tactic
 without change). It is the scalability test the project wanted: tactics tuned on loops (a few sites, many
 instances) meet 113 distinct plain sites. It went through in two steps.
 
-* **WP-A1 (the first proof, the "before").** It went through, but not with `sv_structure`: two of the
+* **The first proof, by hand (the "before").** It went through, but not with `sv_structure`: two of the
   obligations are quadratic in the number of sites, so the proof applied the library theorem by hand and had the
   kernel decide them; `sv_equations` needed `set_option maxRecDepth 100000`, did not name the equations
   (a count off by one) and left 221 coverage goals that were closed one by one with the writer's position in a
   113-way disjunction. 654 lines (556 code lines), 99 s of CPU. Its measurements are kept below.
-* **WP-P3b (now).** The tactics decide the obligations of a flat netlist, name the equations whatever the last
+* **With the flat-netlist tactics (now).** The tactics decide the obligations of a flat netlist, name the equations whatever the last
   assign drives, run with `maxRecDepth` raised, and `sv_cover` picks a site witness by name. The proof is
   one `sv_structure` call, `sv_interface`, `sv_equations`, a 5-line local `elab` that chains the 113 equations
   into the induction, and the arithmetic: 295 lines (202 code lines), 47 s of CPU.
@@ -1510,13 +1514,13 @@ obligations are decided (`decided (flat netlist: …): auto, inRange, width, bit
 the 113 equations by their stable names: `eq_y14_1`, …, and `eq_y_1` … `eq_y_8` for the bits of `y` in source
 order. Whole file: 47 s of CPU (`lake env lean`, default asynchronous elaboration, `LEAN_NUM_THREADS=2`, a
 shared 16 GB laptop), axioms `propext`, `Classical.choice`, `Quot.sound`. `Solution.olean` is 18.2 MB
-(14.5 MB in WP-A1: each decided obligation puts the instantiated summary into the proof term), and the kernel
+(14.5 MB in the first proof: each decided obligation puts the instantiated summary into the proof term), and the kernel
 replay did not get slower (`leanchecker` 47 to 50 s, comparator 19 s). Three cold `check.py` runs
 (`--postsynth full`, fresh staging directory each): `solution` stage 53.7, 51.0 and 50.9 s (96.0, 95.1 and 90.9 s
-for WP-A1), whole run 127 to 136 s. `bp_correct` no longer needs `set_option maxRecDepth`; `solution` keeps one
+for the first proof), whole run 127 to 136 s. `bp_correct` no longer needs `set_option maxRecDepth`; `solution` keeps one
 `set_option maxHeartbeats 1000000` (it needs about 400 M heartbeats, the default limit is 200 M).
 
-### After WP-P3b: what the tactics do for a flat netlist
+### Now: what the tactics do for a flat netlist
 
 * `sv_structure`: when every site is plain and the goal mentions no free variable, the four obligations
   (`auto`, `inRange`, `driverDisjoint`, `rankDecreases`) are applied through the `…_of_plain` lemmas of
@@ -1548,7 +1552,7 @@ for WP-A1), whole run 127 to 136 s. `bp_correct` no longer needs `set_option max
 | 100 | | 10.0 | 106.9 |
 | 113 | fails: 4 min 23 s, then `maximum recursion depth` | 11.6 | 122.4 |
 
-(The "before" seconds are WP-P3b's own runs with `maxHeartbeats 0`; WP-A1's `simp` seconds were 2.5, 7.7, 27.3
+(The "before" seconds are the flat-netlist tactics' own runs with `maxHeartbeats 0`; the first proof's `simp` seconds were 2.5, 7.7, 27.3
 and 63 for n = 10, 20, 40, 60.) The growth is linear, about 0.1 s per site; the mild upward bend is the kernel
 check of the pairwise one-driver decision. There is a fixed cost of about 2 s per call. A first version that
 decided only the one-driver and rank obligations took 17 s but 355 M heartbeats at 113 sites, over the default
@@ -1561,9 +1565,9 @@ decided too.
 the old route is back: the same netlist with an unused parameter takes the normalization of the obligations
 again (26 sites need `maxHeartbeats 2000000`, `Examples/system-verilog/flat_net/sv_cover_site.lean`).
 
-The reference proof, WP-A1 (hand) -> WP-P3b:
+The reference proof, by hand -> with the flat-netlist tactics:
 
-| | WP-A1 | gate 2 (names) | WP-P3b |
+| | by hand | with the names | the tactics |
 |---|---|---|---|
 | lines / code lines | 654 / 556 | 517 / 425 | 295 / 202 |
 | CPU seconds, whole file | 99 | 93 | 47 |
@@ -1571,10 +1575,10 @@ The reference proof, WP-A1 (hand) -> WP-P3b:
 | `solution` M heartbeats | 1 678 (set 2 500) | | 394 (set 1 000) |
 | `set_option maxRecDepth` | structure, `solution`, `bp_correct` | `bp_correct` | none |
 
-### Before WP-P3b: what the proof did (WP-A1, by hand)
+### Before: what the proof did by hand
 
 This subsection and the next ("What did not scale") describe the tactics and the proof as they were BEFORE
-WP-P3b (the measured "before": 654 lines, `sv_structure` not usable at 113 sites). The tactics have changed; the
+the flat-netlist tactics (the measured "before": 654 lines, `sv_structure` not usable at 113 sites). The tactics have changed; the
 numbers are kept as the baseline, and the recipe after them is the current one.
 
 
@@ -1594,7 +1598,7 @@ closed with the writer's position in the disjunction).
 Whole file: 99 s CPU (`lake env lean -DElab.async=false`, `LEAN_NUM_THREADS=2`, a shared 16 GB laptop), `.olean`
 14.5 MB, axioms `propext`, `Classical.choice`, `Quot.sound`. `sv_equations` is 35 s of the `solution`'s 47.
 
-### What did not scale, and the numbers (before WP-P3b)
+### What did not scale, and the numbers (before the flat-netlist tactics)
 
 1. **`sv_structure` (`CombDesign ∧ Acyclic`).** Measured on the first `n` assigns of the netlist (profiler,
    `maxHeartbeats 0`), total `simp` seconds: n = 10: 2.5, 20: 7.7, 30: 15.6, 40: 27.3, 60: 63, i.e. about
@@ -1645,7 +1649,7 @@ Whole file: 99 s CPU (`lake env lean -DElab.async=false`, `LEAN_NUM_THREADS=2`, 
 * **Heartbeats**: the default is 200 M. `bp_struct` fits it (127 M); `solution` needs 394 M, mostly the
   normalization of the view into the 226 named hypotheses, and carries `set_option maxHeartbeats 1000000 in`.
 
-### What WP-A1 asked of the tactics, and what became of it (WP-P3b)
+### What the first proof asked of the tactics, and what became of it
 
 * `runSvStructure`: close the obligations of a plain, parameter-free design with `closeByDecide` on closed
   statements instead of `sv_norm`; the lemmas moved into the library (`CombViewPlain.lean`). Done, and extended
@@ -1657,7 +1661,7 @@ Whole file: 99 s CPU (`lake env lean -DElab.async=false`, `LEAN_NUM_THREADS=2`, 
 * a default `maxRecDepth` for the tactics' own `simp` calls: done (`withDeepRec`, `Core.Context`, scoped to
   the tactic call).
 
-## 13. An `always_comb` carry cell (WP-G)
+## 13. An `always_comb` carry cell
 
 `tasks/add/reference/add_proc.sv` is the ripple adder of section 2 with the carry cell written as a
 procedural block inside the generate loop:
@@ -1734,7 +1738,7 @@ is a `case`: `check.py` rejects it at the `solution` stage with the proof of the
 it in the lowered shape. Trust the shape above, not the advisory, for a design with an `always_comb`.
 
 
-## 14. Operators in expressions: `~ !`, reductions, `&& ||`, `== !=`, `?:` (WP-G S2) and `+ -` (WP-B2)
+## 14. Operators in expressions: `~ !`, reductions, `&& ||`, `== !=`, `?:` and `+ -`
 
 The right-hand side of an `assign`, a leaf of an `always_comb` and an `if` condition may be built from, besides
 the gates `& | ^`:
@@ -1747,12 +1751,12 @@ the gates `& | ^`:
 | `!e` | `!XF.any N …` over the bits of `e` (`!v` of a vector is true only for the all-zero vector; for one bit it is `!st.boolAt "v" 0`) | the target is one bit; `e` of any width |
 | `l && r`, `l \|\| r` | `XF.any … && XF.any …`, `XF.any … \|\| XF.any …` | the target is one bit; `l` and `r` of any width |
 | `l == r`, `l != r` | `XF.eqv W …`, `!XF.eqv W …` (for one-bit operands `decide (f 0 = g 0)`) | the target is one bit; `l` and `r` the same width |
-| `l + r`, `l - r` (WP-B2) | `XF.addBits W (f) W (g) k`, `XF.subBits W (f) W (g) k` over the bit functions of the operands, in the nested form the SystemVerilog has (`(a + b) + c` is `XF.addBits W (XF.addBits W …) W …`); `W` is the CONTEXT width, the carry survives up to it | every operand at most as wide as the target, a bare signal exactly (a narrower one carries slang's `Resize`, next row) |
-| an operand narrower than the target of a `+ - & \| ^ ~ ?:` (slang's implicit zero extension, the `Resize` marker, WP-B2) | `XF.zext n (st.boolAt "a") k`: `n` bits of `a`, zeros above | around a signal access or a sized literal only |
+| `l + r`, `l - r` | `XF.addBits W (f) W (g) k`, `XF.subBits W (f) W (g) k` over the bit functions of the operands, in the nested form the SystemVerilog has (`(a + b) + c` is `XF.addBits W (XF.addBits W …) W …`); `W` is the CONTEXT width, the carry survives up to it | every operand at most as wide as the target, a bare signal exactly (a narrower one carries slang's `Resize`, next row) |
+| an operand narrower than the target of a `+ - & \| ^ ~ ?:` (slang's implicit zero extension, the `Resize` marker) | `XF.zext n (st.boolAt "a") k`: `n` bits of `a`, zeros above | around a signal access or a sized literal only |
 
 The operands of `!`, the reductions, `&&`, `||`, `==`, `!=` and the condition of `?:` are **self-determined**:
 only their own operands have to agree (`a & b` needs `a` and `b` equally wide). Everything else is
-**context-determined**: as wide as the target, or (WP-B2) narrower with slang's zero extension. That is the
+**context-determined**: as wide as the target, or (since 2026-11-01) narrower with slang's zero extension. That is the
 width rule `width_k` states. Where an operand is NARROWER than its context slang inserts a zero-extension
 (`~a` into a wider target extends `a` first): around a signal access or a sized literal the tactics model it
 (`XF.zext`, the `width_k` goal is then `n ≤ target`); around an operation (`!s` into a vector, a truncated sum
@@ -1790,7 +1794,7 @@ operators that are not in the fragment yet), `'0` or a concatenation inside an o
 literal). **Accepted, then false:** a multi-bit condition
 `v ? a : b` leaves the goal `width_k` with a false statement; write `|v ? a : b`.
 
-## 15. A plain `case`: look-up tables (WP-G S3a)
+## 15. A plain `case`: look-up tables
 
 **What is accepted.** In an `always_comb` (alone, or inside a `begin … end`, or as a branch of an `if` tree): a
 PLAIN `case (subject)` with a `default`, whose items are lists of KNOWN SIZED LITERALS as wide as the subject
@@ -1845,9 +1849,9 @@ and linear in the items). The `solution` stage of `check.py` on the S-box table 
 same CPU time but 255 more reads of the subject.
 
 **Not in this step.** Arms that are trees (an `if` or a `case` inside an arm: a follow-up, see section 16), several windows per
-body and temporaries (S1b); unsized items (B2); `inside`/`casez`/`casex`/`unique`. Default-then-override is section 16.
+body and temporaries (section 18); unsized items; `inside`/`casez`/`casex`/`unique`. Default-then-override is section 16.
 
-## 16. Default-then-override: several statements, one window (WP-G S3b)
+## 16. Default-then-override: several statements, one window
 
 **What is accepted.** An `always_comb` body (or the body of an `if` branch in `begin … end`) with SEVERAL
 statements that all write the SAME window: a first statement that is a tree (it assigns the window on every path:
@@ -1877,7 +1881,7 @@ a read of the written window after it is written (`y = a; if (e) y = y ^ b;` —
 is not modelled: the summary's `noSelfRead` obligation orders writers before readers ACROSS sites and cannot
 tell a read of the path value from a read of the signal, so supporting it is a summary change); a second
 unconditional assignment; an `if … else` after the first statement (and so an `else if` chain WITHOUT a final
-`else` after a default: add the `else`); a second window (S1b); a `case` whose arms are trees (a follow-up: the
+`else` after a default: add the `else`); a second window (section 18); a `case` whose arms are trees (a follow-up: the
 arms of `PTree.cases` are leaves, and tree arms need an induction principle for the nested arm lists).
 
 **Why the proof layer needed little.** The new node differs from `ite` only in its STATEMENT: the lowered
@@ -1889,7 +1893,7 @@ unchanged by that state (a zero-width slice at the edge of a window is "covered"
 summary, supplies it); `write_single` and `join_single` give the single window back; the self-read guard walks
 the statement list (`listCombViol_append`). Existing pins that changed: `drvWins_tree` gains `Quot.sound`.
 
-## 17. `+` and `-`: word-level arithmetic (WP-B2)
+## 17. `+` and `-`: word-level arithmetic
 
 An `assign` right-hand side may add and subtract. Nothing else changes in the proof: `sv_structure` reads the
 operands like any other (a bare signal and a signal under slang's zero extension are both reads), and
@@ -1938,7 +1942,7 @@ conversion under `!`, a reduction, `&&`, `||`, a comparison operand or a `?:` co
 signal first). A bare signal narrower than the target, or a marker wider than it, leaves a FALSE `width_k`
 goal.
 
-**Comparisons, truncation and unsized constants** (WP-B2 gate 2b). The six comparisons `== != < <= > >=` are read
+**Comparisons, truncation and unsized constants** (2026-11-01). The six comparisons `== != < <= > >=` are read
 at the context-determined positions; the result is ONE bit and the operands are context-determined at the WIDER of their
 own widths (a narrower operand is zero-extended, the carry of nothing is lost: `a < c` with `a` 4 and `c` 8 bits is
 compared at 8). `Examples/system-verilog/comb_word/cmp_same.sv` prints
@@ -1959,7 +1963,7 @@ not). `trunc_inc_y1_final` closes `y1 = a + 1` for every `N` with `XF.bv_zext_tr
 `setWidth_add_const`. The `width_k` obligations gain a goal per marker around an operation (the operand's contract at
 the width it is lowered at) and, under `+`/`-`/`~`/`?:`, the rigid-width one (`(↑N + -1).natAbs + 1 ≤ tw`).
 
-**Concatenations as operands** (WP-B2 gate 3b). A concatenation `{hi, lo}` of literals and signal accesses is read at the
+**Concatenations as operands** (2026-11-01). A concatenation `{hi, lo}` of literals and signal accesses is read at the
 context-determined positions, wherever `rdsOfW?` reads an operand (the operands of `+ - & | ^` and of the six comparisons, the
 arms of `?:`, under a `~`, under a `Resize` marker; the shape theorem is one arm, generic in the operator, and
 `cat_add` exercises `+`, `?:`, `==` and the marker), while the self-determined positions (the operands of `&&`, `||`, `!`, the
@@ -1984,7 +1988,7 @@ is closed by a one-line lemma (`boolAt_zero2`); its width obligation shows `{ bi
 shift (the amount and the left operand of a shift are a signal access, a literal or an unsized constant), and a part that is
 not a literal or one signal access.
 
-**Whole rows of a two-dimensional array and constant part selects** (WP-B2 gate 4a). The extractor has two encodings of a
+**Whole rows of a two-dimensional array and constant part selects** (2026-11-01). The extractor has two encodings of a
 select of a declared signal; the symbolic one (`ArraySel`) was read since the stage-2 work, the LEGACY one (`BitSel`,
 `PartSel`) was not for these two shapes. (1) `r[i + 1]` over a zero-based two-dimensional declaration `logic [R-1:0][C-1:0] r`
 is a whole ROW of `C` bits, whatever the dimensions are made of (literals, localparams, parameters: `r[0]` and `r[3]` over
@@ -2010,7 +2014,7 @@ part select of a base that is not a zero-based one-dimensional declaration (`log
 zero-based descending dimension [hi:0]`), a row select of a two-dimensional declaration whose first range is not zero-based,
 a declaration of three packed dimensions, an indexed part select `x[i +: w]`.
 
-**Replication `{N{x}}`** (WP-B2 gate 4c). A replication of a SIZED LITERAL or of ONE bit select or part select, with a count that
+**Replication `{N{x}}`** (2026-11-02). A replication of a SIZED LITERAL or of ONE bit select or part select, with a count that
 is affine in the parameters and genvars, is read as a part of a concatenation or as a whole right-hand side in an `assign`
 (`Sk.rep`; slang writes the braces of `{K{1'b0}}` as a one-part concatenation, which the recognizer reads through). The count is a
 constant of the instance, like a genvar shift amount: the structural stage checks its names are parameters or enclosing loop
@@ -2030,10 +2034,10 @@ eq_y_plain_0 : ∀ k, k < (↑N + ↑K + -1).natAbs + 1 → st.boolAt "y" k = if
 of a WHOLE signal (`{2{a}}`: its width is the declared one, which the part does not carry: replicate a bit or a part select), of
 an operation or of a concatenation of several parts (`{2{a & b}}`, `{2{a[0], b[1]}}`: write it into a signal first), a count that is
 not affine (`{N*M{a[0]}}`), a replication in a self-determined position (`|{4{a[0]}}`) or in an `always_comb` leaf (the procedural chain
-does not carry the scope of a constant). Measured on the clmul styles of `tests/clmul/attacks`: see the G26 note, section 14b,
-for the first wall of each after this gate.
+does not carry the scope of a constant). Measured on the clmul styles of `tests/clmul/attacks`: see `design/word-level/G26-NOTE.md`, section 14b,
+for the first wall of each after this extension.
 
-**A genvar as the amount of a shift** (WP-B2 gate 4b). In a generate loop `a << i` shifts by the loop variable: the amount is
+**A genvar as the amount of a shift** (2026-11-01). In a generate loop `a << i` shifts by the loop variable: the amount is
 a CONSTANT of the instance, lowered like an unsized constant (32 bits, never widening the result) to the literal of the
 genvar's value. `Examples/system-verilog/comb_word/shl_gen.sv` (`pp[i] = aw << i`, rows `2N` wide) prints
 
@@ -2049,17 +2053,17 @@ eq_pp_g_0 : ∀ i, i < N → ∀ k, k < (2 * ↑N).toNat → st.boolAt "pp" (rmN
 lets the BitVec statement be the whole story). The genvar must be an enclosing loop variable of the site: the structural
 obligation checks it with the indices of the accesses (a genvar of another loop, or one the loop does not bind, is the
 message `an index or a shift amount mentions …, which is neither a parameter nor an enclosing loop variable`). **Not read:** an amount that is an
-expression over a genvar or a parameter (`a << (i + 1)`, `a << (N - 1)`: stage 4d), a parameter or localparam as the amount
+expression over a genvar or a parameter (`a << (i + 1)`, `a << (N - 1)`: not planned yet), a parameter or localparam as the amount
 (`a << N`: its width is a fact about the parameter's declared type, which the summary does not carry), and a genvar amount
 inside an `always_comb` leaf (the procedural chain refuses a constant of the instance: write the shift into an `assign`).
-Measured at gate 4b on the clmul styles of `tests/clmul/attacks` (the customers of this feature; the first wall of each; gate 4c, above, reads the replication):
+Measured when the genvar amount was added, on the clmul styles of `tests/clmul/attacks` (the designs that use it; the first wall of each; the replication, above, is read since 2026-11-02):
 `gen_word_pp_chain` (`pp[i] = b[i] ? (aw << i) : '0`), `gen_mask_replication` and `gen_always_step` stop on the
-REPLICATION (`{{(N-1){1'b0}}, a}`, `{(2*N-1){b[i]}}`; stage 4c); `gen_size_cast` stops on the size cast `(2*N-1)'(a)` as the LEFT operand of the shift;
+REPLICATION (`{{(N-1){1'b0}}, a}`, `{(2*N-1){b[i]}}`; read since 2026-11-02); `gen_size_cast` stops on the size cast `(2*N-1)'(a)` as the LEFT operand of the shift;
 `gen_pp_zerofill` stops on its generate-for header `for (i = N; …)` (the start must be an integer literal). Behind those walls,
 by reading the sources: the fill `'0` as an arm of `?:` (`gen_word_pp_chain`, `gen_pp_zerofill`), a compound `^=` over a row
 (`gen_always_step`).
 
-**Run-time shifts** (WP-B2 gate 3). `y = a << s` and `y = a >> s` with a RUN-TIME amount are read at the
+**Run-time shifts** (2026-11-01). `y = a << s` and `y = a >> s` with a RUN-TIME amount are read at the
 context-determined positions. The left operand is context-determined (it is extended to the context BEFORE the shift,
 `XF.zext W …`: a shift into a wider target keeps the bits shifted out of the operand), the amount is self-determined and
 unsigned and never widens the result, and the result is truncated to the context. `Examples/system-verilog/comb_word/shl_n.sv`
@@ -2083,15 +2087,15 @@ The amount is a natural number, so an amount of `N` or more gives `0` as in the 
 `y = x <<< sv.toNat` for every `N`, `shr_n_correct` the same with `>>>`, `shl_wide_correct` (into `N + 1` bits)
 `x.setWidth (N + 1) <<< sv.toNat`. An unsized constant is a SIGNED 32-bit integer: `y = 1 << s` (`onehot.sv`) is a signed
 shift, computed at `max N 32` bits with `XF.sext 32 …` (a sign extension: `Expr2.resizeSigned` is in the x-free fragment
-since gate 3) and truncated into the target; the printed equation carries the single `if 32 < W` of the gate-2b
-truncation marker, and `onehot_correct` states `1#N <<< sv.toNat` for every `N ≥ 1` (`signExtend_one`, `one_shl_setWidth`).
+since 2026-11-01) and truncated into the target; the printed equation carries the single `if 32 < W` of the
+truncation marker (above), and `onehot_correct` states `1#N <<< sv.toNat` for every `N ≥ 1` (`signExtend_one`, `one_shl_setWidth`).
 A shift by an unsized constant (`a << 1`, `a >> 2`: the amount is `XF.constBit 1 32 …`, 32 bits) is `shl_const_correct`.
 No new `width_k` goal appears for a shift: both operands are read at their own widths. **In the fragment:** the left
 operand is a signal access, a sized literal or an unsized constant, bare or under the marker that keeps its signedness (the
 `Resize` marker of an unsigned shift, the `SignedResize` marker of a signed one); the amount is a signal access, a sized
 literal or an unsized constant. **Refused with a message** (write the operand into a signal first): a left operand that
 is an operation (`(a + b) << 1`), an amount that is an expression (`a << (s + 1)`) or an expression over a parameter
-(`a << (N - 1)`: the first candidate for a later gate), `<<<`, `>>>` and a signed `>>`.
+(`a << (N - 1)`: the first candidate for a later extension), `<<<`, `>>>` and a signed `>>`.
 
 **Products** (`*`, 2026-11-03). `y = a * b` is read like `+`: at the context-determined positions, each factor extended to
 the CONTEXT width before the product, the product taken modulo `2^` the context width, a marker around it a truncation.
@@ -2125,7 +2129,7 @@ generate-fuel goal (section 4). The task-level example is the Newton reference o
 `NI = $clog2((P + 9) / 8) + 1`, two more after it, the family by the same induction (`newton_rows`), and a rank
 certificate that puts every later site above every step with `clog2_le`.
 
-**In an `always_comb` leaf** (WP-B2 gate 2): the leaves of an `if`/`case`/override tree read the same fragment, with
+**In an `always_comb` leaf** (2026-11-01): the leaves of an `if`/`case`/override tree read the same fragment, with
 the same `width_k` contract per leaf (the target window's width is the context). `if (c) y = a + b; else y = a - b;`
 into an `(N+1)`-bit `y` prints
 
@@ -2141,13 +2145,13 @@ self-determined: they keep the v1 fragment (no `+` there).
 
 **A known tight spot, and its fix.** `Examples/system-verilog/comb_ops/comb_proof.lean`'s `add_mux_correct` needed between
 185 000 and 200 000 heartbeats at the default limit of 200 000 (as one declaration holding both `sv_structure` calls and
-`sv_equations`), and the merge of two independent growths of the tactic vocabulary (WP-B2 gate 2b, WP-G S1b) crossed
+`sv_equations`), and the merge of two independent growths of the tactic vocabulary (the comparisons above, and the several windows of section 18) crossed
 it. Every declaration has its own budget, so the proof is now three declarations (`add_mux_comb`, `add_mux_acyclic`,
 `add_mux_settled`; the statement of `add_mux_correct` is unchanged): the largest needs between 100 000 and 140 000. The
 advice stands for any proof that puts `sv_structure` and `sv_equations` in one declaration: measure it
 (`lake env lean -DmaxHeartbeats=N file`) before adding names to the simp lists of the tactics.
 
-## 18. Several windows in one body (WP-G S1b, gates c and d)
+## 18. Several windows in one body
 
 One `always_comb` may write more than one window, for example the whole bit cell of the ripple adder:
 
@@ -2190,7 +2194,7 @@ written in two separate groups of statements: the message of `sv_structure` name
 ## 19. A clocked task: one cycle at a time, then the phases (`matmul`, `sorter`)
 
 A clocked task with a latency (`kind` `tx-family` or `stream-family`) has no combinational fragment and no `sv_*`
-tactic. Its statement is txtask-v2 (`TxTask.StatementV2` or `StreamTask.StatementV2` in `SvGolf/TaskSeq.lean`, final
+tactic. Its statement (`TxTask.StatementV2` or `StreamTask.StatementV2` in `SvGolf/TaskSeq.lean`, final
 since 2026-11-08, amended 2026-11-09 before any record of these tasks was published): the handshake's claims hold of
 every run of the design from EVERY power-up state (every declared signal, 2-state ones included, at some 0/1 value),
 under every schedule, on every known stimulus, from every reset release, under the environment's rely; every such run
@@ -2206,12 +2210,17 @@ interface, `Disciplined`, `TerminatesPU`, the latency facts (and, for a stream, 
 and `XSafe`. Both references follow the same five steps; the sorter's names are used here
 (`tasks/sorter/reference/sorter_ins.lean`, section numbers of that file).
 
+Nothing requires a reference's structure: any proof of `Goal lat` that the kernel accepts counts (README.md,
+"Submitting"). A proof from scratch must still state what the loaded design does in one cycle and prove that it
+agrees with `design.sem`. Steps 1 to 5 below are one way to do that, and starting from the nearest reference is the
+shortest route today.
+
 1. **Agreement** (§1, `so_sem_eq`): the loaded family `design.sem N W` equals a hand-built design `soD N W` at
    every in-range point. The generate loop is expanded with `expand2_genFor_ascending_processes`; at `N = 1` the
    cell family is empty and the same lemma covers it. The processes' windows are pairwise disjoint
    (`so_pairwise`), proved once, symbolically.
 2. **One cycle** (§2 to §5, `so_profile`, `so_cycle`, `next_reset`, `next_run`): `soD` is in the FF-only profile
-   (`so_profile`, the disjointness through `ffDisjB_of_pairwise`), so G0's clock step (`cycleStep2_profile`)
+   (`so_profile`, the disjointness through `ffDisjB_of_pairwise`), so the library's clock step (`cycleStep2_profile`)
    says a cycle runs every `always_ff` body on the pre-edge state and commits the nonblocking queues. Write the
    queues per process (`topQ`, `outQ`, `cellQ`), commit them one register at a time (`nbaFold` in
    `LeanModels.Sv.NbaCommit`; `bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV` in `LeanModels.Sv.SeqFamily`),
@@ -2234,7 +2243,7 @@ and `XSafe`. Both references follow the same five steps; the sorter's names are 
    first start. (`TxTask.PhaseModel` is the same idea with `Ready`, `Busy x m`, `Fin x` and `done`;
    `matmul_g1.lean`. Its `ready_done` asks `done` = 0 in `Ready`: the statement asks `done` = 0 between the
    release and the first start, as `out_valid` = 0 for the sorter.)
-5. **txtask-v2's three rules** (§9): rule 2 is `so_powerUp`, every power-up state has the shape `I`
+5. **The statement's three rules** (§9): rule 2 is `so_powerUp`, every power-up state has the shape `I`
    (`powerUp_cons` once per declaration, then `powerUp_nil`), with termination from the same cycle
    (`so_terminatesPU`, by `TerminatesPU.of_invariant` with the shape as the invariant); rule 1 is `so_moore`:
    every process is an `always_ff`, so the design has no combinational dependency at all
@@ -2268,7 +2277,7 @@ statement cannot tell the two apart, and the proof's `insertAsc` only fixes wher
 
 **Cost** (MEASURED 2026-11-08, line counts of `sorter_ins.lean`: 983 lines). Lines: the header 35, agreement 216,
 one cycle 343 (the clock step 114, the commit 26, the registers 177, shape and termination 26), the sort 107, the
-invariant 56, the phases and the statement 150, txtask-v2's rules 76. Time: the `solution` stage 17.0 to 17.4 CPU s
+invariant 56, the phases and the statement 150, the three rules 76. Time: the `solution` stage 17.0 to 17.4 CPU s
 in three cold `check.py` runs (2026-11-07, `score/time_limits.json`; the limit is 300 CPU s). Heartbeats and the
 olean, measured 2026-11-04 on the 899-line v1 file (not measured again): in `maxHeartbeats` units, 123.3k for the
 whole file, at most 21.1k for one declaration (`cell_run`; then `model` 14.2k, `apply_so` 9.5k), so no declaration

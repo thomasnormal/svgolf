@@ -7,12 +7,12 @@ other circuits (carry-lookahead, parallel-prefix) trade area for delay.
 
 **Par** is the proved ripple-carry reference `add_n`: **460.4416 um^2 x 2611 ps =
 1202.2 um2*ns**. The one ranked number is area x time, the sky130 A0' cell area
-in um^2 times the critical-path delay (decided 11/05; the svGolf README,
+in um^2 times the critical-path delay (decided 2026-11-05; the svGolf README,
 "Scoring"); to beat par is to be accepted with a smaller product. The Pareto
 frontier of area and time, the GE area and the depth below are extra columns,
 for exploring.
 
-## Start a new design
+## Proving a new design
 
 A new adder is your own `solution.sv` (the header below; `+ - * / % **` are banned at run time) and a
 `Solution.lean` that proves it for every `N ≥ 1`. Find the design without Lean, then check it once
@@ -184,7 +184,7 @@ other tool: ls-sv runs each `always_ff` once per cycle whatever its clock
 signal holds, so a correct adder whose outputs are registered on a clock
 nothing drives (or one tied to `1'b0`) holds the right sum in every ls-sv
 snapshot, while an event-driven simulator sees a clock that never rises (Icarus
-12, measured 10/28: the outputs stay at `x`; Verilator is 2-state and keeps its
+12, measured 2026-10-28: the outputs stay at `x`; Verilator is 2-state and keeps its
 initial 0), and Yosys removes the flip-flops and scores the design at 0 GE.
 `tests/add/negative/dead_clock.sv` and `tests/add/negative/dead_clock_tied.sv`
 are those designs; `tests/add/negative/Refute.lean` refutes both through this requirement
@@ -236,7 +236,7 @@ ls-sv's sequential layer models clock edges.
   proof at `N = 16` alone does not type-check against it. No unrolling at a
   fixed width; induction on the bit index is the intended route.
 * Axioms: `propext`, `Classical.choice`, `Quot.sound`. No `bv_decide` (it runs an
-  external SAT solver, which the checker does not support: `svgolf/README.md`,
+  external SAT solver, which the checker does not support: the repository's `README.md`,
   "`bv_decide`"), no `native_decide`, no `sorry`.
 * Proof time limit: 300 CPU s (`task.json`), the one limit of every task (svGolf `README.md`,
   "Proof effort"). Measured 2026-11-06 in CPU seconds, three cold runs each
@@ -246,10 +246,10 @@ ls-sv's sequential layer models clock edges.
   seconds, 2026-10-30: the tactic reference 12.1, 9.6 and 9.5 s, the by-hand reference 3.0 s). It was 300 s
   of wall clock, then 120 s.
 * Scored at `N = 16`, no depth budget. The ranked score is sky130 A0'
-  (decided 11/03; svGolf `README.md`, "Scoring"): the cell area in um^2 and
+  (decided 2026-11-03; svGolf `README.md`, "Scoring"): the cell area in um^2 and
   the critical-path delay in ps of the scored netlist, weighed by
   `score/ppa.py` (`sky130_a0_v3`); the leaderboard ranks their product, area x
-  time (decided 11/05), and their Pareto frontier is an exploration view. Area
+  time (decided 2026-11-05), and their Pareto frontier is an exploration view. Area
   in NAND2 gate equivalents and depth in gates, from the same pinned two-stage
   Yosys + ABC flow (`score/canon.ys`, `score/svgolf.ys`, `score/ge.json`), are
   extra columns. The score is deterministic, the same file always scoring the
@@ -271,7 +271,7 @@ ls-sv's sequential layer models clock edges.
   with unknown bits, out-of-range select or undriven net at `N = 16` (the
   `fourstate` stage). `tests/add/attacks/z_case_item.sv` is why: a ripple
   sum behind `case (cin) 1'bz:` computes the sum in ls-sv on every vector
-  (ls-sv never matches a `z` item, and neither did Icarus, measured 10/28),
+  (ls-sv never matches a `z` item, and neither did Icarus, measured 2026-10-28),
   so it looks provable, while
   Yosys reads the item as a don't-care and scores it at 0 GE. The
   post-synthesis check alone rejects it on every vector, but
@@ -316,7 +316,7 @@ The ripple-carry reference has two proofs of the same statement, for every
 bytes):
 
 * `reference/add_n.lean` (84 code lines) uses the `sv_comb` tactics of
-  proglib (formerly lean-surfaces): `sv_structure` proves the comb profile and the acyclicity
+  Proglib (formerly lean-surfaces): `sv_structure` proves the comb profile and the acyclicity
   certificate (one theorem, `CombDesign ∧ Acyclic`, plus the rank), `sv_interface`
   proves the ports, `sv_equations` derives the
   netlist's four equations and the knownness of every driven bit from the real
@@ -391,9 +391,9 @@ one-process flow, whose results depended on the source's layout).
 | design | N = 16 | N = 32 | N = 64 | correctness |
 |---|---|---|---|---|
 | `reference/add_n.sv`: ripple carry (gates in a generate loop) | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_n.lean` with the tactics, `reference/add_n_byhand.lean` by hand), both accepted by `check.py` |
-| `reference/add_proc.sv`: the same ripple adder with the carry cell as an `always_comb` `if`/`else` (WP-G) | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_proc.lean`, PROVING.md section 12: the lowered shape of the tactics), accepted by `check.py` |
-| `reference/add_proc_m.sv`: the same ripple adder with the carry cell AND the sum bit in ONE `always_comb` body that writes two windows (WP-G S1b gate d) | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_proc_m.lean`: `add_proc.lean`'s proof, character for character, because the stable aliases count the windows that write a signal), accepted by `check.py` |
-| `reference/add_mux.sv`: the same ripple adder written with `~` and the conditional expression `?:` (WP-G S2) | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_mux.lean`, PROVING.md section 14: the second fragment), accepted by `check.py`; the same score as `add_n.sv` (the canonical flow maps the `?:` carry to the same netlist) |
+| `reference/add_proc.sv`: the same ripple adder with the carry cell as an `always_comb` `if`/`else` | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_proc.lean`, PROVING.md section 12: the lowered shape of the tactics), accepted by `check.py` |
+| `reference/add_proc_m.sv`: the same ripple adder with the carry cell AND the sum bit in ONE `always_comb` body that writes two windows | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_proc_m.lean`: `add_proc.lean`'s proof, character for character, because the stable aliases count the windows that write a signal), accepted by `check.py` |
+| `reference/add_mux.sv`: the same ripple adder written with `~` and the conditional expression `?:` | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_mux.lean`, PROVING.md section 14: the second fragment), accepted by `check.py`; the same score as `add_n.sv` (the canonical flow maps the `?:` carry to the same netlist) |
 | `tests/add/baselines/add_n_sklansky.sv`: Sklansky prefix | **127.658 GE, depth 28** | 296.639, 43 | 601.274, 80 | simulation only (`tests/add/validate/`) |
 | `tests/add/baselines/add_n_kogge_stone.sv`: Kogge-Stone prefix | **149.652 GE, depth 24** | 325.296, 47 | 788.892, 66 | simulation only (`tests/add/validate/`) |
 | `tests/add/negative/plus.sv`: Yosys's own `assign {cout, s} = a + b + cin;` (banned; banlist lifted to score it) | 117.994 GE, depth 33 | 251.982, 57 | 494.973, 121 | simulation only; the baseline to beat |

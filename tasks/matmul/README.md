@@ -12,7 +12,7 @@ Status (2026-11-09):
 
 ```
 trusted statement: final, decided 2026-11-08, amended 2026-11-09 before any record was published
-  (txtask-v2: TxTask.StatementV2 of SvGolf/TaskSeq.lean, stated by Spec.lean)
+  (the second clocked statement: TxTask.StatementV2 of SvGolf/TaskSeq.lean, stated by Spec.lean)
 run2 proof: complete, from every power-up state (lat = N)
 checker: tx-family (check.py)   post-synthesis: tx-family (8 seeds at (2, 4, 8) and at (4, 8, 32))
 reference: reference/matmul_g1.sv + matmul_g1.lean (own code), check.py ACCEPTS it (--postsynth full)
@@ -27,7 +27,7 @@ opinion.
 | file | what |
 |---|---|
 | [`Spec.lean`](Spec.lean) | trusted text: the task (`task`, `product`, `Statement`) |
-| [`../../SvGolf/TaskSeq.lean`](../../SvGolf/TaskSeq.lean) | trusted text: the kind `TxTask`, the handshake, and txtask-v2's rules 1 to 3 and `TxTask.StatementV2` (its Status lists every declaration the statement reaches, final since 2026-11-08, amended 2026-11-09) |
+| [`../../SvGolf/TaskSeq.lean`](../../SvGolf/TaskSeq.lean) | trusted text: the kind `TxTask`, the handshake, and the clocked statements' rules 1 to 3 and `TxTask.StatementV2` (its Status lists every declaration the statement reaches, final since 2026-11-08, amended 2026-11-09) |
 | [`task.json`](task.json) | `tx-family`, status `ready`, the probe points, the scoring point, the post-synthesis block |
 | [`oracle.py`](oracle.py) | the post-synthesis transactions (`txns`) and the task's own evaluator (`good`) |
 | [`reference/matmul_g1.sv`](reference/matmul_g1.sv) | the reference: `N²` multiply-accumulate units and one step counter (own code) |
@@ -36,7 +36,7 @@ opinion.
 | [`REVIEW.md`](REVIEW.md) | the statement's review: v2 first, the v1 history after it |
 | [`../../tests/matmul/attacks/`](../../tests/matmul/attacks/) | seven attack designs |
 
-## Start a new design
+## Proving a new design
 
 A new matrix multiplier is your own `solution.sv` (the header below; run-time `/ % **` are banned, `*` is allowed) and
 a `Solution.lean` that proves it, with the latency it claims, for every `(N, W, AccW)` in range. Any schedule
@@ -59,8 +59,8 @@ refuses a combinational path from an input to an output.
 
 **The route: a phase model, `TxTask.satisfiedAtV2_of_phases`** ([PROVING.md, section
 19](../../PROVING.md#19-a-clocked-task-one-cycle-at-a-time-then-the-phases-matmul-sorter);
-`reference/matmul_g1.lean` is a complete proof). The reduction in `SvGolf/SeqV2.lean` turns the statement at
-one point into facts about ONE clock cycle:
+`reference/matmul_g1.lean` is a complete proof, 653 code lines). The reduction in `SvGolf/SeqV2.lean` turns the
+statement at one point into facts about ONE clock cycle:
 
 1. `Interface`: the ports in order and distinct declaration names (`rfl`, and `decide` on the names);
 2. `Disciplined`: `ClockedBy clk none` (no asynchronous reset), a `simp` over the processes;
@@ -162,7 +162,7 @@ The entries of `A` and `B` are two's complement. The products are sign-extended,
     C[i][j] = (sum over k < N of A[i][k] * B[k][j])  mod 2^AccW,
 
 computed exactly in the integers and then reduced, so `C` holds two's-complement `AccW`-bit entries and
-every summation order is legal. Overflow wraps, as GPU accumulators do (decided 11/03). Examples:
+every summation order is legal. Overflow wraps, as GPU accumulators do (decided 2026-11-03). Examples:
 - `[[-1, 2], [3, 4]] · [[5, 6], [7, 0]] = [[9, -6], [43, 18]]`. At `W = 4`, `AccW = 8` that is
   `A = 16'h432F`, `B = 16'h0765`, `C = 32'h122BFA09`.
 - `[[-8]] · [[-8]] = 64`: `8'h40` at `AccW = 8`, and `0` at `AccW = 6` (`W = 4`).
@@ -216,7 +216,7 @@ abbrev Statement (sem : Nat → Nat → Nat → LeanModels.Sv.Design2) (lat : Na
 ```
 
 `product` is the sum above: an `Int` dot product of the sign-extended entries (`BitVec.toInt`), then
-`BitVec.ofInt AccW`, packed row-major. `TxTask.StatementV2` is txtask-v2. For every point in range it asks
+`BitVec.ofInt AccW`, packed row-major. `TxTask.StatementV2` is the second clocked statement. For every point in range it asks
 for (`TxTask.SatisfiedAtV2`):
 
 - **the interface**: exactly these ports, in this order, and no two declarations of one name;
@@ -239,20 +239,20 @@ for (`TxTask.SatisfiedAtV2`):
 `SvGolf/TaskSeq.lean` defines `TxTask` and the rules. `design/sequential/CONTRACT.md` is the decision log, C1
 to C10, with the formal reading of each item; `design/soundness/TXTASK-V2-REVIEW.md` is the review of v2;
 `REVIEW.md` is this task's review: what the statement says, why it cannot be met vacuously, and the open
-points. The v1 text was frozen on 11/03 as the git tag `txtask-v1`; v2 (2026-11-05) replaced its run from
+points. The first statement's text was frozen on 2026-11-03; v2 (2026-11-05) replaced its run from
 ls-sv's `x` start by every power-up and added rules 1 and 3, and it is final since 2026-11-08. Its three
 amendments of 2026-11-09 (`done` = 0 before the first start, rule 1 with nothing exempt, no asynchronous reset;
 `REVIEW.md`) were made in place before any record of the task was published. A later statement change is a version
 bump that re-issues the records, never an edit.
 
 The refusal register ([`REFUSALS.md`](../../REFUSALS.md), rendered from the register at the pinned revision) still
-names the superseded `TxTask.Statement` (txtask-v1) in its row for this task's guarantee and says that each matmul
+names the superseded `TxTask.Statement` (the first statement) in its row for this task's guarantee and says that each matmul
 attack is wrong at post-synthesis. The ranked statement is `TxTask.StatementV2`, and `async_reset` is refused at
 `source`; the register's newer text comes with the next pin.
 
 ## Rules for this task
 
-* **No task-specific banned operators** (C6, decided 11/03). `*` is allowed: the score prices it. Run-time
+* **No task-specific banned operators** (C6, decided 2026-11-03). `*` is allowed: the score prices it. Run-time
   `/ % **` are banned, as in every task (since 2026-11-06; the svGolf README, "Rules").
 * **The latency line.** `Solution.lean` declares its latency in exactly one header line
   `-- svgolf-latency: n` (a decimal number of cycles, 1 to 999999999) and defines
@@ -284,11 +284,11 @@ attack is wrong at post-synthesis. The ranked statement is `TxTask.StatementV2`,
 * Axioms: `propext`, `Classical.choice`, `Quot.sound` only (`allow_bv_decide: false`). No `native_decide`,
   no `sorry`. Proof time limit: 300 CPU s, the one limit of every task (the reference: 16.2 to 17.5 CPU s,
   three cold runs, 2026-11-07, `score/time_limits.json`).
-* **Scoring at `(4, 8, 32)`** (C7, the sky130 decision of 11/03): area is sky130 A0' µm², flops (`dfxtp_1`)
+* **Scoring at `(4, 8, 32)`** (C7, the sky130 decision of 2026-11-03): area is sky130 A0' µm², flops (`dfxtp_1`)
   included. Time is `n` × the register-to-register period in ps from the pinned liberty, which already
   includes the flop's clock-to-Q and setup. Both are taken on the netlist REPAIRED by buffering only (a buffer
   tree on every net over its driver's limits, flop Q nets, inputs and output bits included; `sky130_a0_v2`,
-  11/04), every input driven by the default `sky130_fd_sc_hd__buf_8` (`sky130_a0_v3`); a design the repair
+  2026-11-04), every input driven by the default `sky130_fd_sc_hd__buf_8` (`sky130_a0_v3`); a design the repair
   cannot make electrically legal is rejected at stage `ppa`. The reference: 87,173.6064 µm², period 10,696 ps,
   time 42,784 ps, every load pin read per edge (`sky130_a0_v3`; 6 buffers on 5 nets: busy's flop Q 1 x
   `buf_4`, NOR(busy, start) and NOR(rst, .) 1 x `buf_8` each, one more control net 2 x `buf_4`, the input
@@ -296,7 +296,7 @@ attack is wrong at post-synthesis. The ranked statement is `TxTask.StatementV2`,
   v2's `buf_1` and v3's `buf_8` alike (5 buffers, the third control net 1 x `buf_8`, the same area); the
   unrepaired v1 netlist read 48,079 ps from extrapolated tables, and duplicating one control flop was then a
   4.4× time shortcut that loses under v2: 43,560 ps). The ranked number is area × time,
-  `area × (n × period)` in µm²·ns (decided 11/05), and the task is ranked by it (decided 2026-11-08); the
+  `area × (n × period)` in µm²·ns (decided 2026-11-05), and the task is ranked by it (decided 2026-11-08); the
   Pareto frontier of (area, time) is an exploration view. On a tie in both, the earlier record stands. NAND2
   gate equivalents and unit depth are extra columns. One submission declares one latency: the same design
   with another `n` is a separate record. Every number can be reproduced bit for bit: score/PPA.md, "Reproduce
@@ -338,7 +338,7 @@ select is static. `done` rises after the `N`-th step and stays 1, with `C` held,
 There are only flip-flops, all written by nonblocking assignments; the reset clears `busy`, `done` and `k`,
 and `start` loads the operand registers and clears `C`.
 
-**Timing**, MEASURED (iverilog, 11/03, at the five probe and post-synthesis points, 3 seeds × 24
+**Timing**, MEASURED (iverilog, 2026-11-03, at the five probe and post-synthesis points, 3 seeds × 24
 transactions each): `done` first shows 1 exactly `N` snapshots after the start edge (`d = N`), holds with
 `C` unchanged through every gap, and `C` is `good` on all 360 transactions. So the reference meets `lat = N`
 by the contract's count. `N + 1`, an earlier plan's figure, is also a valid bound, but it scores `n = 5`

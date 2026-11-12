@@ -9,6 +9,7 @@ scan itself; these tests do not reuse that code).
 """
 
 import contextlib
+import glob
 import hashlib
 import html
 import html.parser
@@ -22,7 +23,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SVGOLF = os.path.dirname(os.path.dirname(HERE))
@@ -63,12 +66,16 @@ class Page(html.parser.HTMLParser):
         super().__init__(convert_charrefs=True)
         self.ids, self.links, self.tags, self.marks = set(), [], [], []
         self.src_blocks, self._pre, self._buf = [], None, []
+        self.base = None
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
         self.tags.append((tag, a))
         if a.get("id"):
             self.ids.add(a["id"])
+        if tag == "base":                     # where the page's relative links resolve from, not a link
+            self.base = a.get("href")
+            return
         for k in ("href", "src"):
             if a.get(k) is not None:
                 self.links.append((tag, k, a[k]))
@@ -179,6 +186,16 @@ def par_score(task_name):
     return min(mine) if mine else None
 
 
+def roadmap_part(page_html, status):
+    """The items of roadmap.html under one status's heading (`<h2 id=status>` to the next heading)."""
+    m = re.search(rf'<h2 id="{re.escape(status)}"', page_html.decode("utf-8") if isinstance(page_html, bytes)
+                  else page_html)
+    if not m:
+        raise AssertionError(f"roadmap.html has no {status!r} heading")
+    rest = (page_html.decode("utf-8") if isinstance(page_html, bytes) else page_html)[m.end():]
+    return rest.split("<h2", 1)[0]
+
+
 def section(page_html, sid):
     """The inner HTML of a page's `<section id=sid>`, or of the `<div id=sid>` when there is no such section
     (other attributes, a card's class, allowed): a pane of the statement's tabs is a div, "What does not count"
@@ -196,6 +213,16 @@ def section(page_html, sid):
         if depth == 0:
             return page_html[at:at + t.start()]
     raise AssertionError(f"<{tag} id={sid!r}> is not closed")
+
+
+def element_end(h, at, tag):
+    """Where the element `<tag ...>` that opens at `h[at]` ends (after its closing tag), counting nested ones."""
+    depth = 0
+    for m in re.finditer(rf"<(/?){tag}\b[^>]*>", h[at:]):
+        depth += -1 if m.group(1) else 1
+        if depth == 0:
+            return at + m.end()
+    raise AssertionError(f"<{tag}> at {at} is not closed")
 
 
 class SiteTest(unittest.TestCase):
@@ -236,6 +263,80 @@ class SiteTest(unittest.TestCase):
             if how == "hidden":
                 self.assertNotIn(f"tasks/{t}/index.html", self.files)
 
+    def test_every_page_links_the_favicon(self):
+        """Every page names the tab's mark, the SVG and the 32 px PNG, from its own relative root (2026-11-11)."""
+        self.assertIn("favicon.svg", self.files)
+        self.assertIn("favicon-32.png", self.files)
+        for path, p in sorted(self.pages.items()):
+            with self.subTest(page=path):
+                root = "../" * path.count("/")
+                icons = [(a.get("href"), a.get("type")) for tag, a in p.tags if tag == "link" and a.get("rel") == "icon"]
+                self.assertEqual(icons, [(root + "favicon.svg", "image/svg+xml"), (root + "favicon-32.png", "image/png")])
+                self.assertNotIn(b'href="data:,"', self.files[path])
+
+    def test_link_previews_and_the_404_page(self):
+        """The head's link preview (decided 2026-11-12): every page but 404.html names its published address
+        (config.json `site_url`; an index.html as its directory) as its canonical address and og:url; og:title and
+        og:description repeat its title and its description, which no page leaves empty; twitter:card summary, no
+        image. 404.html, which the host serves at any depth: its links go from the site's root under a <base> (the
+        path of `site_url`), it has both icon links, no in-page link (under the base one would go to the root) and is
+        not indexed. sitemap.xml lists every other page; robots.txt exists only where the site is a host's root, the
+        one place crawlers read it."""
+        import xml.etree.ElementTree as ET
+        url = self.config["site_url"]
+        self.assertEqual(url, "https://thomasnormal.github.io/svgolf/")
+        for path, p in sorted(self.pages.items()):
+            with self.subTest(page=path):
+                meta = {a.get("property") or a.get("name"): a.get("content") for tag, a in p.tags
+                        if tag == "meta" and (a.get("property") or a.get("name"))}
+                title = html.unescape(re.search(r"<title>(.*?)</title>", self.files[path].decode("utf-8")).group(1))
+                self.assertTrue(meta["description"])
+                self.assertEqual(meta["og:title"], title)
+                self.assertEqual(meta["og:description"], meta["description"])
+                self.assertEqual((meta["og:type"], meta["og:site_name"], meta["twitter:card"]),
+                                 ("website", "svGolf", "summary"))
+                self.assertNotIn("og:image", meta)
+                canon = [a["href"] for tag, a in p.tags if tag == "link" and a.get("rel") == "canonical"]
+                if path == "404.html":
+                    self.assertEqual((canon, meta.get("og:url"), p.base, meta.get("robots")),
+                                     ([], None, "/svgolf/", "noindex"))
+                else:
+                    want = url + (path[:-len("index.html")] if path.endswith("index.html") else path)
+                    self.assertEqual((canon, meta["og:url"], p.base, meta.get("robots")), ([want], want, None, None))
+        nf = self.files["404.html"].decode("utf-8")
+        self.assertNotIn('href="#', nf)
+        self.assertIn("No page at this address.", text_of(nf))
+        hrefs = [ref for tag, attr, ref in self.pages["404.html"].links if tag == "a"]
+        for want in ("index.html#tasks", "rules.html", "proving.html"):
+            self.assertIn(want, hrefs)
+        self.assertEqual([(a.get("href"), a.get("type")) for tag, a in self.pages["404.html"].tags
+                          if tag == "link" and a.get("rel") == "icon"],
+                         [("favicon.svg", "image/svg+xml"), ("favicon-32.png", "image/png")])
+        ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+        locs = [e.text for e in ET.fromstring(self.files["sitemap.xml"]).iter(f"{ns}loc")]
+        pages = sorted(p for p in self.files if p.endswith(".html") and p != "404.html")
+        self.assertEqual(locs, [build.page_url(url, p) for p in pages])
+        self.assertEqual(locs[pages.index("index.html")], url)
+        self.assertNotIn("robots.txt", self.files)
+
+        class Stub:
+            def __init__(self, cfg, files):
+                self.config, self.files = cfg, dict(files)
+
+            def add(self, path, data):
+                self.files[path] = data
+        root = Stub({"site_url": "https://thomasnormal.github.io/"}, {"index.html": b"", "404.html": b"", "a/b.html": b""})
+        build.sitemaps(root)
+        self.assertEqual(root.files["robots.txt"], "User-agent: *\nAllow: /\nSitemap: https://thomasnormal.github.io/sitemap.xml\n")
+        self.assertEqual([e.text for e in ET.fromstring(root.files["sitemap.xml"]).iter(f"{ns}loc")],
+                         ["https://thomasnormal.github.io/a/b.html", "https://thomasnormal.github.io/"])
+        none = Stub({"site_url": None}, {"index.html": b""})
+        build.sitemaps(none)
+        self.assertEqual(sorted(none.files), ["index.html"])
+        for bad in ("http://thomasnormal.github.io/svgolf/", "https://thomasnormal.github.io/svgolf", 7):
+            with self.assertRaises(build.BuildError):
+                build.site_url({"site_url": bad})
+
     def test_relative_links_and_anchors_resolve(self):
         bad = []
         for path, p in sorted(self.pages.items()):
@@ -267,8 +368,11 @@ class SiteTest(unittest.TestCase):
                 for body in re.findall(r"<script\b([^>]*)>(.*?)</script>", self.files[path].decode("utf-8"), re.S):
                     if 'type="application/json"' not in body[0]:
                         self.assertEqual(body[1].strip(), "", f"{path}: inline script code")
+                # the page's canonical address names it and loads nothing (test_link_previews_and_the_404_page)
+                canon = [a.get("href") for tag, a in p.tags if tag == "link" and a.get("rel") == "canonical"]
+                self.assertLessEqual(len(canon), 1)
                 for tag, attr, ref in p.links:
-                    if tag != "a":                # stylesheets, scripts, images, frames: local only
+                    if tag != "a" and ref not in canon:   # stylesheets, scripts, images, frames: local only
                         self.assertFalse(re.match(r"^[a-z][a-z0-9+.-]*:", ref) and not ref.startswith("data:"),
                                          f"{tag} {attr}={ref}")
                 for tag, a in p.tags:
@@ -346,11 +450,18 @@ class SiteTest(unittest.TestCase):
         self.assertNotIn("±0.0%", home)
         self.assertNotIn("solvers", home.lower())
         self.assertNotIn("open for submissions", home)     # the cards carry no badges (decided 2026-11-06)
+        self.assertNotIn("ready to play", home)
         self.assertNotIn("OPEN", home)
+        # the task page keeps its status, worded by the repository's state (2026-11-11): in the development tree no
+        # public repository, so "ready to play"; in the public tree (the export sets `repo_url`, and both programs of the
+        # route are there) "open for submissions", as test_submit_with_a_public_repository builds it
+        said, unsaid = (("open for submissions", "ready to play") if build.submissions_open(self.config)
+                        else ("ready to play", "open for submissions"))
         for t in self.ranked:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
-                self.assertIn("open for submissions", text_of(html_))   # the task page keeps its status
+                self.assertIn(said, text_of(html_))
+                self.assertNotIn(unsaid, text_of(html_))
                 players = {r["player"] for r in recs if r["task"] == t and r["player"] != ref_player}
                 tiles = text_of(section(html_, "numbers"))
                 for big in ("Par", "Record", "Under par"):
@@ -466,6 +577,8 @@ class SiteTest(unittest.TestCase):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
                 self.assertIn("reproduce.html", section(html_, "score"))
                 for sid in ("references", "baselines"):
+                    if sid == "baselines" and 'id="baselines"' not in html_:   # a task without baselines: no card
+                        continue
                     head = section(html_, sid).split("</thead>", 1)[0]
                     if "<thead" not in head:
                         continue
@@ -514,6 +627,40 @@ class SiteTest(unittest.TestCase):
                 self.assertIn("Rated with Yosys " + rb["yosys"]["version"], text_of(page_))
                 self.assertIn(f"rules.html#{build.RATING_BUILD_ANCHOR}", page_)
 
+    def test_the_rules_define_the_numbers_of_a_task_page(self):
+        """The numbers on a task page (decided 2026-11-11, before the task page's long score caption goes): the rules
+        page's own section after Scoring and before the rating build, in the contents too, with par, record and under
+        par, the time of each kind of task with the listed tasks of that kind, the clock period, and how to read the
+        score chart."""
+        rules = self.files["rules.html"].decode("utf-8")
+        for id_ in ("task-page-numbers", "par-record-under-par", "clock-period", "score-chart"):
+            self.assertIn(id_, self.pages["rules.html"].ids)
+        at = [rules.index(f'id="{i}"') for i in ("scoring", "the-asap7-view", "task-page-numbers", "rating-build")]
+        self.assertEqual(at, sorted(at))
+        self.assertIn('href="#task-page-numbers"', rules.split('<article', 1)[0])          # the contents
+        part = rules.split('id="task-page-numbers"', 1)[1].split('id="rating-build"', 1)[0]
+        text = norm(text_of(part))
+        for phrase in ("Under par is how far the record is below par, as a share of par's score",
+                       "a design beats par when it is accepted with a score below par's",
+                       "par while no submission beats it", "A design without a weighing on the chosen course has no score",
+                       "so paths from the inputs and to the outputs count too",
+                       "The clock is ideal: no clock tree and no skew", "no wires, no place and route",
+                       "dated by when they joined the task"):
+            self.assertIn(phrase, text)
+        # each kind's time, in the task page's words, with every listed task of that kind named in its item
+        items = [norm(text_of(li)) for li in re.findall(r"<li>(.*?)</li>", part.split('id="clock-period"', 1)[1]
+                                                        .split("<h3", 1)[0], re.S)]
+        for t in self.listed:
+            if self.config["tasks"][t] == "tutorial":
+                continue
+            with self.subTest(task=t):
+                words = build.time_words(types.SimpleNamespace(task=lb.load_task(os.path.join(SVGOLF, "tasks"), t)),
+                                         " in ns")
+                mine = [i for i in items if words in i]
+                self.assertEqual(len(mine), 1, words)
+                names = re.match(r"a [^(]+\(([^)]*)\): ", mine[0]).group(1).split(", ")
+                self.assertIn(t, names)
+
     def test_score_chart_and_explorer(self):
         """The score chart draws the proved references (dated) and the players' records, par as a
         line, and every weighed baseline as a level marked not proved, on a linear and a log axis.
@@ -554,6 +701,102 @@ class SiteTest(unittest.TestCase):
                 for d in weighed:
                     self.assertIn(f">{html.escape(d['name'])}</text>", wide)
                 self.assertEqual(wide.count("not proved</text>") + wide.count("banned op</text>"), len(weighed))
+
+    def test_every_reference_shows_when_it_joined(self):
+        """The score chart plots each proved reference at the date it joined the task (content/reference_dates.json);
+        since the table "every entry by date" went (2026-11-11), Proved references says that date as text, in a
+        column "joined" after "design", YYYY-MM-DD, the same in both views."""
+        dates = json.loads(read_text_file("site/content/reference_dates.json"))
+        for t in self.listed:
+            task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
+            for pdk in ("sky130", "asap7"):
+                with self.subTest(task=t, view=pdk):
+                    rows = table_rows(section(self.html(f"tasks/{t}/index.html", pdk), "references"))
+                    self.assertEqual([c.lower() for c in rows[0][:2]], ["design", "joined"])
+                    for ref in task.get("references", []):
+                        stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
+                        if stem not in dates.get(t, {}):
+                            continue
+                        row = [r for r in rows[1:] if r and r[0].split(" ", 1)[0] == stem]
+                        self.assertEqual(len(row), 1, stem)
+                        self.assertEqual(row[0][1], dates[t][stem][:10], stem)
+                        self.assertRegex(row[0][1], r"^\d{4}-\d\d-\d\d$")
+
+    def test_the_score_card_says_little_under_the_plot(self):
+        """Decided 2026-11-11: under the plot, the Score card shows the legend, one line of links (the
+        rating build, how the score is measured or how ASAP7 is scored, Reproduce a score) and a closed note, "What the
+        score, Par, Record and Under par mean", that defines them and links the rules page's "The numbers on a task
+        page"; no long caption and no table "every entry by date"."""
+        for t in self.listed:
+            raw = self.files[f"tasks/{t}/index.html"].decode("utf-8")
+            self.assertNotIn("<figcaption", section(raw, "score"))
+            self.assertNotIn("every entry by date", text_of(raw))
+            for pdk, note_id in (("sky130", "score-terms"), ("asap7", "score-terms-asap7")):
+                with self.subTest(task=t, view=pdk):
+                    score = section(self.html(f"tasks/{t}/index.html", pdk), "score")
+                    notes = re.findall(r'<details class="note" id="([^"]+)"><summary>(.*?)</summary>(.*?)</details>',
+                                       score, re.S)
+                    self.assertEqual([(i, s) for i, s, _ in notes],
+                                     [(note_id, "What the score, Par, Record and Under par mean")])
+                    for anchor in ("par-record-under-par", "clock-period", "score-chart"):
+                        self.assertIn(f'../../rules.html#{anchor}"', notes[0][2])
+                    line = re.findall(r'<p class="small score-links">(.*?)</p>', score, re.S)
+                    self.assertEqual(len(line), 1)
+                    text = norm(text_of(line[0]))
+                    self.assertIn("Rated with Yosys ", text)
+                    self.assertIn("Reproduce a score", text)
+                    self.assertIn('href="../../reproduce.html"', line[0])
+                    self.assertIn(f'href="../../rules.html#{build.RATING_BUILD_ANCHOR}"', line[0])
+                    if pdk == "asap7":
+                        self.assertTrue(text.startswith("ASAP7, cells only: no wires, no place and route · "), text)
+                        self.assertIn(f'href="../../rules.html#{build.ASAP7_ANCHOR}">How ASAP7 is scored</a>', line[0])
+                    else:
+                        self.assertIn('href="../../rules.html#scoring">How the score is measured</a>', line[0])
+                    if "data-score-chart>" not in score:                  # a card without a chart (a preview)
+                        continue
+                    # what a reader sees under the plot, the note closed: the legend, the line and How to submit's link
+                    # (a phone's list of the baselines drawn as levels is the chart's own labels, moved under it)
+                    under = score.split("data-score-chart>", 1)[1]
+                    under = re.sub(r"<svg\b.*?</svg>|<details\b.*?</details>|<ul class=\"levels-list[^\"]*\".*?</ul>",
+                                   "", under, flags=re.S)
+                    self.assertLessEqual(len(norm(text_of(under)).split()), 40, norm(text_of(under)))
+                    desc = re.findall(r"<desc>(.*?)</desc>", score.split("data-score-chart>", 1)[1], re.S)
+                    self.assertTrue(desc)
+                    # the tables it names are the page's: Baselines only where the task has that card (2026-11-11)
+                    tail = ("The same entries as numbers: the Leaderboard (the records, with their dates), Proved "
+                            "references (with the date each joined the task) and Baselines."
+                            if json.loads(self.files[f"data/tasks/{t}.json"])["baselines"] else
+                            "The same entries as numbers: the Leaderboard (the records, with their dates) and Proved "
+                            "references (with the date each joined the task).")
+                    self.assertEqual('id="baselines"' in raw, tail.endswith("Baselines."))
+                    for d in desc:
+                        self.assertTrue(html.unescape(d).endswith(tail), d)
+
+    def test_the_head_labels_open_the_score_note(self):
+        """The page head's Par, Record and Under par (2026-11-11): each label is a plain link to the score card's closed
+        note that defines it (no hover, no title), in each view that view's copy of the note, Par and Record naming
+        ASAP7 in its view; Under par without a minus sign. The link names the note's paragraph, so that the browser
+        opens the note without JavaScript too (it does for a fragment inside a closed <details>, not for the <details>
+        itself: measured in Chrome, 2026-11-11); site.js opens it either way. The front page's cards, links as a
+        whole, keep plain labels."""
+        for t in self.ranked:
+            for pdk, note_id, text_id, labels in (
+                    ("sky130", "score-terms", "score-terms-text", ["Par", "Record", "Under par"]),
+                    ("asap7", "score-terms-asap7", "score-terms-text-asap7", ["Par · ASAP7", "Record · ASAP7",
+                                                                             "Under par"])):
+                with self.subTest(task=t, view=pdk):
+                    view = self.html(f"tasks/{t}/index.html", pdk)
+                    head = section(view, "numbers")
+                    self.assertEqual(re.findall(r"<dt>(.*?)</dt>", head),
+                                     [f'<a href="#{text_id}">{html.escape(x)}</a>' for x in labels])
+                    self.assertRegex(section(view, "score"), f'<details class="note" id="{note_id}"><summary>[^<]*'
+                                                             f'</summary>\\s*<p id="{text_id}">')
+                    self.assertNotIn("title=", head)
+                    self.assertNotRegex(text_of(head), r"Under par\s*[−-]")
+        for pdk in ("sky130", "asap7"):
+            cards = self.html("index.html", pdk)
+            self.assertNotIn("score-terms", cards)
+            self.assertNotIn("· ASAP7</dt>", cards)
 
     def test_charts_read_without_javascript(self):
         """The server draws every chart: the explorer's controls and the score chart's switch are
@@ -736,6 +979,48 @@ class SiteTest(unittest.TestCase):
                     for key, why in (e.get("dropped") or {}).items():
                         self.assertIn(f"{e['name']} at {names[key]} ({why})", text)
 
+    def test_compare_references_and_baselines_fold_what_goes_deeper(self):
+        """Compare the designs, Proved references and Baselines (2026-11-11): the explorer's count of the designs it
+        draws ("k of n designs have both numbers") is hidden while every design has both, and shown when some lack
+        one; the point note says the other points are measured, not ranked, in the tables below; How the designs scale
+        is one closed fold carrying id="scaling"; a task without baselines has no Baselines card and no link to one,
+        and one with baselines keeps the card's lead and folds its table."""
+        for t in self.listed:
+            with self.subTest(task=t):
+                html_, _ = self.page_data(t)
+                ex = section(html_, "explore")
+                counts = re.findall(r'<span data-explorer-note( hidden)?>(\d+) of (\d+) designs have both numbers', ex)
+                self.assertTrue(counts)
+                for hidden, k, n in counts:
+                    self.assertEqual(bool(hidden), k == n, (k, n))
+                self.assertEqual(len(re.findall(r"<span data-explorer-note[ >]", ex)), len(counts))
+                for note in re.findall(r'<p class="point-note[^"]*" data-point-note>(.*?)</p>', ex, re.S):
+                    self.assertTrue(norm(text_of(note)).endswith(
+                        "The other points are measured, not ranked (the tables below)."), note)
+                if 'id="scaling"' in html_:
+                    self.assertIn('<details class="scaling-fold" id="scaling"><summary>How the designs scale '
+                                  "(measured, not ranked)</summary>", ex)
+                    self.assertNotIn('<h3 id="scaling"', html_)
+                    self.assertEqual(element_end(ex, ex.index('<details class="scaling-fold"'), "details"),
+                                     len(ex.rstrip()))           # the fold ends the card: the scaling view is in it
+                baselines = json.loads(self.files[f"data/tasks/{t}.json"])["baselines"]
+                if not baselines:
+                    self.assertNotIn('id="baselines"', html_)
+                    self.assertNotIn('href="#baselines"', html_)
+                    self.assertNotIn("No baselines for this task", text_of(html_))
+                    continue
+                card = section(html_, "baselines")
+                fold = card.index("<details><summary>every baseline with its numbers</summary>")
+                self.assertTrue(card[:fold].rstrip().endswith("</p>"))
+                self.assertIn("Not entries.", text_of(card[:fold]))
+                self.assertLess(fold, card.index("<table"))
+                self.assertEqual(card.count("<table"), 1)
+                self.assertEqual(element_end(card, fold, "details"), len(card.rstrip()))
+        # charts.js keeps the count's rule when it redraws for other axes (no JavaScript runner covers charts.js; the
+        # redraw was looked at headless, 2026-11-11)
+        with open(os.path.join(SITE, "charts.js"), encoding="utf-8") as fh:
+            self.assertIn("note.hidden = r.n >= v.designs.length;", fh.read())
+
     def test_hidden_tasks_are_not_published(self):
         """A hidden task has no page and no data in the output (none is hidden since 2026-11-08, when matmul and the
         sorter were listed: LatencyTaskTest)."""
@@ -746,6 +1031,17 @@ class SiteTest(unittest.TestCase):
                 self.assertNotIn(f"tasks/{t}/index.html", self.files)
                 self.assertFalse(any(p.startswith(f"tasks/{t}/") or p == f"data/tasks/{t}.json" for p in self.files))
 
+    def test_the_interface_shows_the_header_or_the_ports_never_both(self):
+        """Interface (2026-11-11): the module header the design must have, or, for a task whose README has none, its
+        ports as a table; not both, since the header holds the same ports, directions and widths."""
+        for t in self.listed:
+            with self.subTest(task=t):
+                iface = section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "interface")
+                header = "Write a module with exactly this header" in iface
+                self.assertEqual(iface.count('<th scope="col">port</th>'), 0 if header else 1)
+                if header:
+                    self.assertEqual(iface.count("<pre"), 1)
+
     def test_the_trusted_statement_as_property_cards(self):
         """A task with a properties.json shows one card per property and per definition. Each card's
         Lean block is its declaration cut verbatim from the file properties.json names, and its
@@ -755,6 +1051,10 @@ class SiteTest(unittest.TestCase):
         leansrc = build.leansrc
         shown = 0
         for t in self.listed:
+            # the lead, above the fold, says that every proved reference meets the statement (with or without
+            # property cards; kept when the statement folded, 2026-11-11)
+            lead = section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "spec").split("</p>", 1)[0]
+            self.assertIn("Every proved reference meets it.", text_of(lead), t)
             pj = os.path.join(SVGOLF, "tasks", t, "properties.json")
             if not os.path.isfile(pj):
                 continue
@@ -789,6 +1089,23 @@ class SiteTest(unittest.TestCase):
                 self.assertNotIn(">Proved ", spec)
                 self.assertIn(f'>Properties<span class="props-n">{n}</span>', spec)
                 self.assertIn("theorem statement_iff_properties", text_of(spec))
+                # 2026-11-11: the statement is ONE closed fold, right after its lead, holding the panel (Spec.lean
+                # and its trusted text too); its summary counts what it holds
+                fold_at = spec.index('<details class="spec-fold"')
+                self.assertEqual(spec.count('<details class="spec-fold"'), 1)
+                self.assertEqual(spec[spec.index("</p>") + len("</p>"):fold_at].strip(), "")
+                self.assertTrue(spec.startswith(f'<details class="spec-fold" id="{build.SPEC_FOLD}"><summary>', fold_at))
+                fold_end = element_end(spec, fold_at, "details")
+                self.assertTrue(fold_at < spec.index('<div class="props" data-tabs') < fold_end)
+                self.assertTrue(fold_at < spec.index('<h4 id="closure">') < fold_end)
+                # the closure table shows each hash's first 12 digits, and its head says so (2026-11-11)
+                closure = spec[spec.index('<h4 id="closure">'):fold_end]
+                self.assertIn('<th class="num" scope="col">lines</th><th scope="col">sha256 (first 12)</th>', closure)
+                self.assertEqual(spec[fold_end:].strip(), "")
+                summary = text_of(spec[fold_at:spec.index("</summary>", fold_at)])
+                self.assertIn(f"{n} propert{'y' if n == 1 else 'ies'} · ", summary)
+                rejected = section(self.files[here].decode("utf-8"), "does-not-count").count('<p class="reject-head">')
+                self.assertIn(f"what does not count ({rejected})", summary)
                 self.assertIn((f"tasks/{t}/properties.html", info["file"]),
                               {(f"tasks/{t}/properties.html", src) for src, _ in
                                self.pages[f"tasks/{t}/properties.html"].src_blocks})
@@ -861,9 +1178,14 @@ class SiteTest(unittest.TestCase):
                 info = json.load(fh)
             html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
             self.assertTrue(info.get("title") and info.get("subtitle"), t)
-            self.assertIn(f"<h1>{html.escape(info['title'])} ", html_)
+            if self.config["tasks"][t] == "tutorial":       # headed as a tutorial, with no task-id chip (2026-11-12)
+                self.assertIn(f"<h1>{html.escape(build.tutorial_title(info['title']))}</h1>", html_)
+            else:
+                self.assertIn(f"<h1>{html.escape(info['title'])} ", html_)
             data = json.loads(self.files[f"data/tasks/{t}.json"])
             for kind, sec in (("references", "references"), ("baselines", "baselines")):
+                if kind == "baselines" and not data[kind]:    # no baseline, no card (2026-11-11)
+                    continue
                 text = norm(text_of(section(html_, sec)))
                 for item in data[kind]:
                     with self.subTest(task=t, design=item["stem"]):
@@ -920,22 +1242,45 @@ class SiteTest(unittest.TestCase):
                 self.assertIn("--sandbox auto", part)
                 self.assertIn(f"check.py tasks/{t} ", part)
         self.assertNotIn("pull request", files["llms.txt"].decode("utf-8"))
+        # the hand-off in the same words wherever a page says it (decided 2026-11-11): here, the unpublished state's
+        for name in ("about.html", "index.html", "roadmap.html"):
+            with self.subTest(page=name):
+                text = norm(text_of(files[name]))
+                self.assertIn(norm(build.HANDOFF_UNPUBLISHED_MD), text)
+                for other in (build.HANDOFF_MD, build.HANDOFF_NONE_MD):
+                    self.assertNotIn(norm(other), text)
+        self.assertIn("Records by pull request", text_of(roadmap_part(files["roadmap.html"], "planned")))
+        for name, data in files.items():
+            if name.endswith((".html", ".txt", ".md")):
+                self.assertNotIn("CI re-verifies", data.decode("utf-8"), name)
 
     def test_how_to_submit_carries_step0_the_inner_loop_and_the_lean_contract(self):
         """The newcomer study's gaps: every task page says what to install and build first, shows the
         Lean-free inner loop (a clocked task's through the clocked flow, `--seq`), and states the Lean file's
         contract (the generated module, the theorem).
 
-        2026-11-09 (each fact once on a page): each command is on the page once; How to submit points to the "Start a
-        new design" card's Solution.lean rather than show a second skeleton. 2026-11-11 (How to submit is the path of
+        2026-11-09 (each fact once on a page): each command is on the page once; How to submit points to the "Proving
+        a new design" card's Solution.lean rather than show a second skeleton. 2026-11-11 (How to submit is the path of
         a first submission): How to submit holds all four commands; on a page with a card its first two are the
         card's own (the README's, with the options its route uses: one form of each command on the page), with the
-        card's text on them, and the card shows none of them."""
+        card's text on them, and the card shows none of them; the card is How to submit's last part, below the Lean
+        file's fold that points to it. On the tutorial, whose walk-through has Step 0 word for word, How to submit
+        points to it (2026-11-11)."""
         unwrap = lambda x: x.replace(" \\\n    ", " ")                     # noqa: E731  (build.wrap_command)
         for t in self.listed:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
                 part = unwrap(text_of(section(html_, "submit")))
+                tutorial = self.config["tasks"][t] == "tutorial"
+                # Step 0: in How to submit, or on the tutorial in its walk-through, which How to submit points to
+                step0_at = section(html_, "first-submission") if tutorial else section(html_, "submit")
+                for phrase in ("requirements.txt", "lake build", "score/ppa.py --fetch-liberty"):
+                    self.assertIn(phrase, text_of(step0_at))
+                self.assertIn('<p id="step-0"><strong>Step 0, once per machine.</strong>', step0_at)
+                if tutorial:
+                    self.assertIn('href="#step-0"', section(html_, "submit"))
+                    self.assertIn("Step 0, once per machine: in Your first submission, above.", part)
+                    self.assertNotIn('id="step-0"', section(html_, "submit"))
                 has_card = 'id="new-design"' in html_
                 card = text_of(section(html_, "new-design")) if has_card else ""
                 task = json.loads(read_text_file(f"tasks/{t}/task.json"))
@@ -944,8 +1289,7 @@ class SiteTest(unittest.TestCase):
                 # a latency kind's Goal takes the latency (build.design_module): matmul and sorter
                 goal = ((f"abbrev Goal (lat : …) : Prop :=", f"{const} design.sem lat")
                         if task.get("kind") in build.LATENCY_KINDS else (f"abbrev Goal : Prop := {const} design.sem",))
-                for phrase in ("Step 0", "requirements.txt", "lake build", "score/ppa.py --fetch-liberty",
-                               f"check.py tasks/{t} solution.sv Solution.lean", "import Submission.Design",
+                for phrase in ("Step 0", f"check.py tasks/{t} solution.sv Solution.lean", "import Submission.Design",
                                "load_design_sv2 design", *goal,
                                "theorem solution : Goal", "theorem Submission.solution : Submission.Goal",
                                "File names and paths are free", "python3.12 leaderboard/leaderboard.py add",
@@ -967,22 +1311,26 @@ class SiteTest(unittest.TestCase):
                         bare = phrase.split(" ", 1)[1]
                         self.assertEqual(len(re.findall(rf"{re.escape(bare)}(?![\w/.-])", page_text)), 1, bare)
                     self.assertNotIn(phrase, card)
-                self.assertIn('<p id="step-0"><strong>Step 0, once per machine.</strong>', section(html_, "submit"))
                 if has_card:
                     # the card's two commands, verbatim but for the line breaks, are How to submit's first two
-                    readme = read_text_file(f"tasks/{t}/README.md").split("## Start a new design", 1)[1]
+                    readme = read_text_file(f"tasks/{t}/README.md").split(f"## {build.NEW_DESIGN}\n", 1)[1]
                     fence = readme.split("```bash\n", 1)[1].split("```", 1)[0]
                     for ln in (ln for ln in fence.split("\n") if ln.strip()):
                         self.assertIn(re.split(r"\s{2,}#", ln)[0].strip() + "\n", part)
                     self.assertIn('href="#new-design"', section(html_, "submit"))
                     self.assertNotIn("Solution.lean (a skeleton)", part)       # the card's is the page's one skeleton
-                    self.assertRegex(part, r"proves Goal( lat)?, as the (skeleton|whole Solution\.lean) in Start a new "
-                                           r"design")
+                    self.assertRegex(part, r"proves Goal( lat)?, as the (skeleton in The proof in detail|whole "
+                                           r"Solution\.lean in Proving a new design), below, shows\.")
                 # check.py's usage rule: `--latency` is given exactly for an --unproved run of a latency kind
                 # (LatencyTaskTest pins the number)
                 unproved = next(ln for ln in part.split("\n") if f"check.py tasks/{t} solution.sv --unproved" in ln)
                 self.assertEqual("--latency " in unproved, task.get("kind") in build.LATENCY_KINDS)
-                self.assertNotIn("my_", part)
+                # How to submit's own text names no placeholder file or lemma (`my_`); since 2026-11-11 the card is its
+                # last part, whose README skeleton names the player's own lemmas (`my_interface`, ...): not counted
+                own = section(html_, "submit")
+                if has_card:
+                    own = own[:own.index('<section id="new-design"')]
+                self.assertNotIn("my_", unwrap(text_of(own)))
                 self.assertNotIn("python3 ", part)
         tut = self.files["tasks/_example/index.html"].decode("utf-8")
         walk = text_of(section(tut, "first-submission"))
@@ -990,6 +1338,11 @@ class SiteTest(unittest.TestCase):
                        "LEAN_PATH=stage/build lake env lean Probe.lean", "ranked (sky130 A0')", "--data-dir"):
             self.assertIn(phrase, walk)
         self.assertNotIn("TODO", walk)
+        # the optional probe step is the walk's one closed fold (2026-11-11); the path's steps stay shown
+        steps = section(tut, "first-submission")
+        folds = re.findall(r'<li><details class="walk-fold"><summary>(.*?)</summary>(.*?)</details></li>', steps, re.S)
+        self.assertEqual([f[0] for f in folds], ["Probe the design (optional: how the tactics read it)"])
+        self.assertIn("LEAN_PATH=stage/build lake env lean Probe.lean", text_of(folds[0][1]))
 
     def test_every_record_page_reproduces_through_its_tasks_flow(self):
         """A record page's "Reproduce and verify" command weighs the design through the flow of its task's kind:
@@ -1009,8 +1362,9 @@ class SiteTest(unittest.TestCase):
                     self.assertNotIn("--seq", part)
 
     def test_every_ranked_task_has_its_new_design_card(self):
-        """Decided 2026-11-05: every ranked task has a "Start a new design" card, the first `## ` section of its
-        README and a section of its page (the same text), chosen by the task's kind: the sv_comb route with a
+        """Decided 2026-11-05: every ranked task has a "Proving a new design" card (the README's heading and the
+        page's, one name since 2026-11-11), the first `## ` section of its README and a part of its page (the same
+        text), chosen by the task's kind: the sv_comb route with a
         skeleton for a comb-family task, the one-line `sv_exhaustive` with its assign budget for a comb-fixed
         one; the reactive reduction `ReactTask.satisfiedAt_of_rank` with its rank model, the clocked flow
         (`ppa.py --seq`) and no `--tactics` for a react-family one; each with the layout patterns and the library
@@ -1020,7 +1374,8 @@ class SiteTest(unittest.TestCase):
         Of the README's opening it shows nothing (or the task's `new_design_lead`), never the opening's restatement of
         the task; the route paragraph; the rest of the README's card (every bold lead-in but the route's) in one
         folded disclosure. So every word the README's card has for the route is still on the page. 2026-11-11: its
-        two commands, with what they do, are the first two of How to submit (the path of a first submission)."""
+        two commands, with what they do, are the first two of How to submit (the path of a first submission), and the
+        card's own part is How to submit's last part, not a card of its own."""
         route = {"comb-family": ("sv_structure", "sv_interface", "sv_equations", "sv_cover", "theorem solution : Goal",
                                  "Lay the design out", "Library lemmas that exist today"),
                  "comb-fixed": ("sv_exhaustive", "theorem solution : Goal := by sv_exhaustive", "about 90 assigns",
@@ -1041,7 +1396,7 @@ class SiteTest(unittest.TestCase):
             with self.subTest(task=t):
                 kind = json.loads(read_text_file(f"tasks/{t}/task.json"))["kind"]
                 readme = read_text_file(f"tasks/{t}/README.md")
-                self.assertEqual(re.findall(r"^## (.+)$", readme, re.M)[0], "Start a new design")
+                self.assertEqual(re.findall(r"^## (.+)$", readme, re.M)[0], "Proving a new design")
                 card = norm(text_of(section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "new-design")))
                 for word in route[kind]:
                     self.assertIn(word, card)
@@ -1051,28 +1406,37 @@ class SiteTest(unittest.TestCase):
                 self.assertIn(check.get(kind, "check.py tasks/{t} solution.sv --unproved --tactics").format(t=t), submit)
                 if kind in ("react-family", "tx-family", "stream-family"):
                     self.assertIn(f"score/ppa.py solution.sv --task tasks/{t} --seq --path", submit)
-                body = readme.split("## Start a new design", 1)[1].split("\n## ", 1)[0]
+                body = readme.split(f"## {build.NEW_DESIGN}\n", 1)[1].split("\n## ", 1)[0]
                 for para in re.findall(r"^\*\*([^*]+)\*\*", body, re.M):     # every bold lead-in, on the page
                     self.assertIn(norm(para), card)
                 # decided 2026-11-10: the page opens with the score card, then the two columns starting with "This
-                # task", and nothing stands between them; the card comes after the columns (after "How to submit"),
-                # and "How to participate" and "How to submit" link it
+                # task", and nothing stands between them; the card is How to submit's last part (2026-11-11), and
+                # "How to submit" links it (2026-11-11: "How to participate", which linked it too, is gone: its
+                # four steps were How to submit's path a second time)
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
                 at = [html_.index(mark) for mark in ('id="score"', '<div class="split">', 'label-accent">This task<',
-                                                     'id="participate"', 'id="submit"', 'id="new-design"',
-                                                     'id="explore"')]
+                                                     'id="submit"', 'id="new-design"', 'id="explore"')]
                 self.assertEqual(at, sorted(at))
+                submit_html = section(html_, "submit")
+                sandbox_at = submit_html.index("<summary>the sandbox, and machines without one</summary>")
+                self.assertIn('id="new-design"', submit_html[sandbox_at:])
+                self.assertNotIn('<section class="card" id="new-design"', html_)
                 self.assertEqual(re.findall(r"<section\b[^>]*>", html_[at[0]:at[1]].split("</section>", 1)[1]), [])
-                self.assertIn('href="#new-design"', html_[at[3]:at[4]])   # step 2 names it
+                self.assertNotIn('id="participate"', html_)
+                self.assertNotIn("How to participate", text_of(html_))
                 self.assertIn('href="#new-design"', section(html_, "submit"))
                 # the opening's restatement of the task is not on the page: its first sentence is not
                 opening = norm(body.split("```", 1)[0])
                 info = json.loads(read_text_file(f"site/content/tasks/{t}.json"))
-                # the card opens with the task's own opening (new_design_lead), else with the route
-                self.assertTrue(card.startswith(build.NEW_DESIGN), card[:80])
-                opens = card[len(build.NEW_DESIGN):].lstrip()
-                self.assertTrue(opens.startswith(norm(info["new_design_lead"]) if info.get("new_design_lead")
-                                                 else "The route"), opens[:200])
+                # the card opens with the task's own opening (new_design_lead, Markdown: its text without the bold
+                # marks and with each link's text), else with the route
+                self.assertTrue(card.startswith(build.NEW_DESIGN + " #"), card[:80])      # its head and anchor
+                opens = card[len(build.NEW_DESIGN + " #"):].lstrip()
+                lead = info.get("new_design_lead")
+                lead = norm(re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", lead).replace("**", "")) if lead else None
+                self.assertTrue(opens.startswith(lead or "The route"), opens[:200])
+                for anchor in re.findall(r"\]\([./]*PROVING\.md#([\w-]+)\)", info.get("new_design_lead") or ""):
+                    self.assertIn(f'href="../../proving.html#{anchor}"', section(html_, "new-design"))
                 # the sentence of the opening that announces the commands is How to submit's (its own words)
                 self.assertNotIn("Find the design without Lean", card)
                 self.assertIn("find it without Lean and check it once without a proof", submit)
@@ -1081,21 +1445,31 @@ class SiteTest(unittest.TestCase):
                 self.assertNotIn(first, card)
                 self.assertNotIn(first, norm(text_of(html_)))
                 # the rest folded: the bold lead-ins after the route are inside the disclosure
-                folded = section(html_, "new-design").split(f'<details class="nd-detail" id="{build.NEW_DESIGN_FOLD}">', 1)
-                self.assertEqual(len(folded), 2, "no folded part")
+                nd = section(html_, "new-design")
+                fold_tag = f'<details class="nd-detail" id="{build.NEW_DESIGN_FOLD}">'
+                self.assertEqual(nd.count(fold_tag), 1, "no folded part")
+                fold_at = nd.index(fold_tag)
+                fold_end = element_end(nd, fold_at, "details")
+                inside = norm(text_of(nd[fold_at:fold_end]))
+                shown = norm(text_of(nd[:fold_at] + nd[fold_end:]))
                 after_route = body.split("**The route", 1)[1]
                 for para in re.findall(r"^\*\*([^*]+)\*\*", after_route, re.M):
-                    self.assertIn(norm(para), norm(text_of(folded[1])))
-                # review L1/L2: the route's step list, which its paragraph ends by announcing (":"), is shown, not
-                # folded; and every complete proof the paragraph names has its size in the shown part (the
-                # References table's count), the README's or the page's
-                shown = norm(text_of(folded[0]))
+                    self.assertIn(norm(para), inside)
+                # 2026-11-11 (reversing review L1/L2, which had the route's step list shown): the step list is the
+                # fold's first part, and the fold is the next element after the route paragraph, so the paragraph's
+                # closing colon is followed at once by the fold's summary, which names it ("The route step by step");
+                # every complete proof the paragraph names has its size in the shown part (the References table's
+                # count), the README's or the page's
                 route_para = after_route.split("\n\n", 1)[0]
                 steps = after_route.split("\n\n", 2)[1]
                 if re.match(r"(\d+\.|[-*]) ", steps):
                     first_step = steps.split("\n", 1)[0].split(" ", 1)[1]
-                    self.assertIn(norm(first_step)[:40], shown)
-                    self.assertNotIn(norm(first_step)[:40], norm(text_of(folded[1])))
+                    self.assertNotIn(norm(first_step)[:40], shown)
+                    self.assertIn(norm(first_step)[:40], inside)
+                    summary = text_of(nd[fold_at:nd.index("</summary>", fold_at)])
+                    self.assertIn("The proof in detailThe route step by step · ", summary)
+                    route_end = nd.index("</p>", nd.index("<p><strong>The route")) + len("</p>")
+                    self.assertEqual(nd[route_end:fold_at].strip(), "")
                 if not steps.startswith("```"):
                     for stem in re.findall(r"reference/([\w-]+)\.lean", route_para):
                         n = build.lb.lean_code_lines(read_text_file(f"tasks/{t}/reference/{stem}.lean"))
@@ -1103,11 +1477,92 @@ class SiteTest(unittest.TestCase):
         page_ = self.files["tasks/_example/index.html"].decode("utf-8")
         self.assertNotIn('id="new-design"', page_)              # the tutorial walks through the reference instead
 
+    def test_proving_a_new_design_is_how_to_submits_last_part(self):
+        """Decided 2026-11-11: the card is How to submit's last part, under the one name "Proving a new design" (the
+        README's heading too): on every listed task with a README card the page has exactly one id="new-design", inside
+        #submit, headed "Proving a new design #"; nothing names the card by its former name; the copy of a reference
+        adapted from licensed code says to keep its notice; the front page says where the part is."""
+        self.assertEqual(build.NEW_DESIGN, "Proving a new design")
+        for t in self.listed:
+            with self.subTest(task=t):
+                html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
+                readme = read_text_file(f"tasks/{t}/README.md")
+                self.assertNotIn("Start a new design", html_)
+                self.assertNotIn("## Start a new design", readme)
+                if f"\n## {build.NEW_DESIGN}\n" not in readme:
+                    self.assertNotIn('id="new-design"', html_)
+                    continue
+                self.assertEqual(html_.count('id="new-design"'), 1)
+                submit = section(html_, "submit")
+                self.assertEqual(submit.count('<section id="new-design" class="nd-part">'), 1)
+                part = section(submit, "new-design")
+                head = re.match(r"\s*<h3>(.*?)</h3>", part, re.S)
+                self.assertIsNotNone(head, part[:120])
+                self.assertEqual(norm(text_of(head.group(1))), "Proving a new design #")
+                # the last part: nothing of How to submit follows it
+                self.assertTrue(submit.rstrip().endswith("</section>"), submit[-200:])
+                self.assertEqual(element_end(submit, submit.index('<section id="new-design"'), "section"),
+                                 len(submit.rstrip()))
+        sorter = section(self.files["tasks/sorter/index.html"].decode("utf-8"), "submit")
+        self.assertIn("Its header carries a licence notice (MIT): keep it in your copy.", norm(text_of(sorter)))
+        add = section(self.files["tasks/add/index.html"].decode("utf-8"), "submit")
+        self.assertNotIn("licence notice", text_of(add))                      # add's par carries no notice
+        home = norm(text_of(self.files["index.html"]))
+        self.assertIn('How to submit ends with "Proving a new design"', home)
+        self.assertNotIn("Start a new design", home)
+        for doc in ("README.md", "PROVING.md", "CONTRIBUTING.md"):
+            self.assertNotIn("Start a new design", read_text_file(doc), doc)
+
+    def test_the_right_column_says_only_what_the_task_has(self):
+        """2026-11-11 (the task page's declutter): At a glance has a depth budget row only when the task has a budget,
+        the banlist's reason folded in a "why" under the banned operators, and the proof time limit in short; Files
+        names only cards that hold designs; the Leaderboard's legend names the cycles on a task with a latency (a row's
+        middle number). (What moves the score is gone since 2026-11-11: test_no_task_page_has_score_tips.)"""
+        factor = build.solution_wall_factor()
+        for t in self.listed:
+            with self.subTest(task=t):
+                html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
+                task = json.loads(read_text_file(f"tasks/{t}/task.json"))
+                facts = section(html_, "facts")
+                self.assertEqual("depth budget" in text_of(facts), build.lb.effective_depth_budget(task) is not None)
+                banned = facts.split(">banned run-time operators</dt><dd>", 1)[1].split("</dd>", 1)[0]
+                info = json.loads(read_text_file(f"site/content/tasks/{t}.json"))
+                if info.get("banlist_note") or task.get("banlist", {}).get("_comment"):
+                    self.assertIn('<details class="reveal"><summary>why</summary>', banned)
+                self.assertNotIn("<p", banned.split("<details", 1)[0])
+                limit = task["time_limit_s"]
+                self.assertIn(f"{limit} s of CPU time (wall-clock backstop {factor * limit:g} s)", text_of(facts))
+                files = section(html_, "files")
+                for target in re.findall(r'href="#([\w-]+)"', files):
+                    self.assertIn("<table", section(html_, target), target)
+                self.assertIn('href="#references"', files)
+                legend = re.search(r'<div class="legend-row"><span>(.*?)</span>', section(html_, "leaderboard")).group(1)
+                self.assertEqual(legend, "score: area × cycles × clock period, µm²·ns"
+                                 if task["kind"] in build.LATENCY_KINDS else "score: area × time, µm²·ns")
+
+    def test_no_task_page_has_score_tips(self):
+        """No "What moves the score" card (decided 2026-11-11): its facts are where they belong (the rules' Scoring, the
+        golfing loop's comment, the task READMEs), and no content file keeps a `score_tips` key for it."""
+        for t in self.listed:
+            with self.subTest(task=t):
+                html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
+                self.assertNotIn('id="what-moves-the-score"', html_)
+                self.assertNotIn("What moves the score", text_of(html_))
+        content = os.path.join(SITE, "content", "tasks")
+        for name in sorted(f for f in os.listdir(content) if f.endswith(".json")):
+            with self.subTest(content=name):
+                with open(os.path.join(content, name), encoding="utf-8") as fh:
+                    info = json.load(fh)
+                self.assertNotIn("score_tips", info)
+                self.assertNotIn("What moves the score", info.get("_comment", ""))
+
     def test_the_task_page_opens_with_the_score_then_the_two_columns(self):
-        """The owner's layout (2026-11-10): the first box is the score card; directly after it the two-column layout,
+        """The layout decided 2026-11-10: the first box is the score card; directly after it the two-column layout,
         whose left column starts with "This task". No card, list or banner between them: since 2026-11-11 there is no
-        quick start (its content is in How to submit, the left column's second card) and no in-page contents. The
-        tutorial keeps its step-by-step walk-through between the score card and the columns."""
+        quick start (its content is in How to submit) and no in-page contents. The tutorial keeps its step-by-step
+        walk-through between the score card and the columns. Since 2026-11-12 How to submit spans the page directly
+        under the two columns (in the left column its last part's code ran past the column's edge), and the left
+        column is "This task" alone."""
         for t in self.listed:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
@@ -1121,19 +1576,22 @@ class SiteTest(unittest.TestCase):
                     self.assertTrue(html_.startswith('<section class="card" id="first-submission">', end))
                     end = after("first-submission")
                 self.assertEqual(html_[end:split_at], "")
-                # the left column: "This task", then How to submit
+                # the left column: "This task"; How to submit right under the two columns, across the page
                 left = html_[split_at:]
                 self.assertTrue(left.startswith('<div class="split"><div class="col"><article class="card">'
                                                 '<div class="card-head"><div><p class="label label-accent">This task<'),
                                 left[:200])
-                self.assertIn('</article><section class="card" id="submit">', left)
+                self.assertIn('</article></div><div class="col">', left)
+                self.assertIn('</div></div></div><section class="card" id="submit">', left)
+                self.assertLess(left.index('</article></div><div class="col">'), left.index('id="submit"'))
+                self.assertNotIn('<section class="card" id="submit">', left.split('</article></div><div class="col">', 1)[0])
                 for gone in ('id="quick-start"', '<nav class="toc"', ">Quick start<"):
                     self.assertNotIn(gone, html_)
 
     def test_how_to_submit_is_the_path_of_a_first_submission(self):
         """The second newcomer study (2026-11-10, finding 6): what to run came after about 45,000 characters of a task
-        page. Since 2026-11-11 How to submit, the left column's second card, reads top to bottom as a first
-        submission: the two files to write; Step 0; the two `cp` lines that copy par's pair (the reference under
+        page. Since 2026-11-11 How to submit (across the page under the two columns since 2026-11-12) reads top to
+        bottom as a first submission: the two files to write; Step 0; the two `cp` lines that copy par's pair (the reference under
         Files) as the start; the four commands in one block (the golfing loop, the run without a proof, the real
         check, whose comment quotes the INCOMPLETE line the light check prints and calls it expected, the record);
         what "done" is (step 3's `added` line; step 2's accepted is no record); then what the commands do and the
@@ -1186,7 +1644,7 @@ class SiteTest(unittest.TestCase):
                 comments = norm(" ".join(ln for ln in cmds.split("\n") if ln.startswith("#")))
                 for said in ("# the golfing loop", "# 1. no proof needed; never accepts",
                              '# 2. the real check: prints "accepted": true', '"accepted, but the check was INCOMPLETE '
-                             '... rerun with # --postsynth full": expected, since step 3 runs the # full one itself',
+                             '... # leaderboard.py add runs the full check itself": # expected, step 3 is that command',
                              "# 3. record it: the whole check again, full and sandboxed"):
                     self.assertIn(said, comments)
                 # what "done" is: step 3's line; step 2's accepted is no record
@@ -1229,10 +1687,10 @@ class SiteTest(unittest.TestCase):
             with self.subTest(task=t):
                 part = norm(text_of(section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "submit")))
                 self.assertIn("post-synthesis check is LIGHT by default", part)
-                self.assertIn("step 3 runs the # full one itself", part)
+                self.assertIn("expected, step 3 is that command", part)
                 # the line check.py prints for it (incomplete_reasons, then "check: accepted, but ... INCOMPLETE")
-                self.assertIn('so stderr also says # "accepted, but the check was INCOMPLETE ... rerun with # '
-                              '--postsynth full": expected', part)
+                self.assertIn('so stderr also says # "accepted, but the check was INCOMPLETE ... # leaderboard.py add '
+                              'runs the full check itself": # expected', part)
                 self.assertIn('--notes "YOUR DESIGN IN ONE LINE"', part)
                 self.assertIn(f"It is 1 to {build.handle_max()} characters", part)
         self.assertTrue(lb.PLAYER_RE.fullmatch("a" * build.handle_max()))
@@ -1241,7 +1699,7 @@ class SiteTest(unittest.TestCase):
         walk = norm(text_of(section(self.files["tasks/_example/index.html"].decode("utf-8"), "first-submission")))
         self.assertIn("The post-synthesis check runs LIGHT by default", walk)
         check_src = read_text_file("check.py")
-        for said in ("accepted, but the check was INCOMPLETE", "rerun with --postsynth full"):
+        for said in ("accepted, but the check was INCOMPLETE", "leaderboard.py add runs the full check itself"):
             self.assertIn(said, check_src)
             self.assertIn(said, walk)
             self.assertIn(said, self.files["llms.txt"].decode("utf-8"))
@@ -1316,12 +1774,171 @@ class SiteTest(unittest.TestCase):
         self.assertIn("Under par is how far the record is below par, as a share of par's score", note)
         lead = norm(text_of(html_[html_.index('class="hero-lead"'):html_.index('class="btn-row"')]))
         self.assertIn("on a clocked task, the time is the clock period, times the latency in cycles", lead)
-        self.assertIn("upload nothing", norm(text_of(html_)))
+        # how a record reaches the board, in the one sentence of this build's state (decided 2026-11-11)
+        self.assertIn(norm(build.handoff_md(self.config)), norm(text_of(html_)))
+
+    def test_the_claims_on_home_and_about_hold(self):
+        """Decided 2026-11-11 (the publication review): the front page and About claim only what holds. About says the
+        escape designs are listed under "What does not count", each with the stage that refuses it (every listed task
+        page has the pane and says so), not that each has a kernel-checked refutation, and it calls the statements'
+        authors the maintainers; home's "the same file always scores the same" is on the rating build; the random
+        vectors' salt is described as it is (no record so far was checked with one: the records are read here); and
+        the line on who made the records so far sits right under the course's helper line, in build.py's words."""
+        home_html = self.files["index.html"].decode("utf-8")
+        home, about = norm(text_of(home_html)), norm(text_of(self.files["about.html"]))
+        for stale in ("kernel-checked refutations", "salted in competition runs", "the same file always scores the same (",
+                      "organizers"):
+            self.assertNotIn(stale, home)
+            self.assertNotIn(stale, about)
+        self.assertIn('under "What does not count", a tab of the trusted statement, each with the checker stage that '
+                      "refuses it.", about)
+        for t in self.listed:
+            with self.subTest(task=t):
+                pane = norm(text_of(section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "does-not-count")))
+                self.assertIn("The checker stops at the first stage that refuses; each design is listed with that "
+                              "stage.", pane)
+        self.assertIn("always scores the same on the rating build (another build of Yosys can differ slightly: "
+                      "reproduce a score)", home)
+        # the salt clause is the records' (decided 2026-11-12: whatever a new record says, the page stays true): every
+        # record says of each run whether it was salted, and the front page says what they say
+        recs = records()
+        for r in recs:
+            salts = build.record_salts(r)
+            self.assertTrue(salts, r["record_hash"])
+            self.assertTrue(all(isinstance(x, bool) for x in salts), r["record_hash"])
+        self.assertIn(f"seeded random vectors (a secret salt can make them unpredictable; {build.salt_md(recs)})", home)
+        self.assertEqual(build.salt_md([]), "the board's records so far were checked without one")
+        salted = {"postsynth": {"salted": True}}
+        clocked = {"postsynth": {"points": [{"seeds": [{"salted": False}, {"salted": True}]}]}}
+        self.assertEqual(build.salt_md([salted]), "one of the board's records was checked with one (its page says so)")
+        self.assertEqual(build.salt_md([salted, clocked, {"postsynth": {"salted": False}}]),
+                         "some of the board's records were checked with one (its page says so)")
+        head = home_html[home_html.index('<div class="section-head" id="tasks">'):home_html.index('<ul class="task-cards">')]
+        self.assertLess(head.index('class="pdk-what'), head.index('<p class="first-entries small muted">'))
+        self.assertIn(norm(build.FIRST_ENTRIES_MD), norm(text_of(head)))
+        self.assertEqual(home.count("There are no outside entries yet."), 1)
+
+    def test_shown_paths_are_the_public_repositorys(self):
+        """Decided 2026-11-11: the public repository is svGolf's own tree, so a path of it is shown as that repository
+        shows it, without this tree's `svgolf/` (page.shown_path): the property cards' paths, the statement's path and
+        its trusted text on a task page, the "file" of a properties page and of a trusted page (and their boxes' names),
+        the shared trusted base's table, the rules' and the reproduce page's sources, and the refusals page's reading
+        list, where each path names its repository. The library's own paths are unchanged. No footer shows a path."""
+        self.assertEqual(build.shown_path("svgolf/tasks/add/Spec.lean"), "tasks/add/Spec.lean")
+        self.assertEqual(build.shown_path("LeanModels/Sv/Ast.lean"), "LeanModels/Sv/Ast.lean")
+        seen = {"prop-path": 0, "file": 0}
+        web = build.repo_web(self.config.get("repo_url"))     # the public tree's (the export sets it): its addresses
+        for path, data in sorted(self.files.items()):
+            if not path.endswith(".html"):
+                continue
+            h = data.decode("utf-8")
+            with self.subTest(page=path):
+                foot = h.split('<footer class="site-footer">', 1)[1]
+                if web:                     # a link into the public repository is an address, not a path it shows
+                    foot = re.sub(rf'href="{re.escape(web)}(?:/[^"]*)?"', 'href=""', foot)
+                self.assertNotIn("svgolf/", foot)
+                self.assertNotIn("generated by", foot)
+                for span in re.findall(r'<div class="prop-path"><span>(.*?)</span>', h):
+                    seen["prop-path"] += 1
+                    self.assertFalse(text_of(span).startswith("svgolf/"), span)
+                for meta in re.findall(r'<span class="cell-meta">(.*?)</span>', h):
+                    self.assertFalse(text_of(meta).startswith("svgolf/"), meta)
+                for name in re.findall(r'<span class="codebox-name">(.*?)</span>', h):
+                    self.assertFalse(text_of(name).startswith("svgolf/"), name)
+                for value in re.findall(r"<dt>file</dt>\s*<dd>(.*?)</dd>", h, re.S):
+                    seen["file"] += 1
+                    self.assertFalse(text_of(value).startswith("svgolf/"), value)
+        self.assertGreater(seen["prop-path"], 0)
+        self.assertGreater(seen["file"], 0)
+        shared = self.files["trusted/index.html"].decode("utf-8")
+        self.assertIn("<code>SvGolf/Task.lean</code>", shared)
+        self.assertNotIn("<code>svgolf/", shared)
+        self.assertIn("From <code>README.md</code> of the repository", self.files["rules.html"].decode("utf-8"))
+        self.assertIn("From <code>score/PPA.md</code> of the repository", self.files["reproduce.html"].decode("utf-8"))
+        refusals = self.files["refusals.html"].decode("utf-8")
+        more = refusals[refusals.index('<h2 id="more">'):]
+        more = more[:more.index("</ul>")]
+        self.assertNotIn("Paths in the proglib repository", refusals)
+        self.assertIn("<li>svGolf's <code>README.md</code>: ", more)
+        lib = self.config["library"]["name"]
+        self.assertIn(f"<li>{lib}'s <code>docs/sv-refusals.md</code>: ", more)
+        self.assertNotIn("<code>svgolf/", more)
+        sub = text_of(re.search(r'<p class="head-sub">(.*?)</p>', refusals, re.S).group(1))
+        self.assertIn(f"of {lib} (its own text still calls the repository lean-surfaces, its former name).", sub)
+
+    def test_the_footer_is_for_visitors(self):
+        """Decided 2026-11-11: every page's footer is one row of links for a visitor: the licence (Apache-2.0), the
+        public repository's source, issues and contributing guide (when the repository is named), the Lean library,
+        the roadmap, how to reproduce a score, llms.txt and the data, and the revision. Without a public repository the
+        licence is plain text and nothing links to a repository; About says where questions go in both builds. The
+        build under test is the tree's own: the development tree's (no `repo_url`) or the public tree's (the export
+        sets it), and a public build made here in memory with another address. Each link is a 24 px tap target
+        (decided 2026-11-12; WCAG 2.2, 2.5.8): style.css's rule for them sets the height."""
+        css = read_text_file("site/style.css")
+        rule = re.search(r"^\.foot-links a \{([^}]*)\}", css, re.M).group(1)
+        self.assertIn("display: inline-flex;", rule)
+        self.assertIn("min-height: 24px;", rule)
+
+        def foot(h):
+            return h.split('<ul class="foot-links">', 1)[1].split("</ul>", 1)[0]
+
+        def public(files, web, build_name):
+            for path, data in sorted(files.items()):
+                if path.endswith(".html"):
+                    with self.subTest(page=path, build=build_name):
+                        f = foot(data.decode("utf-8"))
+                        licence = build.repo_link(web, "svgolf/LICENSE" if build.LAYOUT == "standalone" else "LICENSE")
+                        self.assertTrue(f.startswith(f'<li><a href="{licence}">Apache-2.0</a></li>'), f[:120])
+                        self.assertIn(f'<li><a href="{web}">Source</a></li>', f)
+                        self.assertIn(f'<li><a href="{web}/issues">Issues</a></li>', f)
+                        self.assertIn(f'<li><a href="{build.repo_link(web, "svgolf/CONTRIBUTING.md")}">Contributing'
+                                      '</a></li>', f)
+                        root = build.root_of(path)
+                        for label, href in (("Roadmap", "roadmap.html"), ("Reproduce a score", "reproduce.html"),
+                                            ("llms.txt", "llms.txt"), ("data", "data/site.json")):
+                            self.assertIn(f'<li><a href="{root}{href}">{label}</a></li>', f)
+            self.assertIn(f'questions go to <a href="{web}/issues">its issues</a>', files["about.html"].decode("utf-8"))
+        own = build.repo_web(self.config.get("repo_url"))
+        if own:                                             # the public tree
+            public(self.files, own, "this tree's")
+        else:
+            for path, data in sorted(self.files.items()):
+                if path.endswith(".html"):
+                    with self.subTest(page=path):
+                        f = foot(data.decode("utf-8"))
+                        root = build.root_of(path)
+                        self.assertTrue(f.startswith("<li>Apache-2.0</li>"), f[:80])
+                        for label, href in (("Roadmap", "roadmap.html"), ("Reproduce a score", "reproduce.html"),
+                                            ("llms.txt", "llms.txt"), ("data", "data/site.json")):
+                            self.assertIn(f'<li><a href="{root}{href}">{label}</a></li>', f)
+                        self.assertNotIn("/issues", f)
+                        self.assertNotIn(">Source<", f)
+        about = norm(text_of(self.files["about.html"]))
+        self.assertIn("svGolf is a public proof-golf board for hardware", about)
+        self.assertIn("questions go to its issues, and How to submit on each task says how a record is made.", about)
+        config = build.load_config()
+        config["repo_url"] = "https://example.org/someone/svgolf.git"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            site = build.build_site(offline=True, config=config)
+        public(site.files, "https://example.org/someone/svgolf", "public")
+
+    def test_matmul_says_before_design_that_signed_is_refused(self):
+        """Decided 2026-11-11 (the trial runs' finding: `$signed` was refused only at the `design` stage, after
+        score/ppa.py had weighed the design): matmul's "Before you design", the visible lead of Proving a new design,
+        says it in one sentence, with the hand-written sign extension; the README's bullet stays in the fold."""
+        h = self.files["tasks/matmul/index.html"].decode("utf-8")
+        part = section(h, "new-design")
+        lead = norm(text_of(part[:part.index('<details class="nd-detail"')]))
+        self.assertIn("Write no $signed(...) in a wider sum: ls-sv refuses its width conversion at the design stage, "
+                      "although score/ppa.py weighs the design; sign-extend a W-bit entry x by hand, "
+                      "{{AccW{x[W-1]}}, x}, as the reference does.", lead)
+        self.assertIn("no $signed(...) widened into a wider sum", norm(text_of(part)))
 
     def test_the_score_is_defined_once(self):
-        """2026-11-09 (review M2): the Score card's caption is the page's one definition of the score (generated from
-        the task's kind: what the time is, the flip-flops in a clocked area); the task text and "How to participate"
-        step 4 name the score and link the card rather than define it again."""
+        """2026-11-09 (review M2): the Score card is the page's one definition of the score (generated from the task's
+        kind: what the time is, the flip-flops in a clocked area), since 2026-11-11 in its closed note "What the score,
+        Par, Record and Under par mean"; the task text names the score and links the card rather than define it
+        again (and so did "How to participate" step 4, gone since 2026-11-11)."""
         for t in self.listed:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
@@ -1333,7 +1950,7 @@ class SiteTest(unittest.TestCase):
                               "Record (the best accepted score so far, par while no submission beats it), Under par (how "
                               "far the record is below par, as a share of par's score) and the leaderboard use it. The "
                               "Pareto front, area in GE (NAND2 gate equivalents),", caption)
-                # one definition: the caption, once per library view; How to submit and the card do not define it.
+                # one definition: the note, once per library view; How to submit and the card do not define it.
                 # The ranked score is sky130's: the ASAP7 view's caption says that view orders by its own score
                 # (review 2026-11-11), so "the one ranked number" is in the sky130 view only.
                 a7 = 'class="pdk-asap7' in html_
@@ -1349,11 +1966,6 @@ class SiteTest(unittest.TestCase):
                         for again in ("Score = area", "the one ranked number", "In this view Par",
                                       "the bar to beat", "gate equivalents"):
                             self.assertNotIn(again, part)
-                steps = html_[html_.index('id="participate"'):]
-                steps = steps[:steps.index("</ol>")]
-                self.assertIn('href="#score"', steps)
-                for again in ("the one ranked number", "sky130 µm² times", "the other numbers are for"):
-                    self.assertNotIn(again, text_of(steps))
                 text = norm(text_of(section(html_, "statement")))
                 self.assertNotIn("The score is the", text)
                 if build.metrics.is_clocked(json.loads(read_text_file(f"tasks/{t}/task.json"))):
@@ -1361,9 +1973,10 @@ class SiteTest(unittest.TestCase):
 
     def test_what_does_not_count_is_a_tab_of_the_statement(self):
         """2026-11-09: "What does not count" is the last tab of the statement's tab widget (before, a card at the
-        bottom of the page), with the number of rejected designs on the tab and the stage groups inside; "How to
-        participate" and the statement's intro link to it, and the panel's head no longer repeats the number as a
-        counter. Without JavaScript the panes stand one under the other, each under its title."""
+        bottom of the page), with the number of rejected designs on the tab and the stage groups inside; the
+        statement's intro (and since 2026-11-11 How to submit's Done paragraph) links to it, and the panel's head no longer repeats the number as a counter. Without
+        JavaScript the panes stand one under the other, each under its title. 2026-11-11: the panel is in the
+        statement's one closed fold, whose summary counts the rejected designs too."""
         for t in self.listed + ["_example"]:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
@@ -1377,9 +1990,14 @@ class SiteTest(unittest.TestCase):
                                   r'<span class="props-n">\3</span></a>', spec.split("</nav>", 1)[0])
                 self.assertEqual(tabs[-1], ("does-not-count", "What does not count", str(n)))
                 self.assertNotIn("Attacks rejected", html_)
-                for sid in ("participate", "spec"):
+                for sid in ("spec",):
                     part = html_[html_.index(f'id="{sid}"'):html_.index('id="submit"')]
                     self.assertIn('href="#does-not-count"', part)
+                # 2026-11-11: How to submit's Done paragraph links it (examples of what step 3 refuses)
+                self.assertIn('href="#does-not-count"', section(html_, "submit"))
+                fold = spec[spec.index(f'<details class="spec-fold" id="{build.SPEC_FOLD}">'):]
+                self.assertIn('<div class="props-pane" id="does-not-count">', fold)
+                self.assertIn(f"what does not count ({n})", text_of(fold.split("</summary>", 1)[0]))
                 if n:
                     for gid, _, _ in build.REJECT_GROUPS:
                         if f'href="#reject-{gid}"' in html_:
@@ -1403,6 +2021,17 @@ class SiteTest(unittest.TestCase):
         full = self.files["llms-full.txt"].decode("utf-8")
         self.assertIn("## 0. The loop", full)
         self.assertIn("sv_structure?", full)
+
+    def test_llms_txt_points_to_the_numbers_of_a_task_page(self):
+        """llms.txt (2026-11-11) names where par, record and under par, the clock period and the score chart are
+        defined (the rules page's section, which exists), and says that neither library's score counts wires or place
+        and route, ASAP7 being never fabricated."""
+        llms = self.files["llms.txt"].decode("utf-8")
+        self.assertIn("\nPar, record and under par, the clock period and the score chart: "
+                      "rules.html#task-page-numbers.\n", llms)
+        self.assertIn('id="task-page-numbers"', self.files["rules.html"].decode("utf-8"))
+        self.assertIn("a predictive 7 nm library, never fabricated (the same netlists weighed by", llms)
+        self.assertIn("Both libraries' scores count the cells only: no wires, no place and route.", llms)
 
     def test_the_general_pages_know_a_clocked_task(self):
         """Once a clocked task is listed (the arbiter, 2026-11-07), no general page says every task is
@@ -1431,7 +2060,11 @@ class SiteTest(unittest.TestCase):
             with self.subTest(task=t):
                 src = read_text_file(f"site/content/tasks/{t}.md")
                 self.assertEqual([m.group(0) for m in build.HAND_TYPED.finditer(build.PLACEHOLDER.sub("", src))], [])
-                self.assertNotIn("{{", section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "statement"))
+                statement = section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "statement")
+                self.assertNotIn("{{", statement)
+                # 2026-11-11: the text's first GE says what GE is, once
+                ge = [m for m in build.PLACEHOLDER.finditer(src) if m.group(2) == "ge"]
+                self.assertEqual(text_of(statement).count(f"GE ({build.GE_GLOSS})"), 1 if ge else 0)
 
     def test_home_hero_holds_the_buttons_and_its_art_is_decoration(self):
         """The hero's drawing (pixelart.py) is aria-hidden SVG with no text; the buttons sit in the hero under
@@ -1443,12 +2076,246 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(len(svgs), 1)                     # the scene
         self.assertIn('aria-hidden="true"', svgs[0])
         self.assertEqual(text_of(svgs[0]), "")
-        self.assertIn("Prove a circuit correct, then golf its gates.", text_of(hero))
+        self.assertIn(self.config["headline"]["title"], text_of(hero))          # config.json's (2026-11-11)
         self.assertLess(hero.index('class="hero-lead"'), hero.index('class="btn-row"'))
         for button in ("Start with the tutorial", "Read the rules", "The proving guide"):
             self.assertIn(button, text_of(hero))
         between = html_[html_.index("</header>", start):html_.index('<ul class="task-cards">')]
         self.assertNotIn('class="stats', between)          # the cards' own par and record are the only numbers
+
+    def test_the_tutorial_is_shown_as_a_tutorial(self):
+        """2026-11-12, display only: the tutorial's page is headed "Tutorial: <title>" (its first word in lower case),
+        with no task-id chip and no number; its crumbs say "tutorial"; its <title>, link preview and description name
+        it as a tutorial; no badge repeats the word; its home card has "start here" in the number's box, where a listed
+        task has its number, and the page's title, without the slug (decided 2026-11-12), and no "00" is left; its
+        record, reference and properties pages name it "tutorial" in their crumbs, titles, h1 and descriptions
+        (decided 2026-11-12). The slug stays: the page's path and the commands keep `_example`. Every other task
+        keeps its h1 with the chip, its number and its crumbs."""
+        self.assertEqual(build.tutorial_title("Bitwise AND"), "Tutorial: bitwise AND")
+        self.assertEqual(build.tutorial_title("AES S-box"), "Tutorial: AES S-box")       # an acronym stays
+        self.assertEqual(build.tutorial_title("Adder"), "Tutorial: adder")
+        tut = [t for t, how in self.config["tasks"].items() if how == "tutorial"]
+        self.assertEqual(tut, ["_example"])
+        with open(os.path.join(SITE, "content", "tasks", "_example.json"), encoding="utf-8") as fh:
+            title = json.load(fh)["title"]
+        want = build.tutorial_title(title)
+        self.assertEqual(want, "Tutorial: bitwise AND")
+        page_ = self.files["tasks/_example/index.html"].decode("utf-8")
+        start = page_.index('<p class="crumbs">')
+        head = page_[start:page_.index("</header>", start)]
+        self.assertEqual(re.search(r"<h1>(.*?)</h1>", head, re.S).group(1), html.escape(want))
+        self.assertNotIn('class="task-id"', head)
+        self.assertNotIn('class="task-no"', head)
+        crumbs = re.search(r'<p class="crumbs">(.*?)</p>', head, re.S).group(1)
+        self.assertEqual(norm(text_of(crumbs)), "‹Tasks / tutorial")
+        self.assertNotIn("badge-tutorial", page_)
+        self.assertIn(f"<title>{html.escape(want, quote=False)} | svGolf</title>", page_)
+        meta = {a.get("property") or a.get("name"): a.get("content")
+                for tag, a in self.pages["tasks/_example/index.html"].tags if tag == "meta"}
+        self.assertEqual(meta["og:title"], f"{want} | svGolf")
+        self.assertTrue(meta["description"].startswith("svGolf tutorial: bitwise AND. "), meta["description"])
+        self.assertNotIn("_example", meta["description"])
+        self.assertIn("tasks/_example/index.html", self.files)          # the slug stays
+        self.assertIn("cp tasks/_example/reference/", text_of(page_))
+        for t, how in self.config["tasks"].items():
+            if how in ("listed", "preview"):
+                with self.subTest(task=t):
+                    other = self.files[f"tasks/{t}/index.html"].decode("utf-8")
+                    self.assertRegex(other, r'<span class="task-no" aria-hidden="true">\d\d</span><h1>[^<]* <span '
+                                            rf'class="task-id"><code>{re.escape(t)}</code></span></h1>')
+                    self.assertIn(f"</span>Tasks</a> / {t}</p>", other)
+        home = self.files["index.html"].decode("utf-8")
+        cards = re.findall(r'<li class="task-card"><div class="task-card-top">(.*?)</div>', home, re.S)
+        self.assertTrue(cards[0].startswith('<span class="task-no"><span class="label label-accent task-start">'
+                                            'start here</span></span>'), cards[0])
+        self.assertNotIn("_example", cards[0])                       # no slug on the card
+        first = home.split('<li class="task-card">', 2)[1]
+        self.assertEqual(norm(text_of(re.search(r"<h3>(.*?)</h3>", first, re.S).group(1))), want)
+        marks = [re.match(r'<span class="([^"]+)">([^<]*)</span>', c).groups() for c in cards[1:]]
+        self.assertEqual([m for m in marks if m[0] != "task-no"], [])
+        self.assertEqual([m[1] for m in marks], [f"{k:02d}" for k in range(1, len(cards))])
+        self.assertNotIn('<span class="task-no">00</span>', home)
+        # its other pages: "tutorial" in the crumbs, the <title>, the h1 and the description
+        others = sorted(p for p in self.files if p.startswith("tasks/_example/") and p.endswith(".html")
+                        and p != "tasks/_example/index.html")
+        self.assertTrue(any("/records/" in p for p in others) and any("/reference/" in p for p in others), others)
+        for rel in others:
+            with self.subTest(page=rel):
+                h = self.files[rel].decode("utf-8")
+                crumbs = norm(text_of(re.search(r'<p class="crumbs">(.*?)</p>', h, re.S).group(1)))
+                self.assertTrue(crumbs.startswith("‹Tasks / tutorial / "), crumbs)
+                title = html.unescape(re.search(r"<title>(.*?)</title>", h).group(1))
+                h1 = norm(text_of(re.search(r"<h1>(.*?)</h1>", h, re.S).group(1)))
+                meta = {a.get("property") or a.get("name"): a.get("content") for tag, a in self.pages[rel].tags
+                        if tag == "meta"}
+                for said in (title, h1, meta["description"]):
+                    self.assertNotIn("_example", said)
+                self.assertIn("tutorial", title)
+                self.assertTrue(meta["description"].startswith("svGolf tutorial: "), meta["description"])
+                if "/records/" in rel:
+                    self.assertRegex(title, r" on the tutorial · record [0-9a-f]{12} \| svGolf$")
+                    self.assertIn(" on the tutorial · ", h1)
+
+    def test_the_headline_has_one_source(self):
+        """Decided 2026-11-11: the front page's headline and its sub-line are config.json `headline`, and everything
+        that says it follows: the front page's h1 (its end on the highlighter), sub-line, <title> and description,
+        every page's footer line, llms.txt's summary; README.md's first line repeats it (compared here); home.md has
+        no title of its own, and the former headline and the placeholder before the pick are nowhere."""
+        hl, lib = self.config["headline"], self.config["library"]
+        title, accent = hl["title"], hl["accent"]
+        sub_text = hl["sub"].replace("{library}", lib["name"])
+        home = self.files["index.html"].decode("utf-8")
+        h1 = re.search(r"<h1>(.*?)</h1>", home, re.S).group(1)
+        self.assertEqual(text_of(h1), title)
+        self.assertTrue(title.endswith(accent))
+        self.assertIn(f'<span class="accent">{html.escape(accent, quote=False)}</span></h1>', home)
+        sub = re.search(r'<div class="hero-lead"><p class="hero-sub">(.*?)</p>', home, re.S).group(1)
+        self.assertEqual(text_of(sub), sub_text)
+        self.assertIn(f'<a href="{lib["url"]}">{lib["name"]}</a>', sub)
+        self.assertIn(f"<title>{html.escape('svGolf: ' + title.rstrip('.'), quote=False)}</title>", home)
+        description = re.search(r'<meta name="description" content="([^"]*)">', home).group(1)
+        self.assertEqual(html.unescape(description), f"svGolf: {title[0].lower()}{title[1:]} {sub_text}")
+        for path, data in sorted(self.files.items()):
+            if path.endswith(".html"):
+                with self.subTest(page=path):
+                    foot = data.decode("utf-8").split('<div class="foot-brand">', 1)[1].split("</div>", 1)[0]
+                    self.assertTrue(text_of(foot).endswith("svGolf" + title), text_of(foot)[-120:])
+                    self.assertNotIn("golf its gates", data.decode("utf-8"))
+                    self.assertNotIn("smallest, fastest circuit you can prove", data.decode("utf-8"))
+        llms = self.files["llms.txt"].decode("utf-8").split("\n")
+        self.assertEqual(llms[:2], ["# svGolf", ""])
+        self.assertTrue(llms[2].startswith(f"> {title} "), llms[2][:120])
+        readme = read_text_file("README.md").split("\n\n")
+        self.assertEqual(readme[0], "# svGolf")
+        self.assertEqual(" ".join(readme[1].split()),
+                         f"**{title}** " + hl["sub"].replace("{library}", f"[{lib['name']}]({lib['url']})"))
+        self.assertFalse(re.search(r"^# ", read_text_file("site/content/home.md"), re.M))
+
+    def test_the_library_is_named_and_linked_from_one_config_value(self):
+        """Decided 2026-11-11: the Lean library the proofs are written with is named and linked where the site says what a
+        proof is made with: the front page's sub-line, About's paragraph on it, How to submit's Lean file (under the
+        generated module, whose `LeanModels.*` import is its), the proving guide's opening, every page's footer,
+        llms.txt and README's first screen. Its name comes from config.json `library` alone: the site's code and its
+        content files do not write it out."""
+        lib = self.config["library"]
+        name, url = lib["name"], lib["url"]
+        link = f'<a href="{url}">{name}</a>'
+        home = self.files["index.html"].decode("utf-8")
+        self.assertIn(link, re.search(r'<p class="hero-sub">(.*?)</p>', home, re.S).group(1))
+        about = self.files["about.html"].decode("utf-8")
+        para = next(p for p in re.findall(r"<p>(.*?)</p>", about, re.S) if link in p)
+        self.assertIn("a Lean 4 library for proving real programs correct", norm(text_of(para)))
+        self.assertIn("It also covers Python and C++.", norm(text_of(para)))
+        for t in self.listed:
+            with self.subTest(task=t):
+                submit = section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "submit")
+                generated = submit.index("Submission.Design (generated: you never write it)")
+                said = submit.index(f"<p>The <code>LeanModels.*</code> modules are {link}'s, the library of ls-sv and "
+                                    "its tactics.</p>")
+                self.assertLess(generated, said)
+        proving = self.files["proving.html"].decode("utf-8")
+        first = re.search(r'<article class="card doc-body">\s*<p>(.*?)</p>', proving, re.S).group(1)
+        self.assertIn(link, first)
+        for path, data in sorted(self.files.items()):
+            if path.endswith(".html"):
+                with self.subTest(page=path):
+                    foot = data.decode("utf-8").split('<ul class="foot-links">', 1)[1].split("</ul>", 1)[0]
+                    self.assertIn(f"<li>Lean library: {link}</li>", foot)
+        self.assertIn(f"prove in Lean 4 with {name} ({url}) that it meets", self.files["llms.txt"].decode("utf-8"))
+        readme_top = "\n".join(read_text_file("README.md").split("\n")[:40])
+        self.assertIn(f"[{name}]({url})", readme_top)
+        self.assertNotIn("[proglib](", readme_top)                  # the prose writes the display name
+        self.assertIn(f"[{name}]({url})", read_text_file("PROVING.md").split("\n\n")[1])
+        for src in ("site/build.py", "site/page.py", "site/content/about.md", "site/content/home.md"):
+            self.assertNotIn(name, read_text_file(src), src)
+
+    def test_the_readme_is_a_front_door_and_the_docs_name_the_library(self):
+        """README above its Quick start (decided 2026-11-12): the site, the clone command, the platforms (the rating
+        build; Windows not supported) and a where-to-go table of five rows, with the ls-sv tier names moved into "The
+        statement". One suite-time figure in README and CONTRIBUTING, whose step list is tests/run.py's STEPS and whose
+        no-Lean selection skips every other step. The docs write the library's display name in prose; the generated
+        install texts, the record pages, the rules page and the front page take it from config.json."""
+        lib = self.config["library"]
+        name, link = lib["name"], f'<a href="{lib["url"]}">{lib["name"]}</a>'
+        readme = read_text_file("README.md")
+        top = readme.split("\n## Quick start\n", 1)[0]
+        self.assertIn("<https://thomasnormal.github.io/svgolf/>", top)
+        self.assertIn("```bash\ngit clone https://github.com/thomasnormal/svgolf\n```", top)
+        self.assertIn("macOS and Linux; Windows is not supported. The ranked numbers are rated on one build, the "
+                      "Homebrew Yosys 0.53 for macOS arm64", norm(top))
+        table = top.split("| where | what |\n|---|---|\n", 1)[1].split("\n\n", 1)[0].split("\n")
+        self.assertEqual([re.match(r"\| \[?`?([^`\]|]+)", row).group(1) for row in table],
+                         ["the site", "tasks/<name>/README.md", "PROVING.md", "CONTRIBUTING.md", "REFUSALS.md"])
+        self.assertNotIn("Terminates2", top)
+        statement = readme.split("\n## The statement\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("tier of Proglib's ls-sv semantics: load_design_sv2, run2, the ⊨₂ judgment and Terminates2", norm(statement))
+        contrib = read_text_file("CONTRIBUTING.md")
+        for doc, text in (("README.md", readme), ("CONTRIBUTING.md", contrib)):
+            with self.subTest(doc=doc):
+                self.assertIn("the whole suite takes an hour or more on a laptop", norm(text).lower())
+                for stale in ("226 checks", "386 checks", "3154 s", "44 checks", "PLAN2.md):"):
+                    self.assertNotIn(stale, text)
+        steps = re.findall(r'"(\w+)"', re.search(r"^STEPS = \[(.*?)\]", read_text_file("tests/run.py"), re.S | re.M).group(1))
+        self.assertEqual(re.findall(r"`(\w+)`", re.search(r"Steps: (.*?)\.", " ".join(contrib.split())).group(1)), steps)
+        skipped = re.search(r"--skip (\S+) +# no Lean", contrib).group(1).split(",")
+        self.assertEqual(sorted(skipped + ["canon", "layout", "leaderboard", "unit"]), sorted(steps))
+        task_readmes = sorted(f"tasks/{t}/README.md" for t in os.listdir(os.path.join(SVGOLF, "tasks"))
+                              if os.path.isfile(os.path.join(SVGOLF, "tasks", t, "README.md")))
+        self.assertIn("tasks/arbiter/README.md", task_readmes)
+        for rel in ("README.md", "PROVING.md", "CONTRIBUTING.md", "leaderboard/README.md", *task_readmes):
+            with self.subTest(doc=rel):     # the repository and command names stay lowercase: proglib, proglib-run
+                self.assertEqual(re.findall(r"(?<![/\w.-])proglib(?![-\w/.])", read_text_file(rel)), [])
+        llms = self.files["llms.txt"].decode("utf-8")
+        self.assertIn(f"Lake clones {name} (formerly lean-surfaces) and its packages", llms)
+        for t in self.listed:
+            with self.subTest(task=t):
+                self.assertIn("about 20 minutes, plus 8 for elan&#x27;s first download of the toolchain, on a slower "
+                              "Linux machine", self.files[f"tasks/{t}/index.html"].decode("utf-8"))   # Step 0
+        pages = [p for p in self.files if "/records/" in p and p.endswith(".html")]
+        self.assertTrue(pages)
+        for p in pages:
+            text = text_of(self.files[p])
+            self.assertIn(f"{name} revision", text, p)
+            self.assertNotIn("lean-surfaces revision", text, p)
+        self.assertIn(f"calls {name} by its former name, lean-surfaces.", text_of(self.files["rules.html"]))
+        self.assertIn(f"the pinned extractor of {link} (formerly lean-surfaces)", self.files["index.html"].decode("utf-8"))
+
+    def test_the_hand_off_is_said_in_the_same_words(self):
+        """How a record reaches the board, in one sentence (decided 2026-11-11; build.py HANDOFF_MD): README (its Quick
+        start and its Leaderboard, so the rules page too), CONTRIBUTING and leaderboard/README.md say it word for word,
+        and About writes `{{handoff}}`; none of them says that the route is an open decision or a possible hand-off,
+        that there is no submission server YET, or that CI re-verifies a record. README's Leaderboard says who added
+        the records so far."""
+        want = norm(build.HANDOFF_MD)
+        for rel in ("README.md", "CONTRIBUTING.md", "leaderboard/README.md"):
+            with self.subTest(doc=rel):
+                text = read_text_file(rel)
+                self.assertIn(want, norm(text))
+                for stale in ("open decision", "possible hand-off", "CI re-verifies", "no submission server yet"):
+                    self.assertNotIn(stale, text.lower() if stale != "CI re-verifies" else text)
+        self.assertEqual(norm(read_text_file("README.md")).count(want), 2)            # Quick start and Leaderboard
+        self.assertIn("{{handoff}}", read_text_file("site/content/about.md"))
+        rules = text_of(self.files["rules.html"])
+        self.assertIn(want, norm(rules))
+        for stale in ("open decision", "possible hand-off", "CI re-verifies"):
+            self.assertNotIn(stale, rules)
+        first = norm(build.FIRST_ENTRIES_MD)                    # the front page's words (test_the_claims_...)
+        self.assertEqual(first, "Every record so far was added by the maintainers: the proved references, and trial "
+                         "designs made with an AI assistant (each record names the tool). There are no outside entries "
+                         "yet.")
+        self.assertIn(first, norm(read_text_file("README.md")))
+        self.assertIn(first, norm(rules))
+        # what holds for every record, whoever made it (decided 2026-11-12: an unassisted outside record is valid and
+        # must not turn this test red): `assisted_by` is a list of names, and the record's page says them, or that the
+        # record claims no help. The line above is the maintainers' to change with the first outside record
+        # (CONTRIBUTING.md, "For the maintainers").
+        for r in records():
+            with self.subTest(record=r["record_hash"][:12]):
+                self.assertIsInstance(r["assisted_by"], list)
+                self.assertTrue(all(isinstance(a, str) and a for a in r["assisted_by"]))
+                page_ = self.files[f"tasks/{r['task']}/records/{r['record_hash']}.html"].decode("utf-8")
+                said = build.esc("; ".join(r["assisted_by"])) or "none (an unassisted claim)"
+                self.assertIn(f"<dt>assisted by</dt><dd>{said}</dd>", page_)
 
     def test_roadmap_is_off_the_nav_and_linked_from_about(self):
         """The nav has no Roadmap (decided 2026-11-06); roadmap.html is still built and About links it."""
@@ -1458,12 +2325,12 @@ class SiteTest(unittest.TestCase):
         self.assertIn('href="roadmap.html"', self.files["about.html"].decode("utf-8"))
 
     def test_home_steps_on_the_adder_follow_the_task_cards(self):
-        """The whole idea, on the adder: the three steps come after the hero, the task cards and the note on par
-        and record under them (decided 2026-11-06); step 1 quotes the reference `add_n.sv` without its comments, byte for
+        """The whole idea, on the adder: the three steps come after the hero, the note on par and record (closed, above
+        the cards since 2026-11-11) and the task cards (decided 2026-11-06); step 1 quotes the reference `add_n.sv` without its comments, byte for
         byte; step 3's last line is the line check.py prints for it (check.py's own `ranked_headline`, par
         from the goldens), and home.md types none of it."""
         html_ = self.files["index.html"].decode("utf-8")
-        order = [html_.index(s) for s in ('<header class="hero', '<ul class="task-cards">', '<p class="course-note">',
+        order = [html_.index(s) for s in ('<header class="hero', '<p class="course-note">', '<ul class="task-cards">',
                                           '<section class="how"')]
         self.assertEqual(order, sorted(order))
         how = html_[html_.index('<section class="how"'):html_.index("</section>", html_.index('<section class="how"'))]
@@ -1533,7 +2400,8 @@ class SiteTest(unittest.TestCase):
             self.assertNotIn("closes the gap", text)
         self.assertIn("sample of input vectors", home)
         self.assertIn("sampling, not a proof", home)
-        self.assertIn("salted in competition runs", home)
+        # the salt as it is (2026-11-11: no record so far was checked with one; test_the_claims_on_home_and_about_hold)
+        self.assertIn("a secret salt can make them unpredictable", home)
 
     def test_two_builds_are_byte_identical(self):
         other = os.path.join(self.tmp.name, "again")
@@ -1546,7 +2414,7 @@ class SiteTest(unittest.TestCase):
         self.assertEqual([p for p in sorted(again) if again[p] != self.files[p]], [])
 
     def test_no_denylisted_string_in_the_output(self):
-        # (a public configuration keeps its denylist outside the repository: `build.py --denylist`)
+        # (the private markers are kept outside the repository: `build.py --denylist`)
         deny = [w.lower() for w in self.config["denylist"] if isinstance(w, str)]
         for path, data in self.files.items():
             text = data.decode("utf-8", errors="replace").lower()
@@ -1579,6 +2447,37 @@ class SiteTest(unittest.TestCase):
                 self.assertNotIn(m["text"].lower(), text, f"{path} contains the internal marker {m['text']!r}")
 
 
+    def test_the_public_markers_and_the_docs_without_them(self):
+        """Decided 2026-11-11: config.json's denylist holds the public markers of what is internal (work-package
+        codes, the clocked statements' internal name, the plan files, a development path, process words, a status
+        note), each with its reason, allowed only where the site shows text it may not change (the refusal register,
+        verbatim Lean text, README's one quote of the old name); and the documents a player reads carry no
+        work-package code and write dates in one format."""
+        markers = {e["text"]: e for e in self.config["denylist"] if isinstance(e, dict)}
+        self.assertEqual(sorted(markers), sorted(["WP-", "txtask-v", "PLAN.md", "PLAN2.md", "PLAN4.md",
+                                                  "svgolf/site/build.py", "newcomer study", "awaiting confirmation"]))
+        for text, m in markers.items():
+            self.assertEqual(m["scope"], "site-text", text)
+            self.assertTrue(m["why"], text)
+        self.assertEqual(sorted(markers["WP-"]["allow"]), ["refusals.html"])
+        self.assertEqual(sorted(markers["PLAN.md"]["allow"]), ["refusals.html"])
+        self.assertEqual(sorted(markers["txtask-v"]["allow"]),
+                         sorted(["refusals.html", "rules.html", "tasks/matmul/index.html", "tasks/sorter/index.html"]))
+        for text in ("PLAN2.md", "PLAN4.md", "svgolf/site/build.py", "newcomer study", "awaiting confirmation"):
+            self.assertNotIn("allow", markers[text])
+        docs = ["README.md", "PROVING.md", "CONTRIBUTING.md", "score/PPA.md", "leaderboard/README.md"]
+        docs += sorted(posixpath.relpath(p, SVGOLF).replace(os.sep, "/")
+                       for p in glob.glob(os.path.join(SVGOLF, "tasks", "*", "README.md"))
+                       + glob.glob(os.path.join(SVGOLF, "tasks", "*", "*", "README.md")))
+        for rel in docs:
+            with self.subTest(doc=rel):
+                text = read_text_file(rel)
+                self.assertNotIn("WP-", text)
+                self.assertFalse(re.search(r"(?<![\d/.:-])1[01]/[0-3]\d(?![\d/])", text), "a MM/DD date")
+        # the one quote of the old name, on purpose (README's clocked rules)
+        self.assertEqual(read_text_file("README.md").count("txtask-v"), 1)
+
+
 class GuardTest(unittest.TestCase):
     """The build's own guards fire."""
 
@@ -1608,6 +2507,20 @@ class GuardTest(unittest.TestCase):
         # home.md's: a task-qualified field, check.py's line, a design's source alone on its (indented) line
         self.assertEqual(build.fill_home(site, tasks, "{{add/add_n.area}}", "h.md"), f"{build.area_text(m['area_um2'])} µm²")
         self.assertTrue(build.fill_home(site, tasks, "{{add/par.headline}}", "h.md").startswith("ranked (sky130 A0'): "))
+        # a clocked design's line is check.py's clocked one, cycles x period (decided 2026-11-11)
+        mm = next(t for t in tasks if t.name == "matmul")
+        d = build.par_design(mm)
+        spec = importlib.util.spec_from_file_location("svgolf_check_py_headline", os.path.join(SVGOLF, "check.py"))
+        checkpy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(checkpy)
+        checkpy.task_par = lambda _task: ({"name": d["name"], "um2ns": build.combined.um2ns(d["exact"])}, None)
+        res = {"task": "matmul", "stages": {"ppa": {}},
+               "ppa": {"available": True, "area_e4um2_sky130": round(d["m"]["area_um2"] * 10000),
+                       "area_um2_sky130": d["m"]["area_um2"], "delay_ps_sky130": d["m"]["period_ps"]},
+               "score": {k: d["m"][k] for k in ("time_ps", "cycles", "period_ps")}}
+        line = build.check_headline(mm, d)
+        self.assertIn(f" um^2 x {d['m']['cycles']} cycles x {d['m']['period_ps']} ps = ", line)
+        self.assertEqual(line, checkpy.ranked_headline(res))
         sv = build.fill_home(site, tasks, "   {{add/add_n.sv}}", "h.md").split("\n")
         self.assertEqual(sv[0], "   module add_n #(parameter int N = 16) (")
         self.assertEqual(sv[-1], "   endmodule")
@@ -1630,7 +2543,8 @@ class GuardTest(unittest.TestCase):
         site.doc_text = lambda rel: real(rel).replace("sv_exhaustive", "sv_whatever")
         with self.assertRaises(build.BuildError):
             build.new_design_html(site, sbox, sbox.page, build.md.Slugger([]))
-        site.doc_text = lambda rel: real(rel).replace("## Start a new design", "## Something else")
+        self.assertIn(f"\n## {build.NEW_DESIGN}\n", real("svgolf/tasks/aes_sbox/README.md"))
+        site.doc_text = lambda rel: real(rel).replace(f"## {build.NEW_DESIGN}", "## Something else")
         n = len(site.warnings)
         self.assertEqual(build.new_design_html(site, sbox, sbox.page, build.md.Slugger([])), "")
         self.assertEqual(len(site.warnings), n + 1)
@@ -1934,6 +2848,69 @@ class GuardTest(unittest.TestCase):
         self.assertIn("leaderboard/data/clmul/", part)
         self.assertNotIn("Public submissions open when", part)
         self.assertIn("pull request", site.files["llms.txt"].decode("utf-8"))
+        self.assertIn("open for submissions", text_of(page_))      # the head's badge, with a public repository
+        self.assertNotIn("ready to play", text_of(page_))
+        # the record route (decided 2026-11-11), its sentence the same on every page that says how, and this task's
+        # submit command; nothing says that CI re-verifies a record, which it never did
+        self.assertIn(norm(build.HANDOFF_MD), norm(part))
+        # the command that hands the record in: a block with a Copy button (decided 2026-11-12), not inline code
+        html_part = section(page_, "submit")
+        blocks = [text_of(b) for b in re.findall(r"<pre\b.*?</pre>", html_part, re.S) if "leaderboard.py submit" in b]
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual([ln.strip() for ln in blocks[0].strip().split("\n")],
+                         ["python3.12 leaderboard/leaderboard.py submit --task clmul --record HASH --dry-run",
+                          "python3.12 leaderboard/leaderboard.py submit --task clmul --record HASH"])
+        self.assertNotIn("<code>python3.12 leaderboard/leaderboard.py submit", html_part)
+        self.assertIn("With HASH as step 3 prints it (--dry-run first shows the steps and the pull request's text, and "
+                      "changes nothing):", norm(part))
+        self.assertIn(build.HANDOFF_MD, site.files["llms.txt"].decode("utf-8"))
+        for name in ("about.html", "index.html", "roadmap.html"):
+            with self.subTest(page=name):
+                text = norm(text_of(site.files[name]))
+                self.assertIn(norm(build.HANDOFF_MD), text)
+                for other in (build.HANDOFF_UNPUBLISHED_MD, build.HANDOFF_NONE_MD):
+                    self.assertNotIn(norm(other), text)
+        self.assertIn("Records by pull request", text_of(roadmap_part(site.files["roadmap.html"], "done")))
+        self.assertIn("Handing in a record without git", text_of(roadmap_part(site.files["roadmap.html"], "planned")))
+        for name, data in site.files.items():
+            if name.endswith((".html", ".txt", ".md")):
+                self.assertNotIn("CI re-verifies", data.decode("utf-8"), name)
+
+    def test_the_route_is_said_only_where_both_of_its_programs_are(self):
+        """"Open for submissions" and the sentence on the pull request need the public repository AND both programs of
+        the record route in the tree (decided 2026-11-11): the submit command (leaderboard.py's `submit`) and the
+        check of a record's pull request (leaderboard/pr_check.py). Without one of them a page says that a record
+        cannot be handed in yet, and the badge says "ready to play"."""
+        self.assertTrue(build.route_ready())
+        for rel in build.ROUTE_FILES:
+            self.assertTrue(os.path.isfile(build.repo_file(rel)), rel)
+        missing = build.ROUTE_FILES[:1] + ("svgolf/leaderboard/no_such_check.py",)
+        with mock.patch.object(build, "ROUTE_FILES", missing):
+            self.assertFalse(build.route_ready())
+        with mock.patch.object(build.lb, "cmd_submit", None):
+            self.assertFalse(build.route_ready())
+        config = build.load_config()
+        config["repo_url"] = "https://example.org/someone/svgolf"
+        self.assertTrue(build.submissions_open(config))
+        self.assertFalse(build.submissions_open(dict(config, repo_url=None)))
+        with mock.patch.object(build, "ROUTE_FILES", missing):
+            site = self.build(config=config)
+        page_ = site.files["tasks/clmul/index.html"].decode("utf-8")
+        part = text_of(section(page_, "submit"))
+        self.assertIn("ready to play", text_of(page_))
+        self.assertNotIn("open for submissions", text_of(page_))
+        self.assertIn(norm(build.HANDOFF_NONE_MD), norm(part))
+        self.assertNotIn("leaderboard.py submit", part)
+        self.assertNotIn("pull request", part)
+        llms = site.files["llms.txt"].decode("utf-8")
+        self.assertIn(build.HANDOFF_NONE_MD, llms)
+        self.assertNotIn("pull request", llms)
+        for name in ("about.html", "index.html", "roadmap.html"):
+            with self.subTest(page=name):
+                text = norm(text_of(site.files[name]))
+                self.assertIn(norm(build.HANDOFF_NONE_MD), text)
+                self.assertNotIn(norm(build.HANDOFF_MD), text)
+        self.assertIn("Records by pull request", text_of(roadmap_part(site.files["roadmap.html"], "planned")))
 
     def test_strip_sv_comments(self):
         text = ('// header: QQ-G, Someone\n/* block\n   comment */\nmodule m(input a, output y);\n'
@@ -1991,8 +2968,8 @@ class ReactiveTaskTest(unittest.TestCase):
         text = norm(text_of(self.page))
         self.assertIn("clocked, reactive", text)
         self.assertIn("times the register-to-register clock period in ns, one decision per cycle", text)
-        # 2026-11-09: "How to participate" step 4 no longer restates the score; the Score card's caption (above) is
-        # its one definition on the page, and the task text and step 4 link it
+        # 2026-11-09: the page restates the score nowhere; the Score card (since 2026-11-11 its closed note) is its one
+        # definition on the page, and the task text links it
         self.assertNotIn("sky130 µm² times the register-to-register clock period, one decision per cycle", text)
         self.assertNotIn("The score is the area", text)
         for wrong in ("latency in cycles", "critical-path delay", "× 1 ×", "Latency (cycles)", "react-family"):
@@ -2004,7 +2981,7 @@ class ReactiveTaskTest(unittest.TestCase):
     def test_how_to_submit_uses_the_clocked_flow_and_the_reactive_skeleton(self):
         """2026-11-09: the golfing loop and the reactive skeleton are on the page once: the golfing loop is How to
         submit's first command (since 2026-11-11; the card's own, with the clocked flow), the skeleton the README's in
-        "Start a new design" (folded), which How to submit points to; the skeleton How to submit shows on a page
+        "Proving a new design" (folded), which How to submit points to; the skeleton How to submit shows on a page
         without a card is still the reactive reduction's."""
         part = text_of(section(self.page, "submit"))
         card = text_of(section(self.page, "new-design"))
@@ -2138,7 +3115,7 @@ class LatencyTaskTest(unittest.TestCase):
     builds the arbiter's. Clocked wording: the time is the latency in cycles times the register-to-register period;
     the golfing loop runs the clocked flow (`--seq`); the Solution.lean skeleton carries the header line
     `-- svgolf-latency: n`, the latency definition `lat` and the goal `Goal lat`, with par's pair as the example, and
-    check.py reads its header as par's latency; the "Start a new design" card names the v2 phase route; the
+    check.py reads its header as par's latency; the "Proving a new design" card names the v2 phase route; the
     schematic is a small display instance and says so."""
 
     TASKS = {"matmul": ("tx-family", "clocked, transaction", "TxTask.satisfiedAtV2_of_phases"),
@@ -2161,8 +3138,10 @@ class LatencyTaskTest(unittest.TestCase):
             for ref in t.refs:
                 if not ref["record_hash"]:
                     build.reference_detail_page(site, t, ref, ge_tables)
+        build.rules_page(site, refusals, tasks)             # "The time, and the clock period" (since 2026-11-11)
         cls.site = site
         cls.page = {n: site.files[f"tasks/{n}/index.html"].decode("utf-8") for n in cls.t}
+        cls.rules = site.files["rules.html"].decode("utf-8")
         spec = importlib.util.spec_from_file_location("svgolf_check_py_latency", os.path.join(SVGOLF, "check.py"))
         cls.checkpy = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.checkpy)
@@ -2212,10 +3191,10 @@ class LatencyTaskTest(unittest.TestCase):
                 t = self.t[name]
                 part = text_of(section(self.page[name], "submit"))
                 card = text_of(section(self.page[name], "new-design"))
-                # 2026-11-09: the golfing loop, the --unproved run and the skeleton are the "Start a new design"
+                # 2026-11-09: the golfing loop, the --unproved run and the skeleton are the "Proving a new design"
                 # card's (the README's), once on the page: since 2026-11-11 the two commands are How to submit's first
-                # two, the skeleton is in the card; the generated skeleton below is what How to submit shows on a page
-                # without a card
+                # two, the skeleton is in the card (How to submit's last part); the generated skeleton below is what
+                # How to submit shows on a page without a card
                 skeleton = build.solution_skeleton(t)
                 self.assertNotIn(skeleton, part)
                 self.assertIn("--seq --path", part.replace(" \\\n    ", " "))
@@ -2274,16 +3253,19 @@ class LatencyTaskTest(unittest.TestCase):
 
     def test_the_score_caption_counts_the_input_and_output_paths(self):
         """score/ppa.py's clocked STA: paths start at the inputs and at every Q and end at the outputs and at every D,
-        so the period is not register-to-register alone; the caption says so on a clocked task only."""
+        so the period is not register-to-register alone; the rules page's "The time, and the clock period" says so
+        (since 2026-11-11 the task page's score card links it in place of its long caption)."""
         ppa_src = norm(read_text_file("score/ppa.py"))          # the ASAP7 port wrapped the sentence anew
         self.assertIn("Paths start at the inputs and at every", ppa_src)
         self.assertIn("and end at the outputs", ppa_src)
+        period = norm(text_of(self.rules.split('id="clock-period"', 1)[1].split("<h3", 1)[0]))
+        self.assertIn("so paths from the inputs and to the outputs count too", period)
+        self.assertIn("The clock period (what score/ppa.py calls the register-to-register period) is the longest path",
+                      period)
         for name in self.TASKS:
-            with self.subTest(task=name):
-                self.assertIn("so paths from the inputs and to the outputs count too",
-                              norm(text_of(section(self.page[name], "score"))))
-                self.assertIn("The clock period (what score/ppa.py calls the register-to-register period) is the "
-                              "longest path", norm(text_of(section(self.page[name], "score"))))
+            with self.subTest(task=name):                   # the score card's note links it, by the clock's name
+                self.assertIn('href="../../rules.html#clock-period">the clock period</a>',
+                              section(self.page[name], "score"))
 
     def test_the_files_card_says_a_copy_of_a_licensed_reference_keeps_its_notice(self):
         files = {n: norm(text_of(self.page[n].split('id="files"', 1)[1].split('id="explore"', 1)[0]))

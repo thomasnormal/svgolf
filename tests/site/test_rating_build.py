@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import types
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -83,10 +84,15 @@ class RatingBuild(unittest.TestCase):
                   sha256("score/ppa.py"), sha256("score/ppa_pins.json"), self.flow["canon_script_sha256"],
                   self.flow["script_sha256"], f'id="{build.RATING_BUILD_ANCHOR}"'):
             self.assertIn(w, section_html)
-        line = build.rating_build_sentence("tasks/add/index.html")
+        # since 2026-11-11 the score card's line names the version and links the section, which holds the rest
         for w in ("Yosys 0.53", self.rb["yosys"]["git_sha1"][:8], "ABC 1.01 of 6 May 2025", "deterministic",
-                  f"{self.rb['determinism']['designs']} designs", "rules.html#" + build.RATING_BUILD_ANCHOR):
-            self.assertIn(w, line)
+                  f"{self.rb['determinism']['designs']} designs", f'id="{build.RATING_BUILD_ANCHOR}"'):
+            self.assertIn(w, section_html)
+        for pdk in ("sky130", "asap7"):            # score_line reads the page's path and the view's library
+            line = build.score_line(types.SimpleNamespace(page="tasks/add/index.html", pdk=pdk))
+            self.assertIn("Rated with " + build.page.link("../../rules.html#" + build.RATING_BUILD_ANCHOR,
+                                                          "Yosys " + self.rb["yosys"]["version"]), line)
+            self.assertIn("Yosys 0.53", line)
 
 
 if __name__ == "__main__":

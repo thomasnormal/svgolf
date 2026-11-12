@@ -371,9 +371,6 @@ html:not([data-pdk="asap7"]) .pdk-asap7, html[data-pdk="asap7"] .pdk-sky130 { di
 }
 .pdk-pick select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .pdk-nojs { margin: 0; font: var(--fs-xs)/1.4 var(--mono); color: var(--text-2); }
-.pdk-home { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); margin-left: auto; }
-.pdk-home .pdk-what, .pdk-home .pdk-nojs { margin: 0; max-width: 30rem; text-align: right; }
-.pdk-pick-home label { font-size: var(--fs-xs); color: var(--text); }
 .pdk-pick-home select { font-size: var(--fs-md); border-color: var(--accent-line); }
 .pdk-banner { margin: 0 0 var(--sp-4); }
 .pdk-banner p { margin: 0; padding: var(--sp-3) var(--sp-4); background: var(--accent-soft); color: var(--text);
@@ -383,10 +380,6 @@ html[data-pdk="asap7"] tr.par-row:not(.par-a7) td { background: none; }
 html[data-pdk="asap7"] tr.par-row:not(.par-a7) td:first-child { box-shadow: none; }
 html[data-pdk="asap7"] tr.par-a7 td { background: var(--surface-2); }
 html[data-pdk="asap7"] tr.par-a7 td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
-@media (max-width: 40rem) {
-  .pdk-home { align-items: flex-start; margin-left: 0; }
-  .pdk-home .pdk-what, .pdk-home .pdk-nojs { text-align: left; }
-}
 
 main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: var(--sp-5) var(--gutter) var(--sp-7); }
 
@@ -406,7 +399,8 @@ main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: va
 .foot-brand strong { color: var(--foot-text); display: block; font-family: var(--font-display); }
 .foot-links { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); margin: 0; padding: 0; list-style: none; font: var(--fs-xs)/1.6 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--foot-text-2); }
 .foot-links li { margin: 0; }
-.foot-links a { color: var(--foot-text); text-decoration-color: var(--foot-text-2); }
+.foot-links a { color: var(--foot-text); text-decoration-color: var(--foot-text-2);
+  display: inline-flex; align-items: center; min-height: 24px; }   /* a 24 px tap target (WCAG 2.2, 2.5.8) */
 .foot-links code { text-transform: none; letter-spacing: 0; background: none; padding: 0; color: var(--foot-text); }
 .site-footer :focus-visible { outline-color: var(--marker); }
 
@@ -459,6 +453,9 @@ main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: va
 .stat dt { font: 600 var(--fs-xs)/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
 .stat dd { margin: 0; font: 700 var(--fs-stat)/1.15 var(--mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat dd .unit { font-size: 0.45em; font-weight: 500; color: var(--text-3); margin-left: 0.25em; letter-spacing: 0; }
+/* a task page's labels are links to the score card's note (2026-11-11): a tap target about 27 px tall, the
+   layout unchanged (the margin takes back the padding), above the number it overlaps */
+.stat dt a { display: inline-block; position: relative; padding: 0.4rem 0.25rem; margin: -0.4rem -0.25rem; }
 .stat .stat-note { display: block; font: var(--fs-xs)/1.4 var(--font); color: var(--text-3); letter-spacing: 0; text-transform: none; margin-top: 2px; }
 /* a page head's numbers: a scoreboard, the game's HUD, in a pixel frame */
 .page-head > .stats, .page-head > #numbers > .stats, .page-head > #numbers > .pdk > .stats { --pl: var(--text); --ps: var(--px-grass-lo); background: var(--surface); padding: var(--sp-3) var(--sp-4); margin: var(--px) var(--px) calc(3 * var(--px));
@@ -492,7 +489,7 @@ main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: va
 .card-foot > :first-child { margin-top: 0; }
 .card-foot > :last-child { margin-bottom: 0; }
 
-/* the section heads of a long card ("Interface", "How to participate") */
+/* the section heads of a long card ("Interface", "The trusted statement") */
 .card h3 { font-size: var(--fs-md); margin-top: var(--sp-6); }
 
 /* two columns that stack on phones: the task body and the leaderboard */
@@ -587,8 +584,8 @@ pre.code {
 }
 pre.code code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; border-radius: 0; }
 pre.code[data-src] { max-height: 40rem; }       /* whole files: scroll inside the block */
-/* "Start a new design": its first commands wrap in the narrow column (each starts with python3.12) rather than
-   hide their options past the edge; the copy button copies them unwrapped */
+/* "Proving a new design" (How to submit's last part, 2026-11-11): its commands wrap in the narrow column (each
+   starts with python3.12) rather than hide their options past the edge; the copy button copies them unwrapped */
 #new-design > pre.code[data-lang="bash"], #new-design > .codebox > pre.code[data-lang="bash"] {
   white-space: pre-wrap; overflow-wrap: anywhere; }
 #new-design pre.code[data-lang="bash"] .hl-opt { white-space: nowrap; }   /* never "--" | "task" */
@@ -606,7 +603,7 @@ pre.code[data-src] { max-height: 40rem; }       /* whole files: scroll inside th
 }
 .codebox-head + pre.code { border-top-left-radius: 0; border-top-right-radius: 0; }
 .codebox-name { overflow-wrap: anywhere; }
-.codebox-actions { display: flex; gap: var(--sp-2); align-items: center; }
+.codebox-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; min-width: 0; }
 .copy {
   font: 600 var(--fs-xs)/1 var(--mono); letter-spacing: 0.04em;
   padding: 0.4rem 0.6rem; border-radius: 0;
@@ -671,6 +668,30 @@ caption { caption-side: bottom; text-align: left; padding: var(--sp-2) var(--sp-
 /* the references and baselines (build.py design_cell): the name with its badges, what the design
    is, and a muted line under it, in one cell; the numbers in the columns beside it */
 table.designs-list td:first-child { min-width: 16rem; }
+/* nine columns since Proved references says when each joined (2026-11-11): a little less padding keeps both tables
+   inside the card at 1280 px */
+table.designs-list th, table.designs-list td { padding-left: 0.6rem; padding-right: 0.6rem; }
+/* below the page's width the nine columns scrolled sideways inside their box (140 px at 1024, 520 at 641, measured
+   2026-11-11): the headings may wrap and the design column narrows, so the table fits its card down to 62rem, and
+   from there to a phone it stacks as on a phone (page.table stack), four cells to a line */
+@media (max-width: 74rem) {
+  table.designs-list thead th { white-space: normal; }
+  table.designs-list td:first-child { min-width: 12rem; }
+}
+@media (min-width: 40.01rem) and (max-width: 62rem) {
+  table.stack.designs-list, table.stack.designs-list tbody { display: block; }
+  table.stack.designs-list thead { display: none; }
+  table.stack.designs-list tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+  table.stack.designs-list tbody tr:last-child { border-bottom: 0; }
+  table.stack.designs-list td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; white-space: normal; }
+  table.stack.designs-list td:first-child { grid-column: 1 / -1; min-width: 0; }
+  table.stack.designs-list td:not(:first-child)::before { content: attr(data-label); display: block;
+    font: 600 0.66rem/1.4 var(--mono); letter-spacing: 0.06em; color: var(--text-3); }
+  table.stack.designs-list tr.par-row { background: var(--surface-2); box-shadow: inset 4px 0 0 var(--accent); }
+  table.stack.designs-list tr.par-row td, table.stack.designs-list tr.par-row td:first-child { background: none;
+    box-shadow: none; }
+}
 .cell-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 .cell-what { display: block; margin-top: var(--sp-1); color: var(--text-2); line-height: 1.5; }
 .cell-meta { display: block; margin-top: var(--sp-1); font: var(--fs-xs)/1.5 var(--mono); color: var(--text-3); }
@@ -698,10 +719,21 @@ details > summary:hover { color: var(--text); }
 details[open] > summary { border-bottom: 1px solid var(--border); }
 details > :not(summary) { margin-left: var(--sp-4); margin-right: var(--sp-4); }
 details > pre.code:last-child, details > .codebox:last-child, details > .table-wrap:last-child { margin-bottom: var(--sp-4); }
-/* "Start a new design": the rest of the README's card, folded; under the title, the parts it holds */
+/* "Proving a new design": How to submit's last part, set off by a rule, its head spaced as the This task card's
+   section heads (2026-11-11); the rest of the README's card, folded; under the title, the parts it holds */
+.nd-part { margin-top: var(--sp-6); border-top: 1px solid var(--border); }
+.card .nd-part > h3:first-child { margin-top: var(--sp-5); }
+/* How to submit spans the page under the two columns (build.py task_page, decided 2026-11-12): its code boxes take
+   the width, its prose keeps the doc pages' measure */
+#submit p, #submit ul, #submit ol { max-width: 52rem; }
 details.nd-detail > summary { color: var(--text); font-weight: 600; }
 .nd-more { display: block; margin-top: 0.2rem; font-weight: 400; font-size: var(--fs-xs); color: var(--text-2); }
 details.nd-detail > .codebox, details.nd-detail > pre.code { margin-left: var(--sp-4); margin-right: var(--sp-4); }
+/* the trusted statement, folded (2026-11-11): its summary names what it holds; How the designs scale and the
+   tutorial's optional probe step, folded too */
+details.spec-fold > summary, details.scaling-fold > summary, details.walk-fold > summary { color: var(--text);
+  font-weight: 600; }
+ol.steps > li > details.walk-fold { margin-top: 0; }
 
 ol.steps { list-style: none; padding: 0; counter-reset: step; margin: var(--sp-4) 0; }
 ol.steps > li { counter-increment: step; position: relative; padding: 0 0 0 2.4rem; margin: 0 0 var(--sp-3); min-height: 1.7rem; }
@@ -891,6 +923,7 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 }
 .hero-lead { font-size: var(--fs-md); color: var(--text-2); max-width: 38rem; margin: 0; }
 .hero-lead p { margin: 0; }
+.hero-lead p.hero-sub { color: var(--text); font-size: var(--fs-md); margin-bottom: var(--sp-2); }   /* the headline's sub-line */
 .hero .btn-row { margin: var(--sp-5) 0 0; }
 .hero-art { align-self: end; min-width: 0; display: flex; justify-content: flex-end; margin-left: -7rem; }
 .hero-text { position: relative; z-index: 1; }
@@ -905,14 +938,14 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
   content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 4px;
   background: repeating-linear-gradient(90deg, var(--px-grass) 0 8px, transparent 8px 20px, var(--px-grass) 20px 24px, transparent 24px 32px);
 }
-/* the home page: the hero compact (the title on one line, the buttons under the lead, the drawing small, no grass
-   strip); the note on par and record under the task cards; after them (decided 2026-11-06), the steps on the adder
+/* the home page: the hero compact (the headline in one or two lines, its sub-line and the lead, the buttons under
+   them, the drawing small, no grass strip); the note on par and record under the task cards; after them (decided 2026-11-06), the steps on the adder
    in two columns (step 1, the design, on the left; the proof and the check on the right) */
 .hero-compact { margin-bottom: var(--sp-4); }
 .hero-compact .hero-sky { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); padding-top: var(--sp-4); }
 .hero-compact .hero-text { padding-bottom: var(--sp-4); }
 .hero-compact h1 { font-size: clamp(1.7rem, 2.6vw, 2.2rem); margin-bottom: var(--sp-2); }
-.hero-compact h1 .accent { display: inline; }
+.hero-compact h1 .accent { display: inline; white-space: nowrap; }   /* the highlighted end stays on one line */
 .hero-compact .hero-lead { max-width: 52rem; font-size: var(--fs-base); }
 .hero-compact .btn-row { margin-top: var(--sp-4); }
 .hero-compact .hero-art .px { width: 260px; }
@@ -977,10 +1010,18 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 .course > .section-head { margin-top: 0; }
 .course > .section-head h2 { font-size: var(--fs-xl); }
 .course > .section-head > div { flex: 0 0 auto; }
-/* the library selector beside the heading takes the rest of the line and may shrink below its one-line
-   width (a phone) */
-.course > .section-head > .pdk-home { flex: 1 1 auto; min-width: 0; }
-.course-note { margin: var(--sp-5) var(--px) 0; color: var(--text-2); font-size: var(--fs-sm); max-width: 60rem; }
+/* the course control (2026-11-11): the kicker "The course" is the select's label and the select sits beside it, over
+   the heading and the helper line; the block takes the line and may shrink below its one-line width (a phone) */
+.course > .section-head > .course-pick { flex: 1 1 auto; min-width: 0; }
+.course-pick > .label { display: inline-block; vertical-align: middle; margin: 0 var(--sp-2) var(--sp-2) 0; }
+.course-pick > .pdk-pick { vertical-align: middle; margin-bottom: var(--sp-2); }
+.course-fixed { font: 600 var(--fs-sm)/1.4 var(--font-display); color: var(--text); vertical-align: middle; }
+.course-pick > h2 { margin: 0 0 var(--sp-1); }
+.course-pick .pdk-what, .course-pick .pdk-nojs { margin: 0; max-width: 44rem; }
+.course-pick .first-entries { margin: var(--sp-1) 0 0; max-width: 44rem; }
+/* the closed note on par and record, above the cards */
+.course-note-fold { margin: 0 var(--px) var(--sp-5); max-width: 60rem; }
+.course-note { max-width: 60rem; }
 
 .task-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: calc(var(--sp-4) + 6px) var(--sp-4); }
 .task-card { margin: 0 var(--px); position: relative; display: flex; flex-direction: column; gap: var(--sp-3); background: var(--surface); padding: var(--sp-5); transition: transform 0.12s; }
@@ -988,6 +1029,8 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 .task-card:focus-within { --pl: var(--focus); }
 .task-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
 .task-card .task-no { font-size: var(--fs-lg); }
+.task-card .task-start { display: inline; white-space: nowrap; }   /* the tutorial's mark in the number's box (its
+   line, so the title lines up with its row's), on one line */
 .task-card h3 { margin: 0; font-size: var(--fs-md); }
 .task-card h3 a { color: var(--text); text-decoration: none; }
 .task-card h3 a::after { content: ""; position: absolute; inset: 0; }   /* the whole card is the link */
@@ -1010,6 +1053,13 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 
 .chart-figure { margin: var(--sp-3) 0; }
 .chart-figure figcaption { color: var(--text-3); font-size: var(--fs-sm); margin-top: var(--sp-2); }
+/* the score card under its plot (decided 2026-11-11): one line of links, then a closed note in the site's fold */
+.score-links { color: var(--text-3); margin: var(--sp-3) 0 var(--sp-2); }
+.score-links a { white-space: nowrap; }                 /* each link whole; the longest fits at 320 px */
+td > time { white-space: nowrap; }                     /* a date never breaks at its hyphens */
+details.note > p { font-size: var(--fs-sm); color: var(--text-2); margin-top: var(--sp-3); margin-bottom: var(--sp-3); }
+/* a label's link to the note's paragraph scrolls it into view with the note's summary (up to three rows) above it */
+details.note > p[id] { scroll-margin-top: 6.5rem; }
 .chart-slot { min-height: 6rem; }
 svg.chart { display: block; width: 100%; height: auto; max-width: 52rem; }
 svg.chart text { font-family: var(--mono); font-size: 11px; fill: var(--text-2); }
@@ -1095,7 +1145,8 @@ table.designs td:first-child { white-space: nowrap; }
 .point-control .seg { flex-wrap: wrap; }
 .point-note { color: var(--text-2); margin: 0 0 var(--sp-2); }
 .point-note .measured { color: var(--accent-ink); font-weight: 600; }
-#scaling { margin-top: var(--sp-6); }
+#scaling { margin-top: var(--sp-4); }
+#scaling[open] > .chart-slot { margin-top: var(--sp-3); }
 svg.chart .series-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 svg.chart .s-reference { stroke: var(--kind-reference); }
 svg.chart .s-record { stroke: var(--kind-record); }
@@ -1154,10 +1205,7 @@ dl.mfacts dd { color: var(--text-2); }
 .meter .m-tie { background: color-mix(in srgb, var(--accent) 42%, var(--surface)); }
 .meter .m-trade { background: var(--axis); }
 .meter .m-behind { background: transparent; }
-.beats { margin: 0; font-size: 0.92rem; }
-.mcard .beats + .fine { margin: 0.1rem 0 0.6rem; }
-.mboard { margin: 0.6rem 0 0; }       /* across the card under the rows, as the beats/matches line above them */
-.mboard .fine { margin: 0; }
+.mcard .meter + .fine { margin: 0 0 0.6rem; }      /* the field's count line under its meter (2026-11-11) */
 .fine { margin: 0.3rem 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-2); }
 .dash-note { margin: 0 0 var(--sp-5); max-width: 62rem; }     /* the next card's frame keeps clear */
 .dash-note .fine { margin: 0.2rem 0; }
@@ -1309,7 +1357,7 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   .hero-sky { padding: var(--sp-5) 0 0 var(--sp-4); }
   .hero-text { padding-right: var(--sp-4); }
   .hero h1 { font-size: 1.85rem; }
-  .hero-lead { font-size: var(--fs-base); }
+  .hero-lead, .hero-lead p.hero-sub { font-size: var(--fs-base); }
   .hero .btn-row { gap: var(--sp-2) var(--sp-3); }
   /* the drawing cut to its right side (pixelart.scene's slice): the chip, the ball, the flag */
   .hero-art .px { width: 100%; aspect-ratio: 94 / 66; }
@@ -1352,6 +1400,12 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
 /* a small phone (360 px): the six nav items still fit without scrolling "About" out of sight */
 @media (max-width: 24rem) {
   .site-nav a { padding-left: 0.2rem; padding-right: 0.2rem; }
+}
+/* the header's course selector keeps its name for a screen reader, not its line: beside "ASAP7 · cells only" the
+   label wraps the header (96 -> 133 px) at every width from 320 to 351 px (measured 2026-11-11) */
+@media (max-width: 22rem) {
+  .site-header .pdk-pick label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 }
 @media (max-width: 21rem) {
   .site-nav a { font-size: 0.7rem; padding-left: 0.15rem; padding-right: 0.15rem; }

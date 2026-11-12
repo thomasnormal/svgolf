@@ -24,7 +24,7 @@ reference proof is one self-contained file over the general ls-sv library `LeanM
 copy the sections they share with D3's verbatim, and `tests/fdivp/shared_sections.py` checks that they stay
 byte-identical).
 
-## Start a new design
+## Proving a new design
 
 A new divider is your own `solution.sv` (the header below; `/ % **` are banned at run time, `+ - *` and the
 comparisons are allowed) and a `Solution.lean` that proves it for every format, `W ≥ 2` and `P ≥ 2`. Find
@@ -186,7 +186,7 @@ Every task's range keeps every width it implies below `2^31`.
 
 ## The trusted spec (`IEEE754.lean`)
 
-`IEEE754.lean` is the **trusted challenge material** of the task, beside `Spec.lean` (it was `svgolf/spec/IEEE754.lean`
+`IEEE754.lean` is the **trusted challenge material** of the task, beside `Spec.lean` (it was `spec/IEEE754.lean`
 until 2026-11-03; moved with its content unchanged). It defines IEEE 754-2019 `division` as a function on bit patterns,
 generic over the binary format:
 
@@ -358,7 +358,7 @@ neighbours `c·2^j`, `(c+1)·2^j`, and those two never both have even significan
   before it took the shared obligations (959 thousand heartbeats for `solution`), runs at load 10 to 17 took 92 to
   121 s (`tests/fdivp/results/srt_S0.md`).
 * **Scoring** at the scoring point `W = 5, P = 11` (binary16), no depth budget. The one ranked number is area x
-  time on sky130 A0' (A0' decided 11/03, the product 11/05; svGolf `README.md`, "Scoring"): the cell area in um^2
+  time on sky130 A0' (A0' decided 2026-11-03, the product 2026-11-05; svGolf `README.md`, "Scoring"): the cell area in um^2
   times the critical-path delay of the scored netlist of the pinned two-stage Yosys + ABC flow, weighed by
   `score/ppa.py` (`sky130_a0_v3`). Par, the proved SRT divider `fdivp_srt`, is 12356.8512 um^2 x 27592 ps =
   340 950.2 um2*ns (the restoring reference: 9675.5296 um^2 at 37984 ps, `score/tests/ppa/expected_ppa.json`). The
@@ -428,7 +428,7 @@ rank certificate: the plain sites by depth, the families `norm` and `div` by sta
 500000` for the whole theorem), then ONE theorem, `SvGolf.FdivParam.Glue.chain` (section `DpG5`): the 34 printed
 equations in, the value `XF.val q (W + P) = OutN f a b` out; and `OutN_fdivBits` (section `DpU`) identifies `OutN` with
 the task function for every format. The five `cover` obligations of the generate families are conjunctions: `refine ⟨?_, ?_⟩ <;>
-sv_cover` closes them. The limits assume the `sv_comb` tactics with the grouped obligations of WP-LIN (without it the
+sv_cover` closes them. The limits assume the `sv_comb` tactics with the grouped obligations of 2026-11-02 (without them the
 structure costs 895 thousand heartbeats and the whole solution 2.38 million).
 
 The file is self-contained: it imports the generated design, the framework, the `sv_comb` tactics and the general ls-sv
@@ -486,7 +486,7 @@ of the core give restoring division's quotient and sticky bit. The mathematics o
 error of the reciprocal after each step, `T·E <= S + 4·A·T` with `T = 2^(2^(k+2))`, the estimate and the correction,
 `newton_rest`, and `nwNI_spec` for the step count. It models this core and nothing else, so it is compiled in the
 solution stage like a player's own proof of their own core (it was the prebuilt library module
-`LeanModels/Sv/Lib/Newton.lean` until 2026-11-04; decided 11/04: the shared library holds only results any proof of a
+`LeanModels/Sv/Lib/Newton.lean` until 2026-11-04; decided 2026-11-04: the shared library holds only results any proof of a
 class of designs would use). Section `NwG2`
 has this netlist's `Glue.chain` over its 46 printed equations, and the `Submission` section the rank certificate (every
 site after the core above every Newton step, which needs `clog2_le`), `sv_interface` and the solution. Heartbeats:
@@ -529,7 +529,7 @@ cell of estimate and divisor bits the selected digit keeps `|3R| <= 8·dv`), the
 row, on-the-fly conversion, the invariant over the stages (`SrtInv`, `srt_step`, `srt_core`) and `srt_rest`: after `N`
 stages the corrected quotient and the sticky are those of `P + 2` restoring steps. It models this core and nothing
 else, so it is compiled in the solution stage (it was the library module `LeanModels/Sv/Lib/Srt.lean` until 2026-11-05,
-moved by the rule of 11/04); the two bit-level facts it needed, the value of a carry-save adder row (`XF.val_csa`) and
+moved by the rule of 2026-11-04); the two bit-level facts it needed, the value of a carry-save adder row (`XF.val_csa`) and
 of an XOR with the top-bit constant (`XF.val_xor_top`), are general and stay in `LeanModels.Sv.Lib`. Section `SrG1` is
 the glue of the core, one lemma per printed shape (the family `srt` row by row) and `core`, one application of
 `srt_rest`; section `SrG2` has `g_inc_rnz` (the rounding increment with a one-bit sticky), `fin_ops` and this netlist's
@@ -617,11 +617,11 @@ re-applied to the committed file), submitted with the SRT proof, which they must
 * **The ladder of designs.** D1 (natural, 165 lines) is smallest but outside the tactic fragment in six independent ways and
   refused at load; D2 (fragment-friendly, about 90 plain sites) is inside but costs `n^2` in the tactics; D3 (the
   reference) has 34 sites by folding the bit-level structure into vector sites and generate families. With the grouped
-  obligations of WP-LIN the tactics cost 239 thousand (`sv_structure`) and 320 thousand (`sv_equations`) heartbeats on D3.
+  obligations of 2026-11-02 the tactics cost 239 thousand (`sv_structure`) and 320 thousand (`sv_equations`) heartbeats on D3.
 * **`sv_interface` and a two-parameter task.** The statement is `(task W P).StatementFixed (sem W P)`; the tactic unfolds the
   task only when it is a constant. `unfold SvGolf.Tasks.FdivP.task` before `sv_interface` fixes it.
 * **`check.py --tactics`** (advisory) now states `example (W : Nat) (P : Nat) : CombDesign (design.sem W P)` for a task with
   several parameters (it returned no probe for more than one); `tests/checker/test_advisories.py` covers it.
-* **Statement order moves the score of a netlist** (first found on the flat binary16 divider, WP-H2): decided to stay.
+* **Statement order moves the score of a netlist** (first found on the flat binary16 divider): decided to stay.
   Every reordering of the reference, D1 and D2 moves their scores at `(5, 11)` (`tests/expected.json`,
   `canonical_layout`), which is why no divider is in the `canon` step's list.

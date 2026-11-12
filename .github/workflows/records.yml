@@ -1,0 +1,141 @@
+# The check of a pull request that adds records (leaderboard/pr_check.py; README.md, "Leaderboard"): it may change
+# nothing but added records, every record is verified offline, the records it adds get the full check again
+# (leaderboard.py verify --full: check.py on each pair), and the outcome with each record's board line goes to the job
+# summary. It informs the player and the maintainers and ranks nothing: it runs the pull request's own files, with
+# no secret and a read-only token, and the ranked number is re-made on the rating build by a maintainer when the pull
+# request is merged (CONTRIBUTING.md, "For the maintainers"). A push to main that changes the toolchain only builds,
+# so that pull requests find the caches. Run by hand (Actions > records > Run workflow), it checks a pull request
+# by its number (its merge commit, as the pull request's own run does) or a branch, tag or commit of this
+# repository (what it adds to main since their merge base); with neither, it only builds.
+# Pinned: Yosys and Verilator by version and sha256, the Lean toolchain by lean-toolchain and its packages by
+# lake-manifest.json, the Python packages by requirements.txt, the actions by major version (as the other
+# workflows). Not pinned: the apt packages (the runner image's Ubuntu archive; they only build the tools, and Yosys's
+# version line names the compiler, which is why the full check here compares no score), elan (the installer; it
+# installs the toolchain lean-toolchain names) and Python 3.12's patch release. The Verilator archive is GitHub's
+# archive of the tag: should GitHub ever serve it with other bytes, `sha256sum -c` fails the step, and the hash is
+# refreshed from Homebrew's verilator formula, which uses the same address.
+name: records
+on:
+  pull_request:
+    paths:
+      - "leaderboard/data/**"
+  push:
+    branches: [main]
+    paths:
+      - "lean-toolchain"
+      - "lake-manifest.json"
+      - "lakefile.toml"
+      - ".github/workflows/records.yml"
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: "A pull request's number: check its merge commit, as its own run does"
+        required: false
+        default: ""
+      ref:
+        description: "Or a branch, tag or commit of this repository: check what it adds to main"
+        required: false
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: records-${{ github.event.pull_request.number || inputs.pull_request || inputs.ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # the hosted runners' limit for one job: the builds on a cold cache, then the full check of each added record
+    # (a clocked record's takes about an hour on the rating machine)
+    timeout-minutes: 360
+    steps:
+      - name: What to check (this pull request; or, run by hand, the one named by its number, or a ref)
+        id: target
+        env:
+          PR: ${{ inputs.pull_request }}
+          REF: ${{ inputs.ref }}
+        run: |
+          check=
+          ref=
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            check=merge
+          elif [ -n "$PR" ]; then
+            case "$PR" in *[!0-9]*) echo "::error::pull_request is a pull request's number"; exit 1 ;; esac
+            check=merge
+            ref="refs/pull/$PR/merge"
+          elif [ -n "$REF" ]; then
+            case "$REF" in -*|*[!A-Za-z0-9._/-]*) echo "::error::ref is a branch, tag or commit"; exit 1 ;; esac
+            check=ref
+            ref="$REF"
+          fi
+          echo "check=$check" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.ref }}
+          fetch-depth: 0      # the whole history: a ref's merge base with main (a merge commit needs its first parent)
+          persist-credentials: false      # no token in .git/config while the pull request's own files run
+      - name: The commit to compare with (a merge commit's first parent, the branch it goes to; a ref's merge base)
+        id: base
+        if: steps.target.outputs.check != ''
+        env:
+          CHECK: ${{ steps.target.outputs.check }}
+        run: |
+          if [ "$CHECK" = ref ]; then base=$(git merge-base origin/main HEAD); else base=$(git rev-parse HEAD^1); fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install elan (it installs the toolchain lean-toolchain pins on first use)
+        run: |
+          curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: A C++ compiler, make, and what the Yosys and Verilator builds need
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential autoconf bison flex gawk help2man \
+            libfl-dev libffi-dev libreadline-dev perl pkg-config tcl tcl-dev zlib1g-dev
+      - name: Cache Yosys and Verilator
+        id: tools
+        uses: actions/cache@v4
+        with:
+          path: ~/tools
+          key: tools-${{ runner.os }}-yosys-0.53-126e93d82cec-verilator-5.042-bec14f17de72
+      - name: Build Yosys 0.53 and Verilator 5.042 from their release archives (the rating build's versions)
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL -o yosys.tar.gz https://github.com/YosysHQ/yosys/releases/download/v0.53/yosys.tar.gz
+          curl -sSfL -o verilator.tar.gz https://github.com/verilator/verilator/archive/refs/tags/v5.042.tar.gz
+          printf '%s  yosys.tar.gz\n%s  verilator.tar.gz\n' 126e93d82ceca9ece1cf973b395b46a1cc8105651a8ecf3de9afbe786cdeea58 bec14f17de724851b110b698f3bd25e22effaaced7265b26d2bc13075dbfb4bf | sha256sum -c -
+          mkdir yosys verilator
+          tar -xzf yosys.tar.gz -C yosys
+          tar -xzf verilator.tar.gz -C verilator
+          # each archive holds its tree directly or in one directory
+          src=yosys; [ -f yosys/Makefile ] || src=$(find yosys -mindepth 1 -maxdepth 1 -type d | head -n 1)
+          make -C "$src" -j"$(nproc)" PREFIX="$HOME/tools" PRETTY=0 install
+          src=verilator; [ -f verilator/configure.ac ] || src=$(find verilator -mindepth 1 -maxdepth 1 -type d | head -n 1)
+          cd "$src"
+          autoconf
+          ./configure --prefix="$HOME/tools"
+          make -j"$(nproc)"
+          make install
+      - name: The tools on PATH
+        run: echo "$HOME/tools/bin" >> "$GITHUB_PATH"
+      - name: Cache the Lean build
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.toml') }}
+      - name: The extractor's frontend, the Lean build and the pinned liberty (README.md, "Quick start")
+        run: |
+          python3 -m pip install -r requirements.txt
+          lake build
+          python3 score/ppa.py --fetch-liberty
+      # --sandbox off, and why: this runner is a fresh virtual machine for this one job, holding no secret, with a
+      # read-only token; Ubuntu 24.04 restricts the unprivileged user namespaces that the Linux sandbox (bubblewrap)
+      # needs, and Lean has not been run inside that sandbox yet (README.md, "Sandbox")
+      - name: Check the records it adds (the result is in the job summary)
+        if: steps.target.outputs.check != ''
+        env:
+          BASE: ${{ steps.base.outputs.base }}
+        run: python3 leaderboard/pr_check.py --base "$BASE" --head HEAD --sandbox off --summary "$GITHUB_STEP_SUMMARY"

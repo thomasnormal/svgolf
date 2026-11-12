@@ -1,6 +1,6 @@
 """HTML building blocks of the svGolf site: escaping, the page layout, and the
 components of the design system (style.css): the page head with its big
-stats, cards, small-caps labels, buttons, badges, code blocks, tables, steps,
+stats, cards, small-caps labels, buttons, badges, code blocks, tables,
 the leaderboard list, property cards, the document layout. (Not `html.py`:
 that would shadow the standard library's `html` module for every file in this
 directory.)
@@ -25,6 +25,13 @@ NAV = (("index.html", "Tasks"), ("rules.html", "Rules"), ("proving.html", "Provi
 
 def esc(s):
     return html.escape(str(s), quote=True)
+
+
+def shown_path(rel):
+    """A repository path as the public repository shows it (decided 2026-11-11): svGolf's own files, written
+    `svgolf/...` in this tree (lean-surfaces' layout), lose the prefix, since the public repository is svGolf's tree
+    itself; any other path (the Lean library's) is unchanged."""
+    return rel[len("svgolf/"):] if rel.startswith("svgolf/") else rel
 
 
 class Html(str):
@@ -148,11 +155,6 @@ def toc(entries, label_text="On this page"):
     return f'<nav class="toc" aria-label="{esc(label_text)}"><ul>{items}</ul></nav>'
 
 
-def steps(items_html):
-    """A numbered list of steps (the numbers in accent circles)."""
-    return '<ol class="steps">' + "".join(f"<li>{i}</li>" for i in items_html) + "</ol>"
-
-
 # ---------------------------------------------------------------------------
 # the page head, stats, cards
 # ---------------------------------------------------------------------------
@@ -160,18 +162,20 @@ def steps(items_html):
 class Stat:
     """One big number: `value` over a small-caps `label`, with an optional `unit` after the value
     and a `note` under it. `kind` styles it: good, accent, empty. `icon_html`: a decorative drawing
-    (pixelart.icon, aria-hidden) beside the number."""
+    (pixelart.icon, aria-hidden) beside the number. `label_href`: the label is a link there (where the
+    page defines the term)."""
 
-    def __init__(self, label, value, *, unit=None, note=None, kind=None, icon_html=None):
+    def __init__(self, label, value, *, unit=None, note=None, kind=None, icon_html=None, label_href=None):
         self.label, self.value, self.unit, self.note, self.kind = label, value, unit, note, kind
-        self.icon_html = icon_html
+        self.icon_html, self.label_href = icon_html, label_href
 
     def html(self):
         k = f" stat-{esc(self.kind)}" if self.kind else ""
         unit = f'<span class="unit">{esc(self.unit)}</span>' if self.unit else ""
         note = f'<span class="stat-note">{esc(self.note)}</span>' if self.note else ""
         ico = self.icon_html or ""
-        return f'<div class="stat{k}"><dt>{esc(self.label)}</dt><dd>{ico}{esc(self.value)}{unit}{note}</dd></div>'
+        label = link(self.label_href, esc(self.label)) if self.label_href else esc(self.label)
+        return f'<div class="stat{k}"><dt>{label}</dt><dd>{ico}{esc(self.value)}{unit}{note}</dd></div>'
 
 
 def stats(items, *, cls=None):
@@ -332,64 +336,100 @@ def doc(body_html, toc_entries=(), *, wide=False):
     return f'<div class="{cls}">{side}<article class="card doc-body">{body_html}</article></div>'
 
 
-PDK_OPTIONS = (("sky130", "sky130"), ("asap7", "ASAP7"))
+# the courses (2026-11-11: "ASAP7 · cells only" until a placed-and-routed ASAP7 course replaces it); the `?pdk=` key of
+# each stays as it is, so that a copied link never changes its meaning
+PDK_OPTIONS = (("sky130", "sky130"), ("asap7", "ASAP7 · cells only"))
 
 
 def pdk_select(id_, label_html, *, cls="pdk-pick"):
-    """The library selector (decided 2026-11-09: a reader chooses the library the golf scores are shown on): a
-    `<select>` of PDK_OPTIONS, sky130 chosen, hidden until pdk.js shows it (without JavaScript it could do nothing:
-    `pdk_nojs` says so instead). `autocomplete="off"`: a browser restores no earlier value of it on Back, after pdk.js
-    has set it to the view shown."""
+    """The library selector, "the course" (decided 2026-11-09: a reader chooses the library the golf scores are shown
+    on): a `<select>` of PDK_OPTIONS, sky130 chosen, hidden until pdk.js shows it (without JavaScript it could do
+    nothing: `pdk_nojs` says so instead). `label_html` None: no label of its own (the front page's kicker labels it).
+    `autocomplete="off"`: a browser restores no earlier value of it on Back, after pdk.js has set it to the view shown."""
     opts = "".join(f'<option value="{v}"{" selected" if v == "sky130" else ""}>{esc(t)}</option>' for v, t in PDK_OPTIONS)
-    return (f'<div class="{cls}" data-pdk-pick hidden><label for="{esc(id_)}">{label_html}</label>'
+    label = f'<label for="{esc(id_)}">{label_html}</label>' if label_html is not None else ""
+    return (f'<div class="{cls}" data-pdk-pick hidden>{label}'
             f'<select id="{esc(id_)}" data-pdk-select autocomplete="off">{opts}</select></div>')
 
 
 def pdk_nojs(text_html, cls="pdk-nojs"):
-    """What a reader without JavaScript sees in the selector's place: the scores are sky130's, and the ASAP7 view needs
-    the selector."""
+    """What a reader without JavaScript sees in the selector's place: the scores are sky130's, and the ASAP7 course
+    needs the selector."""
     return f'<noscript><p class="{cls}">{text_html}</p></noscript>'
 
 
 def layout(*, title, body_html, root, active=None, description="", revision=None, site_name="svGolf",
-           scripts=(), banner_html=""):
+           tagline="", library=None, foot_repo=(), scripts=(), banner_html="", header_pdk=True, url=None,
+           base_href=None, skip_link=True, robots=None):
     """A complete page. `root` is the relative path from the page to the site
     root ("" for a top-level page, "../../" for tasks/<t>/index.html). `scripts`: the site's own
     script files the page loads after site.js (a task page: charts.js). The header carries the library
-    selector (`pdk_select`; pdk.js, loaded first and not deferred, sets <html data-pdk> before the page is drawn);
-    `banner_html` (a page that shows scores) opens the main column in the ASAP7 view."""
+    selector, "Course" (`pdk_select`; pdk.js, loaded first and not deferred, sets <html data-pdk> before the page is
+    drawn), unless `header_pdk` is false (the front page, whose course control is beside its task cards: one control
+    on a page); `banner_html` (a page that shows scores) opens the main column in the ASAP7 view. `tagline`: the
+    footer's line beside the name (the front page's headline). The footer's links, one row (decided 2026-11-11): the
+    licence, then `foot_repo` ([(label, url)]: the public repository's Source, Issues and Contributing; empty
+    without one), `library` ({name, url}: the Lean library the proofs are written with), the roadmap, how to
+    reproduce a score, llms.txt, the data and the revision. `foot_repo` may hold ("Apache-2.0", url) first: the
+    licence's link. A `title` that starts with the site's name ("svGolf: ...", the front page's) is the whole title;
+    any other gets " | svGolf". The link preview: the page's `url` (its published address, absolute) is its canonical
+    address and og:url; og:title and og:description repeat the title and the description; no image (decided
+    2026-11-12). `base_href` (the 404 page, which the host serves at any depth): every relative address resolves from
+    the site's root; `skip_link` false leaves out the skip link (an in-page `#main` would resolve to the root under a
+    base); `robots`: the robots meta tag's value."""
     current = ' aria-current="page"'
     logo = pixelart.logo()          # the mark: the hero's chip, small (aria-hidden)
     extra = "".join(f'\n<script src="{root}{esc(s)}" defer></script>' for s in scripts)
     nav = "".join(f'<a href="{root}{href}"{current if href == active else ""}>{esc(label)}</a>'
                   for href, label in NAV)
     rev = f"<li>revision {code(revision)}</li>" if revision else ""
-    full_title = title if title == site_name else f"{title} | {site_name}"
+    repo = dict(foot_repo)
+    licence = (f'<li><a href="{esc(repo["Apache-2.0"])}">Apache-2.0</a></li>' if "Apache-2.0" in repo
+               else "<li>Apache-2.0</li>")
+    links = (licence
+             + "".join(f'<li><a href="{esc(url)}">{esc(label)}</a></li>' for label, url in foot_repo
+                       if label != "Apache-2.0")
+             + (f'<li>Lean library: <a href="{esc(library["url"])}">{esc(library["name"])}</a></li>' if library else "")
+             + f'<li><a href="{root}roadmap.html">Roadmap</a></li>'
+             + f'<li><a href="{root}reproduce.html">Reproduce a score</a></li>'
+             + f'<li><a href="{root}llms.txt">llms.txt</a></li><li><a href="{root}data/site.json">data</a></li>' + rev)
+    full_title = title if title == site_name or title.startswith(f"{site_name}: ") else f"{title} | {site_name}"
+    pick = (pdk_select("pdk-select", "Course") + pdk_nojs("Course: sky130 · the ASAP7 course needs JavaScript")
+            if header_pdk else "")
+    base = f'\n<base href="{esc(base_href)}">' if base_href else ""
+    meta = (f'\n<meta name="robots" content="{esc(robots)}">' if robots else "")
+    meta += f'\n<link rel="canonical" href="{esc(url)}">' if url else ""
+    meta += (f'\n<meta property="og:type" content="website">\n<meta property="og:site_name" content="{esc(site_name)}">'
+             f'\n<meta property="og:title" content="{esc(full_title)}">')
+    meta += f'\n<meta property="og:description" content="{esc(description)}">' if description else ""
+    meta += f'\n<meta property="og:url" content="{esc(url)}">' if url else ""
+    meta += '\n<meta name="twitter:card" content="summary">'
+    skip = '<a class="skip" href="#main">Skip to the content</a>\n' if skip_link else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">{base}
 <title>{esc(full_title)}</title>
-<meta name="description" content="{esc(description)}">
-<link rel="icon" href="data:,">
+<meta name="description" content="{esc(description)}">{meta}
+<link rel="icon" href="{root}favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{root}favicon-32.png" type="image/png" sizes="32x32">
 <link rel="stylesheet" href="{root}style.css">
 <script src="{root}pdk.js"></script>
 <script src="{root}site.js" defer></script>{extra}
 </head>
 <body>
-<a class="skip" href="#main">Skip to the content</a>
-<header class="site-header"><div class="wrap">
+{skip}<header class="site-header"><div class="wrap">
 <a class="brand" href="{root}index.html"><span class="brand-mark">{logo}</span>{esc(site_name)}</a>
-{pdk_select("pdk-select", "Scores on")}{pdk_nojs("Scores on sky130 · the ASAP7 view needs JavaScript")}
+{pick}
 <nav class="site-nav" aria-label="Site">{nav}</nav>
 </div></header>
 <main id="main">
 {banner_html}{body_html}
 </main>
 <footer class="site-footer"><div class="wrap">
-<div class="foot-brand"><span class="brand-mark">{logo}</span><p><strong>{esc(site_name)}</strong>Prove a circuit correct in Lean, then golf its gates.</p></div>
-<ul class="foot-links"><li>generated by <code>svgolf/site/build.py</code></li>{rev}<li><a href="{root}llms.txt">llms.txt</a></li><li><a href="{root}data/site.json">data/site.json</a></li></ul>
+<div class="foot-brand"><span class="brand-mark">{logo}</span><p><strong>{esc(site_name)}</strong>{esc(tagline)}</p></div>
+<ul class="foot-links">{links}</ul>
 </div></footer>
 </body>
 </html>

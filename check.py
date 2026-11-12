@@ -17,7 +17,7 @@ checker extracts from solution.sv (README.md, "Submitting"). Stages, in
 order; the first failing stage rejects:
 
   task          read TASK_DIR/task.json; its `kind` (`KINDS`): combinational, or CLOCKED
-                (`seq-family`, `tx-family`, PLAN4 Gate 2; `stream-family`, C8;
+                (`seq-family`, `tx-family`, `stream-family`,
                 `react-family`, the reactive kind `ReactTask` of SvGolf/TaskReact.lean:
                 the task names its `clock`; its score, postsynth and ppa stages are the
                 clocked ones, `score_clocked`)
@@ -27,7 +27,7 @@ order; the first failing stage rejects:
                 lat p₀ = n` for the solution's definition `Submission.lat`, and the
                 result records `latency: n`. Any other kind refuses the line. After the
                 comparator, the kernel's value of `Submission.lat p` at every point p of
-                the clocked post-synthesis check (F8, decided 2026-11-08; `latency_at`):
+                the clocked post-synthesis check (decided 2026-11-08; `latency_at`):
                 each point is checked against its own latency (`--unproved`:
                 `--latency-at POINT:n`, else n)
   imports       the Lean file's imports are on the allowlist (Mathlib and the packages
@@ -95,7 +95,7 @@ order; the first failing stage rejects:
                 user function call, a latch: ls-sv cannot run it, so no proof
                 can hold): the module ends with an `#eval` testing
                 `Design2.hasUnsupported` at the scoring point and the smaller
-                probe points, naming the first loud node (WP-C3)
+                probe points, naming the first loud node
   solution      compile Solution.lean as `Submission.Solution`, under the
                 task's time limit, which counts the CPU seconds of the Lean
                 process tree (user + system, every thread; decided
@@ -161,10 +161,10 @@ order; the first failing stage rejects:
                 oracle's segments with a long reset-free run, its guarantee on
                 the netlist's outputs and a Moore sample before every edge) at
                 each `postsynth.points`
-  ppa           score/ppa.py (WP-X3): the sky130 columns of the very netlist the
+  ppa           score/ppa.py: the sky130 columns of the very netlist the
                 score stage kept and postsynth verified (area in um^2, delay in ps,
                 unit depth, cell histogram, with the inputs' hashes), as the result
-                key `ppa`. Flow A0' is the RANKED score (decided 11/03): its area x
+                key `ppa`. Flow A0' is the RANKED score (decided 2026-11-03): its area x
                 delay is the one number Par, Record and Under par use (leaderboard/
                 combined.py); the GE and depth of `score` and flow A1' (`mapped`,
                 below) are extra columns. Every other field is untouched. `--ppa {auto,off,
@@ -174,7 +174,7 @@ order; the first failing stage rejects:
                 stderr; `require` makes an absent, unreadable or wrong liberty
                 an infrastructure error (competitions, `leaderboard.py add`/
                 `verify --full` and `tests/run.py` with the liberty use it);
-                `off` has no `ppa` key and no stage. sky130_a0_v3 (11/04): the
+                `off` has no `ppa` key and no stage. sky130_a0_v3 (2026-11-04): the
                 weighed netlist is the A0' one REPAIRED by buffering only
                 (buffer trees on every net over its driver's limits, inputs,
                 flop Q nets and output bits included, the tie cell replicated;
@@ -195,7 +195,7 @@ order; the first failing stage rejects:
                 not one of the pins' allowed cells (reported before any stage,
                 by every run that weighs). The liberty (12.8 MB) is fetched,
                 not vendored: `python3.12 score/ppa.py --fetch-liberty`;
-                score/PPA.md. WP-X4: `ppa` also carries `mapped`, flow A1' (a
+                score/PPA.md. `ppa` also carries `mapped`, flow A1' (a
                 real `abc -liberty` mapping of the canonical RTLIL of the same
                 score run, one more Yosys process of about 0.5 to 3 s, checked
                 against the scored netlist on a sample of input vectors, then
@@ -211,7 +211,8 @@ Prints the result JSON (`accepted`, `stage`, `errors`, per-stage details,
 a LIGHT post-synthesis check, `--no-trusted-build` or a `--time-limit` other than the task's left part
 of the check out, so it establishes nothing a board may rank (README.md, "Rules": a failed, timed-out or
 incomplete check establishes nothing); `leaderboard.py add` refuses it (a light one only as a marked
-light record, which never ranks). Exit status: 0 accepted (or a clean
+light record, which never ranks). A light check is what a plain run makes, and `leaderboard.py add` runs
+the full check itself, so its INCOMPLETE line asks for no second run. Exit status: 0 accepted (or a clean
 `--unproved` run, below), 1 rejected (a stage failed), 2 usage or
 infrastructure error.
 
@@ -221,10 +222,15 @@ LAST line of every run that reached the `ppa` stage, the ranked headline:
 
     ranked (sky130 A0'): <area> um^2 x <delay> ps = <area x time> um2*ns; par <par> (<par reference>)
 
+and on a clocked task, whose time is the latency in cycles (1 without one) times the clock period,
+
+    ranked (sky130 A0'): <area> um^2 x <n> cycles x <period> ps = <area x time> um2*ns; par <par> (<par reference>)
+
 (`par` is the best proved reference's area x time on the task's board, the reference player's records in
-leaderboard/data, leaderboard.py `par_of`; `par: none recorded` without one), or `ranked: liberty missing, run
-python3.12 score/ppa.py --fetch-liberty` when the pinned liberty cannot be opened, or `ranked: not computed: <why>`
-when the pinned flow cannot weigh the netlist. On a clocked task <delay> is the ranked time, cycles x the period.
+leaderboard/data, leaderboard.py `par_of`; `par: none recorded` without one, and `par: none under this Yosys
+build` (or `this flow`) when the reference records were weighed under another one: `par_elsewhere`), or
+`ranked: liberty missing, run python3.12 score/ppa.py --fetch-liberty` when the pinned liberty cannot be opened,
+or `ranked: not computed: <why>` when the pinned flow cannot weigh the netlist.
 
 `--unproved` (no Lean file) runs every stage that does not need a proof
 (source, extract, banlist, fourstate, trusted, design, score, postsynth, ppa) and NEVER
@@ -246,7 +252,7 @@ ADVISORY output, which never changes `accepted`, `stage` or another field:
     "message": "ok" or the first line of the tactic's refusal}, from one extra
     Lean job (`sv_structure?` on the staged design; `stages.tactics.seconds`).
 
-SANDBOX (WP-S): `--sandbox {off,auto,require}` (default `auto`, $SVGOLF_SANDBOX). Every process that
+SANDBOX: `--sandbox {off,auto,require}` (default `auto`, $SVGOLF_SANDBOX). Every process that
 runs submitted text -- the Lean compiles (the generated design module, the import probe, the solution),
 the comparator and `leanchecker`, the extractor, Yosys, Verilator and its C++ build, the compiled model,
 `svgolf-eval` -- runs under the operating system's sandbox (macOS Seatbelt, Linux bubblewrap;
@@ -292,7 +298,7 @@ one, `auto` runs the solution's Lean with the checker's privileges and says so);
 IN the checker's own process (pyslang in the source gate, the banlist and fourstate front checks) are
 not sandboxed; single-file submissions.
 
-`bv_decide` is NOT SUPPORTED (decided 2026-11-01: "Let's not support external solvers for now"): it runs an
+`bv_decide` is NOT SUPPORTED (decided 2026-11-01: no external solvers for now): it runs an
 external SAT solver (`cadical`), which the solution's compile sandbox would have to be allowed to start
 (`fork`, the exec of `cadical`, a writable temporary directory). `BV_DECIDE_SUPPORTED` below is False, so a
 task's `allow_bv_decide: true` is an infrastructure error, the comparator is never given `--bv-decide`, and
@@ -329,8 +335,8 @@ import envelope  # noqa: E402  (check/envelope.py: the one extraction path)
 import layout  # noqa: E402  (check/layout.py: where lean-surfaces is, in either layout)
 import fourstate  # noqa: E402  (score/fourstate.py: no x or z value can arise at the probed points)
 import postsynth  # noqa: E402  (check/postsynth.py: the post-synthesis check)
-import sandbox  # noqa: E402  (check/sandbox/: the environment scrub, the sandbox, WP-S)
-import ppa  # noqa: E402  (score/ppa.py: the sky130 PPA columns, A0' ranked, WP-X3)
+import sandbox  # noqa: E402  (check/sandbox/: the environment scrub and the sandbox)
+import ppa  # noqa: E402  (score/ppa.py: the sky130 PPA columns, A0' ranked)
 import score  # noqa: E402
 from envelope import parse_point, point_str, probe_points  # noqa: E402,F401
 
@@ -353,8 +359,8 @@ PPA_MODES = ("auto", "off", "require")
 
 # `bv_decide` is NOT SUPPORTED. The tactic starts an EXTERNAL SAT solver (the toolchain's `cadical`) and reads
 # its LRAT proof back, so the solution's compile would need `fork`, the exec of `cadical` and a writable
-# temporary directory inside the sandbox (WP-BV measured that these three are the minimum). The maintainers declined
-# that widening on 2026-11-01 ("maybe that's a bad idea. Let's not support external solvers for now"): the
+# temporary directory inside the sandbox (measured: these three are the minimum). The maintainers declined
+# that widening on 2026-11-01 (no external solvers for now): the
 # register policy (docs/sv-refusals.json) and README.md ("bv_decide") record the ruling. While this is False:
 #   * `allow_bv_decide: true` in a task.json is an infrastructure error (absent or false: bv_decide is forbidden);
 #   * the comparator is never given `--bv-decide`, so it rejects any bv_decide axiom;
@@ -369,7 +375,7 @@ BV_DECIDE_SUPPORTED = False
 BV_DECIDE_HINT = ("bv_decide runs an external SAT solver (cadical), which the checker does not support; prove the "
                   "goal with decide +kernel, omega, simp or a symbolic argument (svgolf/README.md, \"bv_decide\")")
 
-# The module roots of Mathlib's package closure (WP-B, 2026-10-31: Mathlib is allowed in
+# The module roots of Mathlib's package closure (decided 2026-10-31: Mathlib is allowed in
 # submissions). They are the packages of lean-surfaces' `lake-manifest.json` that the module
 # `Mathlib` reaches through its imports; the manifest also pins `Cli`, which only Mathlib's own
 # `cache` executable uses, so it is not admitted. `tests/imports/test_allowlist.py` recomputes
@@ -754,7 +760,7 @@ class Lean:
                      + (["--cpu-limit-s", str(cpu_limit)] if cpu_limit else [])
                      + (["--pty"] if progress else []) + ["--"] + inner)
         else:
-            inner = self._supervised(inner)       # (a wrapper: the untimed `lake build` too, B7)
+            inner = self._supervised(inner)       # (a wrapper: the untimed `lake build` too)
         t0 = time.time()
         if progress:
             proc, stamps = run_stamped(self.wrap + inner, SVGOLF, env)
@@ -1006,7 +1012,7 @@ def strip_lean_comments(text, keep_lines=False):
     """`text` with every comment replaced by whitespace, as Lean reads it: a block comment is a
     SEPARATOR (`import A/-c-/import B` is two imports; deleting the comment outright spliced the
     two tokens into one module name `Aimport` and hid the second import from the allowlist and
-    from every import-dependent stage: WP-B review). `keep_lines`: the newlines inside a block
+    from every import-dependent stage: found in review). `keep_lines`: the newlines inside a block
     comment stay, so that line N of the result is line N of `text` (Lean's error positions)."""
     out, i, depth = [], 0, 0
     while i < len(text):
@@ -1103,7 +1109,7 @@ def lean_string(s):
 
 
 # ---------------------------------------------------------------------------
-# imports from packages (Mathlib and friends, WP-B)
+# imports from packages (Mathlib and friends)
 # ---------------------------------------------------------------------------
 
 # A module name the generated import probe may carry (no quoting, no punctuation).
@@ -1126,8 +1132,8 @@ def import_probe_text(pkg):
     compiles (a player's own output could forge any message the solution stage prints)."""
     # a line comment, not a `/-! -/` doc comment: that one is a command, and `import` must
     # come before every command
-    return ("-- GENERATED by svgolf/check.py: the solution's package imports, compiled alone "
-            "(WP-B). Not part of any submission.\n"
+    return ("-- GENERATED by svgolf/check.py: the solution's package imports, compiled alone. "
+            "Not part of any submission.\n"
             + "".join(f"import {m}\n" for m in sorted(set(pkg))))
 
 
@@ -1298,7 +1304,7 @@ def search_path_snapshot(search_path, skip=()):
     return snap
 
 
-# The marker lines the generated `Submission.Design` prints (WP-C3, below).
+# The marker lines the generated `Submission.Design` prints (below).
 UNSUPPORTED_AT = re.compile(r"SVGOLF_UNSUPPORTED at (.*)")
 UNSUPPORTED_FREE = re.compile(r"SVGOLF_UNSUPPORTED_FREE (\d+)")
 
@@ -1321,8 +1327,8 @@ def unsupported_check_points(task):
 
 
 def unsupported_check_text(task):
-    """The generated `#eval` that rejects a design with an Unsupported node
-    (WP-C3). `load_design_sv2` accepts an envelope whose lowered design has a
+    """The generated `#eval` that rejects a design with an Unsupported node.
+    `load_design_sv2` accepts an envelope whose lowered design has a
     loud `Unsupported` process, statement or expression (a procedural
     function call, a construct ls-sv does not run): `design.sem` is then a
     design that ls-sv cannot execute, no proof about it can hold, and
@@ -1339,7 +1345,7 @@ def unsupported_check_text(task):
                for p in unsupported_check_points(task)]
     items = ",\n    ".join(f"({lean_string(label)}, design.sem{' ' + args if args else ''})"
                            for label, args in entries)
-    return f"""/-! Every point's lowered design must be free of `Unsupported` nodes (WP-C3). -/
+    return f"""/-! Every point's lowered design must be free of `Unsupported` nodes. -/
 #eval show IO Unit from do
   let pts : List (String × LeanModels.Sv.Design2) := [
     {items}]
@@ -1353,13 +1359,13 @@ def unsupported_check_text(task):
 """
 
 
-# The task kinds (task.json `kind`). The CLOCKED kinds (PLAN4 Gate 2; svgolf/design/sequential/
+# The task kinds (task.json `kind`). The CLOCKED kinds (design/sequential/
 # CONTRACT.md, txtask-v1) name their clock port in task.json `clock`, which the source gate's clocked
 # rules check (score/srcgate.py, item 6): `seq-family`, a `SeqTask` statement `Statement design.sem`
 # (the counter fixture); `tx-family`, a `TxTask` statement `Statement design.sem lat` with the
 # latency function the SOLUTION defines (`LATENCY_DEF`) and declares at the scoring point in its
-# header (`-- svgolf-latency: n`, C3): the goal is `Statement design.sem lat ∧ lat p₀ = n`;
-# `stream-family`, a `StreamTask` statement (C8: the sorter) of the same shape, whose task.json
+# header (`-- svgolf-latency: n`): the goal is `Statement design.sem lat ∧ lat p₀ = n`;
+# `stream-family`, a `StreamTask` statement (the sorter) of the same shape, whose task.json
 # `protocol` names the stream ports and the parameter that is the number of values (`count`);
 # `react-family`, a `ReactTask` statement (SvGolf/TaskReact.lean: the arbiter) `Statement design.sem`, a
 # controller that runs for ever under a safety monitor and bounded response, with no latency (one
@@ -1398,7 +1404,7 @@ def task_kind(task):
 
 def parse_latency(text, kind):
     """The latency `n` the solution's header declares (`-- svgolf-latency: n`, a line of its
-    own): exactly one such line, n ≥ 1 (C3), for a `LATENCY_KINDS` task; none for any other kind."""
+    own): exactly one such line, n ≥ 1, for a `LATENCY_KINDS` task; none for any other kind."""
     found = LATENCY_HEADER.findall(text)
     if kind not in LATENCY_KINDS:
         if found:
@@ -1408,11 +1414,11 @@ def parse_latency(text, kind):
     if len(found) != 1:
         raise Reject("latency", "the solution declares its latency in exactly one header line "
                      f"`-- svgolf-latency: <n>` (found {len(found)}); the goal pins "
-                     f"`{LATENCY_DEF} p₀ = n` at the scoring point and the score uses n (C3)")
+                     f"`{LATENCY_DEF} p₀ = n` at the scoring point and the score uses n")
     m = re.fullmatch(r"\s*([1-9][0-9]{0,8})\s*", found[0])
     if not m:
         raise Reject("latency", f"`-- svgolf-latency:{found[0]}`: the latency is a decimal "
-                     "number of cycles, 1 to 999999999 (C3: lat ≥ 1)")
+                     "number of cycles, 1 to 999999999 (lat ≥ 1)")
     return int(m.group(1))
 
 
@@ -1432,7 +1438,7 @@ def goal_text(task, latency=None):
             f"  {const} design.sem lat ∧ lat {args} = {int(latency)}")
 
 
-# F8 (decided 2026-11-08): THE LATENCY AT EVERY POST-SYNTHESIS POINT. The statement holds `lat p` at every point p in
+# THE LATENCY AT EVERY POST-SYNTHESIS POINT (decided 2026-11-08). The statement holds `lat p` at every point p in
 # range, and the score uses the header's n = `lat p₀` at the scoring point only; the clocked post-synthesis check of a
 # latency kind runs at several points (`clocked_points`), each against THAT point's latency `lat p` (before, the scoring
 # point's n at every point: an over-rejection of a design whose latency is larger elsewhere, e.g. one that grows with N
@@ -1680,7 +1686,7 @@ def integrity_snapshot(stage, search_path=()):
     (except the solution's own output) and the trusted scripts. By METADATA
     (size, mtime, ctime, inode, mode; ctime cannot be set by a user process):
     the svGolf and LeanModels.Sv/Core builds, the Lean toolchain and Yosys, and, for EVERY
-    solution (WP-B review: a solution that imports no package can still plant an olean that a
+    solution (found in review: a solution that imports no package can still plant an olean that a
     later Mathlib-importing run would load), the Lean search path `search_path`
     (`search_path_snapshot`): the `.olean*` files of the package builds on it, its entries'
     top-level names, and the entries that do not exist (recorded as absent). New and deleted
@@ -1707,7 +1713,7 @@ def integrity_snapshot(stage, search_path=()):
                os.path.join(SVGOLF, "lakefile.toml"), os.path.join(SVGOLF, "lean-toolchain"),
                os.path.join(SVGOLF, "lake-manifest.json"),
                os.path.join(LS_ROOT, "lakefile.toml"), os.path.join(LS_ROOT, "lean-toolchain"),
-               os.path.join(LS_ROOT, "lake-manifest.json")]   # pins Mathlib's revision (WP-B)
+               os.path.join(LS_ROOT, "lake-manifest.json")]   # pins Mathlib's revision
     content += [os.path.join(SVGOLF, "score", f) for f in
                  ("score.py", "banlist.py", "srcgate.py", "fourstate.py", "slangdriver.py", "canon.ys",
                  "svgolf.ys", "ge.json", "ppa.py", "ppa_pins.json", "ppa_mapped.ys",
@@ -1775,8 +1781,10 @@ def incomplete_reasons(task, st, do_score, build_trusted, time_limit):
         modes = ({ps.get("mode")} if "mode" in ps else
                  {p.get("mode") for p in ps.get("points") or [] if isinstance(p, dict)})
         if "light" in modes:
-            why.append("the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback): "
-                       "rerun with --postsynth full")
+            why.append("the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback); "
+                       "leaderboard.py add runs the full check itself, so there is no need to rerun with "
+                       "--postsynth full first (only a stored result for add --from-check must come from a "
+                       "full run)")
     if not build_trusted:
         why.append("--no-trusted-build: this run did not build the trusted modules, so the comparator checked the "
                    "goal against whatever statement module was on disk")
@@ -1808,7 +1816,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
     "require" (the `ppa` stage, below): "require" opens the pinned liberty NOW,
     before any work, and an absent or wrong file is an infrastructure error.
     `latency_at` ({point text: n}, `--latency-at`) is an `--unproved` run's latency at the clocked
-    post-synthesis points other than the scoring point (F8; a proved run asks the kernel)."""
+    post-synthesis points other than the scoring point (a proved run asks the kernel)."""
     try:
         postsynth_mode = postsynth.resolve_mode(postsynth_mode)
     except postsynth.InfraError as e:
@@ -1854,7 +1862,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         if kind in CLOCKED_KINDS:      # (a combinational result stays byte-identical)
             st["task"]["kind"] = kind
         if kind in CLOCKED_KINDS and do_score:
-            # the ranked clocked score is sky130 (C7): the pinned liberty is required, and the
+            # the ranked clocked score is sky130: the pinned liberty is required, and the
             # evaluator of the clocked post-synthesis check is binding (check/postsynth.py)
             ppa_mode = "require"
             oracle = postsynth.clocked_oracle(oracle, kind)
@@ -1908,7 +1916,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
             st["latency"] = {"declared": latency, "definition": LATENCY_DEF,
                              "at": task["scoring"]["params"]}
             if unproved and do_score:
-                # F8: no `lat` to evaluate; the command line's values, else the scoring point's n
+                # no `lat` to evaluate: the command line's values, else the scoring point's n
                 res["latency_at"] = unproved_latency_at(task, latency, latency_at or {})
                 st["latency"]["points"] = res["latency_at"]
                 st["latency"]["points_from"] = ("--latency-at, else the scoring point's --latency" if latency_at else
@@ -2013,7 +2021,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
                   "probe and backstop points)")
             if fs["diagnostics"]:
                 # slang's own errors: a program slang reports illegal is rejected, and any finding listed with
-                # them comes from slang's error recovery (WP-RB1: a slang error is not an x/z finding)
+                # them comes from slang's error recovery (a slang error is not an x/z finding)
                 raise Reject("fourstate", f"slang reports the program illegal at {at} "
                              "(a slang error, not an x or z finding; a program slang rejects is "
                              "rejected):\n" + lines)
@@ -2060,7 +2068,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
                     raise Reject("trusted", f"cannot build imported modules {mods_to_build}:\n{tail(out)}")
             note_wait(st["trusted"], lean)
 
-        # the Lean search path, which the tripwire watches (WP-B review: for EVERY solution, and
+        # the Lean search path, which the tripwire watches (for EVERY solution, and
         # as the search path says, not as the packages directory's listing does)
         search = []
         if not unproved:
@@ -2071,7 +2079,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
                                    f"(infrastructure; exit {rc}; is the project built? {envelope.BUILD_FIRST}):\n"
                                    f"{tail(out)}")
 
-        # package imports (Mathlib and friends, WP-B): the imports alone, compiled first
+        # package imports (Mathlib and friends): the imports alone, compiled first
         pkg = package_imports(imports)
         if pkg:
             bad_names = [m for m in pkg if not MODULE_NAME.fullmatch(m)]
@@ -2081,7 +2089,10 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
             if absent:
                 raise RuntimeError(f"the package(s) {absent} are on no entry of the Lean search "
                                    "path (infrastructure: the packages are not built on this "
-                                   f"machine, or SVGOLF_LS_ROOT is wrong): {search}")
+                                   f"machine, or SVGOLF_LS_ROOT is wrong"
+                                   + ("; for Mathlib, run `lake exe cache get` in the repository first: README.md, "
+                                      "\"Mathlib in submissions\"" if "Mathlib" in absent else "")
+                                   + f"): {search}")
             revs = package_revisions()
             wrong = revision_mismatches(revs)
             if wrong:
@@ -2191,7 +2202,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         goal_arg = LATENCY_DEF if kind in LATENCY_KINDS else None
         if goal_arg is not None:
             cargs += ["--goal-arg", goal_arg]
-            if do_score:      # F8: `lat p` at every clocked post-synthesis point, by the kernel (Comparator point 8)
+            if do_score:      # `lat p` at every clocked post-synthesis point, by the kernel (Comparator point 8)
                 for p in clocked_points(task):
                     cargs += ["--goal-arg-at", ",".join(str(p[x["name"]]) for x in task["parameters"])]
         vcpu, vwall = verify_limits(vlimit)
@@ -2208,7 +2219,7 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         if comp is None:
             raise Reject("comparator", f"the comparator did not report:\n{tail(out)}")
         # the imports Lean itself recorded for the compiled solution, against the header the
-        # allowlist read (WP-B review: the header reader and Lean must not disagree)
+        # allowlist read (the header reader and Lean must not disagree)
         problem = import_mismatch(imports, (comp.get("imports") or {}).get("Submission.Solution"))
         if problem:
             raise Reject("imports", problem)
@@ -2412,7 +2423,7 @@ def ppa_block(netlist_path, sres, mode, lib_pins=None, expect_sha256=None, task=
     cannot weigh THIS netlist (a cell outside its table, an undriven net, ...: any mode, with
     the loud reason; the design is not at fault for the check), or (sky130_a0_v2, v3) the REPAIRED
     netlist is electrically illegal: then the block also says `"illegal": true` and carries the
-    audit's counts (`legality`), and `ppa_stage` REJECTS the design (its fault: decided 11/04). A
+    audit's counts (`legality`), and `ppa_stage` REJECTS the design (its fault: decided 2026-11-04). A
     repaired netlist whose function differs from the scored one is a defect of the repair, not of
     the design: nothing is reported (`auto`) or an infrastructure error (`require`). The scored
     netlist's unit depth and gate count (the A0' expansion before the repair, flops included)
@@ -2599,7 +2610,7 @@ def never_loaded(sres, sv, top, point):
     from a names-kept diagnostic run (`score.undefined_registers`), which also decides whether a constant the log
     prints as "1-bit" was a 1 (one value for every reader: kept) or an x (refused). The same rule covers the memory
     analogue (`score.MEM_UNDEFINED`: an unpacked array's lane no write loads, whose reads opt_mem connects to the
-    undefined value before any flop exists), the 2026-11-06 adversarial round's finding F1. Its finding F2, a state
+    undefined value before any flop exists), a finding of the 2026-11-06 adversarial round. Its other finding, a state
     register the fsm pass re-implements (the new flip-flops power up in codes that are no value of the register), is
     closed by the flow itself (`synth -nofsm`, decided 2026-11-06); `score.FSM_MAPPED` stays as a backstop that should
     never fire. Raises Reject("score")."""
@@ -2648,11 +2659,11 @@ def never_loaded(sres, sv, top, point):
 
 
 def score_clocked(res, st, task, sv, env_path, ps_work, mod, mode, top, sparams):
-    """The clocked `score`, `postsynth` and `ppa` stages (PLAN4 Gate 2 steps 3 and 4; C7): the clocked
+    """The clocked `score`, `postsynth` and `ppa` stages: the clocked
     flow (score/svgolf_seq.ys, ge_seq.json) at the scoring point; the clocked post-synthesis check
     (check/postsynth.py `run_clocked`) at each of the task's `postsynth.points` (the scoring point's
     netlist is the scored one, another point's is synthesized by the same flow), a latency kind's
-    each against its own latency `lat p` (F8, `latency_at`); the sky130 columns
+    each against its own latency `lat p` (`latency_at`); the sky130 columns
     of the scored netlist. RANKED: `area_um2` (sky130 A0', flops included) and `time_ps` = `cycles`
     x `period_ps`, the register-to-register period from the pinned liberty (clock-to-Q and setup
     included), `cycles` the declared latency n (1 for a seq-family task: one step per cycle). GE,
@@ -2669,7 +2680,7 @@ def score_clocked(res, st, task, sv, env_path, ps_work, mod, mode, top, sparams)
     lat_at = res.get("latency_at") or {}
 
     def latency_of(pt):
-        """The latency the check uses at `pt` (F8): `lat pt` (a proved run: the kernel's; `--unproved`: the command
+        """The latency the check uses at `pt`: `lat pt` (a proved run: the kernel's; `--unproved`: the command
         line's), or None for a kind without one."""
         if res.get("latency") is None:
             return None
@@ -2707,7 +2718,7 @@ def score_clocked(res, st, task, sv, env_path, ps_work, mod, mode, top, sparams)
                     "time_ps": cycles * p["delay_ps_sky130"], "ranked": ["area_um2", "time_ps"],
                     **{k: sres[k] for k in ("area_ge", "area_mge", "depth", "ffs", "gates", "num_gates",
                                             "params")}}
-    log(f"score (clocked, C7): {res['score']['area_um2']} um^2, {cycles} x {p['delay_ps_sky130']} ps = "
+    log(f"score (clocked): {res['score']['area_um2']} um^2, {cycles} x {p['delay_ps_sky130']} ps = "
         f"{res['score']['time_ps']} ps; extra: {sres['area_ge']} GE, unit depth {sres['depth']}, "
         f"{sres['ffs']} flops; postsynth at {len(points)} point(s) [{round(time.time() - t0, 2)} s]")
 
@@ -2761,7 +2772,7 @@ def dev_hint(stage, wrap, unproved, res):
             "design; the file starts with `import Submission.Design`"}
 
 
-# SVGOLF_LEAN_WRAP_ONCE (item 9 of the newcomer study): the wrapper taken once, around a re-run of check.py whose
+# SVGOLF_LEAN_WRAP_ONCE: the wrapper taken once, around a re-run of check.py whose
 # environment carries the wrapper in HELD (so that it calls lake and lean directly, and its `dev_hint` still puts the
 # wrapper in front of lake) and the time the outer run asked for it in SINCE.
 LEAN_WRAP_ONCE_ENV = "SVGOLF_LEAN_WRAP_ONCE"
@@ -2834,9 +2845,34 @@ def task_par(task_name):
         return None, f"{type(e).__name__}: {' '.join(str(e).split())[:200]}"
 
 
+def par_elsewhere(task_name):
+    """When the task has no par under this machine's flow (`task_par` gives (None, None)): the keys of the flow
+    (leaderboard.py `current_flow`: Yosys's version line, the hashes of the flow scripts and GE table) in which the
+    reference record that WOULD be par, with the flow left out of the comparison, differs from this machine's; [] when
+    there is no such record (the task has no proved reference that ranks anywhere) or it cannot be read. Advisory,
+    like `task_par`: the usual case is another build of Yosys 0.53, whose version line differs from the rating
+    build's (README.md, "The build ratings use")."""
+    try:
+        lb = _load_by_path("svgolf_leaderboard_par", os.path.join(SVGOLF, "leaderboard", "leaderboard.py"))
+        task = lb.load_task(lb.DEFAULT_TASKS, task_name)
+        loaded = lb.load_records(lb.DEFAULT_DATA, task_name)
+        records = lb.good_records(loaded)
+        par = lb.par_of(task, records, flow=None, identity=lb.ppa_identity(),
+                        input_drive=lb.ppa_setup_now(task).get("input_drive"),
+                        names=lb.reference_names(lb.DEFAULT_TASKS, task),
+                        statement=lb.current_statement_or_none(task))
+        if par is None:
+            return []
+        rec = next(r for r in records if r.get("record_hash") == par["record_hash"])
+        return lb.flow_mismatch(lb.flow_of(rec), lb.current_flow(lb.SVGOLF, lb.task_flow(task)))
+    except Exception:   # noqa: BLE001  (advice on stderr: never a crash)
+        return []
+
+
 def ranked_headline(res):
     """The last stderr line of a run that reached the `ppa` stage (None for any other run): the ranked number,
-    area x time (leaderboard/combined.py), against par (`task_par`)."""
+    area x time (leaderboard/combined.py), against par (`task_par`; `par_elsewhere` when there is none here). A
+    clocked run (its `score` has `cycles` and `period_ps`) shows its time as the two factors, cycles x period."""
     if "ppa" not in (res.get("stages") or {}):
         return None
     block = res.get("ppa") or {}
@@ -2850,11 +2886,43 @@ def ranked_headline(res):
     exact = comb.of_columns(area_e4um2=block.get("area_e4um2_sky130"), time=time_ps)
     if exact is None:
         return "ranked: not computed: the sky130 columns carry no area or time"
-    line = f"ranked (sky130 A0'): {block['area_um2_sky130']} um^2 x {time_ps} ps = {comb.um2ns(exact):.2f} um2*ns"
+    if "cycles" in sc and "period_ps" in sc:
+        n = sc["cycles"]
+        factors = f"{n} cycle{'' if n == 1 else 's'} x {sc['period_ps']} ps"
+    else:
+        factors = f"{time_ps} ps"
+    line = f"ranked (sky130 A0'): {block['area_um2_sky130']} um^2 x {factors} = {comb.um2ns(exact):.2f} um2*ns"
     par, why = task_par(res.get("task"))
     if par is not None:
         return line + f"; par {par['um2ns']:.2f} ({par['name']})"
-    return line + ("; par: none recorded" if why is None else f"; par: unavailable ({why})")
+    if why is not None:
+        return line + f"; par: unavailable ({why})"
+    keys = par_elsewhere(res.get("task"))
+    if keys:
+        where = "this Yosys build" if keys == ["yosys"] else f"this flow ({', '.join(keys)} differ)"
+        return line + (f"; par: none under {where}, the reference records were weighed under another (README.md, "
+                       "\"The build ratings use\")")
+    return line + "; par: none recorded"
+
+
+# The file check.py writes into every staging directory it makes: `--stage-dir` replaces an existing directory only
+# when it holds this file or is empty, so that a mistyped path (`--stage-dir .`) is refused instead of deleted.
+STAGE_MARK = ".svgolf-stage"
+
+
+def stage_dir_problem(path):
+    """Why `--stage-dir path` must not be used (a sentence), or None: it does not exist, is empty, or holds
+    STAGE_MARK."""
+    if not os.path.lexists(path):
+        return None
+    if os.path.islink(path):
+        return f"--stage-dir {path}: it is a symbolic link: name a directory"
+    if not os.path.isdir(path):
+        return f"--stage-dir {path}: it exists and is not a directory: name another one"
+    if os.listdir(path) and not os.path.isfile(os.path.join(path, STAGE_MARK)):
+        return (f"--stage-dir {path}: the directory exists and was not made by check.py (no {STAGE_MARK} in it): "
+                "name another one or remove it yourself")
+    return None
 
 
 def main(argv=None):
@@ -2866,7 +2934,8 @@ def main(argv=None):
     ap.add_argument("solution_sv")
     ap.add_argument("solution_lean", nargs="?")
     ap.add_argument("--json", help="also write the result JSON here")
-    ap.add_argument("--stage-dir", help="staging directory (default: a fresh temp dir)")
+    ap.add_argument("--stage-dir", help="staging directory (default: a fresh temp dir); one that exists is "
+                    f"replaced only when it is empty or check.py made it (it holds {STAGE_MARK})")
     ap.add_argument("--keep", action="store_true", help="keep the staging directory")
     ap.add_argument("--lean-wrap", default=os.environ.get("SVGOLF_LEAN_WRAP", ""))
     ap.add_argument("--sandbox", choices=sandbox.MODES, default=os.environ.get("SVGOLF_SANDBOX", "auto"),
@@ -2923,6 +2992,8 @@ def main(argv=None):
             ap.error(f"no such file or directory: {p}")
     if not os.path.isfile(os.path.join(args.task_dir, "task.json")):
         ap.error(f"{args.task_dir} is not a task directory (it has no task.json): give tasks/<name>")
+    if args.stage_dir and stage_dir_problem(args.stage_dir):
+        ap.error(stage_dir_problem(args.stage_dir))
     try:
         pmode = postsynth.resolve_mode(args.postsynth)
     except postsynth.InfraError as e:
@@ -2946,8 +3017,13 @@ def main(argv=None):
     stage = os.path.realpath(args.stage_dir if args.stage_dir else
                              tempfile.mkdtemp(prefix="svgolf-check-"))
     if args.stage_dir and os.path.exists(stage):
+        problem = stage_dir_problem(stage)      # (again: the run behind a Lean wrapper starts here)
+        if problem:
+            ap.error(problem)
         shutil.rmtree(stage)
     os.makedirs(stage, exist_ok=True)
+    with open(os.path.join(stage, STAGE_MARK), "w") as fh:
+        fh.write("made by svgolf's check.py: a later --stage-dir run may replace this directory\n")
     try:
         res = check(os.path.abspath(args.task_dir), os.path.abspath(args.solution_sv),
                     args.solution_lean and os.path.abspath(args.solution_lean), stage,

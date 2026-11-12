@@ -32,13 +32,38 @@ earlier Icarus version printed `x` through it; that is lost, and this says
 what stands in its place.) A netlist of Yosys's gate cells (`simcells.v`:
 `assign Y = A & B;`, `assign Y = S ? B : A;`, each a total Boolean function)
 driven by known inputs can only hold an unknown through an unknown-valued
-CONSTANT or an UNDRIVEN net or pin, and both are refused here:
-  * the netlist text is scanned for an unknown digit in a sized literal
-    (`1'hx`, `4'bz0`): such a netlist is REJECTED on every vector (what the
-    4-state run did by printing `x`), the bug report still showing what a
-    2-state model reads (Verilator gets `--x-assign 0 --x-initial 0` and
+CONSTANT or an UNDRIVEN net or pin, and both are refused here wherever
+something can read them:
+  * Yosys's own reader decides (`reread_check` writes its JSON view of the
+    re-read netlist, every module; `unknown_bits`): an unknown-valued
+    constant bit (`x` or `z`) that a cell input pin (or a pin whose direction
+    is not known, or an inout), a flip-flop's D, or an output or inout port
+    bit carries is REJECTED, on every vector of a combinational task (what the
+    4-state run did by printing `x`; the bug report still shows what a 2-state
+    model reads: Verilator gets `--x-assign 0 --x-initial 0` and
     `randReset(0)`, so an unknown it is handed is a fixed 0, never an
-    unspecified value);
+    unspecified value) and at once on a clocked one. The message names the
+    netlist's wires that hold it and its readers, and the bits in the
+    design's own names where a NAMING run (`unknown_names`, made only for
+    the refusal, never deciding anything) gives them. A constant that NOTHING
+    reads is accepted and listed in the record (`netlist_unread_unknown`):
+    Yosys leaves one where it removed an unused register bit (the bits of one
+    vector written by separate processes, one of them never read), and
+    because Yosys's reader resolves every alias, a bit no cell input and no
+    output port carries is in the fan-in of nothing the harness observes, so
+    every value Verilator gives it yields the same rows (decided 2026-11-11);
+  * where that view could hide one, the rule fails safe (`reread_check`,
+    decided 2026-11-12): a net bit with more than one driver of which one is
+    an unknown constant is REJECTED wherever it is (Yosys's view keeps only
+    one driver of a bit, so it would show a `0` for `assign y = 1'b0; assign
+    y = 1'hx;`; the drivers are counted in a second view, `insbuf`'s, in
+    which every assign is a buffer cell of its own: `conflicting_drivers`),
+    and so is a netlist that defines a box module (`(* blackbox *)`,
+    `whitebox`, `lib_whitebox`) or has a cell whose type is neither a gate
+    cell of `simcells.v` nor a module the netlist defines (`opaque_parts`):
+    the rule cannot look inside either. A netlist the pinned flow writes has
+    neither (`write_verilog -noattr -noexpr`: gate instances and assigns of
+    single drivers);
   * Verilator's lint runs with `-Wall`, every warning FATAL but the two in
     `NETLIST_WNO`: an undriven net (UNDRIVEN), a gate pin left open
     (PINMISSING, PINCONNECTEMPTY), a doubly driven net (MULTIDRIVEN), a
@@ -87,7 +112,7 @@ VECTORS, all deterministic (fully known 0/1 inputs, duplicates dropped):
             run; a competition sets a secret salt so that a player cannot
             predict the vectors). The seed is recorded.
 
-TWO MODES (WP-C2, 10/30): the check runs LIGHT (the default) or FULL.
+TWO MODES (decided 2026-10-30): the check runs LIGHT (the default) or FULL.
   full   everything above, exactly: the task's whole budget (the fixed
          vectors, the task corners, every harvested constant and compatible
          pair, `postsynth.random` random vectors). What a competition and
@@ -101,7 +126,7 @@ TWO MODES (WP-C2, 10/30): the check runs LIGHT (the default) or FULL.
          of each constant's assignment, then of the pairs), and the seeded
          random vectors (the FIRST of the full stream, and everything the
          other classes leave unused). Everything else is the same code and the
-         same verdicts: the netlist read-back, the unknown-literal scan,
+         same verdicts: the netlist read-back, the unknown-constant rule,
          Verilator's lint, the x/z, schedule and port checks, the bug report
          with its Verilator-RTL third opinion (built only to illustrate a
          rejection, in either mode). Because the light set is a subset of the
@@ -115,7 +140,7 @@ VERDICT (fail closed): the submission is REJECTED when an ls-sv run does not
 complete (timeout, unsupported, a bad trace), when any output digit is `x` or
 `z` on either side, when `σ_src` and `σ_rev` disagree, when the port sets
 (direction, name, width) differ, when the netlist does not re-read as the
-scored one, when the netlist has an unknown-valued constant, when Verilator
+scored one, when something in the netlist reads an unknown-valued constant, when Verilator
 cannot lint, compile or run it cleanly (any lint warning outside the waived
 list, a compile error, a nonzero exit, a harness that prints a different number
 of rows than there are vectors or no end marker), when the ls-sv evaluation
@@ -287,6 +312,10 @@ def verilator_info():
                              timeout=60, env=sandbox.scrubbed_env()).stdout.strip()
         root = subprocess.run([exe, "--getenv", "VERILATOR_ROOT"], capture_output=True, text=True,
                               check=True, timeout=60, env=sandbox.scrubbed_env()).stdout.strip()
+    except subprocess.CalledProcessError as e:
+        said = " ".join((e.stderr or e.stdout or "").split())[-500:]
+        raise InfraError(f"`verilator` failed (exit {e.returncode}): {said or 'it printed nothing'} (the tools run with "
+                         "an allowlisted environment: README.md, \"Sandbox\")")
     except (subprocess.SubprocessError, OSError) as e:
         raise InfraError(f"`verilator --version` failed: {e}")
     m = re.match(r"Verilator (\d+)\.", ver)
@@ -298,8 +327,16 @@ def verilator_info():
 
 
 def cxx_path():
-    """The C++ compiler Verilator's makefile will use (`c++` unless $CXX)."""
-    return tool(os.environ.get("CXX") or "c++")
+    """The C++ compiler Verilator's makefile will use (`c++` unless $CXX). A missing one is an infrastructure error
+    that says where the name came from: $CXX, when it is set, names it."""
+    name = os.environ.get("CXX") or "c++"
+    try:
+        return tool(name)
+    except InfraError as e:
+        if not os.environ.get("CXX"):
+            raise
+        raise InfraError(f"{e}; `{name}` is the value of $CXX: set CXX to a compiler on PATH, or unset it to use "
+                         "`c++` (README.md, \"Checking\")")
 
 
 def simcells():
@@ -348,22 +385,194 @@ def tool_paths():
 
 # ---------------------------------------------------------------- the netlist
 
+def reread_netlist(netlist, top, work):
+    """A fresh Yosys process reads the netlist with the cell models as a library: (the top module's cells by type,
+    its `ltp -noff` depth, Yosys's JSON view of the whole design, `write_json`; the JSON of the netlist's own modules,
+    written before the library is read; the JSON of the design after `insbuf`). Raises score.ScoreError. The first
+    JSON is Yosys's own reading of the netlist, every assign alias resolved (`unknown_bits`, `netlist_ports`); Yosys
+    refuses to write it for a module that still holds processes, which a netlist the pinned flow wrote never does.
+    The second shows the attributes the netlist gives its modules (`opaque_parts`; `-noblackbox`: an empty module
+    stays an empty module, not a box Yosys made of it). In the third, written after
+    `stat` and `ltp`, every assign is a buffer cell of its own (type `$_BUF_`, which no netlist text can name: an
+    instance written `\\$_BUF_` has type `\\$_BUF_`), so a bit's drivers can be counted (`conflicting_drivers`)."""
+    d = os.path.join(work, "reread")
+    os.makedirs(d, exist_ok=True)
+    st, lt, js = os.path.join(d, "stat.json"), os.path.join(d, "ltp.txt"), os.path.join(d, "netlist.json")
+    own_js, drv_js = os.path.join(d, "own.json"), os.path.join(d, "drivers.json")
+    score.run_yosys(score.yosys_bin(), f'read_verilog -noblackbox "{netlist}"\nwrite_json "{own_js}"\n'
+                    f'read_verilog -lib "{simcells()}"\nhierarchy -top {top}\nwrite_json "{js}"\n'
+                    f'tee -q -o "{st}" stat -json\ntee -q -o "{lt}" ltp -noff\n'
+                    f'insbuf\nwrite_json "{drv_js}"\n', d,
+                    reads=[netlist, simcells()])
+    views = []
+    for path in (js, own_js, drv_js):
+        with open(path) as fh:
+            views.append(json.load(fh))
+    design, own, drivers = views
+    return score.parse_stat(st, top), score.parse_ltp(lt), design, own, drivers
+
+
+BOX_ATTRIBUTES = ("blackbox", "whitebox", "lib_whitebox")      # Yosys's attributes of a module it treats as a box
+
+
+def opaque_parts(own, design):
+    """The parts of a netlist the unknown-constant rule cannot look into, as refusal phrases: a module the netlist
+    defines with a box attribute (BOX_ATTRIBUTES, whatever its value: `own`, the netlist's modules as read before
+    the library), and a cell, in any module that is not a library model, whose type is no module of `design` (an
+    unknown cell type, or a cell Yosys made from an expression: the pinned flow writes gate instances only). With
+    the netlist's own boxes refused, every box module of `design` is one of `simcells.v`'s gate models."""
+    out = []
+    for mname, mod in sorted(own.get("modules", {}).items()):
+        attrs = sorted(a for a in (mod.get("attributes") or {}) if a in BOX_ATTRIBUTES)
+        if attrs:
+            out.append(f"it defines module `{mname.lstrip(chr(92))}` with the attribute "
+                       f"{_and(f'`{a}`' for a in attrs)} (the check cannot see what a box computes)")
+    mods = design.get("modules", {})
+    for mname, mod in sorted(mods.items()):
+        if (mod.get("attributes") or {}).get("blackbox") is not None:
+            continue
+        where = "" if (mod.get("attributes") or {}).get("top") else f" of module `{mname.lstrip(chr(92))}`"
+        for cname, c in sorted((mod.get("cells") or {}).items()):
+            ctype = str(c.get("type", "?"))
+            if ctype in mods:
+                continue
+            if cname.startswith("$"):        # a name Yosys made: a cell of an expression (`assign y = a & b;`)
+                m = SRC_LINE.search(str((c.get("attributes") or {}).get("src", "")))
+                at = f" at netlist line {m.group(1)}" if m else ""
+                out.append(f"it has a `{ctype}` cell{where} that Yosys made from an expression{at} (the pinned "
+                           "flow writes gate instances only)")
+            else:
+                out.append(f"its `{ctype.lstrip(chr(92))}` cell `{cname}`{where} is neither a gate of Yosys's cell "
+                           "library nor a module the netlist defines")
+    return out
+
+
+ALIAS = "$_BUF_"      # the cell type `insbuf` gives each assign in the third view of `reread_netlist`
+
+
+def _alias_graph(mod):
+    """Of one module of the `insbuf` view: (alias cells as (A, Y) bit pairs, the bits that hold an unknown value
+    through assigns: a constant `x`/`z` assigned to them, or a bit assigned from one of those)."""
+    pairs = []
+    for c in (mod.get("cells") or {}).values():
+        if c.get("type") == ALIAS:
+            conn = c.get("connections") or {}
+            pairs += list(zip(conn.get("A", []), conn.get("Y", [])))
+    unknown = {y for a, y in pairs if a in UNKNOWN}
+    grew = True
+    while grew:
+        grew = False
+        for a, y in pairs:
+            if a in unknown and y not in unknown:
+                unknown.add(y)
+                grew = True
+    return pairs, unknown
+
+
+def _names_of(mod, bits):
+    """(the net bits of a module, `_bit_names` form, whose JSON bit is in `bits`, names Yosys did not hide first;
+    their declaration lines)."""
+    out, lines = [], set()
+    for net, e in sorted(mod.get("netnames", {}).items(), key=lambda kv: (kv[0].startswith("$"), kv[0])):
+        b = e.get("bits", [])
+        idx = [declared_index(e, i) for i, x in enumerate(b) if x in bits]
+        if idx:
+            out += _bit_names(net, len(b), idx)
+            m = SRC_LINE.search(str((e.get("attributes") or {}).get("src", "")))
+            if m:
+                lines.add(int(m.group(1)))
+    return out, sorted(lines)
+
+
+def conflicting_drivers(drivers):
+    """Refusal phrases for the net bits of the `insbuf` view (`reread_netlist`) that have more than one driver of
+    which one is an unknown value (an assign of a constant `x`/`z`, or of a bit that holds one through assigns). A
+    driver is an input or inout port, an output or inout cell pin (a pin of unknown direction counts too), or an
+    assign. Every module that is not a library model is read."""
+    out = []
+    for mname, mod in sorted(drivers.get("modules", {}).items()):
+        attrs = mod.get("attributes") or {}
+        if attrs.get("blackbox") is not None:
+            continue
+        pairs, unknown = _alias_graph(mod)
+        count, bad = {}, set()
+        for p in (mod.get("ports") or {}).values():
+            if p.get("direction") in ("input", "inout"):
+                for b in p.get("bits", []):
+                    count[b] = count.get(b, 0) + 1
+        for c in (mod.get("cells") or {}).values():
+            dirs = c.get("port_directions") or {}
+            for pin, conn in (c.get("connections") or {}).items():
+                if dirs.get(pin) in ("output", "inout", None):
+                    for b in conn:
+                        if not isinstance(b, str):
+                            count[b] = count.get(b, 0) + 1
+        for a, y in pairs:
+            if a in UNKNOWN or a in unknown:
+                bad.add(y)
+        hit = {b for b in bad if count.get(b, 0) > 1}
+        if hit:
+            names, lines = _names_of(mod, hit)
+            where = "" if attrs.get("top") else f" of module `{mname.lstrip(chr(92))}`"
+            at = f" (declared at netlist line{'s' if len(lines) > 1 else ''} {_and(map(str, lines))})" if lines else ""
+            out.append(f"it drives {_and(names or ['a bit with no name'])}{where}{at} from more than one place, and "
+                       "one of the drivers is an unknown value (Yosys's view of the netlist keeps one driver of a "
+                       "bit, so it can hide the unknown one)")
+    return out
+
+
+def read_unknown(drivers, top=None):
+    """{(module, net, declared bit)} of the nets of the `insbuf` view that hold an unknown value through assigns AND
+    reach something that reads them: a cell pin that is not an output (other than an assign's own), or a port that
+    is not an input, directly or through further assigns. For the refusal's message only (`unknown_message`): the
+    verdict is `unknown_bits`', on the first view."""
+    out = set()
+    for mname, mod in sorted(drivers.get("modules", {}).items()):
+        if (mod.get("attributes") or {}).get("blackbox") is not None:
+            continue
+        pairs, unknown = _alias_graph(mod)
+        read = set()
+        for c in (mod.get("cells") or {}).values():
+            if c.get("type") == ALIAS:
+                continue
+            dirs = c.get("port_directions") or {}
+            for pin, conn in (c.get("connections") or {}).items():
+                if dirs.get(pin) != "output":
+                    read |= {b for b in conn if b in unknown}
+        for p in (mod.get("ports") or {}).values():
+            if p.get("direction") != "input":
+                read |= {b for b in p.get("bits", []) if b in unknown}
+        grew = True
+        while grew:
+            grew = False
+            for a, y in pairs:
+                if y in read and a in unknown and a not in read:
+                    read.add(a)
+                    grew = True
+        name = mname if top is not None and mname != top else None
+        for net, e in mod.get("netnames", {}).items():
+            for i, x in enumerate(e.get("bits", [])):
+                if x in read:
+                    out.add((name, net, declared_index(e, i)))
+    return out
+
+
 def reread_check(netlist, top, sres, work):
     """The written netlist IS the scored one: a fresh Yosys process reads it
     (one gate instance per scored cell) with the cell models as a library and
-    must count exactly the scored gates by type, and the scored depth."""
-    d = os.path.join(work, "reread")
-    os.makedirs(d, exist_ok=True)
-    st, lt = os.path.join(d, "stat.json"), os.path.join(d, "ltp.txt")
+    must count exactly the scored gates by type, and the scored depth; before
+    that, the netlist must have no part the unknown-constant rule cannot look
+    into (`opaque_parts`) and no bit driven twice with an unknown value
+    (`conflicting_drivers`). Returns Yosys's JSON view of the netlist and the
+    `insbuf` view (`reread_netlist`)."""
     try:
-        score.run_yosys(score.yosys_bin(), f'read_verilog "{netlist}"\n'
-                        f'read_verilog -lib "{simcells()}"\nhierarchy -top {top}\n'
-                        f'tee -q -o "{st}" stat -json\ntee -q -o "{lt}" ltp -noff\n', d,
-                        reads=[netlist, simcells()])
-        cells = score.parse_stat(st, top)
-        depth = score.parse_ltp(lt)
-    except score.ScoreError as e:
+        cells, depth, design, own, drivers = reread_netlist(netlist, top, work)
+    except (score.ScoreError, OSError, ValueError) as e:
         raise Reject(f"the scored netlist does not re-read: {e}")
+    why = opaque_parts(own, design) + conflicting_drivers(drivers)
+    if why:
+        raise Reject("the netlist is refused before it is simulated: " + _and(why) + ". check.py --keep keeps the "
+                     "netlist (the result's `postsynth_dir`)")
     got = {}
     for c, n in cells.items():
         m = re.fullmatch(r"\\?\$_(\w+?)_", c)
@@ -374,30 +583,208 @@ def reread_check(netlist, top, sres, work):
     if got != want or (depth != sres["depth"] and sres.get("flow") != "seq"):
         raise Reject(f"the netlist file does not re-read as the scored netlist: gates {got}, "
                      f"depth {depth}; the score has gates {want}, depth {sres['depth']}")
+    return design, drivers
 
 
-PORT_RE = re.compile(r"^\s*(input|output|inout)\s+(?:wire\s+|reg\s+)?(signed\s+)?"
-                     r"(?:\[(-?\d+):(-?\d+)\]\s*)?(\\\S+|[A-Za-z_][\w$]*)\s*;")
-
-
-def netlist_ports(netlist, top):
-    """{(direction, name, width)} of module `top` in Yosys's write_verilog output."""
-    with open(netlist) as fh:
-        txt = fh.read()
-    m = re.search(r"^module\s+\\?" + re.escape(top) + r"\s*\(", txt, re.M)
-    if not m:
+def netlist_ports(design, top):
+    """{(direction, name, width)} of module `top` in Yosys's JSON view of the netlist (`reread_netlist`)."""
+    mod = design.get("modules", {}).get(top)
+    if mod is None:
         raise Reject(f"the netlist has no module `{top}`")
-    end = txt.find("endmodule", m.start())
-    ports = set()
-    for ln in txt[m.start():end].splitlines():
-        pm = PORT_RE.match(ln)
-        if pm:
-            d, _, hi, lo, name = pm.groups()
-            w = abs(int(hi) - int(lo)) + 1 if hi is not None else 1
-            ports.add((d, name.lstrip("\\"), w))
+    ports = {(p["direction"], name, len(p["bits"])) for name, p in mod.get("ports", {}).items()}
     if any(d == "inout" for d, _, _ in ports):
         raise Reject("the netlist has an inout port (a combinational task has inputs and outputs)")
     return ports
+
+
+UNKNOWN = ("x", "z")      # an unknown-valued constant bit in Yosys's JSON (`"x"`, `"z"`; a signal bit is a number)
+SRC_LINE = re.compile(r":(\d+)\.\d+-\d+\.\d+$")
+
+
+def declared_index(entry, i):
+    """The declared index of bit `i` (LSB first) of a JSON net or port `entry` (its `offset` and `upto`)."""
+    n, off = len(entry.get("bits", [])), int(entry.get("offset", 0))
+    return off + (n - 1 - i if entry.get("upto") else i)
+
+
+def unknown_bits(design, top=None):
+    """Where Yosys's JSON view of the netlist (`reread_netlist`) holds an unknown-valued constant, in EVERY module
+    that is not a library model (simcells.v, read with -lib, is all blackboxes): (unread, readers).
+    `unread`: every net with such a bit, [{"net", "width", "bits", "value", "line"}]: `bits` the declared indices
+    of those bits, `value` "x", "z" or "x/z", `line` the netlist line of the net's DECLARATION (its `src`
+    attribute; None without one), and `module` when it is not `top`. `readers`: every place that READS one: a cell
+    pin whose direction is input, inout or not known (fail closed), {"kind": "cell", "cell", "type", "pin",
+    "bits"} (`bits`: the pin's bit positions, empty for a one-bit pin), and a port that is not an input (output,
+    inout, or of unknown direction), {"kind": "port", "port", "direction", "width", "bits"} (declared indices).
+    Yosys resolves every assign alias in this view, so a constant bit is "x" or "z" wherever it is connected: a
+    wire `v` assigned from `w[0] = 1'hx` and read by a gate shows the x on the gate's pin."""
+    unread, readers = [], []
+    for mname, mod in sorted(design.get("modules", {}).items()):
+        if (mod.get("attributes") or {}).get("blackbox"):
+            continue
+        where = {} if top is None or mname == top else {"module": mname}
+        for net, e in sorted(mod.get("netnames", {}).items()):
+            b = e.get("bits", [])
+            hit = [i for i, x in enumerate(b) if x in UNKNOWN]
+            if hit:
+                m = SRC_LINE.search(str((e.get("attributes") or {}).get("src", "")))
+                unread.append(dict(where, net=net, width=len(b), bits=[declared_index(e, i) for i in hit],
+                                   value="/".join(sorted({b[i] for i in hit})),
+                                   line=int(m.group(1)) if m else None))
+        for cname, c in sorted(mod.get("cells", {}).items()):
+            dirs = c.get("port_directions") or {}
+            for pin, conn in sorted((c.get("connections") or {}).items()):
+                if dirs.get(pin) == "output":
+                    continue
+                hit = [i for i, x in enumerate(conn) if x in UNKNOWN]
+                if hit:
+                    readers.append(dict(where, kind="cell", cell=cname, type=str(c.get("type", "?")).lstrip("\\"),
+                                        pin=pin, bits=hit if len(conn) > 1 else []))
+        for pname, p in sorted(mod.get("ports", {}).items()):
+            if p.get("direction") == "input":
+                continue
+            b = p.get("bits", [])
+            hit = [i for i, x in enumerate(b) if x in UNKNOWN]
+            if hit:
+                readers.append(dict(where, kind="port", port=pname, direction=p.get("direction"), width=len(b),
+                                    bits=[declared_index(p, i) for i in hit]))
+    return unread, readers
+
+
+def _and(items, cap=5):
+    """'a', 'a and b', 'a, b and c', at most `cap` of them, then 'and N more'."""
+    items = list(items)
+    if len(items) > cap:
+        return ", ".join(items[:cap]) + f" and {len(items) - cap} more"
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _bit_names(net, width, bits):
+    return [f"`{net}`" if width == 1 and bits == [0] else f"`{net}[{k}]`" for k in bits]
+
+
+def _bits(bits):
+    """'bit 0', 'bits 0 and 1', 'bits 0, 1, 2, 3, 4 and 11 more'."""
+    return ("bit " if len(bits) == 1 else "bits ") + _and(map(str, bits))
+
+
+def _of(r):
+    return f" of module `{r['module']}`" if "module" in r else ""
+
+
+# The four lines of score/canon.ys that strip the design's names (`src`, private and numbered names); the naming run
+# drops them, so that the netlist it writes keeps the names of the source.
+NAME_STRIPPING = ("setattr -unset src", "setattr -mod -unset src", "rename -hide", "rename -enumerate")
+NAMING_TIMEOUT_S = 120
+
+
+def unknown_names(sres, timeout=NAMING_TIMEOUT_S):
+    """A NAMING run, made only when the check refuses an unknown constant, to say where it came from in the player's
+    words; it never decides anything. The scored run's own sources, gating, point and flow (`sres`, score.py's
+    result: `sources`, `gated`, `top`, `params`, `flow`), through score/canon.ys without NAME_STRIPPING and the flow's
+    script (svgolf.ys, or svgolf_seq.ys for a clocked one) up to and including its last `opt_clean`, then
+    `write_json`, in the sandbox like every Yosys run and within `timeout` seconds. Returns the sorted names of the
+    bits that hold an unknown value under a name Yosys did not make up (`t[0]`), or None when the run fails or has
+    none to give. Its cells can differ from the scored run's (names change Yosys's choices), which is why it only
+    names."""
+    work = tempfile.mkdtemp(prefix="svgolf-xnames-")
+    try:
+        sources = [s["path"] for s in sres.get("sources") or []]
+        if not sources:
+            return None
+        if sres.get("gated", True):
+            read, _ = score.gate_sources(sources, work)
+        else:
+            read = list(sources)
+        il, js = os.path.join(work, "named.il"), os.path.join(work, "named.json")
+        canon = [ln for ln in score.render_canon(read, sres["top"], sres["params"], il).splitlines()
+                 if ln.strip() not in NAME_STRIPPING]
+        script = score.FLOWS["seq" if sres.get("flow") == "seq" else "comb"][0]
+        synth = score.render_script(il, sres["top"], os.path.join(work, "stat.json"), os.path.join(work, "ltp.txt"),
+                                    os.path.join(work, "netlist.v"), script).splitlines()
+        last = [k for k, ln in enumerate(synth) if ln.strip().startswith("opt_clean")]
+        if len(last) != 1:
+            return None
+        yosys = score.yosys_bin()
+        for name, lines in (("canon", canon), ("named", synth[:last[0] + 1] + [f'write_json "{js}"'])):
+            path = os.path.join(work, f"{name}.ys")
+            with open(path, "w") as fh:
+                fh.write("\n".join(lines) + "\n")
+            proc = score.yosys_run([yosys, "-q", "-l", os.path.join(work, f"{name}.log"), "-s", path], yosys, work,
+                                   read, timeout, label="yosys (naming run)")
+            if proc.returncode != 0:
+                return None
+        with open(js) as fh:
+            design = json.load(fh)
+        names = set()
+        for mod in design.get("modules", {}).values():
+            if (mod.get("attributes") or {}).get("blackbox"):
+                continue
+            for net, e in mod.get("netnames", {}).items():
+                if e.get("hide_name") or net.startswith("$"):
+                    continue
+                b = e.get("bits", [])
+                for i, x in enumerate(b):
+                    if x in UNKNOWN:
+                        names.add(net if len(b) == 1 and not e.get("offset") else f"{net}[{declared_index(e, i)}]")
+        def key(n):        # `y[2]` before `y[10]`
+            base, _, k = n.partition("[")
+            return (base, int(k.rstrip("]")) if k.rstrip("]").lstrip("-").isdigit() else -1, n)
+        return sorted(names, key=key) or None
+    except (OSError, ValueError, KeyError, TypeError, score.ScoreError, subprocess.SubprocessError):
+        return None
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def unknown_message(unread, readers, names=None, read=None):
+    """The refusal of a netlist whose unknown-valued constant something reads (`unknown_bits`), or None when
+    nothing does: the netlist's wires that hold the constant (names Yosys did not hide first, up to five), the
+    readers (up to five, then "and N more"), with `names` (`unknown_names`, when the naming run gave some) the
+    bits in the source's own words, and how to look at the netlist. With `read` (`read_unknown`: the net bits of
+    the `insbuf` view that something reads) only those wires are named: Yosys's first view gives a constant no
+    identity, so without it every wire that holds an unknown value is named, read or not."""
+    if not readers:
+        return None
+    if read is not None:
+        kept = []
+        for u in unread:
+            bits = [k for k in u["bits"] if (u.get("module"), u["net"], k) in read]
+            if bits:
+                kept.append(dict(u, bits=bits))
+        unread = kept
+    said = (f". In a run that keeps your signal names, the unknown bits are {_and(f'`{n}`' for n in names)}"
+            if names else "")
+    tail = (f": a 2-state simulation would read it as a fixed 0 or 1{said}. check.py --keep keeps the netlist (the "
+            "result's `postsynth_dir`)")
+
+    def reader(r):
+        if r["kind"] == "cell":
+            bits = f", {_bits(r['bits'])}" if r["bits"] else ""
+            return f"the `{r['type']}` cell `{r['cell']}`{_of(r)} (pin {r['pin']}{bits})"
+        what = r["direction"] if r["direction"] in ("output", "inout") else "port"
+        bits = "" if r["width"] == 1 else f" ({_bits(r['bits'])})"
+        return f"the {what} `{r['port']}`{_of(r)}{bits}"
+
+    nets = sorted(unread, key=lambda u: (u["net"].startswith("$"), u["net"]))
+    if not nets:      # the constant sits on the readers themselves (a literal on a pin or a port bit)
+        def on(r):
+            if r["kind"] == "cell":
+                bits = f", {_bits(r['bits'])}" if r["bits"] else ""
+                return f"the `{r['type']}` cell `{r['cell']}`{_of(r)} has an unknown value on pin {r['pin']}{bits}"
+            return f"{reader(r)} is an unknown value"
+        return "the netlist reads an unknown value: " + _and(on(r) for r in readers) + tail
+    held = _and(b for u in nets for b in _bit_names(u["net"], u["width"], u["bits"]))
+    lines = sorted({u["line"] for u in nets if u["line"] is not None})
+    at = f" (declared at netlist line{'s' if len(lines) > 1 else ''} {_and(map(str, lines))})" if lines else ""
+    return f"the netlist ties {held}{at} to an unknown value, and it is read by {_and(map(reader, readers))}" + tail
+
+
+def unread_note(unread):
+    """The stderr line of an accepted netlist that ties bits to an unknown value nothing reads."""
+    held = _and(b for u in unread for b in _bit_names(u["net"], u["width"], u["bits"]))
+    return (f"postsynth: the netlist ties {held} to an unknown value that nothing reads (Yosys leaves one, for "
+            "example, where it removed an unused register bit): accepted")
 
 
 # ---------------------------------------------------------------- vectors
@@ -657,10 +1044,6 @@ VL_X_FLAGS = ("--x-assign", "0", "--x-initial", "0")
 VL_CFLAGS = "-O1"
 VL_JOBS = os.environ.get("SVGOLF_VERILATOR_JOBS", "2")
 VL_PREFIX = "VNET"
-# Sized literals with an unknown digit (`1'hx`, `4'bz0`, `'bx`): an unknown
-# VALUE in the netlist, which a 2-state simulator would silently turn into a
-# 0 or 1.
-UNKNOWN_LITERAL = re.compile(r"(?<![\w$])\d*\s*'[sS]?[bBoOdDhH]\s*[0-9a-fA-F_]*[xXzZ?]")
 
 HARNESS = r"""// generated by check/postsynth.py -- the Verilator harness of one postsynth run
 #include "%(prefix)s.h"
@@ -767,19 +1150,6 @@ def harness_cpp(ins, outs, template=HARNESS, **extra):
                        "print": "\n".join(prl), **extra}
 
 
-def unknown_literal(netlist):
-    """The first unknown-valued constant in the netlist text, as a description,
-    or None. A 2-state simulator cannot tell it from a 0 or a 1, so `run`
-    rejects every vector of a netlist that has one (what the 4-state Icarus run
-    did by printing `x`), and still evaluates it to show the bug report."""
-    with open(netlist) as fh:
-        for no, ln in enumerate(fh, 1):
-            m = UNKNOWN_LITERAL.search(ln)
-            if m:
-                return f"the unknown-valued constant `{m.group(0).strip()}` (netlist line {no})"
-    return None
-
-
 def run_group(cmd, timeout, spec=None, label=None, **kw):
     """`subprocess.run(capture_output, text)` that, on a timeout, kills the whole
     process group (make's compilers, Verilator's perl) and not just the child,
@@ -847,7 +1217,7 @@ def vl_build(srcs, top, params, ins, outs, work, tag, timeout, rtl=False, harnes
     env = vl_env()
     env["CXX"] = cxx
     vspec = mspec = None
-    if sandbox.policy().active:        # WP-S: the translator and the C++ build read the sources, write `d`
+    if sandbox.policy().active:        # the translator and the C++ build read the sources, write `d`
         env = sandbox.tool_env(d, {"OBJCACHE": "", "LC_ALL": "C", "CXX": cxx})
         reads = [os.path.abspath(x) for x in srcs] + [d]
         vspec = sandbox.tool_spec([vl], read=reads, write=[d], label="verilator")
@@ -871,6 +1241,26 @@ def vl_build(srcs, top, params, ins, outs, work, tag, timeout, rtl=False, harnes
     return exe, el, None
 
 
+# The dynamic loader's own words when a program cannot start because a shared library is missing: glibc's ld.so
+# ("<prog>: error while loading shared libraries: libatomic.so.1: cannot open shared object file", exit 127) and
+# macOS's dyld ("dyld[pid]: Library not loaded: @rpath/libX.dylib", then abort). The compiled model printed nothing:
+# its main() never ran, so the cause is the toolchain the model was built with, never the design.
+LOADER_FAILURE = re.compile(r"error while loading shared libraries: ([^:\s]+)|Library not loaded: (\S+)")
+
+
+def loader_failure(r):
+    """Raise InfraError when the run `r` of a compiled model died in the dynamic loader (LOADER_FAILURE, nonzero
+    exit, nothing on stdout), naming the library; else nothing."""
+    m = LOADER_FAILURE.search(r.stderr or "")
+    if r.returncode == 0 or (r.stdout or "").strip() or not m:
+        return
+    where = (" inside the sandbox, which mounts the system library trees and the model, nothing else"
+             if sandbox.policy().active else "")
+    raise InfraError(f"the compiled Verilator model could not start (exit {r.returncode}): the dynamic loader did not "
+                     f"find `{m.group(1) or m.group(2)}`{where}. The C++ toolchain links a runtime library the model "
+                     "cannot load: the toolchain, not the design (README.md, \"Checking\")")
+
+
 def vl_run(exe, ins, outs, vecs, work, tag, timeout):
     """Run a compiled model on `vecs`: (rows [{name: binary string}], seconds,
     None) or (None, seconds, error text). Fails closed on a nonzero exit, a
@@ -889,6 +1279,7 @@ def vl_run(exe, ins, outs, vecs, work, tag, timeout):
     except subprocess.TimeoutExpired:
         return None, time.time() - t0, f"the Verilator model did not finish within {timeout:.0f}s"
     el = time.time() - t0
+    loader_failure(r)
     lines = r.stdout.splitlines()
     end = lines[-1].split() if lines else []
     rows = [ln.split() for ln in lines[:-1]]
@@ -1061,12 +1452,17 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
         _, rec["verilator"], _ = verilator_info()
         cxx_path(), tool("make")
         t0 = time.time()
-        reread_check(netlist, top, sres, work)
-        xlit = unknown_literal(netlist)
+        design, drivers = reread_check(netlist, top, sres, work)
+        unread, readers = unknown_bits(design, top)
+        xlit = unknown_message(unread, readers, unknown_names(sres) if readers else None,
+                               read_unknown(drivers, top) if readers else None)
         if xlit:
             rec["netlist_unknown_constant"] = xlit
+        elif unread:
+            rec["netlist_unread_unknown"] = unread
+            print(unread_note(unread), file=sys.stderr, flush=True)
         rec["t_reread_s"] = round(time.time() - t0, 2)
-        nports = netlist_ports(netlist, top)
+        nports = netlist_ports(design, top)
         ins = sorted((n, w) for d, n, w in nports if d == "input")
         outs = sorted((n, w) for d, n, w in nports if d == "output")
         if not ins or not outs:
@@ -1156,8 +1552,8 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
                         why.append(f"ls-sv: {o} has x/z")
                     if src.get(o) != nr[o]:
                         why.append(f"{o}: ls-sv != netlist")
-            if xlit:     # the 2-state netlist shows 0/1 where the netlist says x
-                why.append(f"netlist: has {xlit}, read as a fixed 0 or 1 here")
+            if xlit:     # the 2-state netlist shows 0/1 where something reads an x
+                why.append(xlit)
             if why:
                 bad.append((i, v, lr, nr, why))
         rec["mismatches"] = len(bad)
@@ -1217,7 +1613,7 @@ def run(task, canon_sv, envl, netlist, sres, work, point=None, third_all=False, 
 
 # ---------------------------------------------------------------- the clocked check
 #
-# PLAN4 Gate 2 step 4, for the CLOCKED kinds (`run_clocked`). Per seed (S = 8 per point, F5), the netlist starts
+# For the CLOCKED kinds (`run_clocked`). Per seed (S = 8 per point, F5), the netlist starts
 # from a concrete power-up state (Verilator `--x-initial unique`: seed 0 all zeros, `randReset(0)`; every
 # other seed random, `randReset(2)`, `randSeed` from the seed's salted draw: `seed_draw`), reset is asserted for
 # `reset_cycles` entries (C1; the other inputs random), then the task's own generator (oracle.py
@@ -1379,6 +1775,7 @@ def vl_run_clocked(exe, dins, outs, lines, seed, draw, cap, work, timeout):
                       env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None)
     except subprocess.TimeoutExpired:
         return None, None, time.time() - t0, f"the Verilator model did not finish within {timeout:.0f}s"
+    loader_failure(r)
     rows = [ln.split() for ln in r.stdout.splitlines()]
     end = rows.pop() if rows else []
     ok = (r.returncode == 0 and end[:2] == ["END", str(len(rows))] and end[2:] in ([], ["LATE"])
@@ -1499,6 +1896,7 @@ def vl_run_react(exe, dins, outs, lines, seed, draw, work, timeout):
                       env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"} if sandbox.policy().active else None)
     except subprocess.TimeoutExpired:
         return None, time.time() - t0, f"the Verilator model did not finish within {timeout:.0f}s"
+    loader_failure(r)
     rows = [ln.split() for ln in r.stdout.splitlines()]
     end = rows.pop() if rows else []
     n = len(outs)
@@ -1868,11 +2266,16 @@ def run_clocked(task, envl, netlist, sres, work, mod, point, latency=None, mode=
     deadline = t_start + float(cfg["time_limit_s"])
     try:
         _, rec["verilator"], _ = verilator_info()
-        reread_check(netlist, top, sres, work)
-        xlit = unknown_literal(netlist)
+        design, drivers = reread_check(netlist, top, sres, work)
+        unread, readers = unknown_bits(design, top)
+        xlit = unknown_message(unread, readers, unknown_names(sres) if readers else None,
+                               read_unknown(drivers, top) if readers else None)
         if xlit:
-            raise Reject(f"the netlist has {xlit}, which a 2-state simulation reads as a fixed 0 or 1")
-        nports = netlist_ports(netlist, top)
+            raise Reject(xlit)
+        if unread:
+            rec["netlist_unread_unknown"] = unread
+            print(unread_note(unread), file=sys.stderr, flush=True)
+        nports = netlist_ports(design, top)
         ins = sorted((n, w) for d, n, w in nports if d == "input")
         outs = sorted((n, w) for d, n, w in nports if d == "output")
         if task["clock"] not in dict(ins):

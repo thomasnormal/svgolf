@@ -1608,5 +1608,50 @@ class ClockedTest(unittest.TestCase):
             ppa.analyze(netlist(gate("DFF_P", "_1_", D="a", Q="y")), self.lib, self.pins)
 
 
+class SummaryLineTest(unittest.TestCase):
+    """The one stderr line after the JSON (`summary_line`, decided 2026-11-12): the weighed area and delay, a clocked
+    netlist's period, with --latency L the ranked score area x L cycles x period (leaderboard/combined.py's product),
+    and a comb design's area x delay; the JSON itself is unchanged (stdout stays one JSON document)."""
+
+    def test_the_line(self):
+        comb = {"ppa": {"area_um2_sky130": 460.4416, "area_e4um2_sky130": 4604416, "delay_ps_sky130": 2611}}
+        self.assertEqual(ppa.summary_line(comb),
+                         "ppa (sky130 A0'): area 460.4416 um^2, delay 2611 ps; area x delay = 1202.21 um2*ns")
+        a7 = {"ppa": {"area_um2_asap7": 6.9984, "area_e5um2_asap7": 699840, "delay_ps_asap7": 563}}
+        self.assertEqual(ppa.summary_line(a7, "asap7"),
+                         "ppa (asap7 A0'): area 6.9984 um^2, delay 563 ps; area x delay = 3.94 um2*ns")
+        seq = {"ppa": {"area_um2_sky130": 87173.6064, "area_e4um2_sky130": 871736064, "delay_ps_sky130": 10696,
+                       "sequential": True}}
+        self.assertEqual(ppa.summary_line(seq), "ppa (sky130 A0'): area 87173.6064 um^2, period 10696 ps")
+        self.assertEqual(ppa.summary_line(seq, latency=4),
+                         "ppa (sky130 A0'): area 87173.6064 um^2, period 10696 ps; score: 87173.6064 um^2 x 4 cycles "
+                         "x 10696 ps = 3729635.58 um2*ns")
+        self.assertIn("x 1 cycle x 10696 ps = 932408.89 um2*ns", ppa.summary_line(seq, latency=1))
+        self.assertIsNone(ppa.summary_line({"ppa": {"available": False, "reason": "no liberty"}}))
+        self.assertIsNone(ppa.summary_line({"error": "x"}))
+
+    def test_latency_needs_a_clocked_run(self):
+        sv = os.path.join(SVGOLF, "tasks", "add", "reference", "add_n.sv")
+        for more in (["--latency", "2"], ["--seq", "--latency", "0"]):
+            r = subprocess.run([sys.executable, os.path.join(HERE, "ppa.py"), sv, "--task",
+                                os.path.join(SVGOLF, "tasks", "add")] + more,
+                               capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+            self.assertEqual(r.returncode, 2, r.stderr)
+            self.assertIn("--latency L takes --seq", r.stderr)
+
+    @needs_flow
+    def test_the_cli_prints_the_json_then_the_line(self):
+        sv = os.path.join(SVGOLF, "tests", "seq_counter", "reference", "cnt.sv")
+        r = subprocess.run([sys.executable, os.path.join(HERE, "ppa.py"), sv, "--top", "cnt", "--param", "N=8", "--seq",
+                            "--latency", "1"], capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        res = json.loads(r.stdout)                       # stdout is the JSON alone
+        p = res["ppa"]
+        self.assertEqual(r.stderr.splitlines()[-1], ppa.summary_line(res, latency=1))
+        self.assertIn(f"period {p['delay_ps_sky130']} ps; score: {p['area_um2_sky130']} um^2 x 1 cycle x "
+                      f"{p['delay_ps_sky130']} ps = ", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
