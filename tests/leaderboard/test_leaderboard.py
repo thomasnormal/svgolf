@@ -3586,7 +3586,9 @@ class SubmitTest(Tmp):
         def mkdtemp(**kw):
             made.append(real(**kw))
             return made[-1]
-        with mock.patch.dict(os.environ, ident), mock.patch.object(lb.tempfile, "mkdtemp", mkdtemp), \
+        # a later date, so this run's commit differs from the first even within one second
+        later = dict(ident, GIT_AUTHOR_DATE="2001-01-01T00:00:00Z", GIT_COMMITTER_DATE="2001-01-01T00:00:00Z")
+        with mock.patch.dict(os.environ, later), mock.patch.object(lb.tempfile, "mkdtemp", mkdtemp), \
                 self.assertRaises(RuntimeError) as e:
             lb.run_submit_steps(steps, body)                    # the branch exists: the push is refused
         self.assertIn("git -C", str(e.exception))
