@@ -124,10 +124,22 @@ LAT_DEF = re.compile(r"^def[ \t]+lat[ \t]+((?:\([^()]*\)[ \t]*)+):[ \t]*Nat[ \t]
 LAT_BINDERS = re.compile(r"\(([^():]*):[ \t]*Nat[ \t]*\)")
 LATENCY_HEADER = re.compile(r"^--[ \t]*svgolf-latency:(.*)$", re.M)     # check.py's
 TOKEN = re.compile(r"\s*(?:(\d+)|([A-Za-z_][A-Za-z_0-9']*)|(.))")
+OWN_FUNCTION = re.compile(r"^(?:@\[[^\]\n]*\][ \t]*)?(?:private[ \t]+|protected[ \t]+)?(?:noncomputable[ \t]+)?"
+                          r"(?:def|abbrev)[ \t]+clog2\b", re.M)
+
+
+def clog2(n):
+    """The library's `clog2` (LeanModels/Sv/Param.lean: `def clog2 (n : Nat) : Nat := if n ≤ 1 then 0 else
+    (n - 1).log2 + 1`, the LRM's `$clog2`, the least k with n ≤ 2^k), on a natural number."""
+    return 0 if n <= 1 else (n - 1).bit_length()
+
+
+FUNCTIONS = {"clog2": clog2}       # the library functions a `def lat` may apply (to one argument)
 
 
 def eval_nat(expr, env):
-    """A natural-number expression of `def lat` (binder names, literals, + - * / and parentheses; Lean's Nat: `-`
+    """A natural-number expression of `def lat` (binder names, literals, + - * / and parentheses, and the library's
+    `clog2` applied to one argument, which binds tighter than any operator as Lean's application does; Lean's Nat: `-`
     truncates at 0, `/` rounds down, `/ 0` is 0) at `env`, or None if it is anything else."""
     toks, pos = [], 0
     while pos < len(expr):
@@ -138,9 +150,12 @@ def eval_nat(expr, env):
         if m.group(1):
             toks.append(("n", int(m.group(1))))
         elif m.group(2):
-            if m.group(2) not in env:
+            if m.group(2) in env:
+                toks.append(("n", env[m.group(2)]))
+            elif m.group(2) in FUNCTIONS:
+                toks.append(("fn", m.group(2)))
+            else:
                 return None
-            toks.append(("n", env[m.group(2)]))
         elif m.group(3).strip():
             toks.append(("op", m.group(3)))
     k = [0]
@@ -153,6 +168,8 @@ def eval_nat(expr, env):
         k[0] += 1
         if t[0] == "n":
             return t[1]
+        if t[0] == "fn":
+            return FUNCTIONS[t[1]](atom())
         if t == ("op", "("):
             v = add()
             if peek() != ("op", ")"):
@@ -193,8 +210,8 @@ def latency_of(lean_text, order):
     if not m:
         return None, None
     names = [n for grp in LAT_BINDERS.findall(m.group(1)) for n in grp.split()]
-    if len(names) != len(order):
-        return None, None
+    if len(names) != len(order) or OWN_FUNCTION.search(lean_text):
+        return None, None               # a proof that defines its own `clog2`: the name is not the library's
     expr = m.group(2)
 
     def at(params):

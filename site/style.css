@@ -1141,6 +1141,7 @@ svg.chart a:focus .hit, svg.chart a:focus-visible .hit { fill: var(--hover); str
 .chart-tip[hidden] { display: none; }
 .chart-tip strong { display: block; color: var(--text); font-size: var(--fs-sm); font-family: var(--font); }
 .chart-tip span { display: block; white-space: nowrap; }
+@media (max-width: 30rem) { .chart-tip span { white-space: normal; overflow-wrap: anywhere; } }   /* a phone: no clipped line */
 .explorer-controls { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); align-items: end; margin: 0 0 var(--sp-3); }
 .axis-control { display: grid; grid-template-columns: auto auto; gap: var(--sp-1) var(--sp-3); align-items: center; }
 .axis-control .label { grid-column: 1 / -1; margin: 0; }
@@ -1152,16 +1153,24 @@ svg.chart a:focus .hit, svg.chart a:focus-visible .hit { fill: var(--hover); str
 .log-toggle { display: inline-flex; align-items: center; gap: 0.35rem; font: 600 var(--fs-xs)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); cursor: pointer; }
 .log-toggle input { accent-color: var(--accent); margin: 0; }
 .log-toggle:has(input:disabled) { opacity: 0.5; cursor: default; }
+.log-toggle[hidden] { display: none; }
+.axis-control .toggles { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); }
 .seg > button { cursor: pointer; }
 .seg > button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 table.designs td:first-child { white-space: nowrap; }
 
-/* the explorer's point selector and the scaling view (svgplot.line_chart; charts.js) */
-.point-control { display: grid; gap: var(--sp-1); align-items: center; }
-.point-control .label { margin: 0; }
-.point-control .seg { flex-wrap: wrap; }
-.point-note { color: var(--text-2); margin: 0 0 var(--sp-2); }
-.point-note .measured { color: var(--accent-ink); font-weight: 600; }
+/* the charts' Size selector (build.size_control, size_tag, size_missing_item; charts.js) and the scaling view
+   (svgplot.line_chart; charts.js) */
+.size-control select:disabled { opacity: 0.6; cursor: default; }
+.size-tag a { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+html[data-pdk="asap7pnr"] [data-size-words][hidden] { display: inline !important; }
+ul.legend li.size-missing { color: var(--text); text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.at-tools { flex-wrap: wrap; align-items: end; gap: var(--sp-3) var(--sp-5); margin: 0 0 var(--sp-3); }
+.at-tools .seg { align-self: end; }
+svg.chart .series-line.is-par { stroke-width: 3.5; }
+details.sizes-fold .size-head { font-size: var(--fs-sm); margin: var(--sp-4) 0 var(--sp-2); }
+/* on a phone the head's words take two lines whether or not the tag is shown: choosing a size moves nothing */
+@media (max-width: 30rem) { .card-actions .label:has([data-size-tag]) { display: inline-block; min-height: 2lh; } }
 #scaling { margin-top: var(--sp-4); }
 #scaling[open] > .chart-slot { margin-top: var(--sp-3); }
 svg.chart .series-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }

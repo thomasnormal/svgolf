@@ -4,16 +4,18 @@
 //   * the linear/log switch of the score chart (it shows one of the two drawings);
 //   * tooltips for the marks of every chart and the score chart's baseline levels (from each
 //     one's data-tip; designs drawn at one point share one tooltip that names them all);
-//   * the explorer: the point selector (the scored point's ranked numbers, or another point's
-//     measured ones: score/measured/<task>.json), two axis menus and their log switches, and a redraw
+//   * the explorer: the Size selector (the scoring size's ranked numbers, or another size's measured
+//     ones: leaderboard/sizes/ and score/measured/; the card's head then says "not ranked" and the legend line
+//     counts the designs not measured there), two axis menus (the X axis's "Size" options draw one line per
+//     design along the sizes: the score against size, log-log) and their log switches, and a redraw
 //     of the scatter from the page's data (the inert JSON in #task-data; the routed course's explorer, a
 //     second copy on the page, from #task-data-asap7pnr: site/build.py `dual`), with the Pareto front of
 //     the entries for the chosen pair. The drawing mirrors svgplot.scatter_chart: same frame,
 //     scales, ticks, marks and CSS classes.
 //   * the scaling view: a metric menu, the "÷ par" and log switches, and a redraw of the lines
 //     (svgplot.line_chart's frame, scales, marks, margin names and classes).
-//   * a detail page (a record's, a reference's): the area-time plot's "fit to cluster" / "all designs"
-//     switch (it shows one of the server's two drawings) and the schematic's zoom buttons (they scale
+//   * a detail page (a record's, a reference's): the area-time plot's Size selector and "fit to cluster" / "all
+//     designs" switch (it shows one of the server's drawings: one per size and view) and the schematic's zoom buttons (they scale
 //     the inline SVG inside its scroll box about the view's centre), critical-path switch, cell finder
 //     and the critical-path links into the drawing (the drawing sits in the netlist card's Schematic tab:
 //     a link from the Critical path tab opens it first; site.js makes the tabs).
@@ -32,6 +34,9 @@
   var KIND_TEXT = { record: "submission", reference: "par design", baseline: "proved baseline" };   // build.py KIND_TEXT
   var BANNED_TEXT = "proved baseline with a banned operator (not rankable)";   // build.py BANNED_TEXT
   var MEASURED = "measured, not ranked";
+  var SIZE_CAPTION = "One line per design: its number at each size (with ÷ par, over par's there: under 1 beats " +
+    "par), the same proved design through the same pinned flow, measured, not ranked away from the scoring size. A " +
+    "line that rises less steeply scales better; where two lines cross, one design starts to beat the other.";
   // svgplot.LINES_FRAME and LINES_COMPACT (the scaling view)
   var LINE_FRAMES = {
     wide: { w: 960, h: 430, left: 82, right: 196, top: 18, bottom: 56, ticks: 6, gap: 15, chars: 26, charW: 6.6 },
@@ -399,22 +404,58 @@
 
   // -- a detail page: the area-time plot's view switch, the schematic's zoom ------------------
 
-  function wireViewToggle(toggle) {      // "Fit to cluster" / "All designs": shows one of the server's drawings
-    var slot = toggle.closest("[data-hook]") || document;
+  // The area-time plot's tools (build.area_time_html): the Size selector (the server drew the plot at every size the
+  // task has; the routed course's selector is the scoring size alone, disabled) and "Fit to cluster" / "All designs";
+  // the drawing shown is the one of the size and view chosen (a size whose fit hides nothing has the fit only). At
+  // another size the card's head says "not ranked", the legend line counts the designs not measured there, and par's
+  // score and the caption's fit sentence are the size's (the slot's inert JSON, data-at-info).
+  function wireAreaTime(tools) {
+    var slot = tools.closest("[data-hook]") || document;
     var box = slot.querySelector("[data-area-time]");
     if (!box) { return; }
-    toggle.hidden = false;
-    var buttons = toggle.querySelectorAll("button");
+    var info = null, el = slot.querySelector("script[data-at-info]");
+    if (el) { try { info = JSON.parse(el.textContent); } catch (e) { info = null; } }
+    var sizeSel = tools.querySelector("select[data-size-select]");
+    var buttons = tools.querySelectorAll(".seg > button");
+    var card = slot.closest("section");
+    var missingLi = slot.querySelector("[data-size-missing]");
+    var parLi = slot.querySelector("[data-at-par]"), parScore = slot.querySelector("[data-at-par-score]");
+    var fitted = slot.querySelector("[data-at-fitted]");
+    var variants = box.querySelectorAll("[data-view]");
+    var at = sizeSel ? sizeSel.value : null, view = "fit";
+    tools.hidden = false;
+
+    function show() {
+      var has = {};
+      Array.prototype.forEach.call(variants, function (v) {
+        if (at === null || v.getAttribute("data-at") === at) { has[v.getAttribute("data-view")] = true; }
+      });
+      var want = has[view] ? view : "fit";
+      Array.prototype.forEach.call(variants, function (v) {
+        v.hidden = !((at === null || v.getAttribute("data-at") === at) && v.getAttribute("data-view") === want);
+      });
+      var t = box.querySelector(":scope > .chart-tip");
+      if (t) { t.hidden = true; }
+      var i = info && at !== null ? info[at] : null;
+      if (!i) { return; }
+      sizeHead(card, i.scored ? null : i.short);
+      sizeMissing(missingLi, i.missing || [], "not measured at this size");
+      if (parLi) { parLi.hidden = !i.par; }
+      if (parScore && i.par) { parScore.textContent = i.par; }
+      if (fitted) { fitted.textContent = i.fitted || ""; }
+    }
+
     Array.prototype.forEach.call(buttons, function (btn, i) {
       btn.addEventListener("click", function () {
         Array.prototype.forEach.call(buttons, function (b, j) { b.setAttribute("aria-pressed", i === j ? "true" : "false"); });
-        Array.prototype.forEach.call(box.querySelectorAll("[data-view]"), function (v) {
-          v.hidden = v.getAttribute("data-view") !== (i === 0 ? "fit" : "all");
-        });
-        var t = box.querySelector(":scope > .chart-tip");
-        if (t) { t.hidden = true; }
+        view = i === 0 ? "fit" : "all";
+        show();
       });
     });
+    if (sizeSel && !sizeSel.disabled) {
+      sizeSel.addEventListener("change", function () { at = sizeSel.value; show(); });
+      if (info && info[at] && !info[at].scored) { show(); }    // a form state the browser restored
+    }
   }
 
   // The drawing in a scroll box (without the script: shrunk to the box's width, and each cell a link target). The
@@ -545,6 +586,29 @@
 
   // -- the explorer ---------------------------------------------------------------------------
 
+  // -- the Size selector's companions: the chart head's tag and the legend line's count ----------
+
+  // The card's head says "not ranked · N = 64" while another size than the scoring one is drawn (build.size_tag; the
+  // explorer's head swaps it for its words "any two numbers"); `short` null: the scoring size.
+  function sizeHead(card, short) {
+    if (!card) { return; }
+    Array.prototype.forEach.call(card.querySelectorAll("[data-size-tag]"), function (tag) {
+      tag.hidden = short === null;
+      var at = tag.querySelector("[data-size-tag-at]");
+      if (at && short !== null) { at.textContent = short; }
+    });
+    Array.prototype.forEach.call(card.querySelectorAll("[data-size-words]"), function (w) { w.hidden = short !== null; });
+  }
+
+  // The legend line's count of the designs a drawing leaves out (build.size_missing_item): `missing` [[label, why]];
+  // `what` the words after the count. The reasons are the item's hover text.
+  function sizeMissing(li, missing, what) {
+    if (!li) { return; }
+    li.hidden = !missing.length;
+    li.textContent = missing.length ? missing.length + (missing.length === 1 ? " design " : " designs ") + what : "";
+    li.title = missing.map(function (m) { return m[0] + ": " + m[1]; }).join("\n");
+  }
+
   // `scope`: the element holding one explorer and its data (a task page has one per library view, site/build.py `dual`)
   function wireExplorer(data, scope) {
     var controls = scope.querySelector("[data-explorer-controls]");
@@ -553,38 +617,119 @@
     var sel = { x: controls.querySelector('select[data-axis="x"]'), y: controls.querySelector('select[data-axis="y"]') };
     var log = { x: controls.querySelector('input[data-log="x"]'), y: controls.querySelector('input[data-log="y"]') };
     var note = scope.querySelector("[data-explorer-note]");
-    var pointNote = scope.querySelector("[data-point-note]");
-    var scoredNote = pointNote ? pointNote.innerHTML : "";
-    var buttons = controls.querySelectorAll("button[data-point]");
+    var sizeSel = controls.querySelector("select[data-size-select]");
+    var card = scope.closest("section");
+    var missingLi = scope.querySelector("[data-size-missing]");
+    var frontLi = scope.querySelector("ul.legend .frontier");
+    frontLi = frontLi ? frontLi.closest("li") : null;
+    var rel = controls.querySelector("input[data-size-rel]");      // the Size axis: each line over par's
+    var caption = scope.querySelector("[data-explorer-caption]"), caption0 = caption ? caption.textContent : "";
     var points = {};
     (data.points || []).forEach(function (p) { points[p.key] = p; });
-    var current = null;                  // the measured point drawn (null: the scored point)
+    var current = null;                  // the size drawn (null: the scoring size)
     controls.hidden = false;
+
+    function sizeAxis() {                // the X axis's Size option chosen (build.size_axes), or null
+      var v = sel.x.value;
+      return v.indexOf("size:") === 0 && data.sizes ? data.sizes[Number(v.slice(5))] || null : null;
+    }
 
     function view() {                    // what is drawn: the scored point's ranked designs, or a measured point's
       if (current === null || !data.at || !data.at[current]) { return data; }
       return { task: data.task, metrics: data.metrics, designs: data.at[current], where: points[current].full };
     }
 
+    function designsAt(key) { return points[key] && !points[key].scored ? (data.at[key] || []) : data.designs; }
+
     function values(key) {
-      return view().designs.map(function (d) { return d.m[key]; }).filter(function (v) { return v !== undefined; });
+      if (key.indexOf("size:") === 0) {
+        var ax = sizeAxis();
+        return ax ? ax.keys.map(function (k) { return ax.x[k]; }) : [];
+      }
+      var ds = sizeAxis() ? [].concat.apply([], sizeAxis().keys.map(designsAt)) : view().designs;
+      return ds.map(function (d) { return d.m[key]; }).filter(function (v) { return v !== undefined; });
     }
 
     function autoLog(a) {                // a range past 10x on positive values starts on a log axis
       var v = values(sel[a].value), lo = Math.min.apply(null, v), hi = Math.max.apply(null, v);
       log[a].disabled = !(lo > 0);
-      log[a].checked = lo > 0 && hi / lo > 10;
+      log[a].checked = lo > 0 && (hi / lo > 10 || !!sizeAxis());   // the Size axis: log-log, so N^k is a line
+    }
+
+    // One line per design along a Size axis (build.size_axes): its numbers at each size of the line, joined by id;
+    // par's line marked; the tooltips start with the design's title.
+    function sizeLines(ax, yk) {
+      var lines = [], byId = {};
+      data.designs.forEach(function (d) {
+        var ln = { id: d.id, kind: d.kind, banned: d.banned, href: d.href, family: false, par: !!d.par,
+                   name: (d.par ? "par · " : "") + d.name, names: [d.name], title: d.title && d.title !== d.name ? d.title : null,
+                   pts: [] };
+        ln.tip = (ln.title ? [ln.title, d.name + " · " + kindName(d.kind, d.banned)] : [d.name, kindName(d.kind, d.banned)])
+          .concat([(d.par ? "par's design · " : "") + MEASURED + " away from the scoring size"]);
+        byId[d.id] = ln;
+        lines.push(ln);
+      });
+      ax.keys.forEach(function (key) {
+        designsAt(key).forEach(function (d) {
+          var ln = byId[d.id];
+          if (ln && d.m[yk] !== undefined) { ln.pts.push({ key: key, x: ax.x[key], m: d.m }); }
+        });
+      });
+      // designs with the same numbers at every size (par's design and a second proof of it) share one line, named
+      // by the first with the count of the others (build.scaling_lines' rule)
+      var groups = {}, merged = [];
+      lines.forEach(function (ln) {
+        var k = ln.kind + "|" + ln.banned + "|" + JSON.stringify(ln.pts.map(function (p) { return [p.key, p.m]; }));
+        var g = ln.pts.length ? groups[k] : null;
+        if (!g) { groups[k] = ln; merged.push(ln); return; }
+        g.names.push(ln.names[0]);
+        if (ln.par && !g.par) { g.par = true; g.id = ln.id; g.title = ln.title || g.title; g.tip = ln.tip; }
+      });
+      merged.forEach(function (ln) {
+        if (ln.names.length > 1) {
+          var first = ln.par ? (byId[ln.id] || ln).names[0] : ln.names[0];
+          ln.name = (ln.par ? "par · " : "") + first + " +" + (ln.names.length - 1);
+          ln.tip = ln.tip.concat(["the same numbers at every size: " + ln.names.join(", ")]);
+        }
+      });
+      var names = {};
+      (data.points || []).forEach(function (p) { names[p.key] = p.full; });
+      var scored = (data.points || []).filter(function (p) { return p.scored; })[0];
+      var par = merged.filter(function (ln) { return ln.par && ln.pts.length; })[0];
+      return { lines: merged, ticks: ax.ticks, x_label: ax.axis, par: par ? par.id : null, points: names,
+               scored: scored ? scored.key : null };
     }
 
     var drawn = null;                  // the size the script last drew at (null: the server's drawings)
 
     function draw() {
       drawn = box.clientWidth < COMPACT_BELOW ? "compact" : "wide";
+      var tip = box.querySelector(":scope > .chart-tip");
+      var ax = sizeAxis();
+      if (rel) { rel.closest("label").hidden = !ax; }
+      if (caption) { caption.textContent = ax ? SIZE_CAPTION : caption0; }
+      if (ax) {
+        var sc = sizeLines(ax, sel.y.value);
+        var relative = !!(rel && rel.checked && sc.par);
+        var rl = drawLines(data, sc, sel.y.value, relative, log.x.checked, log.y.checked, drawn === "compact");
+        box.innerHTML = rl.svg || '<p class="empty">No design has this number at two sizes or more.</p>';
+        if (tip) { tip.hidden = true; box.appendChild(tip); }
+        sizeHead(card, "every size");
+        sizeMissing(missingLi, sc.lines.filter(function (l) { return l.pts.length < 2; }).map(function (l) {
+          return [(l.title ? l.title + " · " : "") + l.names[0], "measured at " + (l.pts.length ? "one size" : "no size") +
+                  " with this number"];
+        }), "measured at fewer than two sizes");
+        if (frontLi) { frontLi.hidden = true; }
+        if (note) { note.hidden = true; }
+        return;
+      }
+      if (frontLi) { frontLi.hidden = false; }
       var v = view();
       var r = drawScatter(v, sel.x.value, sel.y.value, log.x.checked, log.y.checked, drawn === "compact");
-      var tip = box.querySelector(":scope > .chart-tip");
       box.innerHTML = r.svg || '<p class="empty">No design has both numbers' + (v.where ? " at " + esc(v.where) : "") + ".</p>";
       if (tip) { tip.hidden = true; box.appendChild(tip); }
+      sizeHead(card, current === null ? null : points[current].short);
+      sizeMissing(missingLi, current === null ? [] : points[current].missing || [], "not measured at this size");
       if (note) {
         note.textContent = r.n + " of " + v.designs.length + " designs have both numbers" +
           (v.where ? " at " + v.where : "") + (r.n < v.designs.length ? " (the rest lack one)." : ".");
@@ -594,22 +739,7 @@
 
     function choose(key) {
       var scored = points[key] && points[key].scored;
-      current = scored ? null : key;
-      Array.prototype.forEach.call(buttons, function (b) {
-        b.setAttribute("aria-pressed", b.getAttribute("data-point") === key ? "true" : "false");
-      });
-      if (pointNote) {
-        if (scored) {
-          pointNote.innerHTML = scoredNote;
-        } else {
-          var ranked = (data.points || []).filter(function (p) { return p.scored; })[0];
-          pointNote.innerHTML = "<strong>" + esc(points[key].full) + '</strong>: <span class="measured">' + MEASURED +
-            "</span>. The same proved " +
-            "designs through the same pinned flow at other parameters; " +
-            (data.preview ? "this task is a preview, so nothing of it is ranked yet." :
-              "the leaderboard ranks at " + esc(ranked ? ranked.full : "the scored point") + " only.");
-        }
-      }
+      current = scored || !points[key] ? null : key;
       autoLog("x"); autoLog("y");
       draw();
     }
@@ -617,14 +747,32 @@
     refitOnResize(box, function () { return drawn; }, draw);
 
     ["x", "y"].forEach(function (a) {
-      sel[a].addEventListener("change", function () { autoLog(a); draw(); });
+      sel[a].addEventListener("change", function () {
+        if (a === "x") {
+          var ax = sizeAxis();
+          if (sizeSel) { sizeSel.disabled = !!ax; }   // the lines run through every size
+          var adp = sel.y.querySelector('option[value="adp"]');
+          if (ax && adp) { sel.y.value = "adp"; }      // scaling: the score against size (2026-11-13)
+          autoLog("y");
+        }
+        autoLog(a);
+        draw();
+      });
       log[a].addEventListener("change", draw);
+      if (a === "y" && rel) { rel.addEventListener("change", draw); }
       var v = values(sel[a].value);
       log[a].disabled = !(Math.min.apply(null, v) > 0);
     });
-    Array.prototype.forEach.call(buttons, function (b) {
-      b.addEventListener("click", function () { choose(b.getAttribute("data-point")); });
-    });
+    if (sizeSel && !sizeSel.disabled) {
+      sizeSel.addEventListener("change", function () { choose(sizeSel.value); });
+      // a form state the browser restored (back to the page): drawn as the controls say
+      if (sizeSel.value && points[sizeSel.value] && !points[sizeSel.value].scored) { choose(sizeSel.value); }
+    }
+    if (sizeAxis()) {
+      if (sizeSel) { sizeSel.disabled = true; }
+      autoLog("x"); autoLog("y");
+      draw();
+    }
   }
 
   // -- the scaling view (svgplot.line_chart) ----------------------------------------------------
@@ -668,8 +816,10 @@
     return out;
   }
 
-  function drawLines(data, key, relative, xlog, ylog, compact) {
-    var sc = data.scaling, F = compact ? LINE_FRAMES.compact : LINE_FRAMES.wide, W = F.w, H = F.h;
+  // `sc`: the lines (the scaling fold's data.scaling, or the explorer's Size axis, `sizeLines`): a line's `tip` and
+  // `title`, when it has them, start its tooltips (the explorer's: the design's title first); `par` marks par's line
+  function drawLines(data, sc, key, relative, xlog, ylog, compact) {
+    var F = compact ? LINE_FRAMES.compact : LINE_FRAMES.wide, W = F.w, H = F.h;
     var byKey = {};
     data.metrics.forEach(function (m) { byKey[m.key] = m; });
     var m = byKey[key];
@@ -677,9 +827,10 @@
       var vals = lineValues(sc, ln, key, relative);
       return { ln: ln, pts: vals.map(function (pv) {
         var p = pv[0], v = pv[1];
-        return { x: p.x, y: v, tip: [ln.name, sc.points[p.key] + (p.key === sc.scored ? " · the scored point" : " · " + MEASURED),
+        return { x: p.x, y: v, tip: (ln.title ? [ln.title, ln.names[0]] : [ln.name]).concat([
+          sc.points[p.key] + (p.key === sc.scored ? " · the scored point" : " · " + MEASURED),
           m.label + ": " + fmtMetric(m, p.m[key]) + (m.unit ? " " + m.unit : "") +
-          (relative ? " (×" + v.toFixed(2) + " par)" : "")] };
+          (relative ? " (×" + v.toFixed(2) + " par)" : "")]) };
       }) };
     }).filter(function (l) { return l.pts.length >= 2; });
     if (!lines.length) { return { svg: "", n: 0 }; }
@@ -731,8 +882,9 @@
       return (KIND_ORDER[a.ln.kind] - KIND_ORDER[b.ln.kind]) || (a.ln.id < b.ln.id ? -1 : a.ln.id > b.ln.id ? 1 : 0);
     });
     lines.forEach(function (l) {
-      var ln = l.ln, cls = { record: "s-record", reference: "s-reference", baseline: "s-baseline" }[ln.kind];
-      var tip = lineTip(ln);
+      var ln = l.ln, cls = { record: "s-record", reference: "s-reference", baseline: "s-baseline" }[ln.kind] +
+        (ln.par ? " is-par" : "");
+      var tip = ln.tip || lineTip(ln);
       var coords = l.pts.map(function (p) { return f1(xs.map(p.x)) + "," + f1(ys.map(p.y)); }).join(" ");
       var g = '<g class="series" data-line-kind="' + esc(ln.kind) + '" data-id="' + esc(ln.id) + '"><g data-tip="' +
               esc(tip.join("\n")) + '"><polyline class="series-line ' + cls + '" points="' + coords + '"/>' +
@@ -791,7 +943,7 @@
     function draw() {
       drawn = box.clientWidth < COMPACT_BELOW ? "compact" : "wide";
       var relative = !!(rel && rel.checked && sc.par);
-      var r = drawLines(data, metric.value, relative, log.x.checked, log.y.checked, drawn === "compact");
+      var r = drawLines(data, sc, metric.value, relative, log.x.checked, log.y.checked, drawn === "compact");
       var tip = box.querySelector(":scope > .chart-tip");
       box.innerHTML = r.svg || '<p class="empty">No design has this number at two points or more.</p>';
       if (tip) { tip.hidden = true; box.appendChild(tip); }
@@ -819,7 +971,7 @@
       wireTips(box);
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-scale-toggle]"), wireScale);
-    Array.prototype.forEach.call(document.querySelectorAll("[data-view-toggle]"), wireViewToggle);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-at-tools]"), wireAreaTime);
     Array.prototype.forEach.call(document.querySelectorAll("[data-schematic]"), wireSchematic);
     // the page's data: #task-data (sky130, with the scaling view's) and #task-data-asap7pnr (the routed course's explorer),
     // each beside the explorer it feeds

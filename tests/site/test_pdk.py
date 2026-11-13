@@ -202,19 +202,25 @@ class PdkTest(unittest.TestCase):
                        "slack, with the wires extracted from the layout", "One run, one seed",
                        "the seed its submission names, else a seed drawn at random once",
                        "Every design routed so far (2026-11-11 to 2026-11-13) ran at seed 1",
-                       "leaderboard.py add does not take a seed yet",
+                       "A design's request can name a seed before its run",
+                       "leaderboard.py asap7pnr --request --task <name> --design FILE --seed N --write",
+                       "the run itself is still made by the maintainers on the course host",
                        "The flow's equivalence check compares the routed netlist with the netlist the run was given: it "
                        "shows that place and route preserved the run's input, not that the input was the design's "
                        "netlist", "That the input is the design's ASAP7 netlist is checked by sha256",
                        "A negative control was run on 2026-11-13", "Circuits are DIFFERENT", "(4 of 4)",
                        "The tool exits 0 either way; its verdict is read from its log, as the flow does",
                        "This control is not a pinned step of every run", "Hold timing, other corners, and power are not "
-                       "scored", "not yet made again from the repository alone", "slow-signal (max-slew) warnings",
+                       "scored", "score/pnr/README.md", "they write the config.mk and SDC of every committed run byte "
+                       "for byte", "no run has been made with their container runner yet",
+                       "slow-signal (max-slew) warnings",
                        "not routed yet: place and route pending", "Since 2026-11-13 every design the tasks show",
                        "leaderboard/asap7pnr/<task>.json", "site/layouts/<task>/",
                        "a predictive library at one corner, not sign-off"):
             self.assertIn(phrase, part)
         self.assertNotIn("not yet checked by a negative control", part)
+        self.assertNotIn("not yet made again from the repository alone", part)     # the run tools are in score/pnr/
+        self.assertNotIn("does not take a seed yet", part)                          # a request can name a seed
         for p in [f"tasks/{t}/index.html" for t in self.listed]:
             with self.subTest(page=p):
                 self.assertIn(f"rules.html#{build.ASAP7PNR_ANCHOR}", self.view(p, R))
@@ -489,6 +495,11 @@ class PdkTest(unittest.TestCase):
                           str(run["area_e5um2"])):
                     self.assertIn(h, rep)
                 self.assertIn(self.pins["image"]["manifest_digest"], rep)
+                job = f"{t}_{e['netlist_sha256'][:12]}__min_s{run['seed']}"      # the in-tree tools' commands
+                self.assertIn(f"score/pnr/job.py --task {t} --netlist netlist.v --seed {run['seed']} --out job", rep)
+                self.assertIn(f"score/pnr/run_job.py run job {job}", rep)
+                self.assertIn("no run has been made with its container runner yet", rep)
+                self.assertNotIn("not in the repository yet", rep)
                 sky = text_of(section(self.view(path, "sky130"), "dashboard"))
                 self.assertNotIn(flat(f"{build.grouped(lb.fmt_um2_e5(vo['area_e5um2']))} µm² exactly"), sky)
         # every design is routed since 2026-11-13: a page without a bound entry is planted in

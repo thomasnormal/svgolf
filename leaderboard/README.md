@@ -18,6 +18,8 @@ leaderboard/
   data/<task>/<record_hash>.json  the record
   data/<task>/<record_hash>.sv    the submitted design, byte for byte
   data/<task>/<record_hash>.lean  the submitted proof, byte for byte
+  sizes.py, sizes.json            the designs at other sizes: the generator and checker, the sizes ("Other sizes")
+  sizes/<task>.json               ... the measured columns (generated; measured, not ranked)
 tests/leaderboard/                unit tests (synthetic check results; no Lean, no Yosys)
 ```
 
@@ -42,7 +44,10 @@ python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7     # the ASAP
 python3.12 leaderboard/leaderboard.py asap7 [--task T] [--rescore | --write]   # the ASAP7 view's columns
 python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7pnr  # the routed course (also pareto, export): below
 python3.12 leaderboard/leaderboard.py asap7pnr [--task T]             # the routed course's results, checked offline
+python3.12 leaderboard/leaderboard.py asap7pnr --request --task T --design FILE [--seed N] [--write]   # a design's seed: below
 python3.12 leaderboard/leaderboard.py submit --task T --record HASH [--dry-run]   # hand a record in: below
+python3.12 leaderboard/leaderboard.py sizes [--task T]                # the designs at other sizes, checked offline: below
+nice -n 19 python3.12 leaderboard/leaderboard.py sizes --write [--task T] [--jobs 2]   # ... measured (Yosys)
 ```
 
 `add` takes `--date YYYY-MM-DD` (default: today, UTC; this is the only place
@@ -358,10 +363,68 @@ cells-only one in its place. The site's build notes a pending design (the page s
 | command | what | cost |
 |---|---|---|
 | `asap7pnr [--task T]` | the files against the repository, offline: the shape and every number the file determines (the delay from ORFS's raw texts, half-even; the area within ORFS's printed precision; time, exact, the scores from the runs; the picture of the scoring run), the binding of every design the task's pages show (pending ones listed: the work list of the next run), every picture's sha256, size and pixel size | milliseconds; no tools |
+| `asap7pnr --request --task T --design FILE [--seed N] [--write]` | the request of a design file the task shows that is not routed yet (the seed rule, decided 2026-11-11): source `record` with the seed `--seed` names, else source `drawn` with a seed drawn from the operating system's random source (1..2^31-1); printed, and with `--write` stored as the design's pending entry (no run; every other entry byte for byte as it was), from which the course host's run takes its seed and the collector its request. A stored request is printed and never changed: asked again it is replayed, and another seed is refused, for a pending design as for a routed one. Records and `add` are unchanged: the request lives in this file, outside every record hash | milliseconds; no tools |
 | `asap7pnr --import DIR [--task T] --write` | a course host's collected site data (`DIR/sitedata/<task>.json`, pictures under `DIR/images/`) into the tree: only the design files the task shows now, `of` as the ASAP7 view names it, the pictures moved under `site/layouts/<task>/` and checked against their sha256; refused on any problem | seconds |
 
-The run itself (place and route, the picture, the collection) happens on an x86-64 Linux host with the pinned image
-and is not part of this tree yet: a design added since the last run is pending until the next one.
+The run itself (place and route, the picture, the collection) happens on an x86-64 Linux host with the pinned image,
+with the tools of `score/pnr/` ([../score/pnr/README.md](../score/pnr/README.md): `job.py`, `run_job.py`, `encode.py`,
+`collect.py`, then `check_sitedata.py` before the import): a design added since the last run is pending until the next
+one.
+
+## Other sizes (2026-11-13; measured, not ranked)
+
+The board ranks each task at ONE size, task.json's `scoring.params`. To see which designs scale better ("we should
+still synthesize for more N (or other parametrics) and make it possible to choose in the graph", 2026-11-13), every
+record's design file is also synthesized at the other sizes of `leaderboard/sizes.json`: `leaderboard/sizes/<task>.json`
+(schema `svgolf-sizes/1`), written by `leaderboard.py sizes --write` (`sizes.py`). **These numbers rank nothing**: the
+board, par, "under par" and every record keep the scoring size alone, and a size other than the scoring one is shown as
+measured, never as a score. Every size lies inside the task's parameter range (checked), where each record's proof
+holds: a size is the same proved design at other parameters.
+
+**What is measured.** One entry per design FILE that the task's pages show as a record (players' records and par's,
+at the task's scoring point; keyed by its sha256, naming its records and whether it is par's design), and per size the
+sky130 columns of the scoring flow itself, `score/ppa.py SV --task tasks/<t> --param ... --no-mapped` (`--seq` on a
+clocked task): the A0' area (`area_e4um2`, `area_um2`), the delay (on a clocked task the register-to-register period),
+the cycles (a clocked design's own proved latency function, `def lat` in its proof, read as score/points.py reads it,
+the library's `clog2` included; a latency that reading does not evaluate fails the task, never a guess; 1
+on the reactive kind), the time (the delay, or cycles x period), the product (`area_x_time`, 1e-4 um^2 x ps, as
+`combined.py`), the GE columns, cells, buffers, the scored, repaired and RTLIL hashes and the run's seconds; and the
+ASAP7 view's cells-only columns on the same scored netlist (`ppa.py --netlist-in --pdk asap7`, no second synthesis). The
+routed course has no data at other sizes and nothing is estimated for it. The references and baselines that are no
+record are measured at other points by `score/points.py` (score/PPA.md, "Measured at several points").
+
+**The control.** At the scoring size every column must equal what the record itself stores (its `ppa` and `score`
+blocks: area, delay or period, cycles, time, the product, cells, buffers, unit depth, GE, the three hashes) and, when the
+task's ASAP7 table is current, that table's entry: `--write` keeps nothing of a design whose scoring size differs, and
+the check fails on it. That equality is the evidence that the sizes come from the scoring flow.
+
+**Limits.** Each run has `limits.timeout_s` (900) seconds and `limits.memory_gb` (6) GiB for its whole process tree
+(a watchdog in `sizes.py`, since macOS enforces no memory ulimit; Yosys runs in a session of its own, so the tree is
+followed by parent PID). A run that reaches a limit is `"not measured"` with `"why": "limit"` and is not retried under
+the same pins; a size the flow refuses is `"why": "flow"` with the flow's reason. The pins of a file are the flow of the
+task's kind (`current_flow`), the sky130 identity with the task's input drive, the ASAP7 identity and the limits: under
+other pins the file is stale (a note) and `--write` measures it again; with the same pins it resumes, measuring only
+what is missing.
+
+| command | what | cost |
+|---|---|---|
+| `sizes --write [--task T] [--jobs 2]` | every missing (design, size) of the task(s), at most two runs at a time, the scoring sizes first (the control), the file rewritten after each run; `--size KEY`, `--design PREFIX` narrow it, `--timings OUT.jsonl` logs each run's wall time and peak memory | every task from nothing: 168 runs, 38 minutes of run time in all, at most two at a time (2026-11-13, nice 19, the rating build); most runs take under 5 s, matmul at N = 16 74 to 175 s, the two limits 79 s (memory) and 900 s (time); a file already complete under the same pins: seconds, nothing run |
+| `sizes [--task T]` | the files against the repository, offline: the shape and the deterministic form, the sizes and series of sizes.json, every record's design file present and no other, every size measured or not measured with a reason, the arithmetic (time, product, cycles against the latency function), the control at the scoring size; stale pins are a note | under a second; no tools |
+
+**The data of 2026-11-13**: 8 tasks (aes_sbox has no size parameter and is left out), 45 design files (the 45 records of
+those tasks: 32, then the 13 matmul architecture records, measured the same day), 246 (design, size) points: 243
+measured, 3 not measured, all at a limit (the Newton divider at binary32, 900 s; the fully parallel matrix multiplier
+and the multiplier cube at N = 16, 6 GiB). The scoring size equals every record's own columns for all 45 designs, and
+the ASAP7 view's entry for all 45. The 13 matmul records took 78 runs and 60 minutes of run time, at most two at a time
+(N = 16: 18 to 368 s, up to 4.3 GB; the cube passed 6 GiB after 71 s). Where a record's design file is also a reference
+or baseline of `score/measured/` (score/points.py), the 84 shared (file, point) pairs agree on every column. A new
+record has no sizes until `sizes --write --task T` runs; until then `sizes` fails for that task, as `asap7` does.
+
+**On the site.** A task page's "Compare the designs" and a record's "Area against time" offer these sizes under **Size**
+(sky130 only: on the routed course the selector holds the scoring size, disabled), each design drawn at the size chosen
+and one not measured there counted under the chart; the explorer's X axis "Size" draws each design's number against the
+size, one line per design. `site/build.py` `load_sizes` reads the file as it is and draws nothing from a file measured
+under other pins than the page's (a warning, fatal under `--strict`).
 
 ## Policy
 
@@ -434,7 +497,12 @@ it; the format already carries what they need.
 ## Verification
 
 `verify` re-checks stored records at three levels. It exits 1 if any record
-fails; a record checked under another flow is `stale`, not a failure.
+fails; a record checked under another flow is `stale`, not a failure. At every level it also checks the routed course's
+data (`verify_routed`, offline, milliseconds): each `leaderboard/asap7pnr/<task>.json` (of `--task` alone with
+`--task`) must be well-formed, as `asap7pnr` reads it (its written form, the shape and every number the file determines),
+and every picture it records must be its file under `site/layouts/<task>/` (sha256, size, pixel size); a table that is
+not FAILS `verify` (exit 1, `[FAIL] asap7pnr/<task>: ...`; the summary line counts the tables checked and failed). Whether
+each design is bound to its record is `asap7pnr`'s check; a design not routed yet fails neither.
 
 | level | what | cost |
 |---|---|---|
@@ -524,3 +592,11 @@ exactly the three files; the clone's branch, index and working tree unchanged), 
 parts; `pr_check.py` on a test repository with the two commits (an added record passes, a failed full check and an
 edited record fail, an edit, a removal, another file and half a record are refused without running `check.py`). The
 tests inject the check and rescore results; none runs Lean or Yosys.
+
+`python3.12 tests/leaderboard/test_sizes.py` (also in the `leaderboard` step of `tests/run.py`, with `leaderboard.py
+sizes` on `sizes/`): the designs at other sizes ("Other sizes"): a clean synthetic file of each kind passes, and every
+planted fault fails the check (a column or hash at the scoring size against the record, the ASAP7 view's entry, the
+time, product, area and cycles arithmetic, a missing or extra size or design, the scoring size not measured, a malformed
+not-measured entry, the sizes or series against sizes.json, the par flag and records list, the deterministic form),
+stale pins are a note that skips the control; the configuration against the tasks' ranges; the run watchdog's time and
+memory limits over a process tree whose child is in a session of its own. No Lean, no Yosys.

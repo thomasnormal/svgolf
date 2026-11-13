@@ -1,0 +1,84 @@
+{
+ "_comment": [
+  "The sizes each task's designs are synthesized at besides the scoring point (owner feedback 2026-11-13: \"Even though we fix N for the main rated score, we should still synthesize for more N (or other parametrics) and make it possible to choose in the graph ... that way we can see which designs scale better\"). Read by leaderboard/sizes.py (`leaderboard.py sizes`), which writes leaderboard/sizes/<task>.json. MEASURED, NOT RANKED: the board ranks the scoring point alone (task.json `scoring.params`), which must be one of the sizes.",
+  "Every size is inside the task's parameter range (task.json `parameters`, checked by sizes.py): each design's proof is of the task's statement, which holds at every point of that range, so a size here is the same proved design at other parameters, and the statement is defined there.",
+  "Per task: `sizes`, each {params, label?}: `label` names a multi-parameter size ('binary32'); `series`, each {param, label, fixed}: the sizes whose other parameters equal `fixed` form one line of a scaling view along `param` (the scoring point lies on every series); `why`: the reason for the set; `cut`: what was left out to keep the measurement inside its time budget, and why. `left_out`: tasks with no size to vary, and why.",
+  "`limits`: every run of the pinned flow (score/ppa.py) has at most `timeout_s` seconds of wall clock and `memory_gb` GiB of memory for its whole process group (sizes.py's watchdog); a run that reaches either is recorded as not measured (`limit`) and is not retried with a larger limit. The limits are part of the data's pins: other limits make the data stale."
+ ],
+ "limits": {"timeout_s": 900, "memory_gb": 6},
+ "tasks": {
+  "_example": {
+   "sizes": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}, {"params": {"N": 64}}],
+   "series": [{"param": "N", "label": "N", "fixed": {}}],
+   "why": "the tutorial's N-bit AND: powers of two from 4 to 64 around the scoring point 16, as for add"
+  },
+  "add": {
+   "sizes": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}, {"params": {"N": 64}}],
+   "series": [{"param": "N", "label": "N", "fixed": {}}],
+   "why": "powers of two from 4 to 64, four times below and above the scoring point 16: a ripple carry grows linearly in N, a prefix adder logarithmically, which shows from N = 32 on"
+  },
+  "mul": {
+   "sizes": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}, {"params": {"N": 64}}],
+   "series": [{"param": "N", "label": "N", "fixed": {}}],
+   "why": "powers of two from 4 to 64 around the scoring point 16: the array multiplier's delay grows linearly, a reduction tree's logarithmically, and the area of all of them quadratically"
+  },
+  "clmul": {
+   "sizes": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}, {"params": {"N": 64}}],
+   "series": [{"param": "N", "label": "N", "fixed": {}}],
+   "why": "powers of two from 4 to 64 around the scoring point 16: the schoolbook array against Karatsuba-style splits, whose area advantage grows with N"
+  },
+  "fdivp": {
+   "sizes": [
+    {"params": {"W": 5, "P": 3}, "label": "8-bit (E5M2)"},
+    {"params": {"W": 8, "P": 8}, "label": "bfloat16"},
+    {"params": {"W": 5, "P": 11}, "label": "binary16"},
+    {"params": {"W": 8, "P": 24}, "label": "binary32"}
+   ],
+   "series": [{"param": "P", "label": "P, significand bits (W = 5 or 8, as the format has it)", "fixed": {}}],
+   "why": "the task has two parameters, the exponent width W and the precision P; the sizes are the formats people use: an 8-bit format with IEEE 754 conventions (E5M2), bfloat16, binary16 (the scoring point) and binary32. The scaling axis is P, which sets the size of the divider's datapath (W only widens the exponent logic); W is not varied on its own",
+   "cut": "binary64 (W = 11, P = 53): not measured. At binary32 the restoring design took 10.7 s, fdivp_d2 33.0 s and the SRT design 115.9 s, and the Newton design reached the 900 s limit; binary64 has a datapath about five times as large (P = 53 against 24), so it would cost several more minutes per design and one more 900 s limit, outside the round's time budget of about 90 minutes on a machine whose swap was full"
+  },
+  "matmul": {
+   "sizes": [
+    {"params": {"N": 2, "W": 8, "AccW": 32}},
+    {"params": {"N": 4, "W": 4, "AccW": 32}},
+    {"params": {"N": 4, "W": 8, "AccW": 32}},
+    {"params": {"N": 4, "W": 16, "AccW": 32}},
+    {"params": {"N": 8, "W": 8, "AccW": 32}},
+    {"params": {"N": 16, "W": 8, "AccW": 32}}
+   ],
+   "series": [
+    {"param": "N", "label": "N (W = 8, AccW = 32)", "fixed": {"W": 8, "AccW": 32}},
+    {"param": "W", "label": "W, entry bits (N = 4, AccW = 32)", "fixed": {"N": 4, "AccW": 32}}
+   ],
+   "why": "two lines through the scoring point (4, 8, 32): the matrix size N = 2, 4, 8, 16 at the scored widths, and the entry width W = 4, 8, 16 at N = 4 with the accumulator kept at 32 bits (the products wrap at AccW, as the statement defines). The cycles at every size are each design's own proved latency function (`def lat` in its proof)",
+   "cut": "N = 32 (W = 8, AccW = 32): not measured. At N = 16 the designs that finish took 74 to 175 s and up to 3.2 GB each, and the fully parallel design (latency (N+3)/4) passed the 6 GiB memory limit; N = 32 has four times the multiply-accumulate units of N = 16 (eight times for the fully parallel one), outside the round's time budget of about 90 minutes and the machine's memory"
+  },
+  "sorter": {
+   "sizes": [
+    {"params": {"N": 4, "W": 8}},
+    {"params": {"N": 8, "W": 4}},
+    {"params": {"N": 8, "W": 8}},
+    {"params": {"N": 8, "W": 16}},
+    {"params": {"N": 8, "W": 32}},
+    {"params": {"N": 16, "W": 8}},
+    {"params": {"N": 32, "W": 8}},
+    {"params": {"N": 64, "W": 8}}
+   ],
+   "series": [
+    {"param": "N", "label": "N, values (W = 8)", "fixed": {"W": 8}},
+    {"param": "W", "label": "W, value bits (N = 8)", "fixed": {"N": 8}}
+   ],
+   "why": "two lines through the scoring point (8, 8): the number of values N = 4, 8, 16, 32, 64 at byte width, and the value width W = 4, 8, 16, 32 at N = 8. The cycles at every size are each design's own proved latency function"
+  },
+  "arbiter": {
+   "sizes": [{"params": {"N": 2}}, {"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}},
+             {"params": {"N": 64}}],
+   "series": [{"param": "N", "label": "N, clients", "fixed": {}}],
+   "why": "powers of two from 2 to 64 around the scoring point 8; one decision per cycle at every N (the reactive kind's cycles are 1), so the time is the register-to-register period"
+  }
+ },
+ "left_out": {
+  "aes_sbox": "no size parameter: the task is the one fixed 8-bit AES S-box (task.json has no parameters), so nothing varies and its designs are measured at the scoring point only"
+ }
+}

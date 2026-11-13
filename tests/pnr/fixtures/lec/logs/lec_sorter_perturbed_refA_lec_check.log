@@ -1,0 +1,79 @@
+[2026-11-13 09:28:18.084] [miter_logger] [info] MiterStrategy::run starting
+[2026-11-13 09:28:18.084] [miter_logger] [info] Collecting POs for design 0: sorter
+
+[2026-11-13 09:28:18.090] [miter_logger] [info] Collected 93 PIs for design 0
+
+[2026-11-13 09:28:18.090] [miter_logger] [info] Collected 171 POs for design 0
+
+[2026-11-13 09:28:18.090] [miter_logger] [info] design 0 PI summary by model/term (93 total terminals, 6 unique rows):
+| Model                | Term     | Count |
+|----------------------|----------|-------|
+| DFFHQNx1_ASAP7_75t_R | QN       |    81 |
+| sorter               | in_data  |     8 |
+| sorter               | clk      |     1 |
+| sorter               | in_valid |     1 |
+| sorter               | rst      |     1 |
+| sorter               | start    |     1 |
+
+[2026-11-13 09:28:18.090] [miter_logger] [info] design 0 PO summary by model/term (171 total terminals, 4 unique rows):
+| Model                | Term      | Count |
+|----------------------|-----------|-------|
+| DFFHQNx1_ASAP7_75t_R | CLK       |    81 |
+| DFFHQNx1_ASAP7_75t_R | D         |    81 |
+| sorter               | out_data  |     8 |
+| sorter               | out_valid |     1 |
+
+[2026-11-13 09:28:18.090] [miter_logger] [info] Collecting POs for design 1: sorter
+
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of common inputs: 93
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of diff0 inputs: 0
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of diff1 inputs: 0
+[2026-11-13 09:28:18.092] [miter_logger] [info] Collected 93 PIs for design 1
+
+[2026-11-13 09:28:18.092] [miter_logger] [info] Collected 171 POs for design 1
+
+[2026-11-13 09:28:18.092] [miter_logger] [info] design 1 PI summary by model/term (93 total terminals, 6 unique rows):
+| Model                | Term     | Count |
+|----------------------|----------|-------|
+| DFFHQNx1_ASAP7_75t_R | QN       |    81 |
+| sorter               | in_data  |     8 |
+| sorter               | clk      |     1 |
+| sorter               | in_valid |     1 |
+| sorter               | rst      |     1 |
+| sorter               | start    |     1 |
+
+[2026-11-13 09:28:18.092] [miter_logger] [info] design 1 PO summary by model/term (171 total terminals, 4 unique rows):
+| Model                | Term      | Count |
+|----------------------|-----------|-------|
+| DFFHQNx1_ASAP7_75t_R | CLK       |    81 |
+| DFFHQNx1_ASAP7_75t_R | D         |    81 |
+| sorter               | out_data  |     8 |
+| sorter               | out_valid |     1 |
+
+[2026-11-13 09:28:18.092] [miter_logger] [info] normalizeInputs: starting
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of common inputs: 93
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of diff0 inputs: 0
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of diff1 inputs: 0
+[2026-11-13 09:28:18.092] [miter_logger] [info] normalizeOutputs: starting
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of common outputs: 171
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of diff0 outputs: 0
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of diff1 outputs: 0
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of PIs in circuit 0: 93
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of PIs in circuit 1: 93
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of POs in circuit 0: 171
+[2026-11-13 09:28:18.092] [miter_logger] [info] size of POs in circuit 1: 171
+[2026-11-13 09:28:18.099] [miter_logger] [info] Building miter expression
+[2026-11-13 09:28:18.099] [miter_logger] [info] Finished building miter expression
+[2026-11-13 09:28:18.100] [miter_logger] [info] Starting solver
+[2026-11-13 09:28:18.100] [miter_logger] [info] SAT solver finished: SAT
+[2026-11-13 09:28:18.100] [miter_logger] [info] Miter found a difference -> moving to analyze individual POs
+[2026-11-13 09:28:18.100] [miter_logger] [info] Found difference for PO: 93
+[2026-11-13 09:28:18.101] [miter_logger] [info] Path of differing PO 93: 1598.36.0.
+[2026-11-13 09:28:18.101] [miter_logger] [info] Path of differing PO 93: 1598.36.0.
+[2026-11-13 09:28:18.104] [miter_logger] [info] Diff 1 inst term sorter.fanout1.A.0
+[2026-11-13 09:28:18.104] [miter_logger] [info] Diff 1 inst term sorter.fanout1.Y.0
+[2026-11-13 09:28:18.104] [miter_logger] [info] size of intersection of terms: 10
+[2026-11-13 09:28:18.104] [miter_logger] [info] size of diff of terms: 0
+[2026-11-13 09:28:18.104] [miter_logger] [info] size of intersection of inst terms: 301
+[2026-11-13 09:28:18.104] [miter_logger] [info] size of diff of inst terms: 2
+[2026-11-13 09:28:18.104] [miter_logger] [info] Circuits are DIFFERENT

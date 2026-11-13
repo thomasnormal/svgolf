@@ -1,0 +1,6 @@
+{
+ "cpu": "Intel(R) Xeon(R) Platinum 8488C",
+ "kernel": "5.14.0-687.54.1.el9_8.x86_64",
+ "os": "Rocky Linux 9.8",
+ "runtime": "rootless userns+chroot"
+}

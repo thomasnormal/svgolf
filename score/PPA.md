@@ -439,7 +439,8 @@ measurement only: the ranked board stays at task.json's `scoring.params` and not
 * **The flow**: `score/points.py measure` runs `score/ppa.py SV --task tasks/<t> --param ... --no-mapped` (`--seq` for a clocked
   task) once per (design file, point), one process at a time, under `nice -n 19`: the pinned flow, liberty, input drive and repair
   of the ranked score. A clocked design's time is cycles x period, the cycles from its proof's own `def lat` (checked against its
-  `-- svgolf-latency:` header at the scored point). A point other than the scored one whose flow fails or takes longer than the
+  `-- svgolf-latency:` header at the scored point; read for binders, literals, `+ - * /`, parentheses and the library's
+  `clog2`, as LeanModels/Sv/Param.lean defines it, and for nothing else). A point other than the scored one whose flow fails or takes longer than the
   task's `time_limit_s` (120 s) is dropped for that design, with the reason in the data; `points.json` `skip` pins such a drop
   with its measurement (today: `fdivp_newton` at binary32, stopped at 120 s, more than 30 min in an earlier run; `dadda_ks_32`,
   stopped at 120 s, more than 1800 s earlier). 93 runs took 454 s in all (2026-11-05, load average 7 to 8); the binary32 runs that
@@ -460,6 +461,15 @@ nice -n 19 python3.12 score/points.py measure [--task T] [--records] [--timings 
 python3.12 score/points.py check                                     # the data against the plan and the goldens
 python3.12 score/test_points.py
 ```
+
+**The records at other sizes** (2026-11-13; measured, not ranked; leaderboard/README.md, "Other sizes"): every
+record's design file, players' and par's, by the same command at the sizes of `leaderboard/sizes.json`, written to
+`leaderboard/sizes/<task>.json` by `leaderboard.py sizes --write`, with the ASAP7 view's cells-only columns on the same
+scored netlist (`ppa.py --netlist-in NET --pdk asap7`). The board still ranks the scoring point alone; at that point
+every column equals the record's own (checked by `--write` and by `leaderboard.py sizes`), the evidence that the other
+sizes come from the scoring flow. Each run has 900 s and 6 GiB for its process tree (`sizes.json` `limits`); a run that
+reaches either is recorded as not measured, never retried under the same pins. The routed course has no data at other
+sizes. aes_sbox has no size parameter and is left out.
 
 ## Reproduce a score
 
@@ -877,7 +887,8 @@ minimal flow `min_v1`: core utilisation 40%, aspect ratio 1, placement density 0
 timing repair at floorplan, placement or clock-tree time, no power recovery, no flop clustering, ports not buffered,
 the typical corner, the flow's equivalence check on (`LEC_CHECK=1`). Two threads, two CPUs, an 8 GB memory cap without
 swap, no network, inputs read-only. `score/pnr/pins.json` pins all of it (and the sha256 of the scripts that render a
-job's config.mk and SDC); a result made under other pins is stale. **The SDC** sets one clock whose period is the ASAP7
+job's config.mk and SDC: `score/pnr/gen_course.py` and `gen_course2.py`, kept byte for byte; `score/pnr/job.py` renders
+the same text from the tree); a result made under other pins is stale. **The SDC** sets one clock whose period is the ASAP7
 view's delay of the design (its `delay_ps`); on a combinational design a virtual clock constrains input to output.
 In the minimal flow nothing optimises against the period, so it is only the reference the slack is measured from
 (that the layout does not depend on it is NOT MEASURED).
@@ -893,9 +904,11 @@ scored: hold violations (no hold repair: every clocked run ends with some, 13 to
 slow-signal (max-slew) warnings (4 of the 39 scored runs; the record page names the count).
 
 **One run per design.** The seed (`GPL_RANDOM_SEED`, global placement) is the request's: the seed a submission names,
-else one drawn at random once and kept with the record (decided 2026-11-11); `leaderboard.py add` does not take a seed
-yet, and every design so far (2026-11-11 to 2026-11-13) ran at seed 1. Detailed placement's own seed is 1 in every
-job. On the 23 records of 2026-11-11, seeds 1, 2 and 3 differ by 0 to 2.8% of the median area x time; their median
+else one drawn at random once and kept with the record (decided 2026-11-11). A request is stored before the run with
+`leaderboard.py asap7pnr --request` (the seed `--seed` names, source `record`; else one drawn from the operating
+system's random source, source `drawn`), as the design's pending entry, and is never changed; the run itself is still
+made by the maintainers on the course host. Every design so far (2026-11-11 to 2026-11-13) ran at seed 1 (source
+`default`). Detailed placement's own seed is 1 in every job. On the 23 records of 2026-11-11, seeds 1, 2 and 3 differ by 0 to 2.8% of the median area x time; their median
 (`v_median`) is kept as an unranked extra (on the 21 entries still shown that were measured then) and never ranks; the
 later campaigns ran seed 1 only.
 
@@ -942,13 +955,17 @@ routed netlist, reported "Found difference ... Circuits are DIFFERENT" for both 
 of the unchanged one (the file the course binds, and the flow's `1_synth_lec.v` of a run of it): 4 of 4; and "Circuits
 are IDENTICAL" for the two unchanged runs against the same references: 4 of 4. kepler-formal exits 0 in both cases;
 its verdict is read from its log, as the flow does. This comparison is not a pinned step of a run: the results carry
-the flow's own verdict only.
+the flow's own verdict only. `score/pnr/lec.py` makes this job for a run (the bound netlist file as the reference) and
+reads its log (IDENTICAL, DIFFERENT, or no verdict for anything else); it is a tool, not part of a run's validity.
 
 **Not claimed.** One corner, setup only, no hold repair, no power: not sign-off, on a predictive library that was
 never fabricated. Docker, other x86-64 hosts, a GitHub-hosted runner and Apple silicon are not measured (the image is
-amd64 only). The renderers of the job files and the course host's commands that run a job and draw its picture are
-not in this repository yet: a run can be checked against its recorded hashes, not made again from the repository
-alone. A player cannot name a seed yet (`leaderboard.py add` takes none).
+amd64 only). The run tools are in `score/pnr/` (its README: the job files, the runner by digest, the picture, the
+collector and the check of collected data): the `config.mk` and SDC they write are those of every committed run, byte
+for byte (97 runs), and their collector rebuilds the committed `_example` table from a stored run; no run has been made
+with their container runner yet (the committed runs ran the image unpacked into a rootless chroot), so a run made
+again from the repository alone is expected, not shown, to give the committed numbers. A request can name a seed
+(`leaderboard.py asap7pnr --request`), but the run itself is still made by the maintainers on the course host.
 
 ## What is NOT claimed
 

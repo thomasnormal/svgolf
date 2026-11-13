@@ -700,6 +700,7 @@ class Task:
         self.props = None                         # properties.json, resolved (props.TaskProperties), or None
         self.preview_note = None                  # a preview's status line (content/tasks/<t>.json `preview_note`)
         self.measured = None                      # score/measured/<task>.json (metrics.load_measured), or None
+        self.sizes = None                         # leaderboard/sizes/<task>.json (`load_sizes`), or None
         self.views = []                           # the explorer's points (`point_views`), the scored one first-class
         self.lines = []                           # the scaling view's lines (`scaling_lines`)
         self.pdk = "sky130"                       # the library the attributes of VIEW_ATTRS are of now (`view`)
@@ -882,8 +883,10 @@ def collect_task(site, name, task, listing, expected, records):
         site.warn(f"{name}: par's design ({t.par_stem}) has no score at {t.point_key} in tests/expected.json")
     for d in t.designs:
         d["par"] = bool(t.par) and d["kind"] == "reference" and d["stem"] == t.par["stem"]
-    # the other points the designs are measured at (score/measured/<task>.json): the explorer's
-    # point selector and the scaling view; measured, never ranked
+    # the other sizes the designs are measured at (leaderboard/sizes/<task>.json: the records' design files;
+    # score/measured/<task>.json: the references and baselines): the charts' Size selector and the scaling views;
+    # measured, never ranked
+    t.sizes = load_sizes(site, t)
     t.views, t.lines = point_views(t), scaling_lines(t)
     t.states["sky130"] = {k: getattr(t, k) for k in VIEW_ATTRS}
     t.states[COURSE2] = asap7pnr_state(site, t, expected)
@@ -1376,11 +1379,68 @@ MEASURED = "measured, not ranked"
 DESIGN_ORDER = {"reference": 0, "baseline": 1, "record": 2}
 
 
-def point_names(t, p):
-    """(short, full) names of a point of score/measured/<task>.json, its parameters in task.json's
-    order: ('N = 8', 'N = 8'), ('binary32', 'binary32 (W = 8, P = 24)')."""
+SIZES = "svgolf/leaderboard/sizes"               # `leaderboard.py sizes --write` (leaderboard/sizes.py), svgolf-sizes/1
+SIZES_ANCHOR = "other-sizes"                     # README.md's "### Other sizes" (rules.html)
+SKY130_SIZES_ONLY = "other sizes are measured on sky130 only"
+
+
+def load_sizes(site, t):
+    """leaderboard/sizes/<task>.json: every record's design file of the task (the players' and par's) synthesized by
+    the pinned scoring flow at the sizes of leaderboard/sizes.json (README "Other sizes"), MEASURED, NOT RANKED; the
+    file `leaderboard.py sizes --write` writes (leaderboard/sizes.py, schema svgolf-sizes/1), read as it is: the one
+    loader of it, its shape checked by `leaderboard.py sizes` (tests/run.py). None without the file (aes_sbox has no
+    size parameter), or when it was measured under other pins than the page's (the flow of the task's kind, the sky130
+    identity with the task's input drive, the ASAP7 view's identity, the limits: the generator's own `stale_keys`):
+    then a warning, fatal under --strict, and no other size is drawn. A record added since the last `--write` has no
+    entry: it is drawn at the scoring size only."""
+    rel = f"{SIZES}/{t.name}.json"
+    if not os.path.isfile(repo_file(rel)):
+        return None
+    try:
+        data = json.loads(read_text(rel))
+    except ValueError as e:
+        raise BuildError(f"{rel}: not JSON: {e}")
+    sz = lb._load_sizes()
+    if not (isinstance(data, dict) and data.get("schema") == sz.SCHEMA and data.get("task") == t.name
+            and isinstance(data.get("sizes"), list) and isinstance(data.get("designs"), list)):
+        raise BuildError(f"{rel}: not a {sz.SCHEMA} file of {t.name} (`leaderboard.py sizes --write` writes it)")
+    if data.get("scored") != t.point_key:
+        site.warn(f"{t.name}: {rel} has another scoring size ({data.get('scored')}) than the task ({t.point_key}): its "
+                  f"sizes are not drawn (`leaderboard.py sizes --write --task {t.name}`)")
+        return None
+    now = {"flow": dict(t.flow, flow=lb.task_flow(t.task)), "sky130": dict(site.ppa_identity or {}, input_drive=t.drive),
+           "asap7": site.a7_identity, "limits": sz.limits_of(sz.load_json(sz.CONFIG))}
+    stale = sz.stale_keys(data.get("pins"), now)
+    if stale:
+        site.warn(f"{t.name}: {rel} was measured under other pins than now ({', '.join(stale)} differ): its sizes are "
+                  f"not drawn (`leaderboard.py sizes --write --task {t.name}`)")
+        return None
+    return data
+
+
+def size_points(t):
+    """The sizes the task's designs are drawn at: the sizes file's (`load_sizes`, in its order: by the parameters in
+    task.json's order), then any point of score/measured/<task>.json it lacks (the references and baselines that are no
+    record); each {key, params, label (a name, 'binary16', or None), x (score/measured's scaling value, or None)}."""
+    out, seen = [], set()
+    for p in (t.sizes or {}).get("sizes", []):
+        out.append({"key": p["key"], "params": p["params"], "label": p.get("label"), "x": None})
+        seen.add(p["key"])
+    for p in (t.measured or {}).get("points", []):
+        if p["key"] in seen:
+            next(q for q in out if q["key"] == p["key"])["x"] = p.get("x")
+            continue
+        out.append({"key": p["key"], "params": p["params"], "label": p.get("label"), "x": p.get("x")})
+    return out
+
+
+def point_names(t, p, vary=None):
+    """(short, full) names of a size, its parameters in task.json's order: ('N = 8', 'N = 8'), ('binary32',
+    'binary32 (W = 8, P = 24)'). With `vary` (the parameters that differ between the task's sizes) the short name
+    leaves out the ones that do not: matmul's ('N = 2, W = 8', 'N = 2, W = 8, AccW = 32')."""
     text = point_text({k: p["params"][k] for k in t.point if k in p["params"]})
-    return (p["label"], f"{p['label']} ({text})") if p.get("label") else (text, text)
+    short = point_text({k: p["params"][k] for k in t.point if k in p["params"] and (vary is None or k in vary)})
+    return (p["label"], f"{p['label']} ({text})") if p.get("label") else (short, text)
 
 
 def measured_design(t, e, key):
@@ -1405,25 +1465,103 @@ def measured_design(t, e, key):
             "exact": exact, "par": False, "measured": True}
 
 
+def sizes_metrics(x, proof_lines=None):
+    """The metrics of one design at one size of the sizes file (an entry `x` with status `measured`), as
+    `metrics.measured_metrics` names them (the same columns: area, GE, depth, gates, time; a clocked design's period,
+    cycles and flip-flops), and its exact combined score (area_e4um2 x time_ps, the file's `area_x_time`)."""
+    row = {"area_e4um2": x["area_e4um2"], "area_mge": x["area_mge"], "depth": x["depth"], "num_gates": x["num_gates"],
+           "time_ps": x["time_ps"]}
+    if x.get("cycles") is not None:
+        row.update(cycles=x["cycles"], period_ps=x["delay_ps"])
+    if x.get("flops") is not None:
+        row["ffs"] = x["flops"]
+    return metrics.measured_metrics(row, proof_lines=proof_lines)
+
+
+def designs_at(t, key):
+    """Every design of the page (`task_designs`) at the size `key`, not the scoring one: (the designs with numbers
+    there, [(design, why)] for the others). A design's numbers there are its design file's in the sizes file (a record's,
+    par's: by the file's sha256), else its row of score/measured/<task>.json (a reference's, a baseline's: by id); each
+    keeps its kind, title, link and par mark (par's point at that size is par's design), its metrics are the size's,
+    `measured` set. A design measured at neither is left out with the reason: the sizes file's ("the pinned flow's
+    processes passed the memory limit of 6 GiB"), score/measured's drop, or "not measured at this size" (a record
+    added since the last `leaderboard.py sizes --write`, a baseline score/points.py does not cover there)."""
+    by_sha = {e["sv_sha256"]: e for e in (t.sizes or {}).get("designs", [])}
+    by_id = {e["id"]: e for e in (t.measured or {}).get("designs", [])}
+    out, missing = [], []
+    for d in t.designs:
+        x = (by_sha.get(d["sha"]) or {}).get("at", {}).get(key)
+        e = by_id.get(d["id"])
+        proof = d["m"].get("proof_lines")
+        if x and x.get("status") == "measured":
+            m, exact = sizes_metrics(x, proof_lines=proof)
+        elif e is not None and key in e["at"]:
+            m, exact = metrics.measured_metrics(e["at"][key], proof_lines=proof)
+        else:
+            why = (x or {}).get("reason") or ((e or {}).get("dropped") or {}).get(key) or "not measured at this size"
+            missing.append((d, why))
+            continue
+        out.append(dict(d, m=m, exact=exact, measured=True))
+    ids = {d["id"] for d in t.designs}
+    out += [measured_design(t, e, key) for e in (t.measured or {}).get("designs", [])
+            if e["id"] not in ids and key in e["at"]]
+    return out, missing
+
+
 def point_views(t):
-    """The points the explorer offers, in the order of the task's scaling parameter: {key, short,
-    full, x, scored, designs}. The scored point's designs are the page's own (`task_designs`: the
-    ranked numbers); every other point's are measured (score/measured/<task>.json, the same pinned
-    flow at other parameters), never ranked. One view (the scored point) without measured data."""
+    """The sizes the explorer and the area-time plots offer (`size_points`): {key, short, full, x, scored, designs,
+    missing}. The scoring size's designs are the page's own (`task_designs`: the ranked numbers); every other size's
+    are measured (`designs_at`: the sizes file and score/measured/, the same pinned flow at other parameters), never
+    ranked. One view (the scoring size) without other sizes."""
     own = {"key": t.point_key, "short": point_text(t.point), "full": point_text(t.point), "x": None, "scored": True,
-           "designs": t.designs}
-    if not t.measured:
+           "designs": t.designs, "missing": []}
+    pts = size_points(t)
+    if len(pts) < 2:
         return [own]
+    vary = {k for k in t.point if len({p["params"].get(k) for p in pts}) > 1}
     views = []
-    for p in t.measured["points"]:
-        short, full = point_names(t, p)
+    for p in pts:
+        short, full = point_names(t, p, vary)
         if p["key"] == t.point_key:
             views.append(dict(own, short=short, full=full, x=p["x"]))
             continue
-        ds = [measured_design(t, e, p["key"]) for e in t.measured["designs"] if p["key"] in e["at"]]
+        ds, missing = designs_at(t, p["key"])
         if ds:
-            views.append({"key": p["key"], "short": short, "full": full, "x": p["x"], "scored": False, "designs": ds})
-    return views
+            views.append({"key": p["key"], "short": short, "full": full, "x": p["x"], "scored": False, "designs": ds,
+                          "missing": missing})
+    return views if len(views) > 1 else [own]
+
+
+def size_axes(t):
+    """The explorer's Size axes (X axis "Size"): one per scaling line through the scoring size, the sizes file's
+    `series` (sorter: N at W = 8, and W at N = 8), else score/measured's one `scale`: {param, option (the menu's words),
+    axis (the axis title), keys (in order), x (key -> the parameter's value), ticks [{x, label}]} over the sizes the
+    explorer has. [] for a task of one size."""
+    have = {v["key"]: v for v in t.views}
+    if len(have) < 2:
+        return []
+    pts = {p["key"]: p for p in size_points(t)}
+    if t.sizes and t.sizes.get("series"):
+        lines = [(s["param"], s.get("fixed") or {}, s["keys"]) for s in t.sizes["series"]]
+    elif t.measured and (t.measured.get("scale") or {}).get("param"):
+        lines = [(t.measured["scale"]["param"], {}, [p["key"] for p in t.measured["points"]])]
+    else:
+        return []
+    vary = {k for k in t.point if len({p["params"].get(k) for p in pts.values()}) > 1}
+    out = []
+    for param, fixed, keys in lines:
+        keys = [k for k in keys if k in have and k in pts]
+        if len(keys) < 2:
+            continue
+        held = {k: v for k, v in fixed.items() if k in vary and k != param}
+        option = f"Size ({param}" + (f", at {point_text(held)}" if held and len(lines) > 1 else "") + ")"
+        named = all(pts[k].get("label") for k in keys)
+        out.append({"param": param, "option": option,
+                    "axis": param + (f" ({point_text(held)})" if held else "") + (", the format" if named else ""),
+                    "keys": keys, "x": {k: pts[k]["params"][param] for k in keys},
+                    "ticks": [{"x": pts[k]["params"][param],
+                               "label": pts[k]["label"] or svgplot.tick(pts[k]["params"][param])} for k in keys]})
+    return out
 
 
 def scaling_lines(t):
@@ -1962,9 +2100,10 @@ def trusted_page(mod):
     return f"trusted/{mod}.html"
 
 
-def legend_html(kinds, *, front=None, par=False, levels=False):
+def legend_html(kinds, *, front=None, par=False, levels=False, extra=""):
     """A chart's legend: the kinds of mark it shows (`kinds`: a set of record, reference, baseline,
-    banned) and its lines (`front`: the step line's meaning, `par`, `levels`)."""
+    banned) and its lines (`front`: the step line's meaning, `par`, `levels`); `extra`: list items after them (the
+    count of the designs not measured at a size, `size_missing_item`)."""
     items = []
     if "record" in kinds:
         items.append(svgplot.legend_icon("record") + "submission")
@@ -1980,7 +2119,7 @@ def legend_html(kinds, *, front=None, par=False, levels=False):
         items.append(svgplot.line_icon("par-line") + "par")
     if levels:
         items.append(svgplot.line_icon("level") + "a banned-operator baseline's score")
-    return '<ul class="legend">' + "".join(f"<li>{k}</li>" for k in items) + "</ul>"
+    return '<ul class="legend">' + "".join(f"<li>{k}</li>" for k in items) + extra + "</ul>"
 
 
 def record_link(t, here, h, text_html=None):
@@ -2041,6 +2180,11 @@ def mark_attrs(d):
     return a
 
 
+def design_label(d):
+    """A design as one line of text: its title, then its name ('Wallace tree as a queue of rows · wickthresher')."""
+    return (f"{d['title']} · " if d.get("title") and d["title"] != d["name"] else "") + d["name"]
+
+
 def page_data(t):
     """The task page's data for charts.js (inert JSON in `#task-data`): the metrics, every design
     with its metrics, and the explorer's first axes. Sorted keys, so two builds are identical."""
@@ -2055,11 +2199,16 @@ def page_data(t):
            "metrics": [m.data() for m in ms], "axes": {"x": x, "y": y},
            "designs": [one(d) for d in t.designs]}
     if len(t.views) > 1:
-        out["points"] = [{"key": v["key"], "short": v["short"], "full": v["full"], "scored": v["scored"]}
-                         for v in t.views]
+        # the Size selector's sizes; at each other size every design measured there, and the ones that are not, with
+        # the reason (charts.js counts them in the legend line, the reasons on hover)
+        out["points"] = [{"key": v["key"], "short": v["short"], "full": v["full"], "scored": v["scored"],
+                          "missing": [[design_label(d), why] for d, why in v.get("missing", [])]} for v in t.views]
         if t.preview:
-            out["preview"] = True                 # nothing of it is ranked: charts.js's point note says so
+            out["preview"] = True                 # nothing of it is ranked: charts.js's tag says "not scored"
         out["at"] = {v["key"]: [one(d) for d in v["designs"]] for v in t.views if not v["scored"]}
+        axes = size_axes(t)
+        if axes:
+            out["sizes"] = axes                   # the explorer's X axis "Size": one line per design along each
     if t.lines:
         sm = scaling_metrics(t)
         pl = par_line(t)
@@ -2481,18 +2630,49 @@ def scored_word(t):
     return "scored" if t.preview else "ranked"
 
 
-def point_control(t):
-    """The explorer's point selector (hidden until charts.js shows it): one button per point, the
-    scored one pressed and marked as the ranked one (a preview's: the scored one). "" with one point."""
-    if len(t.views) < 2:
+def sky_views(t):
+    """The task's sizes as sky130 has them (the routed course is measured at the scoring size only)."""
+    return (t.states.get("sky130") or {}).get("views") or t.views
+
+
+def size_control(t, idp):
+    """The charts' Size selector (decided 2026-11-13, the owner's UI feedback item 11), hidden with the chart's
+    controls until charts.js shows them: the task's sizes in order (`point_views`), the scoring one marked "· scored"
+    and chosen; charts.js redraws every design at the size chosen. On the routed course the scoring size alone,
+    disabled: other sizes are measured on sky130 only. "" for a task of one size."""
+    views = sky_views(t)
+    if len(views) < 2:
         return ""
-    scored = ": the scored point, " + ("a preview: not ranked yet" if t.preview else "ranked")
-    buttons = "".join(
-        f'<button type="button" data-point="{esc(v["key"])}" aria-pressed="{"true" if v["scored"] else "false"}" '
-        f'title="{esc(v["full"] + (scored if v["scored"] else ": " + MEASURED))}">'
-        f'{esc(v["short"])}{" · " + scored_word(t) if v["scored"] else ""}</button>' for v in t.views)
-    return (f'<div class="point-control"><span class="label" id="explore-point-label">Point</span>'
-            f'<div class="seg" role="group" aria-labelledby="explore-point-label">{buttons}</div></div>')
+    if t.pdk == COURSE2:
+        v = next(v for v in views if v["scored"])
+        return (f'<div class="axis-control size-control" title="{esc(SKY130_SIZES_ONLY)}">'
+                f'<label class="label" for="{idp}-size">Size</label>'
+                f'<select id="{idp}-size" data-size-select disabled title="{esc(SKY130_SIZES_ONLY)}">'
+                f'<option value="{esc(v["key"])}" selected>{esc(v["short"])} · scored</option></select></div>')
+    opts = "".join(f'<option value="{esc(v["key"])}"{" selected" if v["scored"] else ""} title="{esc(v["full"])}">'
+                   f'{esc(v["short"])}{" · scored" if v["scored"] else ""}</option>' for v in views)
+    return (f'<div class="axis-control size-control"><label class="label" for="{idp}-size">Size</label>'
+            f'<select id="{idp}-size" data-size-select>{opts}</select></div>')
+
+
+def size_tag(t, here, sep=""):
+    """The chart head's tag while charts.js draws another size than the scoring one: "not ranked · N = 64", a link to
+    the rules page's "Other sizes" (what is measured there and why it is not ranked), hidden until then and on the
+    routed course; `sep` follows it inside (" · " before the head's own words). "" for a task of one size."""
+    views = sky_views(t)
+    if len(views) < 2:
+        return ""
+    v = next(v for v in views if v["scored"])
+    return (f'<span class="pdk-sky130 size-tag" data-size-tag hidden><a href="{rel_link(here, "rules.html")}#'
+            f'{SIZES_ANCHOR}">not ranked · <span data-size-tag-at>{esc(v["short"])}</span></a>{sep}</span>')
+
+
+def size_missing_item(t):
+    """The legend line's item that charts.js fills at another size: how many of the page's designs are not measured
+    there ("2 designs not measured at this size"; the reasons on hover). "" for a task of one size."""
+    if len(sky_views(t)) < 2 or t.pdk == COURSE2:
+        return ""
+    return '<li class="size-missing" data-size-missing hidden tabindex="0"></li>'
 
 
 def and_list(items):
@@ -2500,25 +2680,16 @@ def and_list(items):
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def point_note(t):
-    """What the explorer is drawn at, said without JavaScript (charts.js rewrites it when another
-    point is chosen). "" with one point."""
-    if len(t.views) < 2:
-        return ""
-    v = scored_view(t)
-    what = ("a preview, so nothing of it is ranked yet" if t.preview else "the ranked numbers")
-    return (f'<p class="point-note small" data-point-note><strong>{esc(v["full"])}</strong>, the scored point: '
-            f'{what}. The other points are <span class="measured">{MEASURED}</span> (the tables below).</p>')
-
-
 def explorer_html(site, t, here):
     """The explorer: two metrics of every design against each other, the Pareto front of the
     entries (par's design, records) drawn as a step line. The server draws the first pair (`explorer_axes`) at the
     scored point, which is what a reader without JavaScript sees; charts.js shows the point
     selector, the axis menus and the log switches and redraws the chart from the page's data
-    (`page_data`): at the scored point the ranked numbers, at any other the measured ones
-    (score/measured/<task>.json), labelled measured, not ranked. Under it: every design with all its
-    numbers at each point, by score (the scaling view, `scaling_html`, follows it on the page: sky130 only)."""
+    (`page_data`): at the scored point the ranked numbers, at any other size the measured ones
+    (leaderboard/sizes/ and score/measured/, `point_views`), the chart head's tag saying "not ranked" (`size_tag`)
+    and the legend line how many designs are not measured there; the X axis's "Size" options draw one line per
+    design along the sizes instead (score against size on log axes, par's line marked). Under it: every design with
+    all its numbers at each size, by score (the older scaling fold, `scaling_html`, follows it: sky130 only)."""
     ms = task_metrics(t)
     if not t.designs:
         return '<p class="empty">Nothing to compare yet.</p>'
@@ -2539,13 +2710,19 @@ def explorer_html(site, t, here):
                                 title=f"{t.name}: {by[yk].label.lower()} against {by[xk].label.lower()}")
         + "</div>" for compact in (False, True))
     menu = "".join(f'<option value="{esc(m.key)}">{esc(m.axis())}</option>' for m in ms)
+    # the X axis's Size options (one per scaling line through the scoring size): charts.js draws the lines
+    sizes_menu = "".join(f'<option value="size:{k}">{esc(ax["option"])}</option>'
+                         for k, ax in enumerate(size_axes(t))) if t.pdk != COURSE2 else ""
 
     def axis_control(a, key, log):
-        sel = menu.replace(f'value="{esc(key)}"', f'value="{esc(key)}" selected', 1)
+        sel = (menu + (sizes_menu if a == "x" else "")).replace(f'value="{esc(key)}"', f'value="{esc(key)}" selected', 1)
+        # the Size axis's "÷ par" (charts.js shows it with that axis): each line over par's at the same size
+        rel = (' <label class="log-toggle" hidden><input type="checkbox" data-size-rel> ÷ par</label>'
+               if a == "y" and sizes_menu and t.par else "")
         return (f'<div class="axis-control"><label class="label" for="explore-{a}">{a.upper()} axis</label>'
                 f'<select id="explore-{a}" data-axis="{a}">{sel}</select>'
-                f'<label class="log-toggle"><input type="checkbox" data-log="{a}"{" checked" if log else ""}> log</label>'
-                "</div>")
+                f'<span class="toggles"><label class="log-toggle"><input type="checkbox" data-log="{a}"'
+                f'{" checked" if log else ""}> log</label>{rel}</span></div>')
     missing = len(t.designs) - len(pts)
     every = {d["kind"] for v in t.views for d in v["designs"]} | {d["kind"] for d in t.designs}
     banned = any(d["banned"] for v in t.views for d in v["designs"]) or any(d["banned"] for d in t.designs)
@@ -2554,19 +2731,21 @@ def explorer_html(site, t, here):
     tables = page.details("every design with all its numbers, by score"
                           + (f" (at {esc(scored_view(t)['full'])}, {scored_word(t)})" if len(t.views) > 1 else ""),
                           designs_table(t, ms))
-    for v in t.views:
-        if not v["scored"]:
-            tables += page.details(f"at {esc(v['full'])} ({MEASURED}): every design with all its numbers, by score",
-                                   designs_table(t, ms, v["designs"]))
+    # the other sizes' numbers without JavaScript: one fold, a table per size (2026-11-13: up to seven sizes)
+    others = [v for v in t.views if not v["scored"]]
+    if others:
+        tables += page.details(
+            f"every design at the other sizes ({MEASURED}), by score",
+            "".join(f'<h3 class="size-head">at {esc(v["full"])}</h3>'
+                    + designs_table(t, ms, v["designs"]) for v in others), cls="sizes-fold")
     return (f'<div class="chart-slot" data-hook="explorer">'
-            f'<div class="explorer-controls" data-explorer-controls hidden>{point_control(t)}'
+            f'<div class="explorer-controls" data-explorer-controls hidden>{size_control(t, "explore")}'
             f'{axis_control("x", xk, xs.log)}{axis_control("y", yk, ys.log)}</div>'
-            + point_note(t)
             + f'<figure class="chart-figure"><div class="chart-box" data-explorer>{svg}</div>'
-            + legend_html(kinds, front="the Pareto front of the entries")
-            + "<figcaption>Lower is better on both axes. The step line joins the entries (par's design and the "
-              "players' records) that no other entry beats on both; a baseline with a banned operator is shown for "
-              "scale and never ranked. "
+            + legend_html(kinds, front="the Pareto front of the entries", extra=size_missing_item(t))
+            + "<figcaption><span data-explorer-caption>Lower is better on both axes. The step line joins the "
+              "entries (par's design and the players' records) that no other entry beats on both; a baseline with a "
+              "banned operator is shown for scale and never ranked.</span> "
               # the one sign that designs are missing from the plot: hidden while every design has both numbers
               # (charts.js sets `hidden` again when it rewrites the count for other axes)
               f'<span data-explorer-note{"" if missing else " hidden"}>{len(pts)} of {len(t.designs)} designs have '
@@ -4048,7 +4227,8 @@ def task_page(site, t):
                           id_="files", label_html="Files")
     explore = page.card(both(t, lambda: explorer_html(site, t, here)) + scaling_html(t), tag="section", id_="explore",
                         title_html="Compare the designs",
-                        actions_html=f'<span class="label">{pdk_text("", "ASAP7 routed · ")}any two numbers · lower is '
+                        actions_html=f'<span class="label">{pdk_text("", "ASAP7 routed · ")}'
+                                     f'<span data-size-words>any two numbers</span>{size_tag(t, here)} · lower is '
                                      'better</span>')
     # a card with nothing in it is not shown (a task without baselines has no Baselines card, 2026-11-11); no Par card
     # (decided 2026-11-13, the owner's UI feedback item 7: par is the leaderboard's par row and the charts' par line)
@@ -4553,79 +4733,26 @@ def dashboard_html(s, st, par, designs):
 
 # -- the area-time plot ---------------------------------------------------
 
-SIZES = "svgolf/leaderboard/sizes"               # the designs' numbers at other sizes (item 11; no file yet)
-
-
-def load_sizes(t):
-    """leaderboard/sizes/<task>.json: the task's designs weighed at sizes other than the scoring point (prepared
-    2026-11-13 for the owner's UI feedback item 11, "synthesize for more N and make it possible to choose in the
-    graph"; the file is another round's to make), or None without it, as today: then nothing on any page changes.
-    The shape the charts take (one file per task, written by the flow that weighs them, never by hand):
-
-        {"task": "<task>",
-         "points": [{"key": "N=8", "params": {"N": 8}, "label": "N = 8"}, ...],      # the scoring point among them
-         "courses": {"sky130":   {"<design .sv sha256>": {"<point key>": {"area_um2": 1234.5678, "time_ps": 2611,
-                                                                           "cycles": 8, "period_ps": 4777}}},
-                     "asap7pnr": {...the same, the routed course's numbers...}},
-         "pins": {...the flow, the pins and the input drive the numbers were made under...}}
-
-    area in µm² as the board's `area_um2`, time in ps (a latency task's time is cycles × period_ps, both given); a
-    design is named by its design file's sha256, so a record and a reference with one design share their numbers; a
-    design missing a point is left out of that point's chart. With a file, `size_series` gives one series per point
-    where the subject's design has numbers, and the area-time card shows a size selector (the "fit"/"all" switch's
-    pattern: one drawing per series, charts.js shows the chosen one)."""
-    rel = f"{SIZES}/{t.name}.json"
-    if not os.path.isfile(repo_file(rel)):
-        return None
-    try:
-        data = json.loads(read_text(rel))
-    except ValueError as e:
-        raise BuildError(f"{rel}: not JSON: {e}")
-    if not (isinstance(data, dict) and isinstance(data.get("points"), list) and isinstance(data.get("courses"), dict)):
-        raise BuildError(f"{rel}: not the shape build.py load_sizes describes")
-    return data
-
-
-def size_series(t, designs):
-    """The series the area-time plot draws: [(point key or None, label or None, designs)], the scoring point's first
-    (the page's own ranked numbers, key None). Without leaderboard/sizes/<task>.json (`load_sizes`), that one series
-    alone, so the card is what it always was; with the file, one more per other point, each design's area and time
-    replaced by its numbers there on the view's course (a design without them left out)."""
-    out = [(None, None, designs)]
-    data = load_sizes(t)
-    if data is None:
-        return out
-    course = (data["courses"] or {}).get(t.pdk) or {}
-    for p in data["points"]:
-        if p.get("params") == t.point:
-            continue
-        at = [dict(d, m=dict(d["m"], **course[d["sha"]][p["key"]])) for d in designs
-              if p["key"] in course.get(d["sha"], {})]
-        if at:
-            out.append((p["key"], p.get("label") or point_text(p.get("params") or {}), at))
-    return out
-
-
-def area_time_html(s, par):
-    """This design among the task's designs: sky130 area against the ranked time, the front of the entries, par's
-    score curve, fitted to the cluster (standing.fit_axis), with an "all designs" view when that hides any (charts.js
-    switches); the same numbers in a table under it. The drawings come from `size_series` (one series today: the
-    scoring point's; with leaderboard/sizes/<task>.json, one per size, the selector a small addition)."""
+def area_time_size(s, designs, par, key):
+    """The area-time drawings of the subject among `designs` (each with area and time) at the size `key`, with par
+    (`st_point`) or None: ([(view, (x0, x1, y0, y1))] ("fit", and "all" when the fit hides a design), the variants'
+    HTML (wide and compact per view, each `data-at` the size, `data-view` the view), the count beyond the fit, the
+    point dicts)."""
     t, here = s.t, s.here
-    designs = size_series(t, plotted(t))[0][2]
+    sid = s.d["id"]
     pts = []
     for d in designs:
         target = design_target(t, d)
         tip = tip_lines(d, [m for m in task_metrics(t) if m.key in ("adp", "area_um2", "time_ps")])
         pts.append({"id": d["id"], "kind": d["kind"], "x": d["m"]["area_um2"], "y": d["m"]["time_ps"],
-                    "banned": d["banned"], "tip": (["this design"] if d is s.d else []) + tip,
-                    "href": None if d is s.d else rel_link(here, target), "label": d["name"], "attrs": {"id": d["id"]}})
+                    "banned": d["banned"], "tip": (["this design"] if d["id"] == sid else []) + tip,
+                    "href": None if d["id"] == sid else rel_link(here, target), "label": d["name"],
+                    "attrs": {"id": d["id"]}})
     entries_ = [p for p in pts if p["kind"] != "baseline"]
     front = pareto_ids(entries_)
-    keep_x = [p["x"] for p in pts if p["id"] in front or p["id"] == s.d["id"] or (par and p["id"] == par["id"])]
-    keep_y = [p["y"] for p in pts if p["id"] in front or p["id"] == s.d["id"] or (par and p["id"] == par["id"])]
+    keep = [p for p in pts if p["id"] in front or p["id"] == sid or (par and p["id"] == par["id"])]
     xs, ys = [p["x"] for p in pts], [p["y"] for p in pts]
-    fit = standing.fit_axis(xs, keep_x) + standing.fit_axis(ys, keep_y)
+    fit = standing.fit_axis(xs, [p["x"] for p in keep]) + standing.fit_axis(ys, [p["y"] for p in keep])
     every = standing.fit_axis(xs, xs) + standing.fit_axis(ys, ys)
     pdk, lib = t.pdk, PDK_AXIS[t.pdk]
     par_curve = ({"id": par["id"], "score": par["area"] / combined.AREA_SCALE[pdk] * par["time"],
@@ -4633,32 +4760,80 @@ def area_time_html(s, par):
                            f"{combined.UNIT}"}
                  if par else None)
     views = [("fit", fit)] + ([("all", every)] if every != fit else [])
+    scored = key == t.point_key
+    at = next((v for v in sky_views(t) if v["key"] == key), None)
+    where = "" if scored or at is None else f" at {at['full']} ({MEASURED})"
 
     def chart(view, compact):
-        return svgplot.area_time_chart(pts, subject=s.d["id"], view=view, x_label=f"{lib} area (µm²)",
+        return svgplot.area_time_chart(pts, subject=sid, view=view, x_label=f"{lib} area (µm²)",
                                        y_label="time (ps)", front=front, par=par_curve, compact=compact,
-                                       title=f"{task_word(t)}: this design's {lib} area against time, among the task's designs")
-    variants = "".join(f'<div class="chart-variant" data-view="{v}" data-size="{"compact" if c else "wide"}"'
-                       f'{" hidden" if v == "all" else ""}>{chart(view, c)}</div>'
-                       for v, view in views for c in (False, True))
-    edges, beyond = standing.beyond([(p["x"], p["y"]) for p in pts], fit)
+                                       title=f"{task_word(t)}: this design's {lib} area against time, among the task's "
+                                             f"designs{where}")
+    variants = "".join(f'<div class="chart-variant" data-at="{esc(key)}" data-view="{v}" '
+                       f'data-size="{"compact" if c else "wide"}"{"" if scored and v == "fit" else " hidden"}>'
+                       f"{chart(view, c)}</div>" for v, view in views for c in (False, True))
+    _edges, beyond = standing.beyond([(p["x"], p["y"]) for p in pts], fit)
+    return views, variants, beyond, pts
+
+
+def fitted_words(beyond):
+    """The caption's sentence when the fit hides designs (2026-11-11; the legend names the Pareto front), or ""."""
+    return (f" Fitted to the cluster: {beyond} design{'' if beyond == 1 else 's'} beyond the view, counted at its "
+            "edge (◂ ▸ ▴ ▾); “All designs” shows them." if beyond else "")
+
+
+def par_score_words(par, pdk):
+    """Par's score (`st_point`) as the legend writes it, without the unit."""
+    return combined.fmt(combined.um2ns(standing.score(par), pdk))
+
+
+def area_time_html(s, par):
+    """This design among the task's designs: sky130 area against the ranked time, the front of the entries, par's
+    score curve, fitted to the cluster (standing.fit_axis), with an "all designs" view when that hides any; the same
+    numbers in a table under it. At the task's other sizes (decided 2026-11-13, the owner's UI feedback item 11:
+    `point_views`, sky130 only) the server draws the same plot of every design measured there, par's point and curve
+    at that size, and charts.js shows the size the Size selector names (`size_control`; the chart head's tag says
+    "not ranked", the legend line how many designs are not measured there, their reasons on hover)."""
+    t, here = s.t, s.here
+    designs = plotted(t)
+    pdk, lib = t.pdk, PDK_AXIS[t.pdk]
+    views, variants, beyond, pts = area_time_size(s, designs, par, t.point_key)
+    two = len(views) > 1
+    info = {}
+    if pdk != COURSE2:
+        for v in sky_views(t):
+            if v["scored"]:
+                info[v["key"]] = {"short": v["short"], "scored": True, "par": par_score_words(par, pdk) if par else None,
+                                  "fitted": fitted_words(beyond), "missing": []}
+                continue
+            ds = [d for d in v["designs"] if "area_um2" in d["m"] and "time_ps" in d["m"]]
+            p = next((d for d in ds if d["par"] and d["exact"] is not None), None)
+            par_at = st_point(p, pdk) if p is not None else None
+            vs, more, out, _ = area_time_size(s, ds, par_at, v["key"])
+            variants += more
+            two = two or len(vs) > 1
+            gone = [(d, "it has no area and time there") for d in v["designs"] if d not in ds]
+            info[v["key"]] = {"short": v["short"], "scored": False,
+                              "par": par_score_words(par_at, pdk) if par_at else None, "fitted": fitted_words(out),
+                              "missing": [[("this design" if d["id"] == s.d["id"] else design_label(d)), why]
+                                          for d, why in v.get("missing", []) + gone
+                                          if d["id"] in {x["id"] for x in designs}]}
     tools = ""
-    if len(views) > 1:
-        tools = ('<div class="chart-tools" data-view-toggle hidden>'
-                 + page.seg(["Fit to cluster", "All designs"], 0, label_text="the plot's view") + "</div>")
+    sizes = size_control(t, "area-time")
+    if two or sizes:
+        tools = ('<div class="chart-tools at-tools" data-at-tools hidden>' + sizes
+                 + (page.seg(["Fit to cluster", "All designs"], 0, label_text="the plot's view") if two else "")
+                 + "</div>")
     kinds = {p["kind"] for p in pts if p["kind"] != "baseline" or not p["banned"]} \
         | ({"banned"} if any(p["banned"] for p in pts) else set())
-    legend = legend_html(kinds, front="the Pareto front of the entries")
+    legend = legend_html(kinds, front="the Pareto front of the entries", extra=size_missing_item(t))
     extra = ('<ul class="legend"><li><svg class="legend-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">'
              '<circle class="halo" cx="10" cy="10" r="8"/></svg>this design</li>'
-             + ('<li><svg class="legend-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">'
+             + ('<li data-at-par><svg class="legend-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">'
                 '<path class="iso" d="M3 3Q6 15 18 17"/></svg><span>par\'s score: area × time = '   # one flex item
-                f'{esc(combined.fmt(combined.um2ns(standing.score(par), pdk)))}\u00a0{nocase(esc(combined.UNIT))}</span>'
-                '</li>' if par else "")
+                f'<span data-at-par-score>{esc(par_score_words(par, pdk))}</span>'
+                f'\u00a0{nocase(esc(combined.UNIT))}</span></li>' if par else "")
              + "</ul>")
-    # said only when the fit hides a design (2026-11-11; the legend names the Pareto front)
-    fitted = (f" Fitted to the cluster: {beyond} design{'' if beyond == 1 else 's'} beyond the view, counted at its "
-              "edge (◂ ▸ ▴ ▾); “All designs” shows them." if beyond else "")
     rows = []
     for d in sorted(designs, key=score_key):
         name = code(d["name"]) if d["kind"] != "record" else esc(d["name"])
@@ -4669,13 +4844,17 @@ def area_time_html(s, par):
                               esc(combined.fmt(d["m"].get("adp")))], cls="is-subject" if d is s.d else None))
     table = page.table(heads("design", "kind", "area (µm²)", "time (ps)", f"score ({combined.UNIT})"), rows,
                        numeric=(2, 3, 4))
+    at_words = f" (at {esc(scored_view(t)['full'])}, {scored_word(t)})" if len(info) > 1 else ""
+    data = ('<script type="application/json" data-at-info>'
+            + json.dumps(info, sort_keys=True, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+            + "</script>") if len(info) > 1 else ""
     return (f'<div class="chart-slot" data-hook="area-time">{tools}'
             f'<figure class="chart-figure"><div class="chart-box" data-area-time>{variants}</div>{legend}{extra}'
             f"<figcaption>{lib} area (x) against {'the ranked' if pdk == 'sky130' else 'the ' + lib} time (y); lower "
             "left is better on both. A design under par's score curve has a better score than par. A baseline with a "
             "banned operator is drawn for scale: a comparison design, never an entry."
-            f"{fitted}</figcaption></figure></div>"
-            + page.details("the designs as numbers, by score", table))
+            f"<span data-at-fitted>{fitted_words(beyond)}</span></figcaption></figure>{data}</div>"
+            + page.details("the designs as numbers, by score" + at_words, table))
 
 
 # -- the schematic, the critical path, the cells --------------------------
@@ -5001,8 +5180,9 @@ def reproduce_html(s):
 
 def reproduce_pnr_html(site, s7):
     """The routed course's "Reproduce": the scored run (the image by digest, the flow, the seed, its config.mk and SDC by
-    sha256), the command that runs such a job on an x86-64 Linux host with docker, and the hashes the run wrote; or why
-    there is none. Honest about what is not in the repository yet: the script that renders a job's config.mk and SDC."""
+    sha256), the commands of score/pnr/ that make such a job again on an x86-64 Linux host with docker, and the hashes
+    the run wrote; or why there is none. Honest about what is not measured: no run has been made with those tools'
+    container runner yet."""
     t = s7.t
     e = (s7.ppa or {}).get("entry")
     if e is None:
@@ -5011,12 +5191,15 @@ def reproduce_pnr_html(site, s7):
     run, pins = s7.ppa["run"], site.pnr_identity or {}
     img = pins.get("image") or {}
     arts = run["artifacts"]
-    cmd = ("# one routed-course job (x86-64 Linux with docker), its config.mk and SDC in ./job\n"
-           f"docker run --rm --network none --cpus {pins.get('cpu_affinity')} -m {pins.get('memory_cap_gb')}g "
-           '-v "$PWD/job:/work" \\\n'
-           f"  {img.get('repo')}@{img.get('manifest_digest')} \\\n"
-           '  bash -c "cd /OpenROAD-flow-scripts/flow && source ../env.sh && make DESIGN_CONFIG=/work/config.mk"\n')
-    expect = [("seed", code(str(run["seed"]))), ("config.mk sha256", code(run["config_mk_sha256"])),
+    job = f"{t.name}_{e['netlist_sha256'][:12]}__min_s{run['seed']}"
+    seq = " --seq" if e.get("cycles") is not None else ""
+    cmd = ("# one routed-course job on an x86-64 Linux host with docker (score/pnr/README.md has every step)\n"
+           f"python3.12 score/ppa.py DESIGN.sv --task tasks/{t.name} --pdk asap7 --no-mapped{seq} "
+           "--repaired-netlist netlist.v\n"
+           f"python3.12 score/pnr/job.py --task {t.name} --netlist netlist.v --seed {run['seed']} --out job\n"
+           f"python3.12 score/pnr/run_job.py run job {job}\n")
+    expect = [("image", code(f"{img.get('repo')}@{img.get('manifest_digest')}")),
+              ("seed", code(str(run["seed"]))), ("config.mk sha256", code(run["config_mk_sha256"])),
               ("SDC sha256", code(run["sdc_sha256"])), ("placed netlist (1_2_yosys.v)", code(e["netlist_sha256"])),
               ("6_final.v", code(arts["6_final.v"])), ("6_final.def", code(arts["6_final.def"])),
               ("6_final.odb", code(arts["6_final.odb"])), ("area_e5um2", code(str(run["area_e5um2"]))),
@@ -5024,15 +5207,16 @@ def reproduce_pnr_html(site, s7):
     return ("<p>The scored run placed and routed this design's ASAP7 netlist (the ASAP7 view's repaired netlist) with "
             f"OpenROAD-flow-scripts from the pinned image {code(str(img.get('repo')) + ':' + str(img.get('tag')))}, used "
             f"by digest, flow {code(str(pins.get('flow')))}, at seed {run['seed']}, on an x86-64 Linux host with the image "
-            f"unpacked into a rootless chroot ({code('score/pnr/pins.json')} has every pin). A job of the same image "
-            "under docker:</p>"
+            f"unpacked into a rootless chroot ({code('score/pnr/pins.json')} has every pin). The same job, made again "
+            "from the repository with the tools of " + code("score/pnr/") + " (the image by digest, under docker):</p>"
             + page.code_block(cmd, "bash", name="shell", term=True)
             + "<p>The run's files, to compare:</p>" + page.dl(expect)
             + f"<p>{code(f'leaderboard/asap7pnr/{t.name}.json')} keeps them and "
             + code(f"python3.12 leaderboard/leaderboard.py asap7pnr --task {t.name}")
-            + " checks them offline. The script that renders a job's config.mk and SDC is not in the repository yet: "
-              "until it is, a run can be checked against these hashes, not made again from the repository alone; "
-              "the docker runtime is not measured for this course.</p>")
+            + " checks them offline. The job's config.mk and SDC that " + code("score/pnr/job.py")
+            + " writes are this run's, byte for byte; no run has been made with its container runner yet, so a run "
+              "made again this way is expected, not yet shown, to give these hashes (the docker runtime is not "
+              "measured for this course).</p>")
 
 
 def detail_head(s, title_html, status, lead, kind, chips=(), sub_html=None):
@@ -5184,7 +5368,8 @@ def detail_sections(site, s, ge_tables):
             return f'<p class="empty">No {lib} numbers for this design: nothing to plot.</p>'
         plot = page.card(dual(sky_plot, a7_plot or none(PDK_AXIS[COURSE2])) if sky_plot else a7_plot, tag="section",
                          id_="area-time", title_html="Area against time",
-                         actions_html=f'<span class="label">{nocase(esc("µm² × ps · lower left is better"))}'
+                         actions_html=f'<span class="label">{size_tag(t, s.here, " · ") if sky_plot else ""}'
+                                      f'{nocase(esc("µm² × ps · lower left is better"))}'
                                       f'{pdk_text("", " · ASAP7 routed")}</span>')
         if not sky_plot:                 # numbers on the routed course only: the card is that course's alone
             plot = f'<div class="pdk-{COURSE2}">{plot}</div>'

@@ -17,6 +17,7 @@ exploration view, like the extra columns area in GE and depth: it ranks nothing.
     leaderboard.py export --out FILE.md [--all-flows]
     leaderboard.py seed-references [--task T]
     leaderboard.py submit --task T --record HASH [--dry-run] [--repo URL]
+    leaderboard.py sizes [--task T ...] [--write [--jobs 1|2]]     # the designs at other sizes (leaderboard/sizes.py)
 
 One record per ACCEPTED submission, written to
 `leaderboard/data/<task>/<record_hash>.json` next to copies of the two
@@ -2762,6 +2763,69 @@ def asap7pnr_check(task, a7_table, table, designs, *, pins=None, root=SVGOLF):
     return fails, notes, by
 
 
+def _draw_seed():
+    """A seed drawn from the operating system's random source, 1..2^31-1."""
+    import secrets
+    return secrets.randbelow(PNR_SEED_MAX) + 1
+
+
+def pnr_request(seed=None, *, draw=None):
+    """The request of a design not routed yet (schema svgolf-asap7pnr/2 `request`): source "record" with the seed it
+    names, or, without one, source "drawn" with a seed drawn once (`draw`, default the operating system's random source:
+    `secrets`); settings {} (the course takes none yet). ValueError for a seed outside 1..2^31-1."""
+    source = "record" if seed is not None else "drawn"
+    if seed is None:
+        seed = (draw or _draw_seed)()
+    if not (_nat(seed) and 1 <= seed <= PNR_SEED_MAX):
+        raise ValueError(f"seed {seed!r} is not an integer in 1..2^31-1")
+    return {"source": source, "seed": seed, "settings": {}, "settings_sha256": pnr_settings_sha256({})}
+
+
+def asap7pnr_request(table, a7_table, designs, sv_sha256, seed=None, *, draw=None):
+    """The request of a design file on the routed course, made or read (`asap7pnr --request`). Returns (new table or
+    None, request, what happened, refusal or None); pure but for the draw. A design file with an entry keeps its
+    request: asked without a seed, or with the seed its `record` request names, the stored request is returned
+    unchanged (new table None); asked for anything else it is REFUSED (an entry with a scoring run: its run stands; a
+    pending one: a stored request is never changed, so a drawn seed cannot be drawn again). A design file without an
+    entry gets a PENDING entry (no run; `of`, netlists, cycles and the cells-only numbers from the ASAP7 view) with the
+    request: source "record" and the named seed, or "drawn" and a seed drawn now. Refused: a file the task's pages do
+    not show, one the ASAP7 view has no netlist for, a task without a routed table."""
+    if table is None:
+        return None, None, None, "the task has no routed table (leaderboard/asap7pnr/<task>.json) yet"
+    if sv_sha256 not in designs:
+        return None, None, None, "not a design file the task's pages show (a record, a proved reference or a baseline)"
+    a7 = asap7_entry(a7_table, sv_sha256)
+    if a7 is None:
+        return None, None, None, ("the ASAP7 view has no netlist of it yet: `leaderboard.py asap7 --write --task T` "
+                                  "weighs it first")
+    old = asap7pnr_entry(table, sv_sha256)
+    if old is not None:
+        rq = old.get("request") or {}
+        routed = any(r.get("role") == "scoring" for r in old.get("runs") or [])
+        if seed is None or (rq.get("source") == "record" and rq.get("seed") == seed):
+            what = "routed: its stored request" if routed else "pending: its stored request"
+            return None, copy.deepcopy(rq), what, None
+        if routed:
+            return None, copy.deepcopy(rq), None, (f"already routed at the request's seed {rq.get('seed')} "
+                                                   f"({rq.get('source')}): its request is not changed")
+        return None, copy.deepcopy(rq), None, (f"its request is stored (seed {rq.get('seed')}, {rq.get('source')}): a "
+                                               "stored request is never changed")
+    request = pnr_request(seed, draw=draw)
+    recs = [x[len("record:"):] for x in designs[sv_sha256]["of"] if x.startswith("record:")]
+    entry = {"sv_sha256": sv_sha256, "of": list(designs[sv_sha256]["of"]), "record": recs[0] if recs else None,
+             "netlist_sha256": a7["repaired_sha256"], "scored_netlist_sha256": a7["netlist_sha256"],
+             "cycles": a7["cycles"], "a0_asap7": {"area_e5um2": a7["area_e5um2"], "delay_ps": a7["delay_ps"],
+                                                  "time_ps": a7["time_ps"]},
+             "request": request, "runs": [], "scores": {"v_owner": None, "v_median": None}, "status": "pending",
+             "layout": None}
+    new = copy.deepcopy(table)
+    new["designs"] = sorted(new["designs"] + [entry], key=lambda e: e["sv_sha256"])
+    bad = asap7pnr_file_problems(new, table.get("task"))
+    if bad:
+        return None, request, None, "the pending entry would not be well-formed: " + "; ".join(bad[:3])
+    return new, request, "new: a pending entry", None
+
+
 def build_axes_view(task, records, axes, *, flow=None, identity=None, mapped_identity=None, unassisted=False,
                     input_drive=None, statement=None):
     """The Pareto view of one task over `axes` (names of AXES). `records` are its records. Records
@@ -3852,6 +3916,29 @@ def verify_line(label, rec, r):
     return f"[{r.status}] {task_name}/{stem[:12]}: {who}: {detail or 'hashes and arithmetic ok'}"
 
 
+def verify_routed(args):
+    """`verify`'s check of the routed course's data, at every level (it is offline): each routed table
+    (leaderboard/asap7pnr/<task>.json) of a task of the tree, or of `--task` alone, must be well-formed
+    (`read_asap7pnr`: its written form, shape and arithmetic) and every picture it records must be its file
+    (`asap7pnr_picture_problems`: sha256, bytes, pixel size). Returns (lines to print, tables checked, tables failed).
+    Whether each design is bound is `asap7pnr`'s check; a design not routed yet is no failure of either."""
+    names = [args.task] if args.task else all_task_names(args.tasks_dir)
+    lines, n, bad = [], 0, 0
+    for name in names:
+        if not os.path.isfile(asap7pnr_path(name, args.asap7pnr_dir)):
+            continue
+        n += 1
+        table, why = read_asap7pnr(name, args.asap7pnr_dir)
+        problems = [why] if why else [x for e in table["designs"] for x in asap7pnr_picture_problems(e)]
+        if problems:
+            bad += 1
+            lines.append(f"[FAIL] asap7pnr/{name}: " + "; ".join(problems[:5]))
+        else:
+            k = len(table["designs"])
+            lines.append(f"[ok] asap7pnr/{name}: {k} entr{'y' if k == 1 else 'ies'} well-formed, every picture its file")
+    return lines, n, bad
+
+
 def cmd_verify(args):
     if args.task:
         try:
@@ -3875,8 +3962,12 @@ def cmd_verify(args):
         print(verify_line(label, rec, r))
         failed += bool(r.fails)
         stale += bool(r.stale) and not r.fails
+    routed, tables, tables_failed = verify_routed(args)
+    for line in routed:
+        print(line)
     level = "offline" if args.offline else ("full re-check" if args.full else "hashes + rescore")
-    print(f"verify ({level}): {len(loaded)} records, {failed} failed, {stale} stale")
+    print(f"verify ({level}): {len(loaded)} records, {failed} failed, {stale} stale; "
+          f"{tables} routed tables, {tables_failed} failed")
     # the writeups (decided 2026-11-13): of the default data directory's records, or of `--writeups-dir`'s
     wdir = args.writeups_dir if getattr(args, "writeups_dir", None) else (
         WRITEUPS_DIR if os.path.abspath(args.data_dir) == os.path.abspath(DEFAULT_DATA) else None)
@@ -3891,7 +3982,7 @@ def cmd_verify(args):
             bad += bool(problems)
         print(f"writeups: {len(checked)} checked, {bad} failed")
         failed += bad
-    return 1 if failed else 0
+    return 1 if failed or tables_failed else 0
 
 
 def _boards(args, names, unassisted=False):
@@ -4198,14 +4289,65 @@ def asap7pnr_import(src_dir, task, designs, *, layouts_root=SVGOLF):
     return out, pictures, dropped, problems
 
 
+def cmd_asap7pnr_request(args):
+    """`asap7pnr --request --task T --design FILE [--seed N] [--write]`: the request of a design file not routed yet
+    (`asap7pnr_request`), printed, and with --write stored as a pending entry of leaderboard/asap7pnr/<task>.json (every
+    other entry byte for byte as it was). Exit 0: the request (new, or the one stored); 1: refused; 2: usage or
+    infrastructure."""
+    if args.seed is not None and not 1 <= args.seed <= PNR_SEED_MAX:
+        print("error: --seed is an integer in 1..2^31-1", file=sys.stderr)
+        return 2
+    try:
+        with open(EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        task = load_task(args.tasks_dir, args.task)
+        sv = sha256_file(args.design)
+    except (OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    records = good_records(load_records(args.data_dir), warn=lambda m: print(m, file=sys.stderr))
+    designs = asap7_designs(task, records, expected, tasks_dir=args.tasks_dir, data_dir=args.data_dir)
+    tag = f"{args.task}/{sv[:12]}"
+    a7, why = read_asap7(args.task, args.asap7_dir)
+    table, why2 = (None, None) if why else read_asap7pnr(args.task, args.asap7pnr_dir)
+    if why or why2:
+        print(f"[FAIL] {tag}: {why or why2}")
+        return 1
+    new, request, what, refusal = asap7pnr_request(table, a7, designs, sv, args.seed)
+    if refusal:
+        print(f"[refused] {tag}: {refusal}")
+        return 1
+    print(f"[ok] {tag}: {what}: seed {request['seed']} ({request['source']})")
+    print(json.dumps(request, sort_keys=True))
+    if new is None:
+        return 0
+    if not args.write:
+        print("       not written: --write stores it" + ("; a seed is drawn again then" if request["source"] == "drawn"
+                                                         else ""))
+        return 0
+    out = asap7pnr_path(args.task, args.asap7pnr_dir)
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(new, indent=1, sort_keys=True) + "\n")
+    print(f"       wrote {os.path.relpath(out)}: its pending entry (the run is made on the course host, at this seed)")
+    return 0
+
+
 def cmd_asap7pnr(args):
     """`asap7pnr`: the routed course's results (see "the routed course"). Without --import: check every task's file
     offline (shape and arithmetic, the binding of every design the course shows, the pictures) and list what is not
-    routed yet. --import DIR [--write]: take a course host's collected site data into the tree. Exit 0 all good, 1 a
-    check failed, 2 usage or infrastructure."""
+    routed yet. --import DIR [--write]: take a course host's collected site data into the tree. --request: a design's
+    request (`cmd_asap7pnr_request`). Exit 0 all good, 1 a check failed, 2 usage or infrastructure."""
     names = [args.task] if args.task else all_task_names(args.tasks_dir)
+    if args.request:
+        if args.import_dir or not args.task or not args.design:
+            print("error: --request takes --task T and --design FILE (and not --import)", file=sys.stderr)
+            return 2
+        return cmd_asap7pnr_request(args)
+    if args.design or args.seed is not None:
+        print("error: --design and --seed go with --request", file=sys.stderr)
+        return 2
     if args.write and not args.import_dir:
-        print("error: --write writes what --import DIR reads", file=sys.stderr)
+        print("error: --write writes what --import DIR reads (or, with --request, the request)", file=sys.stderr)
         return 2
     try:
         with open(EXPECTED_JSON, encoding="utf-8") as fh:
@@ -4583,6 +4725,25 @@ def cmd_submit(args):
     return 0
 
 
+_SIZES = []
+
+
+def _load_sizes():
+    """leaderboard/sizes.py (the records' designs at other sizes; measured, not ranked), by path, once."""
+    if not _SIZES:
+        spec = importlib.util.spec_from_file_location("svgolf_sizes", os.path.join(HERE, "sizes.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _SIZES.append(mod)
+    return _SIZES[0]
+
+
+def cmd_sizes(args):
+    """`sizes`: the records' designs at other sizes (leaderboard/sizes/<task>.json, leaderboard/sizes.py): check the
+    files offline, or measure and write them (`--write`). Exit 0 good, 1 a check or a measurement failed, 2 usage."""
+    return _load_sizes().run(args, sys.modules[__name__])
+
+
 def make_parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--data-dir", default=os.environ.get("SVGOLF_LEADERBOARD_DATA",
@@ -4690,6 +4851,8 @@ def make_parser():
                    "be bound to its design's sources)")
     x.set_defaults(fn=cmd_asap7)
 
+    _load_sizes().add_parser(sub, common).set_defaults(fn=cmd_sizes)
+
     y = sub.add_parser("asap7pnr", parents=[common],
                        help="the routed course's results (leaderboard/asap7pnr/<task>.json): check them offline "
                        "(default: every design's binding, the pictures, what is not routed yet) or take a course "
@@ -4699,7 +4862,14 @@ def make_parser():
                    help="a course host's collected site data: DIR/sitedata/<task>.json (schema svgolf-asap7pnr/2) and "
                    "the pictures under DIR/images/; only the design files the task's pages show now are kept")
     y.add_argument("--write", action="store_true",
-                   help="with --import: write leaderboard/asap7pnr/<task>.json and site/layouts/<task>/")
+                   help="with --import: write leaderboard/asap7pnr/<task>.json and site/layouts/<task>/; with "
+                   "--request: store the request as the design's pending entry")
+    y.add_argument("--request", action="store_true",
+                   help="the request of a design file not routed yet (with --task and --design): the seed --seed "
+                   "names, else one drawn from the operating system's random source and stored with --write; a "
+                   "stored request is printed and never changed")
+    y.add_argument("--design", metavar="FILE", help="with --request: the design file (.sv) the task's pages show")
+    y.add_argument("--seed", type=int, metavar="N", help="with --request: the seed to name, 1..2^31-1")
     y.set_defaults(fn=cmd_asap7pnr)
 
     u = sub.add_parser("submit", parents=[common],

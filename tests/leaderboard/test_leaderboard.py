@@ -3823,6 +3823,222 @@ class Asap7PnrTest(Tmp):
         self.assertEqual(rc, 2)
 
 
+def read_bytes(path):
+    with open(path, "rb") as fh:
+        return fh.read()
+
+
+class Asap7PnrRequestTest(Tmp):
+    """`asap7pnr --request` (the seed rule, decided 2026-11-11: one run per record, at the seed it names, else at one
+    drawn once and stored, so that a re-check replays it): on a copy of the routed tables with sorter's first entry
+    removed (a design not routed yet), a named seed and a drawn one are stored as the design's PENDING entry with every
+    other entry byte for byte as it was; a stored request is printed and never changed (pending or routed); the usage
+    and refusals; the committed tables are untouched."""
+
+    def setUp(self):
+        super().setUp()
+        self.committed = {f: read_bytes(os.path.join(lb.ASAP7PNR_DIR, f)) for f in sorted(os.listdir(lb.ASAP7PNR_DIR))}
+        self.addCleanup(self.assert_committed_untouched)
+        self.dir = os.path.join(self.tmp, "asap7pnr")
+        shutil.copytree(lb.ASAP7PNR_DIR, self.dir)
+        self.path = os.path.join(self.dir, "sorter.json")
+        data = json.loads(read_bytes(self.path))
+        self.gone = data["designs"].pop(0)
+        self.short = json.dumps(data, indent=1, sort_keys=True) + "\n"
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write(self.short)
+        self.sv = os.path.join(lb.DEFAULT_DATA, "sorter", self.gone["record"] + ".sv")
+        self.assertEqual(lb.sha256_file(self.sv), self.gone["sv_sha256"])
+        self.routed = data["designs"][0]
+        self.routed_sv = os.path.join(lb.DEFAULT_DATA, "sorter", self.routed["record"] + ".sv")
+        self.assertEqual(lb.sha256_file(self.routed_sv), self.routed["sv_sha256"])
+
+    def assert_committed_untouched(self):
+        self.assertEqual({f: read_bytes(os.path.join(lb.ASAP7PNR_DIR, f)) for f in sorted(os.listdir(lb.ASAP7PNR_DIR))},
+                         self.committed)
+
+    def request(self, *argv, design=None):
+        return quiet(lb.main, ["asap7pnr", "--request", "--task", "sorter", "--design", design or self.sv,
+                               "--asap7pnr-dir", self.dir] + list(argv))
+
+    def text(self):
+        return read_bytes(self.path).decode("utf-8")
+
+    def stored(self):
+        """The new entry, after checking that every other entry is byte for byte as it was."""
+        data, why = lb.read_asap7pnr("sorter", self.dir)
+        self.assertIsNone(why)
+        e = lb.asap7pnr_entry(data, self.gone["sv_sha256"])
+        rest = dict(data, designs=[x for x in data["designs"] if x is not e])
+        self.assertEqual(json.dumps(rest, indent=1, sort_keys=True) + "\n", self.short)
+        return e
+
+    def test_a_named_seed(self):
+        rc, out, err = self.request("--seed", "42")
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn('"seed": 42', out)
+        self.assertIn("not written", out)
+        self.assertEqual(self.text(), self.short)                            # without --write nothing changes
+        rc, out, err = self.request("--seed", "42", "--write")
+        self.assertEqual(rc, 0, out + err)
+        e = self.stored()
+        self.assertEqual(e["request"], {"source": "record", "seed": 42, "settings": {},
+                                        "settings_sha256": lb.pnr_settings_sha256({})})
+        self.assertEqual((e["status"], e["runs"], e["layout"], e["scores"]),
+                         ("pending", [], None, {"v_owner": None, "v_median": None}))
+        for k in ("of", "record", "netlist_sha256", "scored_netlist_sha256", "cycles", "a0_asap7"):
+            self.assertEqual(e[k], self.gone[k], k)
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "sorter", "--asap7pnr-dir", self.dir])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("[ok] sorter: 2 designs: 1 bound, 1 pending", out)
+        self.assertIn(lb.PNR_PENDING, out)
+
+    def test_a_drawn_seed(self):
+        table, _ = lb.read_asap7pnr("sorter", self.dir)
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        designs = lb.asap7_designs(lb.load_task(lb.DEFAULT_TASKS, "sorter"), lb.good_records(lb.load_records(lb.DEFAULT_DATA)),
+                                   expected)
+        new, rq, what, refusal = lb.asap7pnr_request(table, lb.load_asap7("sorter"), designs, self.gone["sv_sha256"],
+                                                     draw=lambda: 7)
+        self.assertEqual((rq["source"], rq["seed"], refusal), ("drawn", 7, None))
+        self.assertIsNotNone(new)
+        rc, out, err = self.request("--write")
+        self.assertEqual(rc, 0, out + err)
+        rq = self.stored()["request"]
+        self.assertEqual(rq["source"], "drawn")
+        self.assertTrue(1 <= rq["seed"] <= lb.PNR_SEED_MAX)
+        after = self.text()
+        rc, out, _ = self.request()                                           # asked again: the stored seed, replayed
+        self.assertEqual(rc, 0)
+        self.assertIn(f'"seed": {rq["seed"]}', out)
+        self.assertIn("pending: its stored request", out)
+        rc, out, _ = self.request("--seed", str(rq["seed"]), "--write")     # the same number, named: not the request
+        self.assertEqual(rc, 1)
+        self.assertIn("a stored request is never changed", out)
+        self.assertEqual(self.text(), after)
+
+    def test_a_stored_request_is_never_changed(self):
+        self.assertEqual(self.request("--seed", "42", "--write")[0], 0)
+        after = self.text()
+        for argv, rc_want in ((("--seed", "43", "--write"), 1), (("--write",), 0), (("--seed", "42", "--write"), 0)):
+            with self.subTest(argv=argv):
+                rc, out, _ = self.request(*argv)
+                self.assertEqual(rc, rc_want, out)
+                self.assertEqual(self.text(), after)
+                if rc_want == 0:
+                    self.assertIn('"seed": 42', out)
+
+    def test_a_routed_design_keeps_its_request(self):
+        rc, out, _ = self.request("--seed", "5", "--write", design=self.routed_sv)
+        self.assertEqual(rc, 1)
+        self.assertIn("already routed at the request's seed 1 (default): its request is not changed", out)
+        rc, out, _ = self.request("--write", design=self.routed_sv)
+        self.assertEqual(rc, 0)
+        self.assertIn("routed: its stored request: seed 1 (default)", out)
+        self.assertEqual(self.text(), self.short)
+        rc, out, _ = quiet(lb.main, ["asap7pnr", "--request", "--task", "sorter", "--design", self.routed_sv,
+                                     "--seed", "1"])                         # the committed tables: refused, untouched
+        self.assertEqual(rc, 1)
+
+    def test_usage_and_refusals(self):
+        for argv in (("--seed", "0"), ("--seed", str(2 ** 31))):
+            with self.subTest(argv=argv):
+                self.assertEqual(self.request(*argv)[0], 2)
+        for argv in (["asap7pnr", "--request", "--task", "sorter"], ["asap7pnr", "--request", "--design", self.sv],
+                     ["asap7pnr", "--request", "--task", "sorter", "--design", self.sv, "--import", self.tmp],
+                     ["asap7pnr", "--seed", "3"], ["asap7pnr", "--design", self.sv], ["asap7pnr", "--write"]):
+            with self.subTest(argv=argv):
+                self.assertEqual(quiet(lb.main, argv)[0], 2)
+        rc, out, _ = self.request(design=os.path.join(lb.SVGOLF, "README.md"))
+        self.assertEqual(rc, 1)
+        self.assertIn("not a design file the task's pages show", out)
+        os.remove(self.path)
+        rc, out, _ = self.request("--seed", "3", "--write")
+        self.assertEqual(rc, 1)
+        self.assertIn("has no routed table", out)
+        self.assertFalse(os.path.exists(self.path))
+        with self.assertRaises(ValueError):
+            lb.pnr_request(0)
+        with self.assertRaises(ValueError):
+            lb.pnr_request(None, draw=lambda: 2 ** 31)
+        self.assertEqual(lb.pnr_request(5)["source"], "record")
+
+
+class VerifyRoutedTest(Tmp):
+    """`verify` (every level; here --offline) covers the routed course's data too: each routed table must be well-formed
+    (its written form, shape and arithmetic) and every picture it records its file, or verify FAILS; on a copy of the
+    tables (hidden --asap7pnr-dir)."""
+
+    def setUp(self):
+        super().setUp()
+        self.dir = os.path.join(self.tmp, "asap7pnr")
+        shutil.copytree(lb.ASAP7PNR_DIR, self.dir)
+        self.path = os.path.join(self.dir, "sorter.json")
+        self.good = read_bytes(self.path).decode("utf-8")
+
+    def verify(self):
+        return quiet(lb.main, ["verify", "--offline", "--task", "sorter", "--asap7pnr-dir", self.dir])
+
+    def plant(self, fn):
+        data = json.loads(self.good)
+        fn(data)
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+
+    def test_the_committed_tables_pass(self):
+        rc, out, err = quiet(lb.main, ["verify", "--offline"])
+        self.assertEqual(rc, 0, out + err)
+        n = len([f for f in os.listdir(lb.ASAP7PNR_DIR) if f.endswith(".json")])
+        self.assertRegex(out, rf"(?m)^verify \(offline\): \d+ records, 0 failed, 0 stale; {n} routed tables, 0 failed$")
+        self.assertIn("[ok] asap7pnr/sorter: 2 entries well-formed, every picture its file", out)
+        rc, out, err = self.verify()
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("; 1 routed tables, 0 failed", out)
+
+    def test_a_malformed_table_fails(self):
+        def drop_a_key(d):
+            del d["designs"][0]["runs"][0]["drc"]
+
+        def wrong_delay(d):
+            d["designs"][0]["runs"][0]["delay_ps"] += 1
+
+        def two_scoring_runs(d):
+            d["designs"][0]["runs"].append(copy.deepcopy(d["designs"][0]["runs"][0]))
+
+        for name, fn in (("a key missing", drop_a_key), ("a delay not half-even(P - WS)", wrong_delay),
+                         ("two scoring runs", two_scoring_runs)):
+            with self.subTest(name):
+                self.plant(fn)
+                rc, out, _ = self.verify()
+                self.assertEqual(rc, 1, out)
+                self.assertRegex(out, r"(?m)^\[FAIL\] asap7pnr/sorter: \S*sorter\.json: ")
+                self.assertIn("; 1 routed tables, 1 failed", out)
+        with open(self.path, "w", encoding="utf-8") as fh:                  # the same data, not in its written form
+            fh.write(json.dumps(json.loads(self.good), indent=2, sort_keys=True) + "\n")
+        rc, out, _ = self.verify()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("not in its written form", out)
+
+    def test_a_picture_that_is_not_its_file_fails(self):
+        def other_sha(d):
+            L = d["designs"][0]["layout"]
+            L["image_sha256"] = L["thumb_sha256"]
+
+        def other_size(d):
+            d["designs"][1]["layout"]["thumb_bytes"] += 1
+
+        for fn in (other_sha, other_size):
+            with self.subTest(fn.__name__):
+                self.plant(fn)
+                self.assertEqual(lb.read_asap7pnr("sorter", self.dir)[1], None)    # well-formed: only the bytes differ
+                rc, out, _ = self.verify()
+                self.assertEqual(rc, 1, out)
+                self.assertIn("not the picture the entry records", out)
+        self.plant(lambda d: None)
+        self.assertEqual(self.verify()[0], 0)
+
+
 class CommittedAsap7PnrTest(unittest.TestCase):
     """The committed routed results (leaderboard/asap7pnr/): every file well-formed and bound to the committed ASAP7
     view (its identity and ppa.py hash) and the pins; no entry failed, stale or unbound; every picture its file; and

@@ -115,7 +115,9 @@ STEPS, in order:
               tamper detection, refusal of rejected submissions, the Pareto
               frontier, the depth budget, the Markdown golden file, the CLI end
               to end) and `leaderboard.py verify --offline` on the committed
-              records (hashes, stored files, score arithmetic)
+              records (hashes, stored files, score arithmetic);
+              tests/leaderboard/test_sizes.py and `leaderboard.py sizes` (the
+              designs at other sizes: planted faults, then the committed files)
   modes       the post-synthesis modes (no Lean): `_example` and `mul_n` through
               check/postsynth.py in both modes: the record says which ran, the light
               vector counts stay within the task's `light_vectors` and under the full
@@ -954,6 +956,12 @@ def step_unit():
                        # real-library tests skip when the five pinned files are absent (SVGOLF_ASAP7_LIB, or
                        # `python3.12 score/ppa.py --pdk asap7 --fetch-liberty`; SVGOLF_PPA_REQUIRE_ASAP7=1: no skip)
                        ("score/test_ppa_asap7.py", [PY, "score/test_ppa_asap7.py"]),
+                       # the routed course's run tools (score/pnr/) offline on stored run data: the job files of
+                       # every committed run, the container command, the collector reproducing a committed table
+                       ("tests/pnr/test_pnr_tools.py", [PY, "tests/pnr/test_pnr_tools.py"]),
+                       # the reference-against-routed equivalence job (a tool, not pinned): its configuration and
+                       # its log reader on the negative control's stored logs
+                       ("tests/pnr/test_lec.py", [PY, "tests/pnr/test_lec.py"]),
                        # check.py's `--ppa` modes, the absent-liberty path, the byte-identity of the
                        # default result and the tripwire (no Lean: a fake Lean for the design stage)
                        ("tests/checker/test_ppa_wiring.py",
@@ -1002,15 +1010,20 @@ def step_comparator():
 
 def step_leaderboard():
     """The leaderboard's own tests, and the integrity of the committed
-    records and of the ASAP7 view's columns (leaderboard/asap7/, decided
-    2026-11-09: offline, every entry bound to its design). None runs Lean or Yosys."""
+    records, of the ASAP7 view's columns (leaderboard/asap7/, decided
+    2026-11-09: offline, every entry bound to its design) and of the designs at
+    other sizes (leaderboard/sizes/, 2026-11-13: offline, the scoring size equal
+    to every record's own columns). None runs Lean or Yosys."""
     good = True
     for label, cmd in (("tests/leaderboard/test_leaderboard.py",
                         [PY, "tests/leaderboard/test_leaderboard.py"]),
                        ("leaderboard.py verify --offline (leaderboard/data)",
                         [PY, "leaderboard/leaderboard.py", "verify", "--offline"]),
                        ("leaderboard.py asap7 (leaderboard/asap7, offline)",
-                        [PY, "leaderboard/leaderboard.py", "asap7"])):
+                        [PY, "leaderboard/leaderboard.py", "asap7"]),
+                       ("tests/leaderboard/test_sizes.py", [PY, "tests/leaderboard/test_sizes.py"]),
+                       ("leaderboard.py sizes (leaderboard/sizes, offline)",
+                        [PY, "leaderboard/leaderboard.py", "sizes"])):
         t0 = time.time()
         proc = subprocess.run(cmd, cwd=SVGOLF, capture_output=True, text=True)
         out = (proc.stdout + proc.stderr).strip().splitlines()

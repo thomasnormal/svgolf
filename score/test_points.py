@@ -155,8 +155,17 @@ class LatencyTest(unittest.TestCase):
         self.assertEqual(points.eval_nat("W - N", env), 0)              # Nat subtraction truncates
         self.assertEqual(points.eval_nat("N / 2", env), 2)
         self.assertEqual(points.eval_nat("N / 0", env), 0)
-        for bad in ("N ^ 2", "foo N", "Nat.log2 N", "N +", "(N"):
+        for bad in ("N ^ 2", "foo N", "Nat.log2 N", "N +", "(N", "clog2", "N clog2", "clog2 +"):
             self.assertIsNone(points.eval_nat(bad, env), bad)
+        # the library's clog2 (LeanModels/Sv/Param.lean: if n ≤ 1 then 0 else (n - 1).log2 + 1, its #guards' values),
+        # applied tighter than any operator, as Lean's application binds
+        self.assertEqual([points.clog2(n) for n in (0, 1, 2, 3, 4, 5, 8, 9, 16, 17)], [0, 0, 1, 2, 2, 3, 3, 4, 4, 5])
+        self.assertEqual(points.eval_nat("N * N + clog2 N + 2", {"N": 4}), 20)
+        self.assertEqual(points.eval_nat("clog2 N + 1", {"N": 16}), 5)
+        self.assertEqual(points.eval_nat("clog2 (N + 3) * 2", {"N": 5}), 6)
+        # a proof that defines its own clog2 is not read as the library's
+        self.assertEqual(points.latency_of("def clog2 (n : Nat) : Nat := n\ndef lat (N : Nat) : Nat := clog2 N\n",
+                                           ["N"]), (None, None))
         line, at = points.latency_of("def lat (N : Nat) (W : Nat) : Nat := N * W\n", ["N", "W"])
         self.assertEqual(at({"N": 3, "W": 4}), 12)
         self.assertEqual(points.latency_of("def lat (N : Nat) : Nat := if N = 0 then 1 else N\n", ["N"])[1]({"N": 2}),

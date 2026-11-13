@@ -1,0 +1,8 @@
+OpenROAD unknown 
+Features included (+) or not (-): -GPU +GUI
+This program is licensed under the BSD-3 license. See the LICENSE file for details.
+Components of this program may be licensed under more restrictive licenses which must be honored.
+[INFO ORD-0030] Using 2 thread(s).
+layout.tcl: ODB_FILE=/srv/results/asap7/_example_38596d52847c/min_s1/6_final.odb OUT_PNG=/work/out/_example_38596d52847c__min_s1.png IMG_WIDTH=1600
+layout.tcl: dbu_per_micron 1000 die 0 0 3870 3870 core 1026 1080 2862 2700
+layout.tcl: done

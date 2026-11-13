@@ -916,50 +916,68 @@ class SiteTest(unittest.TestCase):
         self.assertGreaterEqual(len(out), 4, out)        # add, mul, clmul, fdivp
         return out
 
+    @staticmethod
+    def sizes_file(t):
+        """leaderboard/sizes/<t>.json (`leaderboard.py sizes --write`), or None."""
+        path = os.path.join(SVGOLF, "leaderboard", "sizes", f"{t}.json")
+        if not os.path.isfile(path):
+            return None
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def size_keys(self, t):
+        """The sizes the explorer offers, read here from the two data files: the sizes file's, then score/measured's
+        points it lacks."""
+        keys = [x["key"] for x in (self.sizes_file(t) or {}).get("sizes", [])]
+        keys += [p["key"] for p in (self.measured(t) or {}).get("points", []) if p["key"] not in keys]
+        return keys
+
     def test_the_explorer_offers_every_measured_point(self):
-        """A task measured at several points: the page data names them in the order of the scaling parameter, the
-        scored one (task.json's scoring point) marked, its button pressed and labelled as the ranked one; every other
-        point's designs carry the measured numbers, read here from the data file independently of the generator
-        (area in 1e-4 um^2, time, area x time, GE, depth), each marked measured and none par. The scored point's
-        designs stay the ranked ones. A task of one point (aes_sbox) has no selector and no scaling view."""
+        """A task measured at several sizes (2026-11-13: the sizes file's, leaderboard/sizes/, then score/measured/'s):
+        the page data names them in the sizes file's order, the scoring one (task.json's scoring point) marked; the Size
+        selector lists the same keys, the scoring one chosen and labelled "· scored", no other; every other size's
+        designs measured only in score/measured/ carry its numbers, read here from that file independently of the
+        generator (area in 1e-4 um^2, time, area x time, GE, depth), each marked measured. The scoring size's designs
+        stay the ranked ones. A task of one size (aes_sbox) has no selector and no scaling view."""
         for t in self.listed:
             with self.subTest(task=t):
                 html_, data = self.page_data(t)
                 m = self.measured(t)
                 task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
                 key = ",".join(f"{k}={v}" for k, v in lb.scoring_point(task).items()) or "default"
-                if not m or len(m["points"]) < 2:
+                keys = self.size_keys(t)
+                if len(keys) < 2:
                     self.assertNotIn("points", data)
-                    self.assertNotIn("data-point=", html_)
+                    self.assertNotIn("data-size-select", html_)
                     self.assertNotIn('id="scaling"', html_)
                     continue
-                keys = [p["key"] for p in m["points"]]
                 self.assertEqual([p["key"] for p in data["points"]], keys)
                 self.assertEqual([p["key"] for p in data["points"] if p["scored"]], [key])
                 ex = section(html_, "explore")
-                self.assertIn('<div class="explorer-controls" data-explorer-controls hidden><div class="point-control">',
-                              ex)
-                buttons = re.findall(r'<button type="button" data-point="([^"]+)" aria-pressed="(true|false)"[^>]*>'
-                                     r"([^<]*)</button>", ex)
-                self.assertEqual([html.unescape(b[0]) for b in buttons], keys)
-                mark = "· scored" if t in self.previews else "· ranked"       # a preview ranks nothing
-                self.assertEqual([(html.unescape(b[0]), b[2].endswith(mark)) for b in buttons if b[1] == "true"],
-                                 [(key, True)])
-                self.assertEqual(sum(b[2].endswith(mark) for b in buttons), 1)
-                self.assertEqual(sum("ranked" in b[2] for b in buttons), 0 if t in self.previews else 1)
+                sky = ex.split('<div class="pdk pdk-asap7pnr">', 1)[0]
+                self.assertIn('<div class="explorer-controls" data-explorer-controls hidden>'
+                              '<div class="axis-control size-control"><label class="label" for="explore-size">Size</label>'
+                              '<select id="explore-size" data-size-select>', sky)
+                opts = re.findall(r'<option value="([^"]+)"( selected)?[^>]*>([^<]*)</option>',
+                                  sky.split("data-size-select>", 1)[1].split("</select>", 1)[0])
+                self.assertEqual([html.unescape(o[0]) for o in opts], keys)
+                self.assertEqual([(html.unescape(o[0]), o[2].endswith("· scored")) for o in opts if o[1]], [(key, True)])
+                self.assertEqual(sum(o[2].endswith("· scored") for o in opts), 1)
                 self.assertEqual(data.get("preview", False), t in self.previews)
                 self.assertFalse(any(d.get("measured") for d in data["designs"]))
                 self.assertNotIn(key, data["at"])
-                for p in m["points"]:
+                sized = {e["sv_sha256"] for e in (self.sizes_file(t) or {}).get("designs", [])}
+                shas = {d["id"]: d for d in data["designs"]}
+                for p in (m or {}).get("points", []):
                     if p["scored"]:
                         continue
                     got = {d["id"]: d for d in data["at"][p["key"]]}
-                    want = {e["id"]: e["at"][p["key"]] for e in m["designs"] if p["key"] in e["at"]}
-                    self.assertEqual(set(got), set(want), p["key"])
-                    for i, row in want.items():
-                        d = got[i]
+                    for e in m["designs"]:
+                        if p["key"] not in e["at"] or e["sha256"] in sized or e["id"] not in got:
+                            continue                  # the sizes file's numbers win where it has the design file
+                        row, d = e["at"][p["key"]], got[e["id"]]
                         self.assertTrue(d["measured"])
-                        self.assertFalse(d["par"])
+                        self.assertEqual(d["par"], shas.get(e["id"], {}).get("par", False))
                         self.assertEqual(d["m"]["area_um2"], row["area_e4um2"] / 10000)
                         self.assertEqual(d["m"]["time_ps"], row["time_ps"])
                         self.assertEqual(d["m"]["adp"], row["area_e4um2"] * row["time_ps"] / 10_000_000)
@@ -967,36 +985,34 @@ class SiteTest(unittest.TestCase):
                         self.assertEqual(d["m"]["depth"], row["depth"])
 
     def test_every_measured_point_reads_without_javascript(self):
-        """Without JavaScript: the point note says what is drawn (the scored point: the ranked numbers) and that the
-        other points are measured, not ranked; each other point has its own table of every design with all its
-        numbers, under a heading that says measured, not ranked; and the scaling view is drawn by the server (wide
-        and compact) for its first metric, one line per design with two points or more, its controls hidden until
-        charts.js shows them, with a table of every line at every point, the scored column marked ranked. A preview
-        (nothing of it ranked, no par) says so instead, and its scaling view draws the numbers themselves."""
+        """Without JavaScript: the explorer is drawn at the scoring size (no note above it: the chart head's tag, shown
+        by charts.js at another size, says "not ranked"); every other size has its own table of every design with all
+        its numbers, under its heading, in one fold that says measured, not ranked; and the scaling view is drawn by
+        the server (wide and compact) for its first metric, one line per design with two points or more, its controls
+        hidden until charts.js shows them, with a table of every line at every size, the scored column marked ranked. A
+        preview (nothing of it ranked, no par) says so instead, and its scaling view draws the numbers themselves."""
         for t in self.several():
             with self.subTest(task=t):
                 preview = t in self.previews
                 html_, data = self.page_data(t)
                 m = self.measured(t)
                 ex = section(html_, "explore")
+                self.assertNotIn("data-point-note", ex)
                 names = {p["key"]: p["full"] for p in data["points"]}
                 scored = next(p for p in data["points"] if p["scored"])
-                note = re.search(r'<p class="point-note[^"]*" data-point-note>(.*?)</p>', ex, re.S)
-                self.assertIsNotNone(note)
-                note_text = norm(text_of(note.group(1)))
-                what = "a preview, so nothing of it is ranked yet" if preview else "the ranked numbers"
-                self.assertTrue(note_text.startswith(f"{scored['full']}, the scored point: {what}"), note_text)
-                self.assertIn("measured, not ranked", note_text)
-                text = norm(text_of(ex))
+                fold = "every design at the other sizes (measured, not ranked), by score"
+                self.assertEqual(norm(text_of(ex)).count(fold), 1)
+                body = ex.split(html.escape(fold), 1)[1].split("</details>", 1)[0]
                 for p in m["points"]:
                     if p["scored"]:
                         continue
-                    summary = f"at {names[p['key']]} (measured, not ranked): every design with all its numbers"
-                    self.assertIn(summary, text)
-                    table = ex.split(html.escape(summary), 1)[1].split("</details>", 1)[0]
+                    head = f'<h3 class="size-head">at {html.escape(names[p["key"]])}</h3>'
+                    self.assertIn(head, body)
+                    table = body.split(head, 1)[1].split("</table>", 1)[0]
                     for e in m["designs"]:
-                        if p["key"] in e["at"]:
-                            area = e["at"][p["key"]]["area_e4um2"] / 10000
+                        if p["key"] in e["at"] and e["id"] in {d["id"] for d in data["at"][p["key"]]}:
+                            d = next(d for d in data["at"][p["key"]] if d["id"] == e["id"])
+                            area = d["m"]["area_um2"]
                             s = f"{area:.1f}"
                             if area >= 10000:
                                 whole, frac = s.split(".")
@@ -1019,6 +1035,7 @@ class SiteTest(unittest.TestCase):
                 self.assertEqual(wide.count('<g class="series"'), len(drawn))
                 for ln in drawn:
                     self.assertIn(f'data-id="{html.escape(ln["id"])}"', wide)
+                text = norm(text_of(ex))
                 if preview:
                     self.assertNotIn('<line class="par-line"', wide)
                     self.assertIn("this task is a preview, so nothing of it is ranked yet", text)
@@ -1061,7 +1078,7 @@ class SiteTest(unittest.TestCase):
     def test_compare_references_and_baselines_fold_what_goes_deeper(self):
         """Compare the designs, Proved references and Baselines (2026-11-11): the explorer's count of the designs it
         draws ("k of n designs have both numbers") is hidden while every design has both, and shown when some lack
-        one; the point note says the other points are measured, not ranked, in the tables below; How the designs scale
+        one; no note above the chart (2026-11-13: the head's tag says "not ranked" at another size); How the designs scale
         is one closed fold carrying id="scaling"; a task without baselines has no Baselines card and no link to one,
         and one with baselines keeps the card's lead and folds its table."""
         for t in self.listed:
@@ -1073,9 +1090,7 @@ class SiteTest(unittest.TestCase):
                 for hidden, k, n in counts:
                     self.assertEqual(bool(hidden), k == n, (k, n))
                 self.assertEqual(len(re.findall(r"<span data-explorer-note[ >]", ex)), len(counts))
-                for note in re.findall(r'<p class="point-note[^"]*" data-point-note>(.*?)</p>', ex, re.S):
-                    self.assertTrue(norm(text_of(note)).endswith(
-                        "The other points are measured, not ranked (the tables below)."), note)
+                self.assertNotIn("data-point-note", ex)    # 2026-11-13: no note above the chart; the head's tag
                 if 'id="scaling"' in html_:
                     self.assertIn('<details class="scaling-fold" id="scaling"><summary>How the designs scale '
                                   "(measured, not ranked)</summary>", ex)
