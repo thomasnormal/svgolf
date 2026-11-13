@@ -38,19 +38,21 @@ repository svGolf requires as the Lake package `lean-models` (in a clone of svGo
 
 ## 2. Pick a task and read its README
 
-| task | status | kind | banned operators | proof time limit | proved references |
+| task | status | kind | banned operators | proof time limit | par's design |
 |---|---|---|---|---|---|
-| `_example` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `band`, `band_lp` |
-| `add` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `add_n`, `add_proc`, `add_proc_m`, `add_mux`, `add_n_byhand` |
-| `mul` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | five (`mul_n` .. `mul_tree_h`) |
-| `aes_sbox` | ready | fixed size, 8 bit | `/ % **` (every task bans them) | 300 CPU s | `sbox_bp` (113 gates) |
+| `_example` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `band` (one AND gate per bit) |
+| `add` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `add_n` (ripple carry) |
+| `mul` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `mul_n` (the array multiplier) |
+| `aes_sbox` | ready | fixed size, 8 bit | `/ % **` (every task bans them) | 300 CPU s | `sbox_table` (the 256-entry lookup table) |
 | `clmul` | ready | every `N` | `+ - * / % **`, run-time `< <= > >=` | 300 CPU s | `clmul_n` (the array without carries) |
-| `fdivp` | ready | every `W, P` (two parameters; binary16 is `(5, 11)`) | `/ % **` | 300 CPU s | `fdivp` (a word-level netlist of 34 sites) |
+| `fdivp` | ready | every `W, P` (two parameters; binary16 is `(5, 11)`) | `/ % **` | 300 CPU s | `fdivp` (restoring division, a word-level netlist of 34 sites) |
 | `arbiter` | ready | clocked, reactive: every `N` (`N*N < 2^31`) | `/ % **` | 300 CPU s | `rr_mask` (a registered mask round-robin) |
 | `matmul` | ready | clocked, transaction, a declared latency: every `N, W, AccW` (`N*N*W < 2^31`, `N*N*AccW < 2^31`) | `/ % **` | 300 CPU s | `matmul_g1` (`N*N` multiply-accumulate units, latency `N`) |
 | `sorter` | ready | clocked, stream, a declared latency: every `N, W` (`N*W < 2^31`) | `/ % **` | 300 CPU s | `sorter_ins` (an insertion-cell array, latency `2N`) |
 
-(from each `tasks/<name>/task.json`; a task that bans `+` or `-` also bans the run-time ordering comparisons
+(from each `tasks/<name>/task.json`, and par's design from `leaderboard/par.json`: one design per task, the simplest
+algorithm, decided 2026-11-12; every other design, the maintainers' other proved designs included, is an entry
+under a handle of its own; a task that bans `+` or `-` also bans the run-time ordering comparisons
 `< <= > >=`, decided 2026-11-05: Yosys builds each as its own adder, an `$alu`; equality and comparisons over
 parameters stay allowed.) Start with `_example`, then `add`: a one-line function, a complete
 for-every-width proof to start from, and an (area, delay) frontier to golf. `fdivp` is a far goalpost (proved for every format, but a hard
@@ -66,7 +68,8 @@ Read, in this order: `tasks/<name>/README.md` (the module header you must implem
 banned operators, the scoring point); `tasks/<name>/Spec.lean` (the TRUSTED statement; the README is a gloss of it);
 `reference/` (a proved design and its proof: the model for yours); `oracle.py` (a Python function of the task, used for
 an advisory check, not trusted). `task.json` fields are documented in README.md, "A task directory". For golf headroom,
-the README's "Leaderboard" table lists scores of designs that are not records (prefix adders, Dadda trees).
+the task README's score tables list par's design, the maintainers' other proved designs (prefix adders, multiplier
+trees: entries, on the board under handles of their own since 2026-11-12) and the banned-operator baselines.
 
 ## 3. The edit-check loop with `check.py`
 
@@ -313,12 +316,12 @@ imports in `tasks.lean`/`tests.lean` (README.md, "A task directory"); `tests/run
 ```bash
 python3.12 tests/run.py                                   # everything; exit 0 iff all pass
 python3.12 tests/run.py --only add --skip attacks         # one task, a step skipped
-python3.12 tests/run.py --skip build,comparator,modes,references,drafts,negatives,baselines,ppa,validate,attacks,sandbox   # no Lean
+python3.12 tests/run.py --skip build,comparator,modes,references,drafts,negatives,baselines,baseline-proofs,ppa,validate,attacks,sandbox   # no Lean
 python3.12 tests/run.py --full                            # with the heavy simulation plans (hours)
 ```
 
 Steps: `layout`, `build`, `unit`, `comparator`, `leaderboard`, `modes`, `canon`, `references`, `drafts`, `negatives`,
-`baselines`, `ppa`, `validate`, `attacks`, `sandbox`. `--sandbox {off,auto,require}` is handed to every `check.py` call (default `auto`; the
+`baselines`, `baseline-proofs` (every baseline with its proof), `ppa`, `validate`, `attacks`, `sandbox`. `--sandbox {off,auto,require}` is handed to every `check.py` call (default `auto`; the
 `sandbox` step always uses `require` and skips, with a message, where there is no mechanism). The no-Lean selection above runs `layout`, `unit`, `leaderboard` and `canon` (they need
 Yosys, Verilator and the built `svgolf-eval`, and run no Lean). The whole suite takes an hour or more on a laptop (README.md, "Tests"). The unit tests need no Lean and run directly: `python3.12 score/test_score.py`, `score/test_srcgate.py`, `tests/checker/test_advisories.py`,
 `tests/leaderboard/test_leaderboard.py`, `tests/imports/test_allowlist.py`.

@@ -13,7 +13,8 @@ static rules and its `postsynth` stage are the x/z defence, README.md
   full   (default; a few minutes: about 2.5 s of C++ build per point) exhaustive
          at N = 1..8, 100 000 random vectors (+ corners) at N = 12, 16, 24, 32;
   quick  (seconds) exhaustive at N = 1..4 and 100 random vectors at N = 8;
-  --width N  ONE width, for the per-width Dadda baselines: exhaustive when
+  --width N  ONE width, for the per-width Dadda netlists (test material,
+         tests/mul/unproved/; the proved Dadda baselines take the plans): exhaustive when
          N <= 8, else K random vectors (+ corners; default 20 000).
 
 Prints one RESULT (and up to three MISMATCH) lines per point; exit status 0

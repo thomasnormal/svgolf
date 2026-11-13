@@ -2,7 +2,7 @@
   "_comment": [
     "The reference and baseline designs of the PPA validation (score/ppa_validate.py, score/test_ppa.py), at their scoring point.",
     "Paths are relative to svgolf/. `banned`: scored with the banlist lifted (the Yosys `+` / `*` baselines, and `cmp_carry`, Yosys's adder through run-time comparisons), as in tests/expected.json.",
-    "`ref` marks a task reference (proved or planned as the task's entry); the rest are baselines without a proof."
+    "`ref` marks a task reference (proved or planned as the task's entry); the rest are baselines: proved comparison designs, never entries (tests/expected.json `lean`; decided 2026-11-12: every design the site shows is proved)."
   ],
   "designs": [
     {"name": "add_ripple",   "task": "add",      "src": "tasks/add/reference/add_n.sv",              "top": "add_n",     "params": {"N": 16}, "ref": true},
@@ -14,15 +14,16 @@
     {"name": "mul_tree",     "task": "mul",      "src": "tasks/mul/reference/mul_tree.sv",           "top": "mul_n",     "params": {"N": 16}, "ref": true},
     {"name": "mul_wallace",  "task": "mul",      "src": "tasks/mul/reference/mul_wallace.sv",        "top": "mul_n",     "params": {"N": 16}, "ref": true},
     {"name": "mul_tree_h",   "task": "mul",      "src": "tasks/mul/reference/mul_tree_h.sv",         "top": "mul_n",     "params": {"N": 16}, "ref": true},
-    {"name": "mul_dadda_rc", "task": "mul",      "src": "tests/mul/baselines/dadda_rc_16.sv",        "top": "mul_n",     "params": {"N": 16}, "ref": false},
-    {"name": "mul_dadda_ks", "task": "mul",      "src": "tests/mul/baselines/dadda_ks_16.sv",        "top": "mul_n",     "params": {"N": 16}, "ref": false},
+    {"name": "mul_dadda_rc", "task": "mul",      "src": "tests/mul/baselines/dadda_rc.sv",           "top": "mul_n",     "params": {"N": 16}, "ref": false},
     {"name": "mul_yosys",    "task": "mul",      "src": "tests/mul/baselines/yosys_mul.sv",          "top": "mul_n",     "params": {"N": 16}, "ref": false, "banned": true},
     {"name": "sbox_bp",      "task": "aes_sbox", "src": "tasks/aes_sbox/reference/sbox_bp.sv",       "top": "aes_sbox",  "params": {},        "ref": true},
     {"name": "sbox_bp_d16",  "task": "aes_sbox", "src": "tests/aes_sbox/baselines/sbox_bp_d16.sv",   "top": "aes_sbox",  "params": {},        "ref": false},
-    {"name": "sbox_table",   "task": "aes_sbox", "src": "tests/aes_sbox/baselines/sbox_table.sv",    "top": "aes_sbox",  "params": {},        "ref": false},
+    {"name": "sbox_table",   "task": "aes_sbox", "src": "tasks/aes_sbox/reference/sbox_table.sv",    "top": "aes_sbox",  "params": {},        "ref": true},
+    {"name": "clmul_tree",   "task": "clmul",    "src": "tests/clmul/baselines/clmul_tree.sv",       "top": "clmul_n",   "params": {"N": 16}, "ref": false},
+    {"name": "clmul_kara_lv", "task": "clmul",   "src": "tests/clmul/baselines/kara_lv.sv",          "top": "clmul_n",   "params": {"N": 16}, "ref": false},
+    {"name": "clmul_k1",     "task": "clmul",    "src": "tests/clmul/baselines/clmul_k1.sv",         "top": "clmul_n",   "params": {"N": 16}, "ref": false},
     {"name": "fdivp",        "task": "fdivp",    "src": "tasks/fdivp/reference/fdivp.sv",            "top": "fdiv",      "params": {"W": 5, "P": 11}, "ref": true},
     {"name": "fdivp_newton", "task": "fdivp",    "src": "tasks/fdivp/reference/fdivp_newton.sv",     "top": "fdiv",      "params": {"W": 5, "P": 11}, "ref": true},
-    {"name": "fdivp_srt",    "task": "fdivp",    "src": "tasks/fdivp/reference/fdivp_srt.sv",        "top": "fdiv",      "params": {"W": 5, "P": 11}, "ref": true},
-    {"name": "flat_binary16", "task": "fdivp",    "src": "tests/fdivp/baselines/flat_binary16.sv",     "top": "fdiv",      "params": {"W": 5, "P": 11}, "ref": false}
+    {"name": "fdivp_srt",    "task": "fdivp",    "src": "tasks/fdivp/reference/fdivp_srt.sv",        "top": "fdiv",      "params": {"W": 5, "P": 11}, "ref": true}
   ]
 }

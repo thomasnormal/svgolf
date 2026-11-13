@@ -6,7 +6,7 @@
 // backstop runs alumacc and rejects the $alu cells it builds); it is scored
 // with the banlist lifted. Pinned flow at N = 16: 195.975 GE, depth 17
 // (tests/expected.json) -- lower depth than every reference. Correct in
-// Verilator (exhaustive N <= 4, random N = 16); no proof. See
+// Verilator (exhaustive N <= 4, random N = 16); proved (cmp_carry.lean). See
 // tasks/add/README.md, "Rules for this task".
 module add_n #(parameter int N = 16) (
   input  logic [N-1:0] a, b,

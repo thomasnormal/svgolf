@@ -99,7 +99,7 @@ THAT netlist (with Yosys's `simcells.v`, through the harness of
 `check/postsynth.py`) against `a + b + cin`. The
 checker's `postsynth` stage compares the scored netlist with ls-sv's reading
 of the design; this script compares it with the task's function, and runs on
-the unproved baselines too. Last full run (`tests/add/results/postsynth.log`,
+the baselines too. Last full run (`tests/add/results/postsynth.log`,
 under the old one-process flow, which wrote the netlist with expressions):
 all five designs at `N = 16, 32, 64`, 5005 vectors each, no mismatch.
 `tests/run.py` runs it every time at `N = 16, 32` with 500 vectors (seconds).

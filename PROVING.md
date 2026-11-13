@@ -825,7 +825,10 @@ but the **reduction and the arithmetic still are**:
   them in whatever way works. The by-hand references are complete examples of that route:
   `tasks/add/reference/add_n_byhand.lean` (509 code lines: walk the generate loop symbolically,
   one-driver rule, rank certificate, the settled state by induction on the bit index) and
-  `tasks/mul/reference/mul_n_byhand.lean` (1385 code lines, 2-D).
+  `tasks/mul/reference/mul_n_byhand.lean` (1385 code lines, 2-D). The proved prefix adders
+  `tests/add/baselines/add_n_sklansky.lean` and `add_n_kogge_stone.lean` take the same route through a
+  conditional generate inside an inner generate loop, and `tests/clmul/baselines/kara_lv.lean` through a
+  level-by-level Karatsuba with `**` in a localparam.
 * the plain-Lean part is reusable as it is: `CombLib` (below) has the bit-function value
   `bfVal`, the ripple-row lemma, the full-adder identity, the bridges to `BitVec`.
 * a by-hand proof compiles about 2.3 times faster (CPU) than the tactic proof (README.md,
@@ -1009,10 +1012,9 @@ Habits that help:
 * **Fragment.** See section 4. In particular no operators beyond `& | ^` (no `~`, `?:`,
   comparisons), no `localparam` beyond the integer constant expressions of section 4,
   no conditional generate, no instances, no edge-triggered processes, and `always_comb` only in the first fragment of section 13. The prefix
-  adders of `tests/add/baselines/` are refused today (conditional generate, non-affine indices). The Dadda trees of
-  `tests/mul/baselines/` are generated per width (flat netlists of single-bit signals, "correct at
-  this N, NOT a parametric or proved entry"): a for-all-`N` multiplier proof needs a parametric
-  design. What the tactics do not read yet is on the [refusals page](REFUSALS.md) as `later`, each row with what has to exist first
+  adders of `tests/add/baselines/` are refused today (conditional generate, non-affine indices); they are proved by
+  hand (section 5). A design generated for one width (a flat netlist whose every width and index is a literal of that
+  `N`) has no proof of a for-all-`N` statement at all: a multiplier proof needs a parametric design. What the tactics do not read yet is on the [refusals page](REFUSALS.md) as `later`, each row with what has to exist first
   (`sv_structure: outside the v1 fragment`).
   A parametric carry-save TREE (not a column-wise Wallace/Dadda tree) is inside the fragment after
   all, if its tree is indexed as a heap: see section 8; a row-wise Wallace tree is inside it too,
@@ -1152,8 +1154,7 @@ sliding window replaces the heap's cut of section 8, and there is no pairing cas
 vector, so the glue has 11 hypotheses instead of 18 (11 `sv_bridge` lines since 2026-10-31) and the whole file was 25 % shorter.
 
 **What a better tree would still need**: the column-wise Dadda schedule saves the half adders at
-the edges of every row (the tape is 8.2 % above the Dadda + ripple baseline at `N = 16`). Its column
-heights are not affine; that remains open.
+the edges of every row. Its column heights are not affine; that remains open.
 
 
 ## 10. A tree with two-row leaves: the first design that needs a localparam
@@ -1216,8 +1217,7 @@ with a message that says so (section 4); `integer` (4-state) has no squash and i
 
 **Scores** (`tests/expected.json`): `451.310 / 30`, `2025.905 / 62`, `8452.626 / 127` at `N = 8, 16, 32`
 against the single-row tree's `451.310 / 30`, `2034.904 / 63`, `8453.626 / 126`: at `N = 16` 0.4 % less
-area and one level shallower, at `N = 32` 1 GE less and one level deeper; 3.7 % above the Dadda +
-ripple baseline at `N = 16`. What the localparam bought is the proof, not the circuit: the design is
+area and one level shallower, at `N = 32` 1 GE less and one level deeper. What the localparam bought is the proof, not the circuit: the design is
 simpler (no select, no pairing node) and the arithmetic is shorter, at about the same elaboration time.
 
 **What a Dadda-style tree would still need** (a measurement, not a proof). A localparam bounds a
@@ -1230,7 +1230,11 @@ loop bound that mentions the OUTER genvar, `for (j = 0; j < i; j++)`, is refused
 "nested generate" message); (3) the choice between a full adder, a half adder and a wire in a column is
 a conditional generate, which is refused inside a generate loop; (4) a stage index wants a third array
 dimension. The row-wise schedules of sections 8, 9 and 10 avoid all four by numbering (heap, tape) and
-by gathering; a column-wise one has not been found that does.
+by gathering; a column-wise one has not been found that does. Without the tactics, by hand, the column-wise Dadda
+tree is proved for every `N` since 2026-11-12: `tests/mul/baselines/dadda_rc.lean` (a ripple-carry final adder;
+since 2026-11-12 an entry of `mul`, like every proved design but par's), whose design writes the stage count and the heights as constant `?:` chains, names
+each stage's and column's counts with generate loops that run exactly once, and chooses a full adder, a half adder or
+a wire with a generate `if` inside the loops.
 
 ## 11. Proof effort and speed (measured 2026-10-30)
 

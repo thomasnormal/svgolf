@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bit-accurate Python model of the parametric divider tests/fdivp/baselines/fdivp_d1.sv (D1; `model3` is the reference's netlist, tasks/fdivp/reference/fdivp.sv), and two oracles.
+"""Bit-accurate Python model of the parametric divider tests/fdivp/unproved/fdivp_d1.sv (D1; `model3` is the reference's netlist, tasks/fdivp/reference/fdivp.sv), and two oracles.
 
 model(W, P, a, b): the netlist of fdivp.sv, step for step (normalizer stages, P+2 restoring steps, exponent sum
 with an offset, shifter with a sticky bit, increment).  oracle_int: exact integer RNE (independent of the

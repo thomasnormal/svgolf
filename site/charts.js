@@ -8,7 +8,7 @@
 //     measured ones: score/measured/<task>.json), two axis menus and their log switches, and a redraw
 //     of the scatter from the page's data (the inert JSON in #task-data; the ASAP7 view's explorer, a
 //     second copy on the page, from #task-data-asap7: site/build.py `dual`), with the Pareto front of
-//     the proved designs for the chosen pair. The drawing mirrors svgplot.scatter_chart: same frame,
+//     the entries for the chosen pair. The drawing mirrors svgplot.scatter_chart: same frame,
 //     scales, ticks, marks and CSS classes.
 //   * the scaling view: a metric menu, the "÷ par" and log switches, and a redraw of the lines
 //     (svgplot.line_chart's frame, scales, marks, margin names and classes).
@@ -29,7 +29,8 @@
   var COMPACT_BELOW = 720;              // style.css switches the server's drawings at 52rem
   var INTEGER = { depth: 1, cycles: 1, ffs: 1, gates: 1, proof_lines: 1 };
   var KIND_ORDER = { baseline: 0, reference: 1, record: 2 };
-  var KIND_TEXT = { record: "submission", reference: "proved reference", baseline: "baseline, not proved" };
+  var KIND_TEXT = { record: "submission", reference: "par design", baseline: "proved baseline" };   // build.py KIND_TEXT
+  var BANNED_TEXT = "proved baseline with a banned operator (not rankable)";   // build.py BANNED_TEXT
   var MEASURED = "measured, not ranked";
   // svgplot.LINES_FRAME and LINES_COMPACT (the scaling view)
   var LINE_FRAMES = {
@@ -187,7 +188,7 @@
     return out;
   }
 
-  function paretoIds(points) {          // proved points no other proved point beats on both axes
+  function paretoIds(points) {          // the entries (par's design, records) no other entry beats on both axes
     var proved = points.filter(function (p) { return p.kind !== "baseline"; });
     var on = {};
     proved.forEach(function (p) {
@@ -199,9 +200,13 @@
     return on;
   }
 
+  function kindName(kind, banned) {     // build.py kind_name
+    return kind === "baseline" && banned ? BANNED_TEXT : KIND_TEXT[kind];
+  }
+
   function kindText(d) {
-    return KIND_TEXT[d.kind] + (d.par ? " · par" : "") + (d.banned ? " · banned operator" : "") +
-           (d.measured ? " · " + MEASURED : "");
+    return kindName(d.kind, d.banned) + (d.kind === "reference" && !d.par ? " · another proof" : "") +
+           (d.banned && d.kind !== "baseline" ? " · banned operator" : "") + (d.measured ? " · " + MEASURED : "");
   }
 
   function sharedTips(pts, on) {        // designs at one (x, y) share one tooltip (svgplot.shared_tips)
@@ -279,7 +284,7 @@
       var coords = f1(xs.map(stair[0][0])) + "," + f1(top) + " " +
                    stair.map(function (p) { return f1(xs.map(p[0])) + "," + f1(ys.map(p[1])); }).join(" ") +
                    " " + f1(right) + "," + f1(ys.map(stair[stair.length - 1][1]));
-      s.push('<polyline class="frontier" points="' + coords + '"><title>the Pareto front of the proved designs</title></polyline>');
+      s.push('<polyline class="frontier" points="' + coords + '"><title>the Pareto front of the entries</title></polyline>');
     }
     pts.sort(function (a, b) {
       return (!!on[a.id] - !!on[b.id]) || (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || (a.y - b.y) || (a.x - b.x) ||
@@ -643,7 +648,7 @@
   function lineTip(ln) {
     var what = ln.family ? ln.names.length + " sizes of one generator: " + ln.names.join(", ") :
       (ln.names.length > 1 ? "the same numbers at every point: " + ln.names.join(", ") : null);
-    var out = [ln.name, KIND_TEXT[ln.kind] + (ln.banned ? " · banned operator" : "") + " · " + MEASURED];
+    var out = [ln.name, kindName(ln.kind, ln.banned) + " · " + MEASURED];
     if (what) { out.push(what); }
     return out;
   }

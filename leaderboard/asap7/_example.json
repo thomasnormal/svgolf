@@ -5,28 +5,6 @@
    "area_e5um2": 139968,
    "area_mge": 21328,
    "buffers": 0,
-   "canonical_sha256": "67411e721ce5af8ecfd978034bd55fd4b2c06778fed5d680fd0dccb7355e6e6d",
-   "cells": 16,
-   "cycles": null,
-   "delay_ps": 56,
-   "depth": 1,
-   "flops": null,
-   "netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
-   "of": [
-    "record:341bdd371efbb80098f44dd696ae95ededdb85835b7e65f99bf455725cbde9ec",
-    "reference:band_lp"
-   ],
-   "repaired_sha256": "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902",
-   "rtlil_sha256": "08912da22756e668b8774aaddd737194b0151352c218ecf464f800b86c1cace7",
-   "sv_sha256": "66eb3d7b69e6fac93ee63e2b58a1debb3bc7543c877a3b7a382562b8bd463ab5",
-   "table_reads_floored": 128,
-   "tie_cells": 0,
-   "time_ps": 56
-  },
-  {
-   "area_e5um2": 139968,
-   "area_mge": 21328,
-   "buffers": 0,
    "canonical_sha256": "bc2ef59e283b225af14f7520ae0600da799509b81360fcd5098e0400ecd2d76e",
    "cells": 16,
    "cycles": null,
@@ -42,6 +20,28 @@
    "repaired_sha256": "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902",
    "rtlil_sha256": "08912da22756e668b8774aaddd737194b0151352c218ecf464f800b86c1cace7",
    "sv_sha256": "69299388b006f49d94180cdf29fad24c02995b1f727e5ce458910e60c09816ff",
+   "table_reads_floored": 128,
+   "tie_cells": 0,
+   "time_ps": 56
+  },
+  {
+   "area_e5um2": 139968,
+   "area_mge": 21328,
+   "buffers": 0,
+   "canonical_sha256": "bd0bada4308b6d9d672f46878dd9523ff95cd7f45a1a2ccdaf0dc0076b7f395e",
+   "cells": 16,
+   "cycles": null,
+   "delay_ps": 56,
+   "depth": 1,
+   "flops": null,
+   "netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
+   "of": [
+    "record:92452078efd7cd1c6a90cec5ea96ede687025f467474479b1acb6e8cb36f28ec",
+    "reference:band_lp"
+   ],
+   "repaired_sha256": "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902",
+   "rtlil_sha256": "08912da22756e668b8774aaddd737194b0151352c218ecf464f800b86c1cace7",
+   "sv_sha256": "a5784d61a37a73102d0f55bb15fa259a55a1a303aa490d4fd01aa73ce97766c4",
    "table_reads_floored": 128,
    "tie_cells": 0,
    "time_ps": 56

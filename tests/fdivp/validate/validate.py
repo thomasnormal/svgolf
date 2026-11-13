@@ -28,6 +28,7 @@ shows a mismatch (a wrong design is wrong somewhere), without it iff none does. 
 import argparse
 import json
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -89,8 +90,15 @@ def step_oracles(kmax, samples):
     OF = importlib.util.module_from_spec(sp)
     sp.loader.exec_module(OF)
     import fdivp_model as M
-    good = True
     tmp = tempfile.mkdtemp(prefix="svgolf-fdivp-oracles-")
+    try:
+        return _step_oracles(kmax, samples, tmp, OF, M)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)       # the run's own directory, never left behind
+
+
+def _step_oracles(kmax, samples, tmp, OF, M):
+    good = True
     dump = os.path.join(tmp, "oracle_dump")
     c = subprocess.run(["c++", "-O2", "-std=c++17", "-o", dump, os.path.join(HERE, "oracle_dump.cpp"),
                         "-I" + HERE], capture_output=True, text=True)

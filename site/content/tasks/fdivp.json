@@ -1,17 +1,11 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` (each proof of par's design, leaderboard/par.json) and `baselines` (each baseline with a banned operator) describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "IEEE 754 division, every format",
  "subtitle": "One divider for every exponent width and precision, rounded to nearest even.",
  "references": {
-  "fdivp": "A word-level netlist for every format: a one-bit normalizer and P + 2 restoring division steps as generate loops, a shifter with a sticky bit, and rounding by an increment.",
-  "fdivp_newton": "A Newton-Raphson divider: the first reference with its restoring steps replaced by a reciprocal, a quotient estimate and an exact correction, with a step count logarithmic in the precision; a second algorithm, not a competitive one.",
-  "fdivp_srt": "A radix-4 SRT divider adapted from the CORE-V Wally processor: the restoring steps replaced by half as many stages, each choosing a quotient digit from -2 to 2 by comparing a few top bits of a carry-save remainder with table constants; the shallowest and fastest reference."
+  "fdivp": "A word-level netlist for every format: a one-bit normalizer and P + 2 restoring division steps as generate loops, a shifter with a sticky bit, and rounding by an increment."
  },
- "baselines": {
-  "fdivp_d1": "The natural parametric form, with `$clog2` and a logarithmic normalizer and shifter, checked by simulation on many formats but never proved.",
-  "fdivp_d2": "A form of about 90 assignments, all inside what the proof tactics read, checked by simulation; the reference folds it into 34.",
-  "flat_binary16": "A flat binary16 divider under this task's header: right at (5, 11) only, so it has no proof here."
- },
+ "baselines": {},
  "new_design_reviewed": {
   "opening": "e45e2e987faf"
  }

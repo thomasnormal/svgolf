@@ -5,13 +5,13 @@ import LeanModels.Sv.CombLib
 import LeanModels.Sv.ProcNoQualified
 
 /-!
-# Reference solution for task `add` with the whole bit cell in ONE `always_comb` body (WP-G S1b, gate d)
+# A ripple-carry adder for task `add` with the whole bit cell in ONE `always_comb` body
 
-The design is `reference/add_proc_m.sv`: the ripple-carry adder of `reference/add_proc.sv` with the carry cell AND the
+The design is `add_proc_m.sv`: the ripple-carry adder of `add_proc.sv` with the carry cell AND the
 sum bit in a single body, `if (p[i]) c[i+1] = c[i]; else c[i+1] = a[i]; s[i] = p[i] ^ c[i];`: one `always_comb` that
 writes TWO windows, `c[i+1]` and `s[i]`. `Design2.lowerComb` turns it into the one assign `{c[i+1], s[i]} = {…, …}`.
 
-**The proof below is `reference/add_proc.lean`'s, character for character** (everything after this comment;
+**The proof below is `add_proc.lean`'s, character for character** (everything after this comment;
 `tests/add/same_proof.py` pins that). `sv_equations` states one equation and one knownness fact per WINDOW and names
 them by the signal they write and the ordinal of the window among the windows that write it, so this design has the
 aliases `eq_c_1`, `eq_p_1`, `eq_c_2`, `eq_s_1`, `eq_cout_1` (and the `known_` twins) with the SAME statements as the
@@ -132,7 +132,7 @@ theorem add_final {N : Nat} {st : SvState} {x y : BitVec N} {c0 : Bool}
 
 /-! ## 4. The statement -/
 
-/-- **The reference solution**: the `add` statement, for every `N ≥ 1`. -/
+/-- **The solution**: the `add` statement, for every `N ≥ 1`. -/
 
 theorem solution : Goal := by
   intro N hN

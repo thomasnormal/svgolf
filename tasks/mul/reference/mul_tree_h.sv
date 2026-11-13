@@ -1,4 +1,4 @@
-// svGolf task `mul` -- reference solution 5: a log-depth carry-save TREE multiplier whose leaves each hold TWO
+// svGolf task `mul` -- a log-depth carry-save TREE multiplier whose leaves each hold TWO
 // partial-product rows, parametric in N, written with a LOCALPARAM.
 //
 // The N partial-product rows pp[j] (the shifted copies of a, gated by the bits of b) are taken two at a time:

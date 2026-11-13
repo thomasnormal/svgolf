@@ -83,14 +83,16 @@ directory. Preview: `python3 -m http.server -d site/_out -b 127.0.0.1`.
 
 The public texts of a task are curated, never copied from the internal notes:
 `content/tasks/<t>.md` (the statement), `content/tasks/<t>.json` (the display
-title and subtitle, one sentence per reference and baseline, an optional
+title and subtitle, one sentence per proof of par's design and per baseline with a banned operator, an optional
 banlist note) and `content/attacks/<t>.json` (one sentence per rejected
 negative or attack). The `why` and `note` strings of tests/expected.json and
 task.json are internal and are not rendered; a rejected design is shown with its
-comments left out (they are development notes). The records of
-`config.json`'s `reference_player` are the proved references' (the best of them
-is par, the bar to beat): they are shown with the proved references, never
-ranked among the players.
+comments left out (they are development notes). PAR is one design per task, the simplest algorithm (decided
+2026-11-12: leaderboard/par.json, leaderboard.py `par_names`), shown with every proof of it; the records of
+`config.json`'s `reference_player` are par's, shown with it, never ranked among the players. Every other proved design of the task (a
+task.json reference that is not par's design, a baseline of tests/expected.json without a banned operator) is an
+entry: shown once a player's record holds it, never as a reference or baseline line (`Task.waiting`). A baseline
+with a banned operator is a proved comparison line, not rankable, never par and never an entry.
 
 How to submit: until `config.json` names the public repository (`repo_url`),
 a task page says that public submissions open when it is published and shows
@@ -355,8 +357,9 @@ HANDOFF_NONE_MD = ("There is no way to hand in a record yet: `leaderboard.py add
 ROUTE_FILES = ("svgolf/leaderboard/leaderboard.py", "svgolf/leaderboard/pr_check.py")
 # who made the board's records so far (the front page, under the course's helper line; README's Leaderboard says the
 # same words, and a test compares them and checks the claim against the records)
-FIRST_ENTRIES_MD = ("Every record so far was added by the maintainers: the proved references, and trial designs made with "
-                    "an AI assistant (each record names the tool). There are no outside entries yet.")
+FIRST_ENTRIES_MD = ("The board is seeded with entries the maintainers made with AI assistance (each record names the "
+                    "tools), each proved and scored like any entry: they are ordinary entries and can be beaten. There "
+                    "are no outside entries yet.")
 
 
 def record_salts(rec):
@@ -662,6 +665,11 @@ class Task:
         self.title, self.subtitle, self.banlist_note = task.get("title", name), "", None
         self.flow = None                            # the pin of the task's kind's flow (`Site.flow_for`)
         self.refs, self.baselines, self.rejects = [], [], []
+        # the task's other proved designs (decided 2026-11-12): entries, shown once a player's record holds them;
+        # never a reference or baseline line. {kind (reference | baseline), stem, sv}
+        self.waiting = []
+        self.par_stem = None                      # leaderboard/par.json's design of the task (lb.par_stem)
+        self.ref_files = {}                       # design sha256 -> the .sv of each task.json reference (licence_html)
         # records: all of the task's; the players' (ranked on `board`); the reference player's (par)
         self.records, self.player_records, self.ref_records = [], [], []
         self.board, self.full_board, self.par = None, None, None
@@ -778,17 +786,28 @@ def collect_task(site, name, task, listing, expected, records):
                                   statement=t.statement)
     for r in t.records:
         site.player_text.update([r["player"], *r.get("assisted_by", []), r.get("notes") or ""])
-    # proved references: task.json lists them, expected.json scores them; a reference is matched to
-    # the reference player's record of it by the sha256 of its design AND of its proof (one design
-    # may ship with several proofs), never by file name
+    # PAR (decided 2026-11-12): one design per task, the simplest algorithm, named in leaderboard/par.json; the page
+    # shows the task.json references that are that design file (par and every other proof of it). Each is scored by
+    # expected.json and matched to the reference player's record of it by the sha256 of its design AND of its proof,
+    # never by file name. Every other reference is an entry: shown once a player's record holds it (`t.waiting`)
+    tasks_dir = os.path.join(SVGOLF, "tasks")
+    t.par_stem = lb.par_stem(tasks_dir, task)
+    par_sha = next(iter(lb.par_names(tasks_dir, task)), None)
+    if par_sha is None and not t.preview:
+        site.warn(f"{name}: leaderboard/{lb.PAR_FILE} names no par design among the task's references "
+                  f"({t.par_stem or 'no line'}): the task has no par")
     for ref in task.get("references", []):
         stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
         sv_rel, lean_rel = f"{t.dir}/{ref['sv']}", f"{t.dir}/{ref['lean']}"
         sv_bytes, lean_bytes = read_bytes(sv_rel), read_bytes(lean_rel)
+        sha, lean_sha = sha256(sv_bytes), sha256(lean_bytes)
+        t.ref_files.setdefault(sha, sv_rel)
+        if sha != par_sha:
+            t.waiting.append({"kind": "reference", "stem": stem, "sv": sv_rel})
+            continue
         lean_text = lean_bytes.decode("utf-8")
         e = exp.get("references", {}).get(stem, {})
         s = score_at(e, t.point_key)
-        sha, lean_sha = sha256(sv_bytes), sha256(lean_bytes)
         record = next((r for r in t.ref_records if r["files"]["sv"]["sha256"] == sha
                        and r["files"]["lean"]["sha256"] == lean_sha), None)
         t.refs.append({
@@ -804,11 +823,24 @@ def collect_task(site, name, task, listing, expected, records):
     stale_curated(site, t, info.get("references"), [r["stem"] for r in t.refs], f"tasks/{name}.json (references)")
     for r in t.ref_records:
         if r["record_hash"] not in t.ref_of_record:
-            site.warn(f"{name}: record {r['record_hash'][:12]} of the reference player is not one of the task's "
-                      "proved references (design and proof): it is shown on no table")
-    # baselines: scored, never accepted
+            site.warn(f"{name}: record {r['record_hash'][:12]} of the reference player is not a proof of par's design "
+                      "(design and proof, leaderboard/par.json): only par's design is recorded under that handle; "
+                      "it is shown on no table")
+    # baselines with a banned operator: proved comparison lines, never par and never entries, not rankable (decided
+    # 2026-11-12: every design the site shows has a kernel-checked proof). Each names its proof (tests/expected.json
+    # `lean`); one without a proof file is not shown, and that is a warning, fatal under --strict (`unproved_design`).
+    # A baseline without a banned operator is an entry: shown once a player's record holds it (`t.waiting`)
     for stem, e in exp.get("baselines", {}).items():
+        if not e.get("banned"):
+            t.waiting.append({"kind": "baseline", "stem": stem,
+                              "sv": f"svgolf/tests/{name}/" + e.get("sv", f"baselines/{stem}.sv")})
+            continue
+        lean = f"svgolf/tests/{name}/{e['lean']}" if e.get("lean") else None
+        if lean is None or not os.path.isfile(repo_file(lean)):
+            unproved_design(site, name, f"the baseline {stem}", lean)
+            continue
         t.baselines.append({"stem": stem, "sv": f"svgolf/tests/{name}/" + e.get("sv", f"baselines/{stem}.sv"),
+                            "lean": lean, "proof_lines": lb.lean_code_lines(read_text(lean)),
                             "banned": bool(e.get("banned")),
                             "description": curated(site, t, info.get("baselines"), stem, f"the baseline {stem}"),
                             "score": score_at(e, t.point_key),
@@ -816,21 +848,17 @@ def collect_task(site, name, task, listing, expected, records):
     t.baselines.sort(key=lambda b: (b["score"] is None, (b["score"] or {}).get("area_mge", 0),
                                     (b["score"] or {}).get("depth", 0), b["stem"]))
     stale_curated(site, t, info.get("baselines"), [b["stem"] for b in t.baselines], f"tasks/{name}.json (baselines)")
-    # par: the proved reference with the best combined score (area x time); one without a sky130
-    # weighing comes after every one with it, then area and depth decide. The board's later keys
-    # (date, player, hash) mean nothing for a design that is not a record, so equal scores fall back
-    # to the order in which task.json lists its references (the first is the task's primary one).
-    t.measured = metrics.load_measured(name, site.ppa_identity, t.drive, warn=site.warn)
+    # par: the reference leaderboard/par.json names (decided 2026-11-12: one design per task, the simplest algorithm),
+    # when it has a score at the scoring point
+    t.measured = proved_measured(site, t, metrics.load_measured(name, site.ppa_identity, t.drive, warn=site.warn))
     t.designs = task_designs(site, t)
-    exact = {d["stem"]: d["exact"] for d in t.designs if d["kind"] == "reference"}
-    scored = [(k, r) for k, r in enumerate(t.refs) if r["row"]]
+    scored = [r for r in t.refs if r["row"]]
     if t.preview:
         pass                                     # a preview has no par: nothing of it is ranked
-    elif scored:
-        t.par = min(scored, key=lambda kr: (exact.get(kr[1]["stem"]) is None, exact.get(kr[1]["stem"]) or 0,
-                                            kr[1]["row"]["area_mge"], kr[1]["row"]["depth"], kr[0]))[1]
+    elif any(r["stem"] == t.par_stem for r in scored):
+        t.par = next(r for r in scored if r["stem"] == t.par_stem)
     elif task.get("status") == "ready":
-        site.warn(f"{name}: no proved reference has a score at {t.point_key} in tests/expected.json")
+        site.warn(f"{name}: par's design ({t.par_stem}) has no score at {t.point_key} in tests/expected.json")
     for d in t.designs:
         d["par"] = bool(t.par) and d["kind"] == "reference" and d["stem"] == t.par["stem"]
     # the other points the designs are measured at (score/measured/<task>.json): the explorer's
@@ -855,6 +883,44 @@ def collect_task(site, name, task, listing, expected, records):
     t.rejects.sort(key=lambda r: (order.get(r["stage"], len(order)), r["kind"], r["stem"]))
     t.props = load_properties(t)
     return t
+
+
+def unproved_design(site, task, what, lean):
+    """A design the data would show without a proof file: it is left out, with a warning (fatal under --strict, so a
+    publish build never ships it). Decided 2026-11-12: every design the site shows has a kernel-checked proof."""
+    site.warn(f"{task}: {what} has no proof file ({lean or 'none named'}): it is not shown (every design on the site "
+              "has a kernel-checked proof; tests/expected.json `lean`, checked by tests/run.py, step `baseline-proofs`)")
+
+
+def proved_measured(site, t, data):
+    """score/measured/<task>.json with the task's waiting entries left out (`Task.waiting`: proved designs that are
+    neither par's design nor a baseline with a banned operator; shown once a player's record holds them, never as a
+    reference or baseline line) and every design that has no proof file left out (`unproved_design`): a reference's
+    is its task.json `lean`, a baseline's its `lean` (score/points.py writes it, with `proved`; and the baseline must
+    be one the task page shows, with the proof tests/expected.json names), a record's the stored `.lean` beside its
+    design."""
+    if not data:
+        return data
+    refs = {posixpath.splitext(posixpath.basename(r["sv"]))[0]: f"{t.dir}/{r['lean']}"
+            for r in t.task.get("references", [])}
+    shown = {b["stem"] for b in t.baselines}         # the baselines with a proof file (`collect_task`)
+    waiting = {(w["kind"], w["stem"]) for w in t.waiting}
+    keep = []
+    for e in data["designs"]:
+        if (e["kind"], e["name"]) in waiting:
+            continue
+        if e["kind"] == "reference":
+            lean = refs.get(e["name"])
+        elif e["kind"] == "baseline":
+            lean = (f"svgolf/{e['lean']}" if e.get("lean") and e.get("proved") is True and e["name"] in shown
+                    else None)
+        else:
+            lean = "svgolf/" + posixpath.splitext(e["src"])[0] + ".lean"
+        if lean is None or not os.path.isfile(repo_file(lean)):
+            unproved_design(site, t.name, f"the measured design {e['id']} (score/measured/{t.name}.json)", lean)
+            continue
+        keep.append(e)
+    return dict(data, designs=keep)
 
 
 def properties_page(t):
@@ -999,16 +1065,26 @@ def players(n):
 # the designs a task page compares, and the combined score
 # ---------------------------------------------------------------------------
 
-KIND_TEXT = {"record": "submission", "reference": "proved reference", "baseline": "baseline, not proved"}
+KIND_TEXT = {"record": "submission", "reference": "par design", "baseline": "proved baseline"}
+# a baseline with an operator the task bans: proved with the task's operator banlist lifted (check.py --lift-banlist),
+# which still rejects it, so it can never be ranked (decided 2026-11-12)
+BANNED_TEXT = "proved baseline with a banned operator (not rankable)"
 
 
-def measured_at_scored(t, ref):
-    """A reference's sky130 columns at the scoring point from score/measured/<task>.json (score/points.py: the same
-    pinned flow, equal to the goldens bit for bit where both exist, score/test_points.py), in Sky130's form; or None.
-    For a reference with neither a golden nor a comparable record of its own."""
+def kind_name(kind, banned):
+    """The words for a design's kind on the charts: the legend's states (par design: par's, with every proof of it;
+    proved baseline with a banned operator (not rankable)) and a player's submission."""
+    return BANNED_TEXT if kind == "baseline" and banned else KIND_TEXT[kind]
+
+
+def measured_at_scored(t, ref, kind="reference"):
+    """A reference's (or with `kind` "baseline", a baseline's) sky130 columns at the scoring point from
+    score/measured/<task>.json (score/points.py: the same pinned flow, equal to the goldens bit for bit where both
+    exist, score/test_points.py), in Sky130's form; or None. For a reference with neither a golden nor a comparable
+    record of its own, and a baseline with no golden."""
     if not t.measured:
         return None
-    e = next((e for e in t.measured["designs"] if e["kind"] == "reference" and e["name"] == ref["stem"]
+    e = next((e for e in t.measured["designs"] if e["kind"] == kind and e["name"] == ref["stem"]
               and e["sha256"] == ref["sha256"]), None)
     r = (e or {}).get("at", {}).get(t.point_key)
     if not r or r.get("time_ps") is None:
@@ -1041,8 +1117,8 @@ def task_designs(site, t):
     task, `reference_date`; a baseline has none), href (where
     its mark links: a record's page, a reference's or baseline's row on the page), banned, layer (a
     record's Pareto layer of (sky130 area, time), an exploration column), m (its metrics, `metrics.design_metrics`: the sky130
-    columns of its golden, else of its own comparable record, else for a reference its measured numbers at the scoring
-    point, `measured_at_scored`) and
+    columns of its golden, else of its own comparable record, else for a reference or a baseline its measured numbers at
+    the scoring point, `measured_at_scored`) and
     exact (its combined score as an exact integer, or None without a sky130 weighing). `par` is set
     by `collect_task` once par is known."""
     sky = site.sky130()
@@ -1078,10 +1154,14 @@ def task_designs(site, t):
     for b in t.baselines:
         if not b["score"]:
             continue
-        m, exact = metrics.design_metrics(b["score"], sky=sky.of_file(t.name, t.point, repo_file(b["sv"])),
-                                          energy=sky.energy_of(t.name, b["stem"], t.point_key))
+        sha = sha256(read_bytes(b["sv"]))
+        gold = sky.of_file(t.name, t.point, repo_file(b["sv"]))
+        if gold is None:                    # no golden: its measured numbers at the scoring point (the same flow)
+            gold = measured_at_scored(t, {"stem": b["stem"], "sha256": sha}, kind="baseline")
+        m, exact = metrics.design_metrics(b["score"], sky=gold, energy=sky.energy_of(t.name, b["stem"], t.point_key),
+                                          proof_lines=b["proof_lines"])
         out.append({"id": f"baseline/{b['stem']}", "kind": "baseline", "stem": b["stem"], "name": b["stem"],
-                    "sha": sha256(read_bytes(b["sv"])), "date": None, "href": f"#baseline-{b['stem']}",
+                    "sha": sha, "date": None, "href": f"#baseline-{b['stem']}",
                     "banned": b["banned"], "m": m, "exact": exact, "par": False, "player": None})
     # a design file shared by two entries (a second proof of a reference) has one energy figure
     energy = {}
@@ -1118,8 +1198,8 @@ def asap7_state(site, t, expected):
     """The task as the ASAP7 view shows it (VIEW_ATTRS; `Task.view`), computed from the repository at build time like
     sky130's: the boards are leaderboard.py's (`build_board` on the ASAP7 columns, bound to each record by
     `asap7_columns`), the designs are `task_designs`' with their ASAP7 numbers (a reference's and a baseline's entry
-    found by its file's sha256 and checked against its GE columns and cycles), par is the proved reference with the
-    best ASAP7 score under the same tie rule as sky130's, and the explorer has the scored point only (ASAP7 is weighed
+    found by its file's sha256 and checked against its GE columns and cycles), par is the same design as sky130's
+    (leaderboard/par.json) when it has ASAP7 numbers, and the explorer has the scored point only (ASAP7 is weighed
     there alone: no scaling lines). A gap in the view (`asap7_gaps`) is a warning, fatal under --strict."""
     table = t.a7_table = lb.load_asap7(t.name, warn=site.warn)
     stale = None if table is None else lb.asap7_table_mismatch(table, t.task, identity=site.a7_identity, flow=t.flow)
@@ -1162,11 +1242,8 @@ def asap7_state(site, t, expected):
         m, exact = asap7_metrics(d["m"], entry(d["sha"], b["score"], f"the baseline {b['stem']}"))
         out.append(dict(d, m=m, exact=exact, par=False))
     exact = {d["stem"]: d["exact"] for d in out if d["kind"] == "reference"}
-    scored = [(k, r) for k, r in enumerate(t.refs) if r["row"] and r["stem"] in exact]
-    par = None
-    if scored and not t.preview:                 # a preview has no par in either view
-        par = min(scored, key=lambda kr: (exact[kr[1]["stem"]] is None, exact[kr[1]["stem"]] or 0,
-                                          kr[1]["row"]["area_mge"], kr[1]["row"]["depth"], kr[0]))[1]
+    # par: sky130's par design (a preview has none in either view), when this view has its ASAP7 numbers
+    par = t.par if t.par and exact.get(t.par["stem"]) is not None else None
     for d in out:
         d["par"] = bool(par) and d["kind"] == "reference" and d["stem"] == par["stem"]
     view = {"key": t.point_key, "short": point_text(t.point), "full": point_text(t.point), "x": None, "scored": True,
@@ -1217,7 +1294,8 @@ def measured_design(t, e, key):
         href = rel_link(t.page, reference_page(t, ref)) if ref else f"#ref-{e['name']}"
         proof = (ref or {}).get("proof_lines")
     elif e["kind"] == "baseline":
-        href, proof = f"#baseline-{e['name']}", None
+        href = f"#baseline-{e['name']}"
+        proof = next((b["proof_lines"] for b in t.baselines if b["stem"] == e["name"]), None)
     else:
         pages = {r["record_hash"] for r in t.player_records}
         href, proof = (f"records/{e['id']}.html" if e["id"] in pages else None), None
@@ -1295,8 +1373,8 @@ def score_key(d):
 
 
 def entries(t):
-    """The entries the record is taken over, with a score: the proved references (the first
-    entries; one per design, a second proof of the same design is not a new score) and the players'
+    """The entries the record is taken over, with a score: par's design (the first entry, so that the record is par
+    while nothing beats it; one per design, a second proof of the same design is not a new score) and the players'
     ranked records."""
     out, seen = [], set()
     for d in sorted((d for d in t.designs if d["kind"] == "reference" and d["exact"] is not None),
@@ -1314,8 +1392,8 @@ def par_design(t):
 def headline(t):
     """A task's three big numbers (the page head, the home page's task cards): {"par", "record",
     "under", "unit", "par_name", "record_name"}, scores in the display unit (combined.UNIT). PAR is
-    the best proved reference's score; RECORD the best entry's (`entries`: the proved references
-    count as the first entries, so with no submission the record is par, and an entry that only ties
+    the score of par's design (leaderboard/par.json); RECORD the best entry's (`entries`: par's design
+    counts as the first entry, so with no submission the record is par, and an entry that only ties
     par's score leaves the record at par, named so); UNDER how far the record
     is below par, as a fraction. All None when par has no sky130 weighing."""
     p = par_design(t)
@@ -1742,7 +1820,8 @@ def spec_html(site, t, here):
             if t.props else "the statement in plain words and in Lean,")
     lead = (f"<p>A proof must establish the task's trusted statement, the constant "
             f"{code(t.task['statement']['constant'])} of {spec_link} (module {code(t.task['statement']['module'])})."
-            f" Every proved reference meets it. Below, closed: {held} and {page.link('#does-not-count', 'what does not count')}, the designs the "
+            f" Par's design meets it, and so does every accepted record. Below, closed: {held} and "
+            f"{page.link('#does-not-count', 'what does not count')}, the designs the "
             "checker rejects.</p>")
     parts = [properties_html(site, t, here),
              page.details(f"{code('Spec.lean')}, verbatim ({line_count(spec_text)} lines)",
@@ -1790,17 +1869,17 @@ def legend_html(kinds, *, front=None, par=False, levels=False):
     if "record" in kinds:
         items.append(svgplot.legend_icon("record") + "submission")
     if "reference" in kinds:
-        items.append(svgplot.legend_icon("reference") + "proved reference")
+        items.append(svgplot.legend_icon("reference") + KIND_TEXT["reference"])
     if "baseline" in kinds:
-        items.append(svgplot.legend_icon("baseline") + "baseline (not proved)")
+        items.append(svgplot.legend_icon("baseline") + KIND_TEXT["baseline"])
     if "banned" in kinds:
-        items.append(svgplot.legend_icon("baseline", banned=True) + "baseline with a banned operator")
+        items.append(svgplot.legend_icon("baseline", banned=True) + BANNED_TEXT)
     if front:
         items.append(svgplot.line_icon("frontier") + esc(front))
     if par:
         items.append(svgplot.line_icon("par-line") + "par")
     if levels:
-        items.append(svgplot.line_icon("level") + "a baseline's score (not proved)")
+        items.append(svgplot.line_icon("level") + "a banned-operator baseline's score")
     return '<ul class="legend">' + "".join(f"<li>{k}</li>" for k in items) + "</ul>"
 
 
@@ -1829,10 +1908,10 @@ def metric_table(t):
 
 
 def kind_text(d):
-    text = KIND_TEXT[d["kind"]]
-    if d["par"]:
-        text += " · par"
-    if d["banned"]:
+    text = kind_name(d["kind"], d["banned"])
+    if d["kind"] == "reference" and not d["par"]:
+        text += " · another proof"           # par's design with a second proof (`add_n_byhand`)
+    if d["banned"] and d["kind"] != "baseline":
         text += " · banned operator"
     if d.get("measured"):
         text += " · " + MEASURED
@@ -1997,11 +2076,14 @@ def score_terms_html(tasks):
                                   for k, i in enumerate(items)) + "</ul>"
     return ("<section>" + anchored_heading(2, TASK_PAGE_NUMBERS, "The numbers on a task page")
             + anchored_heading(3, "par-record-under-par", "Par, record and under par")
-            + "<p>Par is the score of the task's best proved reference: a design that ships with the task, written or "
-              "adapted and proved by the maintainers. It is the bar to beat: a design beats par when it is accepted "
-              "with a score below par's. It stands on the board as a row of its own, marked par, and is no player's "
-              "entry. Record is the best accepted score so far: par while no "
-              "submission beats it, so a tie with par leaves the record at par.</p>"
+            + "<p>Par is the score of the task's par design: one design per task, the simplest algorithm for it, "
+              "written or adapted and proved by the maintainers (" + par_list_html(tasks) + "). It is the bar to "
+              "beat: a design beats par when it is accepted with a score below par's. It stands on the board as a row "
+              "of its own, marked par, and is no player's entry. Every other design is an entry: the maintainers' "
+              "other proved designs are recorded under a handle like any player's and ranked with them. A proved "
+              "design that uses an operator the task bans (proved with that banlist lifted) is drawn as a baseline "
+              "for comparison: it is never ranked, never par and never an entry. Record is the best accepted score "
+              "so far: par while no submission beats it, so a tie with par leaves the record at par.</p>"
               "<p>Under par is how far the record is "
               "below par, as a share of par's score: 30% under par means that the record's score is 30% lower than "
               "par's; it is 0% while par is the record.</p>"
@@ -2022,11 +2104,22 @@ def score_terms_html(tasks):
               "counts the cells only: no wires, no place and route.</p>"
             + anchored_heading(3, "score-chart", "Reading the score chart")
             + "<p>The chart on a task page draws every entry by the date it entered and by its score: the players' "
-              "records and the proved references, which are the first entries, dated by when they joined the task. "
-              "The step line is the best score so far, the dashed line is par, and a dotted level is a baseline's "
-              "score: scored, never proved. An entry without a date is not drawn. The same numbers are in the page's "
-              "tables: the Leaderboard (the records, each with its date, and par), Proved references (each with the "
-              "date it joined the task) and Baselines.</p></section>")
+              "records and par's design, the first entry, dated by when it joined the task. "
+              "The step line is the best score so far, the dashed line is par, and a dotted level is the score of a "
+              "baseline with a banned operator: a comparison design, never an entry. An entry without a date is not "
+              "drawn. The same numbers are in the page's "
+              "tables: the Leaderboard (the records, each with its date, and par), Par (each proof of par's design, "
+              "with the date it joined the task) and Baselines.</p></section>")
+
+
+def par_list_html(tasks):
+    """The par design of each listed task, in the rules page's words: '<code>add</code>: <code>add_n</code>, the
+    ripple-carry adder; ...' (leaderboard/par.json, leaderboard.py `load_par_table`); the tutorial and a task without a
+    par line are left out."""
+    table = lb.load_par_table(os.path.join(SVGOLF, "tasks"))
+    items = [f"{code(t.name)}: {code(table[t.name]['design'])}, {esc(table[t.name].get('algorithm', ''))}"
+             for t in tasks if t.listing == "listed" and t.name in table]
+    return "; ".join(items) if items else "none yet"
 
 
 def time_words(t, unit=""):
@@ -2078,14 +2171,16 @@ def score_definition(t, *, levels=False, undated=0, chart=True):
             f"{'(flip-flops included) ' if clocked else ''}times {time}, from the pinned flow, so "
             f"{esc(combined.UNIT)}. Lower is better. It counts the cells only: no wires, no place and route. "
             + ("It is the one ranked number: " if t.pdk == "sky130" else "In this view ")
-            + "Par (the best proved reference's score, the bar to beat), Record (the best accepted score so far, par "
+            + "Par (the score of the task's par design, the simplest algorithm: the bar to beat), Record (the best "
+            "accepted score so far, par "
             "while no submission beats it), Under par (how far the record is below par, as a share of par's score) and "
             + ("the leaderboard use it. " if t.pdk == "sky130" else
                "the leaderboard use it; the records' ranked score is sky130's, the default view. ")
             + "The Pareto "
             "front, area in GE (NAND2 gate equivalents), depth and the other numbers are for exploring, "
             f"under {page.link('#explore', 'compare the designs')}."
-            + (" The dotted levels are baselines: scored, never proved." if levels else "")
+            + (" The dotted levels are proved baselines with a banned operator: comparison designs, not rankable, "
+               "never entries." if levels else "")
             + ((f" {undated} undated entry is not drawn; the tables below list it." if undated == 1 else
                 f" {undated} undated entries are not drawn; the tables below list them.") if undated else "")
             + f" In full on the rules page: {more}.")
@@ -2104,16 +2199,16 @@ def score_desc_tail(t):
     """The score chart's description ends by naming the tables that hold its numbers: Baselines only on a task that
     has that card (a task without baselines has none, 2026-11-11)."""
     if t.baselines:
-        return ("The same entries as numbers: the Leaderboard (the records, with their dates), Proved references (with "
-                "the date each joined the task) and Baselines.")
-    return ("The same entries as numbers: the Leaderboard (the records, with their dates) and Proved references (with "
-            "the date each joined the task).")
+        return ("The same entries as numbers: the Leaderboard (the records, with their dates), Par (with the date it "
+                "joined the task) and Baselines.")
+    return ("The same entries as numbers: the Leaderboard (the records, with their dates) and Par (with the date it "
+            "joined the task).")
 
 
 def score_html(site, t, here):
     """The score card's body: the combined score over time (svgplot.score_chart, on a linear and a
     log axis; charts.js switches), its legend, then one line and a closed note (`score_note`; the entries' numbers are
-    the page's tables: the Leaderboard, Proved references with the date each joined, Baselines).
+    the page's tables: the Leaderboard, Par with the date it joined, Baselines).
     With no weighed design, what the score will start from."""
     if t.preview:
         return (f'<div class="chart-slot empty" id="over-time" data-hook="score-chart"><p>This task is a preview: '
@@ -2124,7 +2219,7 @@ def score_html(site, t, here):
     ms = [m for m in task_metrics(t) if m.key in ("adp", "area_um2", "time_ps")]
     if not es:
         p = par_design(t)
-        start = (f"Par is the proved reference {code(t.par['stem'])}, with no {PDK_NAME[t.pdk]} weighing yet (its extra GE "
+        start = (f"Par is the design {code(t.par['stem'])}, with no {PDK_NAME[t.pdk]} weighing yet (its extra GE "
                  f"columns: {esc(ge(t.par['score']['area_mge']))}, depth {t.par['score']['depth']})." if p
                  else "There is no par yet.")
         return (f'<div class="chart-slot empty" id="over-time" data-hook="score-chart"><p>No design of this task '
@@ -2133,8 +2228,12 @@ def score_html(site, t, here):
     p = par_design(t)
     par = {"value": p["m"]["adp"], "label": f"par: {p['name']}, {combined.fmt(p['m']['adp'])} {combined.UNIT}"} \
         if p and p["exact"] is not None else None
+    # `brief`: an entry's line in the tooltip of a stack (entries drawn at one point, svgplot.stacked_entries); a
+    # record's names its hash, since one player's records may tie
     pts = [{"id": d["id"], "kind": d["kind"], "date": d["date"], "value": d["m"]["adp"], "score": d["exact"],
-            "tip": tip_lines(d, ms), "href": d["href"], "attrs": mark_attrs(d)} for d in es]
+            "tip": tip_lines(d, ms), "href": d["href"], "attrs": mark_attrs(d),
+            "brief": f"{d['name']} · {kind_text(d)}" + (f" {d['id'][:12]}" if d["kind"] == "record" else "")}
+           for d in es]
     levels = [{"id": d["id"], "name": d["name"], "value": d["m"]["adp"], "banned": d["banned"],
                "tip": tip_lines(d, ms)} for d in lv]
     until = max([d["date"] for d in t.designs if d["date"]] + [as_of() or ""])
@@ -2157,7 +2256,8 @@ def score_html(site, t, here):
         named = ('<ul class="levels-list compact-only" aria-label="the baselines drawn as levels">'
                  + "".join(f'<li>{svgplot.legend_icon("baseline", banned=d["banned"])}'
                            f'{page.link(d["href"], code(d["name"]))} {esc(combined.fmt(d["m"]["adp"]))} '
-                           f'<span class="muted">{"banned operator" if d["banned"] else "not proved"}</span></li>'
+                           f'<span class="muted">{"banned operator, not rankable" if d["banned"] else "proved baseline"}'
+                           "</span></li>"
                            for d in sorted(lv, key=lambda d: (-d["exact"], d["id"])))
                  + "</ul>")
     return (f'<div class="chart-slot" id="over-time" data-hook="score-chart">'
@@ -2203,8 +2303,8 @@ def explorer_axes(t, ms):
 
 
 def pareto_ids(points):
-    """The ids of the proved points (references, records) that no other proved point beats on both
-    axes (lower is better; ties kept)."""
+    """The ids of the entries (par's design, records) that no other entry beats on both axes (lower is better; ties
+    kept). A baseline with a banned operator is drawn, never an entry, so never on the front."""
     proved = [p for p in points if p["kind"] != "baseline"]
     return sorted(p["id"] for p in proved
                   if not any(q["x"] <= p["x"] and q["y"] <= p["y"] and (q["x"] < p["x"] or q["y"] < p["y"])
@@ -2218,9 +2318,9 @@ def designs_table(t, ms, designs=None):
     ms = [m for m in ms if any(m.key in d["m"] for d in designs)]
     rows = []
     for d in sorted(designs, key=score_key):
-        tag = {"reference": page.badge("par" if d["par"] else "reference", "par" if d["par"] else "reference"),
+        tag = {"reference": page.badge("par" if d["par"] else "par, another proof", "par" if d["par"] else "reference"),
                "record": page.badge("submission", "record"),
-               "baseline": page.badge("banned operator" if d["banned"] else "not proved",
+               "baseline": page.badge("banned operator, not rankable" if d["banned"] else "proved baseline",
                                       "banned" if d["banned"] else "baseline")}[d["kind"]]
         name = code(d["name"]) if d["kind"] != "record" else esc(d["name"])
         rows.append(page.Row([(page.link(d["href"], name) if d["href"] else name) + " " + tag]
@@ -2271,7 +2371,7 @@ def point_note(t):
 
 def explorer_html(site, t, here):
     """The explorer: two metrics of every design against each other, the Pareto front of the
-    proved designs drawn as a step line. The server draws the first pair (`explorer_axes`) at the
+    entries (par's design, records) drawn as a step line. The server draws the first pair (`explorer_axes`) at the
     scored point, which is what a reader without JavaScript sees; charts.js shows the point
     selector, the axis menus and the log switches and redraws the chart from the page's data
     (`page_data`): at the scored point the ranked numbers, at any other the measured ones
@@ -2320,9 +2420,10 @@ def explorer_html(site, t, here):
             f'{axis_control("x", xk, xs.log)}{axis_control("y", yk, ys.log)}</div>'
             + point_note(t)
             + f'<figure class="chart-figure"><div class="chart-box" data-explorer>{svg}</div>'
-            + legend_html(kinds, front="the Pareto front of the proved designs")
-            + "<figcaption>Lower is better on both axes. The step line joins the proved designs that no other "
-              "proved design beats on both; baselines are shown for scale. "
+            + legend_html(kinds, front="the Pareto front of the entries")
+            + "<figcaption>Lower is better on both axes. The step line joins the entries (par's design and the "
+              "players' records) that no other entry beats on both; a baseline with a banned operator is shown for "
+              "scale and never ranked. "
               # the one sign that designs are missing from the plot: hidden while every design has both numbers
               # (charts.js sets `hidden` again when it rewrites the count for other axes)
               f'<span data-explorer-note{"" if missing else " hidden"}>{len(pts)} of {len(t.designs)} designs have '
@@ -2344,7 +2445,7 @@ def scale_ticks(t):
 
 
 def par_line(t):
-    """The scaling line of par (the scored point's best proved reference), or None."""
+    """The scaling line of par (par's design, leaderboard/par.json), or None."""
     if not t.par:
         return None
     return next((ln for ln in t.lines if f"reference/{t.par['stem']}" in ln["ids"]), None)
@@ -2371,7 +2472,7 @@ def line_tip(t, ln):
     names = ln["names"]
     what = (f"{len(names)} sizes of one generator: {', '.join(names)}" if ln["family"] else
             f"the same numbers at every point: {', '.join(names)}" if len(names) > 1 else None)
-    return [ln["name"], KIND_TEXT[ln["kind"]] + (" · banned operator" if ln["banned"] else "") + " · " + MEASURED] \
+    return [ln["name"], kind_name(ln["kind"], ln["banned"]) + " · " + MEASURED] \
         + ([what] if what else [])
 
 
@@ -2473,12 +2574,23 @@ def scaling_html(t):
               f"design at each point, through the same pinned flow. {MEASURED.capitalize()}: "
               + ("this task is a preview, so nothing of it is ranked yet." if t.preview else
                  f"the board ranks at {esc(scored['full'])} only.")
-              + f" A dashed line is a baseline (not proved).{names_note}{single}"
+              + dashed_note(drawn)
+              + f"{names_note}{single}"
               f"{scaling_dropped(t)}"
               "</figcaption></figure></div>"
             + page.details(f"every design at every point: {esc(m.axis())}",
                            page.table(heads(*heads_), rows, numeric=tuple(range(1, len(heads_))), cls="designs")))
     return page.details(f"How the designs scale ({MEASURED})", body, cls="scaling-fold", id_="scaling")
+
+
+def dashed_note(drawn):
+    """The scaling caption's sentence on the baselines' lines (decided 2026-11-12: every baseline shown is proved and
+    has a banned operator), "" when none is drawn."""
+    base = [ln for ln in drawn if ln["kind"] == "baseline"]
+    if not base:
+        return ""
+    return (" A dashed line with the crossed mark is a proved baseline that uses an operator the task bans, proved "
+            "with that banlist lifted: a comparison design, not rankable, never an entry.")
 
 
 def scaling_dropped(t):
@@ -2529,15 +2641,15 @@ def leaderboard_html(site, t, here):
         s = t.par["score"]
         name = page.link(f"#ref-{t.par['stem']}", code(t.par["stem"]))
         rows.insert(len(rows) if par_at is None else par_at,
-                    page.BoardRow("", name, f"{page.badge('par', 'par')} proved reference",
+                    page.BoardRow("", name, f"{page.badge('par', 'par')} simplest algorithm",
                                   combined.fmt(p["m"].get("adp")) if p else "–",
                                   esc((breakdown(p, t) if p else "") or f"{lb.fmt_ge(s['area_mge'])} GE, depth {s['depth']}"),
                                   p["exact"] / worst if p and worst and p["exact"] is not None else None, "par"))
     if t.par and p and p["exact"] is not None:
-        par_text = (f"Par, the bar to beat, is the proved reference {code(t.par['stem'])}: "
+        par_text = (f"Par, the bar to beat, is the design {code(t.par['stem'])}, the simplest algorithm: "
                     f"{esc(combined.fmt(p['m']['adp']))} {esc(combined.UNIT)} ({esc(breakdown(p, t))}).")
     elif t.par:
-        par_text = (f"Par is the proved reference {code(t.par['stem'])}; no design of this task has {PDK_A[t.pdk]} "
+        par_text = (f"Par is the design {code(t.par['stem'])}; no design of this task has {PDK_A[t.pdk]} "
                     "weighing yet, so there is no score to beat yet.")
     else:
         par_text = "There is no par yet."
@@ -2622,7 +2734,7 @@ def sky_cells(t, d):
 
 def references_html(t, here):
     if not t.refs:
-        return "<p>No proved reference yet.</p>"
+        return "<p>No par design yet.</p>"
     rows = []
     for ref in t.refs:
         s = ref["score"]
@@ -2661,9 +2773,9 @@ def references_html(t, here):
             area, time, ge_depth_cell(s), vsp,
             str(ref["proof_lines"]), file_links(here, base, (".sv", ".lean"))],
             cls=cls, id_=f"ref-{ref['stem']}"))
-    return ("<p>Proved and accepted designs that ship with the task, written or adapted by the maintainers. They are "
-            "the board's first entries; <strong>par</strong>, the bar to beat, is the one with the best score. A "
-            "reference that was also recorded links its record, matched by the sha256 of both files.</p>"
+    return ("<p>The task's par design: the simplest algorithm, proved and accepted, written or adapted by the "
+            "maintainers; its score is <strong>par</strong>, the bar to beat. A second row is the same design with "
+            "another proof. A row that was also recorded links its record, matched by the sha256 of both files.</p>"
             + page.table(heads("design", "joined", f"score ({combined.UNIT})", "area (µm²)", "time (ps)",
                                "GE · depth", "vs par", "proof lines", "files"), rows, numeric=(2, 3, 4, 5, 6, 7),
                          cls="designs-list", stack=True))
@@ -2678,7 +2790,8 @@ def design_cell(name_html, what_html, meta_html=""):
 
 def baselines_html(t, here):
     """The Baselines card's body: its lead and, folded, the table (2026-11-11); "" for a task without baselines, which
-    then has no Baselines card."""
+    then has no Baselines card. Every baseline shown has a banned operator (decided 2026-11-12: one without is an
+    entry)."""
     if not t.baselines:
         return ""
     rows = []
@@ -2697,16 +2810,18 @@ def baselines_html(t, here):
         with t.view("asap7"):
             a7 = cells()
         score, area, time, vsp = (dual(a, b_, inline=True) for a, b_ in zip(sky, a7))
-        rows.append(page.Row([design_cell(code(b["stem"]) + " " + flag, md_inline(b["description"])), score,
+        meta = f'<span class="cell-meta">proof: {b["proof_lines"]} lines</span>'
+        rows.append(page.Row([design_cell(code(b["stem"]) + " " + flag, md_inline(b["description"]), meta), score,
                               area, time, where, vsp,
-                              file_links(here, f"tasks/{t.name}/baselines/{b['stem']}", (".sv",))],
+                              file_links(here, f"tasks/{t.name}/baselines/{b['stem']}", (".sv", ".lean"))],
                              id_=f"baseline-{b['stem']}"))
-    return ("<p><strong>Not entries.</strong> Designs scored by the pinned flow (with the banlist lifted) but "
-            "never accepted: unproved, simulation-only, or using an operator the task bans. They show how much "
-            "room there is.</p>"
+    return ("<p><strong>Not rankable.</strong> Proved designs that use an operator the task bans: each comes with a "
+            "kernel-checked proof of the task's statement (its <code>.lean</code> beside it), checked with that "
+            "banlist lifted (<code>check.py --lift-banlist</code>), which still rejects it, and is scored by the "
+            "pinned flow. They show what the forbidden shortcut would score: none is an entry, ranked or par.</p>"
             + page.details("every baseline with its numbers",
                            page.table(heads("design", f"score ({combined.UNIT})", "area (µm²)", "time (ps)",
-                                            "GE · depth", "vs par", "file"), rows, numeric=(1, 2, 3, 4, 5),
+                                            "GE · depth", "vs par", "files"), rows, numeric=(1, 2, 3, 4, 5),
                                       cls="designs-list", stack=True)))
 
 
@@ -3805,9 +3920,9 @@ def task_page(site, t):
                 f'({", ".join(code(i) for i in lic)}): a design derived from it keeps the copyright and licence '
                 "notices of its header.</p>" if lic else "")
     # the cards that exist (2026-11-11: a task without baselines has no Baselines card)
-    files_note = (f'Every reference and baseline is under {page.link("#references", "Proved references")} and '
+    files_note = (f'Par\'s design with its proofs is under {page.link("#references", "Par")}, each baseline under '
                   f'{page.link("#baselines", "Baselines")}.' if t.baselines else
-                  f'Every reference is under {page.link("#references", "Proved references")}.')
+                  f'Par\'s design with its proofs is under {page.link("#references", "Par")}.')
     downloads = page.card('<div class="btn-row">' + "".join(files) + "</div>" + lic_html
                           + f'<p class="small muted">{files_note}</p>',
                           id_="files", label_html="Files")
@@ -3818,7 +3933,7 @@ def task_page(site, t):
     # a card with nothing in it is not shown (a task without baselines has no Baselines card, 2026-11-11)
     wide = [page.card(content, tag="section", id_=i, title_html=esc(title), title_id=None)
             for i, title, content in (
-                ("references", "Proved references", references_html(t, here)),
+                ("references", "Par", references_html(t, here)),
                 ("baselines", "Baselines", baselines_html(t, here))) if content]
     # the card's content is How to submit's last part (decided 2026-11-11): no card of its own after the columns.
     # How to submit spans the page's width under the two columns (decided 2026-11-12): in the left column its last
@@ -3841,6 +3956,7 @@ def task_page(site, t):
         site.copy(f"tasks/{t.name}/reference/{ref['stem']}.lean", ref["lean"])
     for b in t.baselines:
         site.copy(f"tasks/{t.name}/baselines/{b['stem']}.sv", b["sv"])
+        site.copy(f"tasks/{t.name}/baselines/{b['stem']}.lean", b["lean"])
 
 
 def properties_source_page(site, t):
@@ -3940,7 +4056,7 @@ def gates_html(score, ge_table):
 
 
 # ---------------------------------------------------------------------------
-# detail pages (a record's, or a proved reference's without a record): the overview (Area,
+# detail pages (a record's, or a proof of par's design without a record): the overview (Area,
 # Performance and Score cards, standing.py); the sources; two columns, the netlist card (the schematic,
 # the critical-path data of site/schematics/ (gen_schematics.py) and the cells, as tabs) beside the
 # record's or the reference's facts; the area-time plot, reproduce (the order decided 2026-11-09)
@@ -4186,7 +4302,7 @@ def board_rows(s, st, designs):
     t, d = s.t, s.d
     if d["kind"] == "reference":
         where = ("<strong>par</strong>, the bar to beat: never ranked" if d["par"]
-                 else "a proved reference, shown with par: never ranked")
+                 else "par's design with another proof, shown with par: never ranked")
     else:
         row = next((r for r in t.ranked() if r["record_hash"] == d["id"]), None)
         pos = st["position"]
@@ -4300,8 +4416,9 @@ def dashboard_html(s, st, par, designs):
     nref = sum(1 for x in designs if x["kind"] == "reference")
     nrec = sum(1 for x in designs if x["kind"] == "record")
     nbase = len(designs) - nref - nrec
-    kinds = and_list([f"{n} {w}{'' if n == 1 else 's'}" for n, w in ((nref, "reference"), (nrec, "submission"),
-                                                                     (nbase, "baseline")) if n])
+    kinds = and_list([f"{n} {w}{'' if n == 1 else 's'}" for n, w in ((nref, "proof of par's design"
+                                                                      if nref == 1 else "proofs of par's design"),
+                                                                     (nrec, "submission"), (nbase, "baseline")) if n])
     among = (f"“On this page” and “Pareto” compare with the {len(designs)} designs of the area-time plot "
              f"({esc(kinds)}): not a ranking." if len(designs) > 1 else
              f"This design is the only one with {PDK_NAME[pdk]} numbers on this page, so the cards have no “on this page” or "
@@ -4309,7 +4426,7 @@ def dashboard_html(s, st, par, designs):
     counts = ("each player counts once, at their best, and ties are exact at the recorded unit; " if field else "")
     field_note = (f"The field is the ranked records of {task_ref_html(t)}'s other players at this "
                   f"revision ({n_p} player{'' if n_p == 1 else 's'}, {n_r} record{'' if n_r == 1 else 's'}), never "
-                  f"the references, the baselines or a rejected design; {counts}advisory, recomputed at every build, "
+                  f"par, a baseline or a rejected design; {counts}advisory, recomputed at every build, "
                   "never stored in a record and never used by the ranking.")
     board_words = ("On the board, another player is beaten when this design dominates every record of theirs, level "
                    "when none of theirs is better and one is identical (the rest dominated), ahead when a record of "
@@ -4402,8 +4519,9 @@ def area_time_html(s, par):
     return (f'<div class="chart-slot" data-hook="area-time">{tools}'
             f'<figure class="chart-figure"><div class="chart-box" data-area-time>{variants}</div>{legend}{extra}'
             f"<figcaption>{lib} area (x) against {'the ranked' if pdk == 'sky130' else 'the ' + lib} time (y); lower "
-            "left is better on both. A design under par's score curve has a better score than par. Baselines are "
-            f"drawn for scale: scored, never proved.{fitted}</figcaption></figure></div>"
+            "left is better on both. A design under par's score curve has a better score than par. A baseline with a "
+            "banned operator is drawn for scale: a comparison design, never an entry."
+            f"{fitted}</figcaption></figure></div>"
             + page.details("the designs as numbers, by score", table))
 
 
@@ -4669,15 +4787,18 @@ def licence_html(s, sv_text):
     if not ids:
         return ""
     texts = []
-    if s.ref is not None:
-        lic = posixpath.join(posixpath.dirname(s.ref["sv"]), "LICENSES")
+    # the texts beside the reference file of this design: a proof of par's design, or a record (an entry) whose design
+    # file is one of the task's references (decided 2026-11-12: those are entries, recorded under a player's handle)
+    src = s.ref["sv"] if s.ref is not None else s.t.ref_files.get(s.sv_sha)
+    if src is not None:
+        lic = posixpath.join(posixpath.dirname(src), "LICENSES")
         if os.path.isdir(repo_file(lic)):
             texts = sorted(f for f in os.listdir(repo_file(lic)) if f.endswith(".txt"))
             texts = [page.link(rel_link(s.here, f"tasks/{s.t.name}/reference/LICENSES/{f}"), code(f)) for f in texts]
     # a reference's file names its changes to upstream (its header); a player's design need not, so its card says
     # only what licence_ids found: the notice, in the file
     kept = ("the copyright, provenance and licence notices and the list of changes are kept in the design file"
-            if s.ref is not None else "its licence notice is in the design file")
+            if src is not None else "its licence notice is in the design file")
     return (f'<p class="licence">Adapted from licensed code ({", ".join(code(i) for i in ids)}): {kept}, shown in '
             "full below" + (f"; the licence texts: {and_list(texts)}" if texts else "") + ".</p>")
 
@@ -4891,20 +5012,20 @@ def record_page(site, t, rec, ge_tables):
     s = Subject(t, here, rec=rec, ref=ref if is_ref else None)
     lead = None
     if is_ref:
-        what = (f"the proved reference {code(ref['stem'])}: its design and its proof "
+        what = (f"par's design, {code(ref['stem'])}: its design and its proof "
                 f"{code(posixpath.basename(ref['lean']))} ({ref['proof_lines']} code lines)"
                 + (f". {md_inline(ref['description'])}" if ref["description"] else ".")) if ref else \
-            "a design of the maintainers that is not one of the task's proved references."
+            "a design of the maintainers that is not a proof of par's design."
         # par in a view only where that view's par is this reference (the two libraries may choose different ones),
         # as on a reference's own page
-        lead = (f"<p>Recorded by the maintainers from {what} The record shows that reference passing the "
+        lead = (f"<p>Recorded by the maintainers from {what} The record shows that design passing the "
                 "whole checker. It is "
                 + both(t, lambda: "par, the bar to beat" if ref is not None and t.par is ref else "shown with par",
                        inline=True)
                 + ", not a player's entry, and it is not ranked among "
-                f"the submissions ({page.link(rel_link(here, t.page + '#references'), 'proved references')}).</p>")
-    status = (both(t, lambda: page.badge("reference: par, not an entry" if ref is not None and t.par is ref
-                                         else "reference: not an entry", "par"), inline=True) if is_ref
+                f"the submissions ({page.link(rel_link(here, t.page + '#references'), 'par')}).</p>")
+    status = (both(t, lambda: page.badge("par, not an entry" if ref is not None and t.par is ref
+                                         else "par's design: not an entry", "par"), inline=True) if is_ref
               else both(t, lambda: status_badge_of(t, rec) or "", inline=True))
     # who made it, on which task, and when (decided 2026-11-11): no score in the title, since the score depends on the
     # course and the title cannot switch with it; the record's hash is a chip, and keeps each <title> unique
@@ -5112,9 +5233,13 @@ def postsynth_clocked_html(t, ps):
 
 def licence_texts(site, t):
     """The licence texts that ship beside a task's licensed references (reference/LICENSES/*.txt), offered byte for
-    byte next to the references' downloads (a design page links them from its notices)."""
-    dirs = sorted({posixpath.join(posixpath.dirname(r["sv"]), "LICENSES") for r in t.refs
-                   if "SPDX-License-Identifier" in read_text(r["sv"])})
+    byte next to the references' downloads (a design page links them from its notices): for the proofs of par's
+    design the page shows, and for every record whose design file is a reference's (an entry recorded under a
+    player's handle, decided 2026-11-12)."""
+    srcs = [r["sv"] for r in t.refs] + [t.ref_files[r["files"]["sv"]["sha256"]] for r in t.records
+                                        if r["files"]["sv"]["sha256"] in t.ref_files]
+    dirs = sorted({posixpath.join(posixpath.dirname(src), "LICENSES") for src in srcs
+                   if "SPDX-License-Identifier" in read_text(src)})
     for lic in dirs:
         if os.path.isdir(repo_file(lic)):
             for f in sorted(os.listdir(repo_file(lic))):
@@ -5123,20 +5248,21 @@ def licence_texts(site, t):
 
 
 def reference_detail_page(site, t, ref, ge_tables):
-    """The detail page of a proved reference that has no record (tasks/<t>/reference/<stem>.html, beside its
+    """The detail page of a proof of par's design that has no record (tasks/<t>/reference/<stem>.html, beside its
     downloads): the same sections as a record page, from the reference's files, its scores and its site/schematics
     data."""
     here = reference_page(t, ref)
     s = Subject(t, here, ref=ref)
-    status = both(t, lambda: page.badge("par: the bar to beat" if t.par is ref else "proved reference", "par"),
+    status = both(t, lambda: page.badge("par: the bar to beat" if t.par is ref else "par, another proof", "par"),
                   inline=True)
     desc = f" {md_inline(ref['description'])}" if ref["description"] else ""
-    lead = (f"<p>A proved reference of {task_ref_html(t)}, written or adapted by the maintainers and shipped with the "
-            "task: its "
+    lead = (f"<p>The par design of {task_ref_html(t)}, the simplest algorithm, written or adapted by the maintainers "
+            "and shipped with the task: its "
             f"design and its proof {code(posixpath.basename(ref['lean']))} ({ref['proof_lines']} code lines).{desc} "
-            "It is " + both(t, lambda: 'par, the bar to beat' if t.par is ref else 'shown with par', inline=True)
+            "It is " + both(t, lambda: 'par, the bar to beat' if t.par is ref else 'par\'s design with another proof',
+                            inline=True)
             + ", never a player's entry "
-            f"({page.link(rel_link(here, t.page + '#references'), 'proved references')}).</p>")
+            f"({page.link(rel_link(here, t.page + '#references'), 'par')}).</p>")
     head = detail_head(s, f"Reference {code(ref['stem'])}", status, lead, "reference")
     overview, plot, netlist, s7 = detail_sections(site, s, ge_tables)
     sv_text, lean_text = read_text(ref["sv"]), read_text(ref["lean"])
@@ -5157,7 +5283,7 @@ def reference_detail_page(site, t, ref, ge_tables):
                           title_html="Reproduce")
     body = head + detail_layout(overview, sources, [netlist], [facts], [plot, reproduce])
     site.page(here, f"{task_word(t)} reference {ref['stem']}", body, scripts=("charts.js",), scores=True,
-              description=f"svGolf {task_word(t)}: the proved reference {ref['stem']}")
+              description=f"svGolf {task_word(t)}: {ref['stem']}, a proof of par's design")
 
 
 def trusted_pages(site, tasks):
@@ -5295,7 +5421,7 @@ def home_page(site, tasks):
     def note(lib, more=""):
         """The course note (2026-11-11: a closed note above the cards, the task page's words)."""
         dash = dashed("sky130" if lib == "sky130" else "asap7")
-        return ("<strong>Par</strong> is the best proved reference that ships with the task: a design the "
+        return ("<strong>Par</strong> is the score of the task's par design, the simplest algorithm: a design the "
                 "maintainers wrote or adapted and proved, the bar to beat, never a player's entry. "
                 "<strong>Record</strong> is the best accepted score so far: par while no submission beats it. "
                 + ("Both are the one ranked number, area × time" if lib == "sky130" else
@@ -5684,7 +5810,7 @@ def task_data(t, reference_player):
             "references": [{k: r[k] for k in ("stem", "sv", "lean", "sha256", "score", "same_design_as",
                                               "proof_lines", "tactics", "record_hash", "description")}
                            | {"par": t.par is r} for r in t.refs],
-            "baselines": [{k: b[k] for k in ("stem", "sv", "banned", "score", "description")} for b in t.baselines],
+            "baselines": [{k: b[k] for k in ("stem", "sv", "lean", "banned", "score", "description")} for b in t.baselines],
             "rejected": [{k: r[k] for k in ("kind", "stem", "stage", "sv", "description")} for r in t.rejects],
             "spec": {"file": t.spec, "closure": [{"module": m, "file": p} for m, p in t.closure]},
             "properties": None if not t.props else {
@@ -5739,7 +5865,8 @@ def llms_txt(site, tasks):
              "area in um^2 (flip-flops included) times the critical-path delay (on a clocked task, the "
              "register-to-register clock period, times the latency in cycles where the task has one), in um2*ns, "
              "lower is better. Par, Record and Under par use "
-             "it; to beat par is to be accepted with a smaller area x time than the task's best proved reference. "
+             "it; to beat par is to be accepted with a smaller area x time than the task's par design, the simplest "
+             "algorithm, proved by the maintainers. "
              "The Pareto front of area and time, area in NAND2 gate equivalents (GE), depth in gates and the other "
              "flows are exploration columns. [Reproduce a score](reproduce.html) says how to get the same numbers. "
              "sky130 is the default; the site can also show every golf score on ASAP7, a predictive 7 nm library, "
@@ -5751,8 +5878,9 @@ def llms_txt(site, tasks):
              f"Par, record and under par, the clock period and the score chart: rules.html#{TASK_PAGE_NUMBERS}.",
              "",
              f"All paths below are relative to this file. There is no submission server. {how} Par, the bar to "
-             f"beat, is a task's best proved reference; the records of {site.config['reference_player']} are the "
-             "references, not entries. [llms-full.txt](llms-full.txt) is the whole proving guide in plain text.", "",
+             f"beat, is a task's par design, the simplest algorithm (one design per task); the records of "
+             f"{site.config['reference_player']} are par's, not entries, and every other design is an entry. "
+             "[llms-full.txt](llms-full.txt) is the whole proving guide in plain text.", "",
              "## Step 0, once per machine", "",
              f"Install elan (it installs the Lean toolchain that lean-toolchain pins, {v['lean']}), Yosys "
              f"{v['yosys']} with yosys-abc, Verilator 5, a C++ compiler and make (the post-synthesis check compiles "

@@ -5,7 +5,7 @@ clock period, times the latency in cycles where the task has one). Lower is bett
 ## How it works, on the adder
 
 1. **Write** `solution.sv`, with the task's module header. The adder bans the arithmetic operators, so
-   the sum is built from gates. The adder's ripple-carry reference,
+   the sum is built from gates. The adder's par design, the ripple-carry adder
    [`tasks/add/reference/add_n.sv`](site:tasks/add/reference/add_n.sv):
 
    ```systemverilog
@@ -29,7 +29,7 @@ clock period, times the latency in cycles where the task has one). Lower is bett
 3. **Check** both files with one command. It accepts the pair or names the stage that refused it. Its
    last line is the score: the pinned Yosys and ABC synthesize your circuit, each gate becomes a sky130
    cell, and the area in µm² times the critical-path delay in ns is the one ranked number. Par is the
-   best proved reference; beat it.
+   score of the task's simplest proved design (here the ripple-carry adder); beat it.
 
    ```
    $ python3.12 check.py tasks/add solution.sv Solution.lean

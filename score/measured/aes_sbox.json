@@ -113,48 +113,11 @@
    "family": "sbox_bp_d16",
    "id": "baseline/sbox_bp_d16",
    "kind": "baseline",
+   "lean": "tests/aes_sbox/baselines/sbox_bp_d16.lean",
    "name": "sbox_bp_d16",
-   "sha256": "31fc15823d39d029fc32886007e1bc22647d21d8ca792182cd2fe6b8dbab7aa5",
+   "proved": true,
+   "sha256": "dfe26b83d68a2d83eabe6a42568dbf3ffa3125730ae19cd49cfb4b8d66bcbc14",
    "src": "tests/aes_sbox/baselines/sbox_bp_d16.sv"
-  },
-  {
-   "at": {
-    "default": {
-     "area_e4um2": 34458048,
-     "area_ge": 786.894,
-     "area_mge": 786894,
-     "area_um2": 3445.8048,
-     "buffers": 0,
-     "cells": 612,
-     "delay_ps": 2288,
-     "depth": 11,
-     "gates": {
-      "AND": 129,
-      "ANDNOT": 21,
-      "MUX": 63,
-      "NAND": 264,
-      "NOR": 18,
-      "NOT": 3,
-      "OR": 70,
-      "ORNOT": 38,
-      "XNOR": 5,
-      "XOR": 1
-     },
-     "netlist_sha256": "43edd658bdb80404c7a8fb8fe61ba9d84ea9d837972450c0120494b33d2bc016",
-     "num_gates": 612,
-     "repaired_sha256": "b4d04a31d73c656be20f7a61fdc88dc2d1dd3522aa24f815cff41c1b81168dc0",
-     "rtlil_sha256": "6c7b6677d1798bc8099cfccaed4d4c7e65d78a153d9180a6cfc4f64bc2754b4a",
-     "time_ps": 2288,
-     "unit_depth": 11
-    }
-   },
-   "banned": false,
-   "family": "sbox_table",
-   "id": "baseline/sbox_table",
-   "kind": "baseline",
-   "name": "sbox_table",
-   "sha256": "e46eef20e5f293f3ba4e407bdebe2efc21f2ebc3d32241e171a26cf3b7c865bb",
-   "src": "tests/aes_sbox/baselines/sbox_table.sv"
   }
  ],
  "flow": {
@@ -179,7 +142,7 @@
    "x": null
   }
  ],
- "records": true,
+ "records": false,
  "scale": {
   "label": null,
   "param": null

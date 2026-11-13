@@ -4,14 +4,14 @@ import LeanModels.Sv.CombEqTactic
 import LeanModels.Sv.CombLib
 
 /-!
-# Reference solution 4 for task `mul`: a Wallace-tree multiplier (a tape of rows, 3:2 carry-save adders), proved with the `sv_comb` tactics
+# A Wallace-tree multiplier for task `mul` (a tape of rows, 3:2 carry-save adders), proved with the `sv_comb` tactics
 
 This is a submission file like any player's `Solution.lean`. The checker generates the module
 `Submission.Design` (`Submission.design`, `Submission.Goal`); this file proves
 
     theorem Submission.solution : Submission.Goal
 
-for EVERY `N ≥ 1`. The design is `reference/mul_wallace.sv`: ONE 2-D packed array `T`, the TAPE, of
+for EVERY `N ≥ 1`. The design is `mul_wallace.sv`: ONE 2-D packed array `T`, the TAPE, of
 `3N-1` rows of `2N` bits. Rows `0 .. N-1` are the partial products (row `j` is `a · b[j] · 2^j`),
 row `N` is an all-zero dummy row, so `N+1` rows are live at the start. Carry-save adder number `g`
 (`g = 0 .. N-2`) reads the three oldest live rows `3g`, `3g+1`, `3g+2` and APPENDS the sum row

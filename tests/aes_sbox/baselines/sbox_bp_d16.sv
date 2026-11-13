@@ -1,4 +1,4 @@
-// Baseline (unproved, simulation only): the AES S-box as the DEPTH-16 straight-line program of Boyar and
+// svGolf task `aes_sbox` (proved: sbox_bp_d16.lean beside it): the AES S-box as the DEPTH-16 straight-line program of Boyar and
 // Peralta, translated gate for gate.
 //
 // Source: the netlist file AESDEPTH16SIZE125 of https://www.cs.yale.edu/homes/peralta/CircuitStuff/ (fetched

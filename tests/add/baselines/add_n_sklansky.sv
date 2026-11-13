@@ -1,5 +1,5 @@
-// svGolf task `add`, second reference (validated by simulation; no proof
-// yet): a Sklansky parallel-prefix adder, built from gates in generate
+// svGolf task `add`, a design proved for every N (add_n_sklansky.lean
+// beside it): a Sklansky parallel-prefix adder, built from gates in generate
 // loops. Positions 0..N: position 0 carries cin (generate = cin,
 // propagate = 0), position k+1 is bit k (generate = a & b, propagate =
 // a ^ b). Level l combines every position k whose bit l is set with the top

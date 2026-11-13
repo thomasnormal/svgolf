@@ -4,8 +4,8 @@
   "items": [
     {
       "status": "done",
-      "title": "Six combinational tasks, each with a proved reference",
-      "text": "`_example`, `add`, `mul`, `clmul`, `aes_sbox` and `fdivp`. The parametric ones are proved for every width; `fdivp` is IEEE 754 division proved for every binary format, with three proved references (restoring, Newton-Raphson and radix-4 SRT)."
+      "title": "Six combinational tasks, each with a proved par design",
+      "text": "`_example`, `add`, `mul`, `clmul`, `aes_sbox` and `fdivp`. The parametric ones are proved for every width; `fdivp` is IEEE 754 division proved for every binary format, with three proved designs (restoring division, which is par; Newton-Raphson and radix-4 SRT)."
     },
     {
       "status": "done",
@@ -40,7 +40,7 @@
     {
       "status": "in-progress",
       "title": "This website",
-      "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Every record and every proved reference of a ranked task has a page: the area, time and score cards, the design among the task's designs, the schematic of a small display instance, the critical path, the cells, the sources and the proof. Next: the placed and routed layout on those pages."
+      "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Every record and the par design of a ranked task have a page: the area, time and score cards, the design among the task's designs, the schematic of a small display instance, the critical path, the cells, the sources and the proof. Next: the placed and routed layout on those pages."
     },
     {
       "status": "handoff",

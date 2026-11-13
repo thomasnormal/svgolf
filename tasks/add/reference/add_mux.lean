@@ -4,7 +4,7 @@ import LeanModels.Sv.CombEqTactic
 import LeanModels.Sv.CombLib
 
 /-!
-# Reference solution for task `add`, proved with the `sv_comb` tactics
+# A ripple-carry adder for task `add` written with `~` and `?:`, proved with the `sv_comb` tactics
 
 This is a submission file like any player's `Solution.lean`. The checker generates the module
 `Submission.Design` (`Submission.design`, `Submission.Goal`); this file proves
@@ -12,10 +12,10 @@ This is a submission file like any player's `Solution.lean`. The checker generat
     theorem Submission.solution : Submission.Goal
 
 for EVERY `N ≥ 1` (`N` stays a variable from the envelope to the conclusion; nothing is unrolled).
-The design is `reference/add_mux.sv`, a ripple-carry adder in one `generate for` written with `~` and the
-conditional expression `?:` (WP-G S2): `e[i] = ~(a[i] ^ b[i])`, `c[i+1] = e[i] ? a[i] : c[i]`,
-`s[i] = ~(e[i] ^ c[i])`. The same statement is proved for the gate-level adder in `reference/add_n.lean`
-and with no tactic in `reference/add_n_byhand.lean`.
+The design is `add_mux.sv`, a ripple-carry adder in one `generate for` written with `~` and the
+conditional expression `?:`: `e[i] = ~(a[i] ^ b[i])`, `c[i+1] = e[i] ? a[i] : c[i]`,
+`s[i] = ~(e[i] ^ c[i])`. The same statement is proved for par's design, the gate-level adder, in `add_n.lean`
+and with no tactic in `add_n_byhand.lean` (both in `tasks/add/reference/`).
 
 ## Route
 
@@ -128,7 +128,7 @@ theorem add_final {N : Nat} {st : SvState} {x y : BitVec N} {c0 : Bool}
 
 /-! ## 4. The statement -/
 
-/-- **The reference solution**: the `add` statement, for every `N ≥ 1`. -/
+/-- **The solution**: the `add` statement, for every `N ≥ 1`. -/
 
 theorem solution : Goal := by
   intro N hN

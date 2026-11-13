@@ -1,4 +1,4 @@
-// svGolf task `add`, reference solution (WP-G): a ripple-carry adder whose CARRY CELL is an
+// svGolf task `add`: a ripple-carry adder whose CARRY CELL is an
 // `always_comb` body inside the generate loop. p[i] is the propagate bit; when p[i] the carry
 // out is the carry in, otherwise the operands agree and the carry is their common value a[i].
 // c[i] is the carry INTO bit i; c[0] = cin, cout = c[N].

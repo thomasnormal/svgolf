@@ -1,0 +1,202 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "inv_1": 37536,
+  "nand2_1": 37536,
+  "nand2b_1": 62560,
+  "nor2b_1": 62560,
+  "xnor2_1": 87584,
+  "xor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 1714144,
+  "cell_hist_sky130": {
+   "and2_1": 13,
+   "nand2_1": 3,
+   "xnor2_1": 9
+  },
+  "cells_sky130": 25,
+  "critical": {
+   "cells": 3,
+   "edge": "r",
+   "output": "p[3]"
+  },
+  "delay_ps_sky130": 645,
+  "drawn": "full",
+  "drawn_cells": 25,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 113.5,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "a[2]",
+    "slew_ps": 21.9
+   },
+   {
+    "arrival_ps": 262.0,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_56_",
+    "net": "_35_",
+    "slew_ps": 43.2
+   },
+   {
+    "arrival_ps": 387.4,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_57_",
+    "net": "_36_",
+    "slew_ps": 57.0
+   },
+   {
+    "arrival_ps": 645.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_61_",
+    "net": "_18_",
+    "slew_ps": 264.5
+   }
+  ],
+  "repaired_sha256": "cf4403669c59b92db18ea0ede69f6c23d1a446ef831ccbbb7f1f73ca5cecd055",
+  "svg_bytes": 17718,
+  "svg_sha256": "f012fce637fdfed7540cb1c25c6bafc5196dc8f4595d8a14d27bfe1b220736a3"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 27326208,
+  "cell_hist_sky130": {
+   "and2_1": 119,
+   "inv_1": 2,
+   "nand2_1": 34,
+   "nand2b_1": 1,
+   "nor2b_1": 4,
+   "xnor2_1": 160,
+   "xor2_1": 48
+  },
+  "cells_sky130": 368,
+  "critical": {
+   "cells": 8,
+   "edge": "r",
+   "output": "p[16]"
+  },
+  "delay_ps_sky130": 1810,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.278,
+   "worst_transition_ratio": 0.305
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "43d7ca2144b60b68f3a205ef18c280fcc9f9df57dc618772ec2016d541d1b732",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 121.8,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[14]",
+    "slew_ps": 28.0
+   },
+   {
+    "arrival_ps": 272.2,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_602_",
+    "net": "_572_",
+    "slew_ps": 42.7
+   },
+   {
+    "arrival_ps": 400.0,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_604_",
+    "net": "_574_",
+    "slew_ps": 58.0
+   },
+   {
+    "arrival_ps": 779.9,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_605_",
+    "net": "_131_",
+    "slew_ps": 454.3
+   },
+   {
+    "arrival_ps": 926.4,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_905_",
+    "net": "_518_",
+    "slew_ps": 98.0
+   },
+   {
+    "arrival_ps": 1268.7,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_908_",
+    "net": "p[24]",
+    "slew_ps": 356.6
+   },
+   {
+    "arrival_ps": 1471.3,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_931_",
+    "net": "_541_",
+    "slew_ps": 148.6
+   },
+   {
+    "arrival_ps": 1562.7,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_932_",
+    "net": "_542_",
+    "slew_ps": 74.8
+   },
+   {
+    "arrival_ps": 1809.5,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_933_",
+    "net": "p[16]",
+    "slew_ps": 264.5
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 368,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "6a0fc877a80ec3348d7262db28bedf1de1d95420353386a7ac94370363bc4c2d",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 8
+ },
+ "sv_sha256": "0cc4457548ad64997b461152c637a16fd3a1f8136b50ee64e3aeb75120309ed6",
+ "task": "clmul",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

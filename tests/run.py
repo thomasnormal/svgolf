@@ -27,12 +27,16 @@ STEPS, in order:
               for a latency kind the goalpost's `latency`); nothing else in
               `tasks/<name>/reference/`; no extractor output (`*.sv.json`,
               `*.probes.json`) outside `.lake/`; `tests/expected.json` lists
-              exactly the designs on disk; the aggregators `tasks.lean` and
+              exactly the designs on disk, and every baseline it lists has a
+              proof file (`lean`, which the step `baseline-proofs` checks);
+              the aggregators `tasks.lean` and
               `tests.lean` import every Spec and every Refute (but the
               PENDING_REFUTES, which `tests.lean` must not import); every
               PENDING_STAGES row is a negative of `tests/expected.json` at
               another stage than the pinned one;
-              `tests/mul/baselines/gen_dadda.py --check`; every task's `time_limit_s`
+              the generators' `--check` (`tests/mul/unproved/gen_dadda.py`,
+              `tests/clmul/unproved/gen_clmul.py`, the two proof generators of
+              `tests/aes_sbox/validate/`); every task's `time_limit_s`
               is the one limit, every reference a task.json lists has cold runs in CPU
               seconds in `score/time_limits.json` and none is over the limit
               (`score/time_limits.py --check`, which also names every reference over the
@@ -59,6 +63,10 @@ STEPS, in order:
               tests/checker/test_design_stage.py (no Lean: the `design` stage
               rejecting an unsupported construct, on check.py's real early
               stages with a fake Lean),
+              tests/checker/test_lift_banlist.py (no Lean: `check.py
+              --lift-banlist` takes a banned design past the banlist to the
+              proof stages, the plain banlist still rejects it, and a lifted
+              result is never accepted and never a record),
               tests/checker/test_import_packages.py (no Lean: imports from the
               Mathlib packages, WP-B: the import probe, its rejection /
               infrastructure-error split, the package-olean tripwire),
@@ -166,7 +174,8 @@ STEPS, in order:
               (`lake build tests.<name>.negative.Refute`): it must fail with
               its pinned message; one that builds fails the step until
               `tests.lean` imports it again and the entry is dropped
-  baselines   every baseline (unproved, simulation-only, or banned-operator)
+  baselines   every baseline (a PROVED comparison design, never an entry,
+              decided 2026-11-12; `banned`: one with an operator the task bans)
               scored at its expected points (score.py, which applies no
               banlist: "the banlist lifted"); the banlist's verdict as
               expected.json says (`banned`); `same_tokens_as` checked; the
@@ -175,6 +184,17 @@ STEPS, in order:
               postsynth check (check/postsynth.py) at its `postsynth_points`
               (default: every scored point): ls-sv and the scored netlist
               agree, so no legitimate design is falsely rejected
+  baseline-proofs
+              every baseline WITH ITS PROOF (tests/expected.json `lean`) through
+              check.py: an unbanned one must be ACCEPTED, a banned one (the
+              task's banlist rejects it) is checked with `--lift-banlist` and
+              must end at the pseudo-stage `lifted` (`lifted_ok`: every stage
+              passed, the proof's included; never an entry) with the task
+              banlist's own verdict `rejects`; in both cases the comparator's
+              axioms within the task's allowed set (propext, Classical.choice,
+              Quot.sound), the full post-synthesis check, and the score at the
+              scoring point equal to tests/expected.json's. A baseline without
+              a proof fails the step (the site shows no design without one)
   ppa         the sky130 PPA columns (WP-X3; EXTRA columns, the default board is
               untouched) of every design of score/tests/ppa/designs.json that the
               `references` step did not already see in a real check.py result: the
@@ -254,8 +274,13 @@ minutes of work when the Lean slot is free: the build 45 to 90 s when the
 Refute modules re-elaborate, canon 70 s, ~60 check.py runs (references,
 drafts, negatives, attacks) of 10 to 60 s each (the mul reference about 90 s
 with its postsynth stage), baselines 6 min (postsynth of the 16-bit Dadda
-trees: 83 and 162 s), validate 2.5 min quick; waiting for the slot comes on
-top. --full adds hours (fdivp's full validation plan, the mul
+trees, then baselines: 83 and 162 s; since 2026-11-12 the parametric Dadda
+baseline's full postsynth alone takes 800 to 900 s of the 900 s cap),
+validate 2.5 min quick; waiting for the slot comes on top. baseline-proofs
+(measured 2026-11-12, an Apple M2 Pro under other jobs' load, the eleven
+baselines' full checks one after another): about 43 minutes, the longest
+dadda_rc (1245 s, nearly all of it its full postsynth; its solution stage 47
+CPU s of the 300), then fdivp_d2 (339 s; solution 188 CPU s). --full adds hours (fdivp's full validation plan, the mul
 reference's full plan, add's full `validate.py` and `verilator.py`, postsynth
 of every baseline at every scored point).
 
@@ -315,7 +340,7 @@ def checkpy():
 
 
 STEPS = ["layout", "build", "unit", "comparator", "leaderboard", "modes", "canon", "references",
-         "drafts", "negatives", "baselines", "ppa", "validate", "attacks", "sandbox"]
+         "drafts", "negatives", "baselines", "baseline-proofs", "ppa", "validate", "attacks", "sandbox"]
 
 # The refutations that wait for the int32 port round: the pinned ls-sv's loader refuses each one's
 # `only_n16.sv` (`PDesign.int32Agrees`: at the defaults an INT-class constant expression leaves the 32-bit
@@ -740,6 +765,11 @@ def step_layout(tasks, expected):
             for s, x in e.get(kind, {}).items():
                 if not os.path.isfile(design_path(t, kind, s, x)):
                     errs.append(f"{kind} {s}: no file {rel(design_path(t, kind, s, x))}")
+                # every baseline is proved (decided 2026-11-12): its proof file is on disk (`baseline-proofs` checks it)
+                if kind == "baselines" and not (x.get("lean") and os.path.isfile(os.path.join(SVGOLF, "tests", t,
+                                                                                               x["lean"]))):
+                    errs.append(f"baselines {s}: no proof file (`lean` {x.get('lean')!r}): a baseline without a proof "
+                                "cannot be shown, so it is not a baseline (tests/<task>/unproved/ holds test material)")
         good &= record("layout", f"tests/expected.json {t}", not errs, "; ".join(errs) or "complete")
     extra = sorted(set(expected["tasks"]) - set(tasks_on_disk()))
     if extra:
@@ -803,22 +833,25 @@ def step_layout(tasks, expected):
              if want in (None, pin[0])]
     good &= record("layout", "PENDING_STAGES name negatives of tests/expected.json at another stage", not stale,
                    ", ".join(stale))
-    proc = subprocess.run([PY, os.path.join(HERE, "mul", "baselines", "gen_dadda.py"), "--check"],
+    # the one-width generated netlists (test material, shown nowhere on the site: no proof of a task's statement can
+    # exist for a design right at one width) are the generators' output, byte for byte
+    proc = subprocess.run([PY, os.path.join(HERE, "mul", "unproved", "gen_dadda.py"), "--check"],
                           capture_output=True, text=True)
     good &= record("layout", "gen_dadda.py --check", proc.returncode == 0,
                    (proc.stdout + proc.stderr).strip()[-200:])
-    # clmul's flat baselines are generated (the generator's emission order is their canon): up to date
-    gen = os.path.join(HERE, "clmul", "baselines", "gen_clmul.py")
+    # clmul's flat netlists are generated (the generator's emission order is their canon): up to date
+    gen = os.path.join(HERE, "clmul", "unproved", "gen_clmul.py")
     if "clmul" in tasks and os.path.isfile(gen):
         proc = subprocess.run([PY, gen, "--check"], capture_output=True, text=True)
         good &= record("layout", "gen_clmul.py --check", proc.returncode == 0,
                        (proc.stdout + proc.stderr).strip()[-200:])
-    # aes_sbox's reference proof is generated from its netlist: it must be up to date
-    gen = os.path.join(HERE, "aes_sbox", "validate", "gen_bp_proof.py")
-    if "aes_sbox" in tasks and os.path.isfile(gen):
-        proc = subprocess.run([PY, gen, "--check"], capture_output=True, text=True)
-        good &= record("layout", "gen_bp_proof.py --check", proc.returncode == 0,
-                       (proc.stdout + proc.stderr).strip()[-200:])
+    # aes_sbox's reference proof, and the proof of its depth-16 baseline, are generated from their netlists: up to date
+    for name in ("gen_bp_proof.py", "gen_d16_proof.py"):
+        gen = os.path.join(HERE, "aes_sbox", "validate", name)
+        if "aes_sbox" in tasks and os.path.isfile(gen):
+            proc = subprocess.run([PY, gen, "--check"], capture_output=True, text=True)
+            good &= record("layout", f"{name} --check", proc.returncode == 0,
+                           (proc.stdout + proc.stderr).strip()[-200:])
     # the proof time limits follow the rule from the recorded cold runs (README.md, "Proof
     # effort"): score/time_limits.py --check
     proc = subprocess.run([PY, os.path.join(SVGOLF, "score", "time_limits.py"), "--check"],
@@ -838,12 +871,12 @@ def step_layout(tasks, expected):
 
 def lssv_imports():
     """The `LeanModels.Sv.*` modules that proofs under tasks/*/reference and
-    tests/*/{negative,attacks} import: check.py builds a submission's own imports
+    tests/*/{negative,attacks,baselines} import: check.py builds a submission's own imports
     unless the runner passes --no-trusted-build, and the runner does, so the build
     step must (a tactic module nobody built reads as 'object file ... does not exist')."""
     mods = set()
     for pat in ("tasks/*/reference/*.lean", "tests/*/negative/*.lean", "tests/*/attacks/*.lean",
-                "tests/imports/*.lean"):
+                "tests/*/baselines/*.lean", "tests/imports/*.lean"):
         for f in glob.glob(os.path.join(SVGOLF, pat)):
             with open(f) as fh:
                 mods.update(re.findall(r"^import (LeanModels\.Sv\.\w+)", fh.read(), re.M))
@@ -887,6 +920,10 @@ def step_unit():
                         [PY, "tests/checker/test_advisories.py"]),
                        ("tests/checker/test_design_stage.py",
                         [PY, "tests/checker/test_design_stage.py"]),
+                       # `check.py --lift-banlist` (no Lean: a fake Lean): the banned baselines reach the proof
+                       # stages, the plain banlist still rejects them, and a lifted result is never a record
+                       ("tests/checker/test_lift_banlist.py",
+                        [PY, "tests/checker/test_lift_banlist.py"]),
                        ("tests/checker/test_import_packages.py",
                         [PY, "tests/checker/test_import_packages.py"]),
                        # check/layout.py: svGolf inside lean-surfaces and standalone, on synthetic trees
@@ -1642,6 +1679,68 @@ def step_baselines(tasks, expected, args):
     return good
 
 
+def step_baseline_proofs(tasks, expected, args):
+    """Every baseline with its proof (tests/expected.json `lean`, relative to tests/<task>/) through check.py, decided
+    2026-11-12: every design the site shows has a kernel-checked proof. A baseline the task's banlist rejects (`banned`)
+    is checked with `--lift-banlist` (every stage, the proof's included, with only the task's operator banlist lifted)
+    and must end at the pseudo-stage `lifted` with `lifted_ok`, the task banlist's own verdict `rejects`, and never
+    `accepted`; any other baseline must be ACCEPTED. Either way: the comparator's axioms within the task's allowed set,
+    the full post-synthesis check, and the score at the scoring point equal to tests/expected.json's. Each row says the
+    wall seconds of the run and the CPU seconds of the solution stage against the task's limit."""
+    good = True
+    for t in tasks:
+        task = task_json(t)
+        tdir = os.path.join(SVGOLF, "tasks", t)
+        allowed = set(task.get("allowed_axioms", ["propext", "Classical.choice", "Quot.sound"]))
+        spoint = envelope.point_str(task["scoring"]["params"]) or "default"
+        for stem, b in expected["tasks"][t]["baselines"].items():
+            sv = design_path(t, "baselines", stem, b)
+            label = rel(sv)
+            lean = os.path.join(SVGOLF, "tests", t, b["lean"]) if b.get("lean") else None
+            if lean is None or not os.path.isfile(lean):
+                good &= record("baseline-proofs", label, False,
+                               f"no proof file (tests/expected.json `lean` {b.get('lean')!r}): the site shows no design "
+                               "without a kernel-checked proof")
+                continue
+            lifted = bool(b.get("banned"))
+            res = run_check(tdir, sv, lean, args.check_extra + (["--lift-banlist"] if lifted else []),
+                            ppa_flag=ppa_mode())
+            st = res.get("stages") or {}
+            sol = st.get("solution") or {}
+            comp = (st.get("comparator") or {}).get("result") or {}
+            axioms = sorted(comp.get("axioms") or [])
+            if lifted:
+                bl = res.get("banlist_lifted") or {}
+                ok = (res.get("stage") == "lifted" and res.get("lifted_ok") is True and res.get("accepted") is False
+                      and not res.get("errors") and bl.get("task_banlist") == "rejects" and res.get("_exit") == 0)
+                what = ("proved with the banlist lifted, not an entry (the task's banlist rejects it: "
+                        f"{(bl.get('task_findings') or ['?'])[0][:80]})" if ok else verdict(res))
+            else:
+                ok = bool(res.get("accepted")) and res.get("stage") == "done"
+                what = verdict(res)
+            ok = ok and comp.get("accepted") is True and bool(axioms) and set(axioms) <= allowed
+            detail = (f"{what}; {rel(lean)}; axioms {axioms}; solution {sol.get('cpu_seconds')} CPU s of "
+                      f"{sol.get('time_limit_s')} ({sol.get('seconds')} s wall)")
+            good &= record("baseline-proofs", f"{label} with its proof", ok,
+                           detail if ok else f"{detail}: {first_error(res)}", res["_seconds"])
+            if not ok:
+                continue
+            ps = st.get("postsynth") or {}
+            pok = (ps.get("mode") == "full" and ps.get("vectors") == ps.get("full_vectors") and ps.get("mismatches") == 0
+                   and "light_vectors" not in ps)
+            good &= record("baseline-proofs", f"{label} full postsynth", pok,
+                           f"mode {ps.get('mode')}, {ps.get('vectors')} of {ps.get('full_vectors')} vectors, "
+                           f"{ps.get('mismatches')} mismatches")
+            want = (b.get("scores") or {}).get(spoint)
+            if want:
+                got = {k: res["score"][k] for k in SCORE_KEYS}
+                same = same_score(got, want)
+                good &= record("baseline-proofs", f"{label} check.py score {spoint}", same,
+                               f"{got['area_mge'] / 1000:g} GE, depth {got['depth']}"
+                               + ("" if same else f": {score_diff(got, want)}"))
+    return good
+
+
 def baseline_fourstate(t, task, label, sv, b):
     """The 4-state rules (score/fourstate.py, check.py's `fourstate` stage) at
     every point the baseline is scored or banlist-checked at: no legitimate
@@ -1790,14 +1889,16 @@ def fdivp_validation(full):
     rows = [("validate.py --plan " + ("full (66 formats exhaustive, 2^32 pairs at (5,11) and (8,8); hours)" if full
                                       else "quick (oracles; 12 small formats exhaustive; 4 large sampled)"),
              V + ["--plan", "full" if full else "quick"], ["tasks/fdivp/reference/fdivp.sv"])]
-    for d in ("fdivp_d1", "fdivp_d2"):
-        rows.append((f"validate.py {d} (baseline: small formats exhaustive, (5, 11) sampled)",
-                     V + ["--design", f"tests/fdivp/baselines/{d}.sv", "--formats"] + small + ["5,11", "--samples",
-                                                                                            "300000" if full else "60000"],
-                     [f"tests/fdivp/baselines/{d}.sv"]))
-    rows.append(("validate.py flat_binary16 (baseline: right at (5, 11) only)",
-                 V + ["--design", "tests/fdivp/baselines/flat_binary16.sv", "--formats", "5,11", "--samples",
-                      "1000000" if full else "200000"], ["tests/fdivp/baselines/flat_binary16.sv"]))
+    # the proved baseline D2, and the test material of tests/fdivp/unproved/ (no proof: shown nowhere on the site)
+    for d, where in (("fdivp_d1", "unproved"), ("fdivp_d2", "baselines")):
+        rows.append((f"validate.py {d} ({'proved baseline' if where == 'baselines' else 'test material'}: small "
+                     "formats exhaustive, (5, 11) sampled)",
+                     V + ["--design", f"tests/fdivp/{where}/{d}.sv", "--formats"] + small + ["5,11", "--samples",
+                                                                                          "300000" if full else "60000"],
+                     [f"tests/fdivp/{where}/{d}.sv"]))
+    rows.append(("validate.py flat_binary16 (test material: right at (5, 11) only)",
+                 V + ["--design", "tests/fdivp/unproved/flat_binary16.sv", "--formats", "5,11", "--samples",
+                      "1000000" if full else "200000"], ["tests/fdivp/unproved/flat_binary16.sv"]))
     for k in ("div_op", "rm_pin", "status_flag", "wide_q"):
         rows.append((f"validate.py {k} (negative: right function, refused by the banlist or the interface)",
                      V + ["--design", f"tests/fdivp/negative/{k}.sv", "--formats"] + small, []))
@@ -1844,12 +1945,15 @@ def VALIDATION(full, work):
                    "tests/add/negative/plus.sv", "tasks/add/reference/add_proc.sv",
                    "tasks/add/reference/add_proc_m.sv", "tasks/add/reference/add_mux.sv"]
     aes_good = ["tasks/aes_sbox/reference/sbox_bp.sv", "tasks/aes_sbox/reference/sbox_table.sv",
-                "tests/aes_sbox/baselines/sbox_table.sv", "tests/aes_sbox/baselines/sbox_bp_d16.sv"]
+                "tests/aes_sbox/baselines/sbox_bp_d16.sv"]
     aes_bad = [f"tests/aes_sbox/negative/{n}.sv" for n in
                ("no_constant", "one_entry", "reversed_bits", "inverse_sbox")]
-    clmul_baselines = [("school_tree_8", 8), ("school_tree_16", 16), ("school_tree_32", 32),
-                       ("kara_b4_8", 8), ("kara_b4_16", 16), ("kara_b4_32", 32), ("kara_b2_16", 16),
-                       ("kara_b8_16", 16), ("kara_full_16", 16)]
+    # the proved parametric baselines (every width), and the one-width generated netlists of tests/clmul/unproved/
+    # (test material: no proof, shown nowhere on the site), each at its own width
+    clmul_baselines = ["clmul_tree", "kara_lv", "clmul_k1"]
+    clmul_onewidth = [("school_tree_8", 8), ("school_tree_16", 16), ("school_tree_32", 32),
+                      ("kara_b4_8", 8), ("kara_b4_16", 16), ("kara_b4_32", 32), ("kara_b2_16", 16),
+                      ("kara_b8_16", 16), ("kara_full_16", 16)]
     clmul_styles = sorted(os.path.basename(f)[:-3] for f in
                           glob.glob(os.path.join(SVGOLF, "tests", "clmul", "attacks", "*.sv")))
     v = {
@@ -1883,10 +1987,13 @@ def VALIDATION(full, work):
             ("sim.py yosys_mul: " + ("full plan" if full else "quick plan"),
              [PY, "tests/mul/validate/sim.py", "tests/mul/baselines/yosys_mul.sv", "--plan",
               "full" if full else "quick"], ["tests/mul/baselines/yosys_mul.sv"]),
-        ] + [(f"sim.py dadda_{k}_{n} at N = {n}",
-              [PY, "tests/mul/validate/sim.py", f"tests/mul/baselines/dadda_{k}_{n}.sv",
+            ("sim.py dadda_rc (proved baseline, every N): " + ("full plan" if full else "quick plan"),
+             [PY, "tests/mul/validate/sim.py", "tests/mul/baselines/dadda_rc.sv", "--plan",
+              "full" if full else "quick"], ["tests/mul/baselines/dadda_rc.sv"]),
+        ] + [(f"sim.py dadda_{k}_{n} at N = {n} (test material, tests/mul/unproved/)",
+              [PY, "tests/mul/validate/sim.py", f"tests/mul/unproved/dadda_{k}_{n}.sv",
                "--width", str(n)] + ([] if full or n <= 8 else ["--vectors", "2000"]),
-              [f"tests/mul/baselines/dadda_{k}_{n}.sv"])
+              [f"tests/mul/unproved/dadda_{k}_{n}.sv"])
              for k in ("rc", "ks") for n in (8, 16, 32)],
         "aes_sbox": [
             # quick = full: the input space is 256 values, every step is exhaustive and takes seconds
@@ -1902,11 +2009,15 @@ def VALIDATION(full, work):
             ("sim.py clmul_n (reference): " + ("full plan" if full else "quick plan"),
              [PY, "tests/clmul/validate/sim.py", "tasks/clmul/reference/clmul_n.sv", "--plan",
               "full" if full else "quick"], ["tasks/clmul/reference/clmul_n.sv"]),
-        ] + [(f"sim.py {k} at N = {n}",
-              [PY, "tests/clmul/validate/sim.py", f"tests/clmul/baselines/{k}.sv", "--width", str(n)]
-              + ([] if full or n <= 8 else ["--vectors", "2000"]),
-              [f"tests/clmul/baselines/{k}.sv"])
-             for k, n in clmul_baselines] + [
+        ] + [(f"sim.py {k} (proved baseline): " + ("full plan" if full else "quick plan"),
+              [PY, "tests/clmul/validate/sim.py", f"tests/clmul/baselines/{k}.sv", "--plan",
+               "full" if full else "quick"], [f"tests/clmul/baselines/{k}.sv"])
+             for k in clmul_baselines] + [
+            (f"sim.py {k} at N = {n} (test material, tests/clmul/unproved/)",
+             [PY, "tests/clmul/validate/sim.py", f"tests/clmul/unproved/{k}.sv", "--width", str(n)]
+             + ([] if full or n <= 8 else ["--vectors", "2000"]),
+             [f"tests/clmul/unproved/{k}.sv"])
+            for k, n in clmul_onewidth] + [
             (f"sim.py {k} (a correct design the checker refuses by the banlist or the interface)",
              [PY, "tests/clmul/validate/sim.py", f"tests/clmul/negative/{k}.sv", "--plan", "quick"],
              [f"tests/clmul/negative/{k}.sv"])
@@ -2899,6 +3010,8 @@ def main():
         step_negatives(tasks, expected, args)
     if "baselines" not in skip:
         step_baselines(tasks, expected, args)
+    if "baseline-proofs" not in skip:
+        step_baseline_proofs(tasks, expected, args)
     if "ppa" not in skip:
         step_ppa(tasks, expected, args)
     if "validate" not in skip:

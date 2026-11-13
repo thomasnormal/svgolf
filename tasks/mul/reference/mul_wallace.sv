@@ -1,4 +1,4 @@
-// svGolf task `mul` -- reference solution 4: a WALLACE-TREE multiplier (tape of rows, 3:2 carry-save
+// svGolf task `mul` -- a WALLACE-TREE multiplier (tape of rows, 3:2 carry-save
 // adder rows), parametric in N.
 //
 // The tape T is one 2-D packed array of 3N-1 rows of 2N bits. Rows 0 .. N-1 are the N partial

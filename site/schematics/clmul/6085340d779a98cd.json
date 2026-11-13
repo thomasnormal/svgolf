@@ -1,0 +1,170 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "nand2_1": 37536,
+  "xnor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 1714144,
+  "cell_hist_sky130": {
+   "and2_1": 13,
+   "nand2_1": 3,
+   "xnor2_1": 9
+  },
+  "cells_sky130": 25,
+  "critical": {
+   "cells": 3,
+   "edge": "r",
+   "output": "p[3]"
+  },
+  "delay_ps_sky130": 645,
+  "drawn": "full",
+  "drawn_cells": 25,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 113.5,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "a[2]",
+    "slew_ps": 21.9
+   },
+   {
+    "arrival_ps": 262.0,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_75_",
+    "net": "_54_",
+    "slew_ps": 43.2
+   },
+   {
+    "arrival_ps": 387.4,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_76_",
+    "net": "_55_",
+    "slew_ps": 57.0
+   },
+   {
+    "arrival_ps": 645.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_80_",
+    "net": "_42_",
+    "slew_ps": 264.5
+   }
+  ],
+  "repaired_sha256": "594ea7e65b5b9a0cbf73068e8f081b4fdfdc2dc92b67e718da4fcba040053db0",
+  "svg_bytes": 17669,
+  "svg_sha256": "5a675b5b0bfb24f46af8f234a3f8df3abef3236d9e85468b81dfc7406f8168b2"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 34295392,
+  "cell_hist_sky130": {
+   "and2_1": 199,
+   "nand2_1": 57,
+   "xnor2_1": 225
+  },
+  "cells_sky130": 481,
+  "critical": {
+   "cells": 5,
+   "edge": "r",
+   "output": "p[13]"
+  },
+  "delay_ps_sky130": 969,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.144,
+   "worst_transition_ratio": 0.178
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "15702a70b6f6cd35d271e5fe4985349630b7bf0af78f9ba20ac5fe24c7995ed5",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 133.4,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[10]",
+    "slew_ps": 38.0
+   },
+   {
+    "arrival_ps": 288.2,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_1553_",
+    "net": "_1060_",
+    "slew_ps": 42.7
+   },
+   {
+    "arrival_ps": 459.6,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1555_",
+    "net": "_1062_",
+    "slew_ps": 156.0
+   },
+   {
+    "arrival_ps": 607.6,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1556_",
+    "net": "_1063_",
+    "slew_ps": 156.5
+   },
+   {
+    "arrival_ps": 708.7,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_1564_",
+    "net": "_1071_",
+    "slew_ps": 62.3
+   },
+   {
+    "arrival_ps": 968.7,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_1576_",
+    "net": "_708_",
+    "slew_ps": 264.5
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 481,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "5f62c54389ac19e5adfb606b3defd34c444aa5b33fce68e5e336b6b62bc5362b",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 5
+ },
+ "sv_sha256": "6085340d779a98cdfb85df1fe3817236abdbc9fb787bc7d0d8d3274ab1ad7419",
+ "task": "clmul",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

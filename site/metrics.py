@@ -128,7 +128,7 @@ def metric_table(clocked, drive=None, latency=True, pdk="sky130"):
         Metric("area_ge", "Area", "GE", "The area in NAND2 gate equivalents of the pinned Yosys flow.", 3),
         Metric("depth", "Depth", "gates", "Gates on the longest path of the pinned Yosys netlist."),
         Metric("gates", "Gates", "", "Gates in the pinned Yosys netlist."),
-        Metric("proof_lines", "Proof", "lines", "Code lines of the Lean proof (proved designs only)."),
+        Metric("proof_lines", "Proof", "lines", "Code lines of the Lean proof."),
     ]
 
 

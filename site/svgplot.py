@@ -1,11 +1,11 @@
 """Static SVG charts for the svGolf site: standard library only, readable without JavaScript.
 
 * `score_chart`: a task's combined score over time (a golf scorecard): a dot per entry by
-  date, the best score so far as a step line, par as a dashed line, and the baselines as labelled
-  levels in the right margin, each marked as not proved. Drawn on a linear and on a log axis
+  date, the best score so far as a step line, par as a dashed line, and the proved baselines with a banned
+  operator as labelled levels in the right margin, each marked as a baseline (never an entry). Drawn on a linear and on a log axis
   (charts.js switches), each wide and compact (a phone's; style.css picks).
 * `scatter_chart`: two metrics of a task's designs against each other, the Pareto front of the
-  proved designs as a step line (the explorer's server-drawn view; charts.js redraws it for any
+  entries (par's design, records) as a step line (the explorer's server-drawn view; charts.js redraws it for any
   pair of metrics with the same marks and classes).
 * `bar_chart`: one horizontal bar per category (a record's gate mix).
 
@@ -281,6 +281,37 @@ def _spread(ys, lo, hi, gap):
     return out
 
 
+STACK_PX = 6        # the score chart: dots of one day closer than this (in px) hide one another (most of a small dot,
+                    # radius 4: mul's 52 729 and 53 635 of one day, 4.9 px apart, read as one dot)
+
+
+def stacked_entries(dated, pos, gap, value_fmt=num):
+    """The score chart's stacks: entries drawn at one point hide one another (a tie with an entry of the same day, or
+    two nearly equal scores of one day), so each entry of a stack gets one tooltip naming every entry of it with its
+    score (its `brief`, else the first line of its tip) and the stack (a tuple of ids). `pos`: id -> (x, y) as drawn;
+    one stack is a run of entries on one x whose neighbours lie within `gap` px. Returns {id: {"tip", "label",
+    "stack"}} for the entries of stacks of two or more; a link keeps its own entry's name (`label`)."""
+    out, run = {}, []
+
+    def close(run):
+        if len(run) < 2:
+            return
+        g = sorted(run, key=lambda e: (e["score"], e["id"]))
+        ids = tuple(e["id"] for e in g)
+        tip = ([f"{len(g)} entries at this point"]
+               + [f"{e.get('brief') or (e.get('tip') or [e['id']])[0]} · {value_fmt(e['value'])}" for e in g])
+        for e in g:
+            out[e["id"]] = {"tip": tip, "label": (e.get("tip") or [e["id"]])[0], "stack": ids}
+    for e in sorted(dated, key=lambda e: (pos[e["id"]][0], pos[e["id"]][1], e["id"])):
+        x, y = pos[e["id"]]
+        if run and (abs(pos[run[-1]["id"]][0] - x) > 0.05 or y - pos[run[-1]["id"]][1] > gap):
+            close(run)
+            run = []
+        run.append(e)
+    close(run)
+    return out
+
+
 def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_fmt=num, until=None,
                 compact=False, desc_tail="The table under the chart lists the same numbers."):
     """The combined score over time. `entries`: dicts with id, kind (record | reference), date
@@ -313,7 +344,7 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
     parts = _axes(fr, xs, ys, "date entered", f"score ({unit})" + (", log scale" if ys.log else ""),
                   x_fmt=lambda v: date_label(v, same_year), x_ticks=x_ticks, target=target, compact=compact,
                   x_grid=False)
-    # the levels: unproved baselines, a dotted line across and a label in the right margin; the
+    # the levels: the proved baselines (never entries), a dotted line across and a label in the right margin; the
     # line (a wide invisible stroke over it, so that it is easy to point at) and the label carry
     # the baseline's tooltip
     labels = []
@@ -351,7 +382,7 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
                          f'{marker("baseline", lx + 3, ly - 3, item.get("banned"), 3)}'
                          f'<text class="lv-name" x="{_f(lx + 11)}" y="{_f(ly + 1)}">{_esc(item["name"])}</text>'
                          f'<text class="lv-note" x="{_f(lx + 11)}" y="{_f(ly + 12)}">{_esc(value_fmt(item["value"]))}'
-                         f' · {"banned op" if item.get("banned") else "not proved"}</text></g>')
+                         f' · {"banned op" if item.get("banned") else "baseline"}</text></g>')
     # the best score so far
     order = sorted(dated, key=lambda e: (e["date"], e["score"], e["id"]))
     best, stair, setters = None, [], set()
@@ -369,13 +400,23 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
         x, y = xs(_ordinal(e["date"])), ys(e["value"])
         parts.append(f'<line class="drop" x1="{_f(x)}" x2="{_f(x)}" y1="{_f(y)}" y2="{_f(fr.bottom)}"/>')
     parts.append(f'<polyline class="frontier" points="{coords}"><title>the best score so far</title></polyline>')
+    # entries drawn at one point hide one another: one tooltip names them all, and a count stands beside the dot
+    pos = {e["id"]: (xs(_ordinal(e["date"])), ys(e["value"])) for e in dated}
+    stacks = stacked_entries(dated, pos, STACK_PX, value_fmt)
     for e in sorted(dated, key=lambda e: (KIND_ORDER[e["kind"]], e["id"] in setters, e["date"], e["id"])):
-        p = dict(e, cls="best" if e["id"] in setters else "")
-        parts.append(_mark(p, xs(_ordinal(e["date"])), ys(e["value"]), r=5.5 if e["id"] in setters else 4))
+        p = dict(e, cls="best" if e["id"] in setters else "", **stacks.get(e["id"], {}))
+        parts.append(_mark(p, *pos[e["id"]], r=5.5 if e["id"] in setters else 4))
+    for g in sorted({s["stack"] for s in stacks.values()}):
+        x, y = min((pos[i] for i in g), key=lambda q: q[1])
+        parts.append(f'<text class="mark-count" x="{_f(x + 7)}" y="{_f(y - 6)}">×{len(g)}</text>')
     desc = (f"{len(dated)} {'entry' if len(dated) == 1 else 'entries'} by date (x) and score in {unit} (y); the line "
             "is the best score so far"
             + (", the dashed line par" if par else "")
-            + (f", and {len(levels)} unproved baselines are labelled on the right" if levels else "")
+            + (f", and {len(levels)} proved baseline{'' if len(levels) == 1 else 's'}"
+               + (" with a banned operator" if all(lv.get("banned") for lv in levels) else "")
+               + f" {'is' if len(levels) == 1 else 'are'} labelled on the right" if levels else "")
+            + (". A count beside a dot (×2) is how many entries are drawn there; its tooltip names them"
+               if stacks else "")
             + ". " + desc_tail)
     return _svg(fr, parts, title, desc, cls="chart compact" if compact else "chart")
 
@@ -406,7 +447,7 @@ def shared_tips(points, on=()):
 
 
 def scatter_chart(points, *, x_label, y_label, x_log=None, y_log=None, x_integer=False, y_integer=False,
-                  front=(), title, front_label="the Pareto front of the proved designs", compact=False):
+                  front=(), title, front_label="the Pareto front of the entries", compact=False):
     """Two metrics against each other. `points`: dicts with id, kind, x, y, banned, tip, href,
     attrs. `front`: the ids on the Pareto front (drawn full strength, joined by a step line; every
     other mark is muted). Lower is better on both axes. `compact`: the phone drawing."""
@@ -584,7 +625,7 @@ def line_chart(lines, *, x_label, y_label, x_ticks, x_fmt=tick, x_log=None, y_lo
                guide=None, compact=False):
     """One metric of a task's designs against its parameter. `lines`: dicts with id, kind (record | reference |
     baseline), banned, name (the label), tip (the line's tooltip lines), href and pts, each {x, y, tip} (sorted by
-    x; a line needs two points). Each line is a polyline (a baseline's dashed: not proved) with a mark per point and
+    x; a line needs two points). Each line is a polyline (a proved baseline's dashed) with a mark per point and
     its name in the right margin at its last point (the names pushed apart so that none overlap, a leader to each);
     the line, its marks and its name are one group, so pointing at any of them picks the line out. `x_ticks`: the
     parameter values (the axis is labelled at exactly those; labels too close for one row take two, and the

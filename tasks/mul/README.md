@@ -4,8 +4,11 @@ The main svGolf challenge: build an `N × N → 2N` unsigned multiplier out of
 bitwise logic, prove it correct for EVERY width `N ≥ 1`, and make it small
 and fast at `N = 16`.
 
-**Par** is the proved two-row-leaf tree `mul_tree_h`: **8563.2128 um^2 x 5992 ps =
-51 310.8 um2*ns**. The one ranked number is area x time, the sky130 A0' cell area
+**Par** is the proved array multiplier `mul_n`, the simplest algorithm (one design per task, `leaderboard/par.json`, decided 2026-11-12): **8290.4512 um^2 x 10907 ps =
+90 424.0 um2*ns**. The proved trees (`mul_tree`, `mul_wallace`, `mul_tree_h`, 51 310.8 um2*ns) are entries,
+recorded under handles of their own like any player's, and so is the Dadda tree `dadda_rc` (recorded 2026-11-13;
+its full check needs a quiet rating machine: 803 s of the 900 s post-synthesis cap). The one ranked number is
+area x time, the sky130 A0' cell area
 in um^2 times the critical-path delay (decided 2026-11-05; the svGolf README,
 "Scoring"); to beat par is to be accepted with a smaller product. The Pareto
 frontier of area and time, the GE area and the depth are extra columns, for
@@ -28,7 +31,7 @@ and leaves it staged in `stage/` for probe files ([PROVING.md, section 0](../../
 
 **The route: the `sv_comb` tactics, then the arithmetic of your rows** ([PROVING.md, sections
 1 to 3](../../PROVING.md#1-the-shape-of-a-proof); complete proofs: `reference/mul_n.lean`, the array, 70 code
-lines; `reference/mul_wallace.lean`, a Wallace tree as a tape of rows, 264; `reference/mul_tree_h.lean`, par,
+lines; `reference/mul_wallace.lean`, a Wallace tree as a tape of rows, 264; `reference/mul_tree_h.lean`,
 307):
 
 1. `sv_structure (lexRank := key N)`: one driver per bit and no combinational loop (`CombDesign ∧ Acyclic`),
@@ -228,15 +231,18 @@ below `2^31`.
   harvested comparison constants and 200 seeded random vectors at `N = 16`.
   The budget is small because ls-sv's `run2` takes about 130 ms per vector
   (both schedules) on the 1026-process array multiplier: 47 s measured for
-  the reference (83 s and 162 s for the 16-bit Dadda baselines), the slowest
+  the reference (83 s and 162 s for the flat 16-bit Dadda netlists of
+  `tests/mul/unproved/`; 803 s of the 900 s cap for the parametric Dadda
+  design `dadda_rc`, measured 2026-11-12, over the cap under a heavy load
+  and within it on 2026-11-13, when its record was made), the slowest
   stage of its check after the build. That is the FULL mode (what
   competitions, `leaderboard.py add`/`verify` and `tests/run.py` run); `check.py`'s default,
   the LIGHT mode for local feedback, runs a subset of 40 of the 330 vectors
   (`light_vectors`): 5.6 s on `mul_tree_h`, 6.1 s on `mul_n`, 15 s on `mul_wallace` and
   21 s on `mul_tree` (the full stage: 41, 44, 119 and 167 s; README.md, "Checking"). The
-  32-bit Dadda baselines are not
+  flat 32-bit Dadda netlists (test material) are not
   checked: `run2` takes seconds per vector there, and even the fixed corners
-  overran the 900 s cap (`tests/expected.json`, `postsynth_why`).
+  overran the 900 s cap (measured 2026-10-28: 458 vectors not done in 900 s).
 * No x or z value may arise (README.md, "Rules"): no x/z literal digit
   outside a casez/casex item wildcard (the source gate), and no parameter
   with unknown bits, out-of-range select, undriven net or logic loop at
@@ -476,13 +482,20 @@ The ranked numbers at `N = 16` (sky130 A0', `score/tests/ppa/expected_ppa.json`,
 
 | design | area (um^2) | delay (ps) | area x time (um2*ns, ranked) |
 |---|---|---|---|
-| `reference/mul_tree_h.sv` (par) | 8563.2128 | 5992 | **51 310.8** |
+| `reference/mul_tree_h.sv` (an entry) | 8563.2128 | 5992 | **51 310.8** |
 | `reference/mul_tree.sv` | 8603.2512 | 6129 | 52 729.3 |
 | `reference/mul_wallace.sv` | 8966.0992 | 5982 | 53 635.2 |
 | `reference/mul_n.sv` (the array; `mul_n_byhand` the same) | 8290.4512 | 10907 | 90 424.0 |
-| `tests/mul/baselines/dadda_rc_16.sv` (Dadda + ripple, simulation only) | 8230.3936 | 5461 | 44 946.2 |
-| `tests/mul/baselines/dadda_ks_16.sv` (Dadda + Kogge-Stone, simulation only) | 8937.3216 | 5148 | 46 009.3 |
-| `tests/mul/baselines/yosys_mul.sv` (Yosys's own `*`, banned) | 8825.9648 | 6261 | 55 259.4 |
+| `tests/mul/baselines/yosys_mul.sv` (Yosys's own `*`, banned; a baseline proved with the banlist lifted) | 8825.9648 | 6261 | 55 259.4 |
+| `tests/mul/baselines/dadda_rc.sv` (Dadda + ripple, every `N`; proved, an entry) | 8230.3936 | 5461 | 44 946.2 |
+
+Measured, not proved, not on the site (test material since 2026-11-12, `tests/mul/unproved/`: each file is
+right at one width only, so no proof of the statement can exist for it):
+
+| design | area (um^2) | delay (ps) | area x time (um2*ns) |
+|---|---|---|---|
+| `tests/mul/unproved/dadda_rc_16.sv` (Dadda + ripple, generated for `N = 16`) | 8230.3936 | 5461 | 44 946.2 |
+| `tests/mul/unproved/dadda_ks_16.sv` (Dadda + Kogge-Stone, generated for `N = 16`) | 8937.3216 | 5148 | 46 009.3 |
 
 Measure a design with the golfing inner loop, about 2 seconds and no Lean (it runs the source gate and
 the pinned flow, not the banlist, the 4-state rules, ls-sv, the post-synthesis check or a proof, so
@@ -514,14 +527,17 @@ unchanged):
 | reference carry-save tree (`reference/mul_tree.sv`, a heap of 4:2 compressors + ripple) | yes, ∀ N (tactics) | 451.310 / 30 | **2034.904 / 63** | 8453.626 / 126 |
 | reference Wallace tape (`reference/mul_wallace.sv`, `N-1` CSA rows of 3:2 counters + ripple) | yes, ∀ N (tactics) | 482.974 / 30 | **2113.894 / 62** | 8767.595 / 124 |
 | reference two-row-leaf tree (`reference/mul_tree_h.sv`, a heap of `⌈N/2⌉` pair leaves, 4:2 compressors + ripple, with a `localparam`) | yes, ∀ N (tactics) | 451.310 / 30 | **2025.905 / 62** | 8452.626 / 127 |
-| Yosys's own `assign p = a * b;` (`tests/mul/baselines/yosys_mul.sv`; banlist lifted, NOT a legal entry) | – | 468.637 / 30 | 2081.227 / 59 | 8639.254 / 110 |
-| Dadda tree + ripple final adder (`tests/mul/baselines/dadda_rc_*.sv`) | no | 445.978 / 29 | 1953.585 / 61 | 8153.020 / 125 |
-| Dadda tree + Kogge-Stone final adder (`tests/mul/baselines/dadda_ks_*.sv`) | no | 484.290 / 24 | 2076.510 / 48 | not scored (the pinned flow exceeds 1800 s) |
+| Yosys's own `assign p = a * b;` (`tests/mul/baselines/yosys_mul.sv`; banlist lifted, NOT a legal entry) | yes, ∀ N, with the banlist lifted (`tests/mul/baselines/yosys_mul.lean`; a baseline, not an entry) | 468.637 / 30 | 2081.227 / 59 | 8639.254 / 110 |
+| Dadda tree + ripple final adder, one design for every `N` (`tests/mul/baselines/dadda_rc.sv`; proved, an entry) | yes, ∀ N, by hand (`tests/mul/baselines/dadda_rc.lean`, since 2026-11-12) | 445.978 / 29 | 1953.585 / 61 | 8153.020 / 125 |
+| Dadda tree + ripple final adder (`tests/mul/unproved/dadda_rc_*.sv`; one width per file; measured, not proved, not on the site) | no | 445.978 / 29 | 1953.585 / 61 | 8153.020 / 125 |
+| Dadda tree + Kogge-Stone final adder (`tests/mul/unproved/dadda_ks_*.sv`; one width per file; measured, not proved, not on the site) | no | 484.290 / 24 | 2076.510 / 48 | not scored (the pinned flow exceeds 1800 s) |
 
-The Dadda baselines are generated per width by
-`tests/mul/baselines/gen_dadda.py` (flat netlists that keep the task header
+The parametric Dadda baseline builds, at `N = 8` and `16`, the cells of the ripple-carry netlists below (equal
+AND, OR and XOR counts before ABC; equal scores at `N = 8, 16, 32`). The Dadda netlists are generated per width by
+`tests/mul/unproved/gen_dadda.py` (flat netlists that keep the task header
 but are correct only at the width they were generated for, so they are NOT
-entries: the statement covers every `N`). They are simulation-validated
+entries and no proof of the statement, which covers every `N`, can exist for
+them: test material since 2026-11-12, shown nowhere on the site). They are simulation-validated
 (exhaustive at `N = 4, 8`, 20 000 random vectors at `N = 16, 32`;
 `tests/run.py` re-runs `N = 8` exhaustively and 2 000 random vectors at
 `N = 16, 32`) and show where the frontier is: at `N = 16` the Dadda + ripple
@@ -540,10 +556,12 @@ the partial products in reverse order, and the carry row appended before the sum
 2184.557 / 62, 2121.229 / 64 and 2124.560 / 61 at `N = 16`.) The proved two-row-leaf tree (`reference/mul_tree_h.sv`, 2025.905 / 62 at `N = 16`) is 3.7 % above Dadda +
 ripple in area and 1 gate deeper, 0.4 % below the single-row tree and one level shallower (and 2.7 %
 below the Wallace tape): the pairing nodes of the single-row tree were already free after synthesis, so
-the localparam buys a simpler design and proof more than area. A parametric, proved column-wise Dadda tree
-(column heights computed from `N`) is still open: it needs the stage count `⌈log_{3/2}(N/2)⌉`, per-stage column heights
-(an inner loop bound that mentions the outer genvar) and a full-adder / half-adder / wire choice per column
-(a conditional generate), none of which the tactics read (PROVING.md, section 10).
+the localparam buys a simpler design and proof more than area. A parametric column-wise Dadda tree (column
+heights computed from `N`) is proved by hand since 2026-11-12 (`tests/mul/baselines/dadda_rc.sv`, an
+entry; `tests/mul/baselines/README.md`); with the tactics it is still open: it
+needs the stage count `⌈log_{3/2}(N/2)⌉`, per-stage column heights (an inner loop bound that mentions the outer
+genvar) and a full-adder / half-adder / wire choice per column (a conditional generate), none of which the tactics
+read (PROVING.md, section 10).
 
 ## Negative designs
 

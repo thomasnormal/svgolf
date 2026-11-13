@@ -16,7 +16,9 @@ hardware. For each task you:
    in um^2 times the critical-path delay (on a clocked task, cycles x the
    clock period), in um2*ns, lower is better (decided 2026-11-05; [Scoring](#scoring)).
    Par, the record and "under par" use it; to beat par is to be accepted
-   with a smaller area x time than the task's best proved reference. The
+   with a smaller area x time than the task's par design: one design per
+   task, the simplest algorithm, proved by the maintainers (`leaderboard/par.json`;
+   every other design is an entry, the maintainers' own too). The
    Pareto frontier of area and time, area in NAND2 gate equivalents, depth
    in gates and the other flows are exploration columns. Every number can
    be reproduced bit for bit ("Reproduce a score" under [Scoring](#scoring)).
@@ -640,8 +642,14 @@ tests/<name>/
                    `tests.<name>.negative.Refute`, in the `tests` library:
                    kernel-checked proofs that they do NOT satisfy the statement,
                    loading each design with `load_sv`)
-  baselines/       designs that are scored but never accepted: unproved,
-                   simulation-only circuits and banned-operator baselines
+  baselines/       proved designs, each <stem>.sv with its proof <stem>.lean:
+                   one with a banned operator (checked with check.py
+                   --lift-banlist) is a comparison line on the site, never an
+                   entry; one without is an entry, shown once it is recorded
+                   under a player's handle
+  unproved/        test material without a proof (one-width generated
+                   netlists, a design ls-sv does not run yet): simulated by
+                   tests/run.py, shown nowhere on the site
   validate/        simulation checks (Verilator, ls-sv `run2`, the scored
                    netlists), with a README
   attacks/         designs where ls-sv and Yosys read one text differently (x/z case
@@ -655,8 +663,9 @@ tests/<name>/
 commutation variants of a design that the `canon` step scores.
 
 The expectations (each negative's rejection stage, every score quoted in a
-README, gate mix included, which baselines the banlist rejects) are in
-`tests/expected.json`, which `tests/run.py` checks.
+README, gate mix included, which baselines the banlist rejects, and each
+baseline's proof file) are in `tests/expected.json`, which `tests/run.py`
+checks.
 
 `task.json` fields:
 
@@ -679,7 +688,7 @@ README, gate mix included, which baselines the banlist rejects) are in
 | `oracle` | optional, `"oracle.py"`: a Python ORACLE of the task's function in the task directory, `def oracle(params: dict, inputs: dict) -> dict` (`params`: the point the `postsynth` stage evaluates at, e.g. `{"N": 16}`, `{}` for a fixed-size task; `inputs`: input port name to int; result: output port name to int, already masked to the output's width). With one, the `postsynth` stage also compares ls-sv's outputs on every vector it already uses with the oracle's and reports `functional` and, on a mismatch, one `warnings` line (see "Checking"); it never changes a verdict. The oracle is a contestant convenience and NOT part of the trusted statement (`Spec.lean`, `SvGolf/Task.lean` and `fdivp`'s `IEEE754.lean` are): every task has one today (`fdivp`'s is exact `Fraction` arithmetic for every format, written separately from the spec's own validation oracle `spec_validate/oracle.py`); a task without one is simply not checked |
 | `time_limit_s` | the limit for compiling the proof, in CPU seconds of the Lean process (300 s for every task, the rule in "Proof effort"; `score/time_limits.py` checks it); the compile also has a wall-clock backstop of 5 times it |
 | `verify_time_limit_s` | the limit for each of the comparator and `leanchecker`, in CPU seconds of the Lean process (default 900; since 2026-11-06, before then wall-clock seconds), with a wall-clock backstop of 5 times it, as for `time_limit_s` |
-| `references` | `[{sv, lean, note?}]`: the proved reference solutions, each a pair `reference/<stem>.sv` + `reference/<stem>.lean` that `check.py` accepts (`tests/run.py` checks it, and the score). Several pairs may be listed; the first is the one `tests/run.py` submits the negative designs with. `add` and `mul` list two: `<stem>` (proved with the sv_comb tactics) and `<stem>_byhand` (the same design, a byte-identical `.sv`, proved with no tactic: the measured baseline of the proof effort); `tests/expected.json` marks the second `same_design_as` the first, and `tests/run.py` checks the bytes |
+| `references` | `[{sv, lean, note?}]`: the proved reference solutions, each a pair `reference/<stem>.sv` + `reference/<stem>.lean` that `check.py` accepts (`tests/run.py` checks it, and the score). One of them is par's design (`leaderboard/par.json`, decided 2026-11-12: one design per task); the others are entries, shown once they are recorded under a player's handle. Several pairs may be listed; the first is the one `tests/run.py` submits the negative designs with. `add` and `mul` list two: `<stem>` (proved with the sv_comb tactics) and `<stem>_byhand` (the same design, a byte-identical `.sv`, proved with no tactic: the measured baseline of the proof effort); `tests/expected.json` marks the second `same_design_as` the first, and `tests/run.py` checks the bytes |
 | `draft_reference` | draft tasks only, `{sv, lean, note?}`: the goalpost design `reference/<stem>.sv` and its partial, unproved Lean file `reference/<stem>.partial.lean` |
 
 Keys starting with `_` are comments. Add a task by creating `tasks/<name>/`,
@@ -881,6 +890,15 @@ warning naming the first failing input: advisory, but a wrong design has no proo
 `python3.12 check/postsynth.py --task tasks/<name> DESIGN.sv [--point N=32]
 [--keep DIR]` runs the post-synthesis check alone, at any point, and keeps
 the netlist, the vectors and every simulator's output.
+
+`--lift-banlist` checks a design that uses an operator the task bans (decided 2026-11-12: every design the site
+draws is proved, the baselines with a banned operator included). It runs every stage, the proof's included, with the
+task's own operator banlist lifted: the banlist stage checks only the run-time `/ % **` every task bans, and
+everything else (the statement, the ranges, the axioms, the limits) is the task's. Such a result is never
+accepted: a run where every stage passed stops at the pseudo-stage `lifted` with `"lifted_ok": true`, exits 0,
+and says "banned operator: proved, not an entry"; it carries `banlist_lifted` (what was lifted and the task
+banlist's own verdict), and `leaderboard.py add` refuses it. With `--unproved` it stages the design for the same
+fast loop as above.
 
 ### Mathlib in submissions
 
@@ -1488,8 +1506,10 @@ environment variable, option or task key reads the constant (a test pins that).
   Verilator (about 0.4 microseconds per vector after a fixed build of 1.5 to
   2 s, against about 1 ms per vector for Icarus on the former 16-bit divider), but the budgets
   in `task.json` were left as they were: every extra vector costs the ls-sv
-  time above, and the baselines' post-synthesis checks (Kogge-Stone at 15 s,
-  the 16-bit Dadda trees at 83 to 162 s) multiply with them. A future
+  time above, and the baselines' post-synthesis checks (Kogge-Stone at 15 s;
+  the 16-bit Dadda netlists, test material since 2026-11-12, at 83 to 162 s; the
+  parametric Dadda baseline of `mul` at 803 s of the 900 s cap, measured 2026-11-12)
+  multiply with them. A future
   evaluator for `design.sem` that is faster than `run2` is what would buy
   bigger budgets. `svgolf-eval` is compiled code (no `implemented_by`,
   `extern` or `csimp` in the `LeanModels.Sv` closure it imports); its gap to
@@ -1836,7 +1856,8 @@ the canonical RTLIL of the same run mapped by a real `abc -liberty` run (the pin
 scored netlist on a sample of input vectors and weighed by the very same STA: `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`
 (integer ps), `mapped_cells_sky130_v1`, `mapped_cell_hist_sky130_v1`, `mapped_levels_sky130_v1`, with its own version
 (`ppa_mapped_version` `sky130_a1_v1`) and hashes. A1' is closer to a fabricated chip and more sensitive to the mapper than A0': over the
-18 reference and baseline designs of `score/tests/ppa/designs.json` it is a median 0.93x the repaired A0' in area and 1.04x in delay,
+18 reference and baseline designs `score/tests/ppa/designs.json` held when it was measured (2026-11-04) it is a median 0.93x the
+repaired A0' in area and 1.04x in delay,
 and on the four proved multipliers it puts the array multiplier last in area where GE and A0' put it first. A0' is the ranked score
 (decided 2026-11-03); A1' is an unranked research column; their fields are never swapped silently; the measured tables are in
 [score/PPA.md](score/PPA.md). The liberty is fetched, not vendored: `python3.12 score/ppa.py --fetch-liberty`. What they do
@@ -1976,7 +1997,7 @@ does on the `add` and `mul` boards.
 
 **Where the numbers live.** Not in the records, whose hash and address would change for a column that is a pure
 function of the netlist they already pin: in `leaderboard/asap7/<task>.json`, one entry per design file a task's pages
-show (every record, proved reference and baseline), bound to its record by the canonical text, the canonical RTLIL, the
+show or will show (every record, proved reference and baseline), bound to its record by the canonical text, the canonical RTLIL, the
 GE columns, the cycles and the scored netlist. `leaderboard.py asap7 --write` measures them (a new or re-seeded record
 needs it), `leaderboard.py asap7` checks them, and `asap7 --rescore` and `verify` weigh them again and require the same
 numbers, bit for bit. A design the ASAP7 view would show without a bound entry is "not ranked" or "–" there, never a
@@ -2163,29 +2184,38 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks,
   so the board ranks only records checked under the current ones and lists
   the rest as "Not ranked" until they are submitted again.
 
-Reference points that are **not** records, because `check.py` accepts nothing
-unproved or with a banned operator (at `N = 16`: the ranked sky130 A0' area and
-time from `score/tests/ppa/expected_ppa.json`, the extra GE area and depth from
-`tests/expected.json`):
+**Par is one design per task** (decided 2026-11-12: only the simplest algorithm is par; the other designs are
+entries trying to win the golf). `leaderboard/par.json` names it, one line per task: `add`'s ripple-carry adder `add_n`,
+`mul`'s array multiplier `mul_n`, `clmul`'s array `clmul_n`, `aes_sbox`'s 256-entry table `sbox_table`, `fdivp`'s
+restoring divider `fdivp`, `matmul`'s `matmul_g1`, `sorter`'s insertion-cell array `sorter_ins`, `arbiter`'s
+`rr_mask`, and the tutorial's one design `band`. Par's records are the only records under `svgolf-reference`
+(below); par is their score. Every other design the maintainers proved, the other references task.json lists and
+the baselines of `tests/<task>/baselines/` without a banned operator, is an ENTRY: it joins the board as a record
+under a handle of its own, like any player's, and is ranked with the players' records; the site shows it once that
+record exists, and until then not at all (never as a reference or baseline line).
+
+The baselines with an operator the task bans are **not** records: proved comparison designs (decided 2026-11-12:
+every design the site shows has a kernel-checked proof, its `.lean` beside it in `tests/<task>/baselines/`), never
+entries, never ranked and never par. Each is proved with the task's operator banlist lifted (`check.py
+--lift-banlist`, which never accepts: "banned operator: proved, not an entry"), and `check.py` without the option
+rejects it. At the scoring point (the ranked sky130 A0' area and time from `score/tests/ppa/expected_ppa.json`,
+the extra GE area and depth from `tests/expected.json`):
 
 | task | design | sky130 um^2, ps | GE, depth |
 |---|---|---|---|
-| `add` | Sklansky prefix adder (simulation only) | 541.7696, 2451 | 127.658, 28 |
-| `add` | Kogge-Stone prefix adder (simulation only) | 641.8656, 2064 | 149.652, 24 |
-| `add` | comparison-carry adder, Yosys's `$alu` through run-time comparisons (banned since 2026-11-05, banlist lifted) | 857.072, 1965 | 195.975, 17 |
-| `add` | Yosys's own `{cout, s} = a + b + cin` (banned `+`, banlist lifted) | 497.9776, 3143 | 117.994, 33 |
-| `mul` | Dadda tree + ripple final adder (simulation only) | 8230.3936, 5461 | 1953.585, 61 |
-| `mul` | Dadda tree + Kogge-Stone final adder (simulation only) | 8937.3216, 5148 | 2076.51, 48 |
-| `mul` | Yosys's own `p = a * b` (banned `*`, banlist lifted) | 8825.9648, 6261 | 2081.227, 59 |
-| `fdivp` | the flat binary16 divider (the reference of the former 16-bit task, removed 2026-11-03) under the parametric header, right at `(5, 11)` only (simulation only; at `(5, 11)`) | 8734.6272, 35735 | 1944.775, 303 |
+| `add` | comparison-carry adder, Yosys's `$alu` through run-time comparisons (banned since 2026-11-05; proved with the banlist lifted) | 857.072, 1965 | 195.975, 17 |
+| `add` | Yosys's own `{cout, s} = a + b + cin` (banned `+`; proved with the banlist lifted) | 497.9776, 3143 | 117.994, 33 |
+| `mul` | Yosys's own `p = a * b` (banned `*`; proved with the banlist lifted) | 8825.9648, 6261 | 2081.227, 59 |
 
-Every record so far was added by the maintainers: the proved references, and trial designs made with an AI
-assistant (each record names the tool). There are no outside entries yet. The proved references are the first
+The board is seeded with entries the maintainers made with AI assistance (each record names the tools),
+each proved and scored like any entry: they are ordinary entries and can be beaten. There are no outside
+entries yet. Par's records are the first
 records (`svgolf-reference`,
 `assisted_by` `["Claude (Anthropic)"]`, notes `reference solution`;
-`leaderboard.py seed-references` records them again, and only it records under that handle (decided
-2026-11-12: `add`, `submit` and the pull-request check refuse it, and par is the best of the references
-task.json lists); the records of
+`leaderboard.py seed-references` records them again, par's design only, and only it records under that handle
+(decided 2026-11-12: `add`, `submit` and the pull-request check refuse the handle, `add` refuses it for any other
+design, and par comes only from par's design); on 2026-11-12 the records of the other references (`band_lp`,
+`sbox_bp`, `fdivp_newton`, `fdivp_srt`, `mul_tree_h`) left the board, to come back as entries; the records of
 `leaderboard/data` were re-seeded under `sky130_a0_v3` on 2026-11-04, with the
 same design and proof files, so they carry the ranked columns, again on
 2026-11-05 after the checker's own files changed, with the same files and numbers,
@@ -2209,7 +2239,9 @@ summary table (step, checks, failures, time):
   `.lake/`, `tests/expected.json` listing exactly the designs on disk (its
   `flow` the pinned flow: Yosys version, the sha256 of both scripts and the
   GE table; a reference marked `same_design_as` byte-identical to its twin),
-  and the Dadda baselines reproducible from `gen_dadda.py`;
+  every baseline naming a proof file that exists, and the generated
+  netlists of `tests/<task>/unproved/` (test material, no proof) and the
+  generated baseline proof reproducible from their generators;
 * `build`: `lake build` (SvGolf, tasks, tests), so every refutation of a
   negative design is re-checked by the kernel, its design re-extracted by
   `load_sv` when anything it depends on changed (but the three that do not build
@@ -2318,6 +2350,12 @@ summary table (step, checks, failures, time):
   rules passing at every scored point, and the post-synthesis check passing (`check/postsynth.py`, at the scoring point;
   `--full`: at every scored point), so no legitimate design is falsely
   rejected;
+* `baseline-proofs`: every baseline with its proof through `check.py`
+  (decided 2026-11-12: every design the site shows is proved): accepted, or
+  for a banned-operator baseline `check.py --lift-banlist` ending at the
+  pseudo-stage `lifted` (proved, not an entry) with the task's banlist
+  rejecting it; the axioms within the task's allowed set, the full
+  post-synthesis check, the score as in `tests/expected.json`;
 * `ppa`: the sky130 columns of every design of `score/tests/ppa/designs.json` that the `references` step
   did not already see in a real `check.py` result (the baselines, the banned-operator probes, the draft
   goalpost), weighed by check.py's own `ppa_block` and equal to `score/tests/ppa/expected_ppa.json`, and of
@@ -2411,8 +2449,9 @@ summary table (step, checks, failures, time):
 Runtime: the whole suite takes an hour or more on a laptop, and waiting for the Lean slot comes on top on a
 machine where another job holds it. Of its parts (measured 2026-10-29, when the suite had fewer tasks): `add`'s
 `validate.py` is 3 minutes, 90 s of them the C++ builds of 45 designs-and-widths at about 2 s each; a `check.py`
-run takes 10 to 60 s, the `mul` reference about 90 s with its postsynth stage, the 16-bit Dadda trees'
-postsynth checks 83 and 162 s; the build is 45 s to 90 s when the refutations re-elaborate (a changed design,
+run takes 10 to 60 s, the `mul` reference about 90 s with its postsynth stage, the 16-bit Dadda netlists'
+postsynth checks (then baselines, test material since 2026-11-12) 83 and 162 s, and that of the
+parametric Dadda baseline (2026-11-12) about 800 s, in the `baselines` and again in the `baseline-proofs` step; the build is 45 s to 90 s when the refutations re-elaborate (a changed design,
 task, extractor, or a comment in a `.sv`). `--full` adds hours (`fdivp`'s
 exhaustive steps, the `mul` reference's full plan, `add`'s full
 `validate.py` and `verilator.py`, and the postsynth checks of every baseline
@@ -2441,14 +2480,14 @@ outside `nightly/`.
 
 ## Tasks
 
-| task | statement | reference | score at the scoring point: sky130 A0' um^2, ps (their product, area x time, is the ranked number); GE, depth (extra) |
+| task | statement | par's design, and the other proved designs | score at the scoring point: sky130 A0' um^2, ps (their product, area x time, is the ranked number); GE, depth (extra) |
 |---|---|---|---|
 | `_example` | N-bit bitwise AND (toy) | `assign y = a & b;`, for-all-`N` proof | 100.096 um^2, 280 ps; 21.328 GE, depth 1 |
-| `add` | N-bit adder with carry, `{cout, s} = a + b + cin`; bans `+ - * / % **` | ripple carry from gates, for-all-`N` proof (with the sv_comb tactics, and by hand as `add_n_byhand`); Sklansky and Kogge-Stone prefix adders by simulation (`tests/add/baselines`) | ripple 460.4416 um^2, 2611 ps; 112.0 GE, depth 33. Sklansky 541.7696, 2451; 127.658, 28. Kogge-Stone 641.8656, 2064; 149.652, 24 (Yosys's own `+`: 497.9776, 3143; 117.994, 33) |
-| `mul` | N-bit unsigned multiplier, `p = a * b` on `2N` bits; bans `+ - * / % **` | array multiplier (AND partial products, ripple-carry rows of full adders), for-all-`N` proof (with the sv_comb tactics, and by hand as `mul_n_byhand`); Dadda trees by simulation (`tests/mul/baselines`) | array 8290.4512 um^2, 10907 ps; 1962.576 GE, depth 88. Par, the proved tree `mul_tree_h`: 8563.2128, 5992; 2025.905, 62. Dadda + ripple 8230.3936, 5461; 1953.585, 61. Dadda + Kogge-Stone 8937.3216, 5148; 2076.51, 48 (Yosys's own `*`: 8825.9648, 6261; 2081.227, 59) |
-| `fdivp` | IEEE 754 division PARAMETRIC in the format, `fdiv #(W, P)` on `W + P` bits for every `W >= 2`, `P >= 2`, round to nearest even, canonical NaN, subnormals (`SvGolf.IEEE754.divide`); bans `/ % **` | a word-level netlist of 34 sites (linear normalizer and `P + 2` restoring steps as generate families), Verilator-validated on all 66 formats with `W + P <= 14` and both 2^32-pair formats and **proved for every format** (`tasks/fdivp/README.md`; one self-contained proof over `LeanModels.Sv.Lib`: the spec's facts, the certificate, the math layer, the glue `Glue.chain`, `OutN_fdivBits`); binary16 is the instance `(5, 11)` (the former 16-bit task, removed 2026-11-03, is folded in); the natural form D1 and the fragment-friendly D2 are baselines (`tests/fdivp/baselines`); a second proved reference, a Newton-Raphson divider (a logarithmic number of Newton steps over the run-time `*`), is not competitive; a third, a radix-4 SRT divider adapted from CORE-V Wally (carry-save remainder, digit selection by table constants, on-the-fly conversion), is the fastest | 9675.5296 um^2, 37984 ps; 2166.076 GE, depth 289 at `(5, 11)` (Newton 33824.9408, 40031; 7892.452, 252; SRT, par: 12356.8512, 27592; 2787.652, 189; D1 1911.446 GE, 300, not weighed) |
-| `aes_sbox` | the AES S-box (FIPS 197 Section 5.1.1), `y = S(x)` on 8 bits, defined algebraically (inverse in GF(2^8), then the affine map), fixed size; NO operator banned; the post-synthesis check is exhaustive (all 256 inputs) | Boyar-Peralta 113-gate circuit, validated (Verilator, all 256 inputs; gate for gate against the authors' netlist file), scored and **proved** (113 plain sites: `sv_structure` and `sv_equations` decide the obligations of a flat netlist instead of normalising them, `PROVING.md` section 12); a 256-entry `case` table and the depth-16 Boyar-Peralta circuit by simulation (`tests/aes_sbox/baselines`) | 892.1056 um^2, 4297 ps; 200.986 GE, depth 21 (fixed size). `case` table 3445.8048, 2288; 786.894, 11. Depth-16 circuit 952.1632, 3670; 216.322, 18 |
-| `clmul` | N-bit carry-less multiplier (product of polynomials over GF(2)), `p = a (x) b` on `2N-1` bits; bans run-time `+ - *` | the N x N AND/XOR array (`mul_n`'s shape without carries), validated (Verilator, exhaustive to `N = 8`; the Lean spec equals the oracle on every pair to `N = 7`), scored and **proved** for every `N` (`sv_structure`/`sv_equations`/`sv_cover`/`sv_bridge`, 206 code lines, `solution` stage 7.7 s); schoolbook and Karatsuba baselines by simulation (`tests/clmul/baselines`); 18 real-world styles under `tests/clmul/attacks` (`tasks/clmul/README.md`, "How people write clmul") | 3429.5392 um^2, 1114 ps; 772.267 GE, depth 6 at `N = 16`; Karatsuba (4-bit base, generated) 2756.4, 1807; 621.959, 8 |
+| `add` | N-bit adder with carry, `{cout, s} = a + b + cin`; bans `+ - * / % **` | par: ripple carry from gates, for-all-`N` proof (with the sv_comb tactics, and by hand as `add_n_byhand`); proved Sklansky and Kogge-Stone prefix adders, entries (`tests/add/baselines`), and two proved banned-operator designs as baselines | ripple (par) 460.4416 um^2, 2611 ps; 112.0 GE, depth 33. Sklansky 541.7696, 2451; 127.658, 28. Kogge-Stone 641.8656, 2064; 149.652, 24 (Yosys's own `+`: 497.9776, 3143; 117.994, 33) |
+| `mul` | N-bit unsigned multiplier, `p = a * b` on `2N` bits; bans `+ - * / % **` | par: the array multiplier (AND partial products, ripple-carry rows of full adders), for-all-`N` proof (with the sv_comb tactics, and by hand as `mul_n_byhand`); entries: three proved tree references and a Dadda tree with a ripple-carry final adder, one design for every `N`, proved by hand (`tests/mul/baselines`); Yosys's own `*` as a proved banned-operator baseline | array (par) 8290.4512 um^2, 10907 ps; 1962.576 GE, depth 88. The proved tree `mul_tree_h`, an entry: 8563.2128, 5992; 2025.905, 62 (Dadda + ripple, an entry: 8230.3936, 5461; 1953.585, 61. Yosys's own `*`: 8825.9648, 6261; 2081.227, 59) |
+| `fdivp` | IEEE 754 division PARAMETRIC in the format, `fdiv #(W, P)` on `W + P` bits for every `W >= 2`, `P >= 2`, round to nearest even, canonical NaN, subnormals (`SvGolf.IEEE754.divide`); bans `/ % **` | a word-level netlist of 34 sites (linear normalizer and `P + 2` restoring steps as generate families), Verilator-validated on all 66 formats with `W + P <= 14` and both 2^32-pair formats and **proved for every format** (`tasks/fdivp/README.md`; one self-contained proof over `LeanModels.Sv.Lib`: the spec's facts, the certificate, the math layer, the glue `Glue.chain`, `OutN_fdivBits`); binary16 is the instance `(5, 11)` (the former 16-bit task, removed 2026-11-03, is folded in): par, restoring division; entries: the fragment-friendly D2 (`tests/fdivp/baselines`), a second proved reference, a Newton-Raphson divider (a logarithmic number of Newton steps over the run-time `*`), not competitive, and a third, a radix-4 SRT divider adapted from CORE-V Wally (carry-save remainder, digit selection by table constants, on-the-fly conversion), the fastest | par 9675.5296 um^2, 37984 ps; 2166.076 GE, depth 289 at `(5, 11)` (Newton 33824.9408, 40031; 7892.452, 252; SRT: 12356.8512, 27592; 2787.652, 189) |
+| `aes_sbox` | the AES S-box (FIPS 197 Section 5.1.1), `y = S(x)` on 8 bits, defined algebraically (inverse in GF(2^8), then the affine map), fixed size; NO operator banned; the post-synthesis check is exhaustive (all 256 inputs) | par: a proved 256-entry `case` table; entries: the Boyar-Peralta 113-gate circuit, validated (Verilator, all 256 inputs; gate for gate against the authors' netlist file), scored and **proved** (113 plain sites: `sv_structure` and `sv_equations` decide the obligations of a flat netlist instead of normalising them, `PROVING.md` section 12), and the proved depth-16 Boyar-Peralta circuit (`tests/aes_sbox/baselines`) | `case` table (par) 3445.8048 um^2, 2288 ps; 786.894 GE, depth 11 (fixed size). 113-gate circuit 892.1056, 4297; 200.986, 21. Depth-16 circuit 952.1632, 3670; 216.322, 18 |
+| `clmul` | N-bit carry-less multiplier (product of polynomials over GF(2)), `p = a (x) b` on `2N-1` bits; bans run-time `+ - *` | the N x N AND/XOR array (`mul_n`'s shape without carries), validated (Verilator, exhaustive to `N = 8`; the Lean spec equals the oracle on every pair to `N = 7`), scored and **proved** for every `N` (`sv_structure`/`sv_equations`/`sv_cover`/`sv_bridge`, 206 code lines, `solution` stage 7.7 s), par; proved schoolbook-tree and Karatsuba designs, entries (`tests/clmul/baselines`); 18 real-world styles under `tests/clmul/attacks` (`tasks/clmul/README.md`, "How people write clmul") | 3429.5392 um^2, 1114 ps; 772.267 GE, depth 6 at `N = 16`; Karatsuba (`kara_lv`, 4-bit base) 2732.6208, 1810; 616.626, 8 |
 | `arbiter` | a fair N-client arbiter, CLOCKED and REACTIVE (`ReactTask`, kind `react-family`): per cycle at most one grant, only to a requester, someone whenever anyone requests (G1 to G3), no grant out of reset (G0), and a client that requests `N` cycles in a row granted within them (G4, `K = N - 1`, tight), from every power-up state, Moore outputs, no environment assumption; every `N >= 1` with `N*N < 2^31`; bans `/ % **` | a registered mask round-robin (own code), **proved** for every `N` through `ReactTask.satisfiedAt_of_rank` (an invariant and a rank: `PROVING.md` section 20); the adapted OpenTitan `prim_arbiter_tree` behind an output register and a rotating priority by simulation (`tests/arbiter/designs`); 17 attacks (`tests/arbiter/attacks`); listed and ranked, par the reference's record (`tasks/arbiter/README.md`) | 769.488 um^2, 2826 ps (the register-to-register period, one decision per cycle; 16 flops); 188.979 GE, depth 17 at `N = 8`. OpenTitan tree 668.1 um^2, 1454 ps (an earlier flow version, not proved) |
 | `matmul` | N x N signed matrix multiplication, CLOCKED with a declared latency (`TxTask`, kind `tx-family`): `C = A * B` over `W`-bit two's-complement entries, every sum wrapping at `AccW` bits, behind a start/done handshake, from every power-up state, Moore outputs; every `N, W, AccW >= 1` with `N*N*W < 2^31`, `N*N*AccW < 2^31`; bans `/ % **` | `N*N` parallel multiply-accumulate units and one step counter (own code), latency `N`, **proved** for every point through `TxTask.satisfiedAtV2_of_phases` (a phase model: `PROVING.md` section 19); 7 attacks (`tests/matmul/attacks`); listed and ranked (decided 2026-11-08), par the reference's record (`tasks/matmul/README.md`) | 87173.6064 um^2, 4 x 10696 ps = 42784 ps (the latency in cycles x the register-to-register period; 802 flops); 20783.15 GE, depth 61 at `(N, W, AccW) = (4, 8, 32)` |
 | `sorter` | a streaming sorter of N unsigned W-bit values, CLOCKED with a declared latency (`StreamTask`, kind `stream-family`): the values in on `N` consecutive `in_valid` cycles, the same values out ascending (duplicates kept) on `N` `out_valid` cycles, from every power-up state, Moore outputs; every `N, W >= 1` with `N*W < 2^31`; bans `/ % **` | an insertion-cell array adapted from andrewpeck/cell-sort (MIT), latency `2N`, **proved** for every point through `StreamTask.satisfiedAtV2_of_phases` (`PROVING.md` section 19); 8 attacks (`tests/sorter/attacks`); listed and ranked (decided 2026-11-08), par the reference's record (`tasks/sorter/README.md`) | 5512.7872 um^2, 16 x 2523 ps = 40368 ps (81 flops); 1288.819 GE, depth 15 at `(N, W) = (8, 8)` |

@@ -33,13 +33,7 @@
    "glitch_factor": 1.062,
    "leakage_sky130_v1": 1.116
   },
-  "mul/dadda_ks_16@N=16": {
-   "energy_activity_sky130_v1": 9074.821,
-   "energy_glitch_sky130_v1": 16727.269,
-   "glitch_factor": 1.825,
-   "leakage_sky130_v1": 4.019
-  },
-  "mul/dadda_rc_16@N=16": {
+  "mul/dadda_rc@N=16": {
    "energy_activity_sky130_v1": 8519.564,
    "energy_glitch_sky130_v1": 14617.917,
    "glitch_factor": 1.699,

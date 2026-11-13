@@ -220,14 +220,14 @@ On stderr, one line when each long stage starts (`check: <stage> ...`), the
 result lines of the tactics, solution, postsynth and ppa stages, and, as the
 LAST line of every run that reached the `ppa` stage, the ranked headline:
 
-    ranked (sky130 A0'): <area> um^2 x <delay> ps = <area x time> um2*ns; par <par> (<par reference>)
+    ranked (sky130 A0'): <area> um^2 x <delay> ps = <area x time> um2*ns; par <par> (<par design>)
 
 and on a clocked task, whose time is the latency in cycles (1 without one) times the clock period,
 
-    ranked (sky130 A0'): <area> um^2 x <n> cycles x <period> ps = <area x time> um2*ns; par <par> (<par reference>)
+    ranked (sky130 A0'): <area> um^2 x <n> cycles x <period> ps = <area x time> um2*ns; par <par> (<par design>)
 
-(`par` is the best proved reference's area x time on the task's board, the reference player's records in
-leaderboard/data, leaderboard.py `par_of`; `par: none recorded` without one, and `par: none under this Yosys
+(`par` is the area x time of the task's par design on its board, the one design leaderboard/par.json names,
+from the reference player's records in leaderboard/data, leaderboard.py `par_of`; `par: none recorded` without one, and `par: none under this Yosys
 build` (or `this flow`) when the reference records were weighed under another one: `par_elsewhere`), or
 `ranked: liberty missing, run python3.12 score/ppa.py --fetch-liberty` when the pinned liberty cannot be opened,
 or `ranked: not computed: <why>` when the pinned flow cannot weigh the netlist.
@@ -242,6 +242,18 @@ proof exists; `tests/run.py` uses it for the postsynth attacks, which have no
 proof. With `--keep` or `--stage-dir`, its `dev_hint` is the command that
 compiles ANY probe file (`<YourFile>.lean`, which starts with `import
 Submission.Design`) against the staged design.
+
+`--lift-banlist` (decided 2026-11-12: every design shown on the site has a kernel-checked proof, the comparison
+designs that use an operator the task bans included) runs every stage, the proof's included, with the TASK'S OWN
+operator banlist lifted: the banlist stage checks only the run-time `/ % **` that every task bans (`banlist.py`
+ALWAYS_BANNED), exactly as for a task whose `banlist.operators` is empty; the statement, the ranges, the axioms, the
+limits and every other stage are the task's own. Such a result is NEVER accepted and can never become a record: it
+carries `banlist_lifted` (the operators lifted, the task banlist's own verdict `rejects` or `passes` and its first
+findings) from the banlist stage on, and a run where every stage passed stops at the pseudo-stage `lifted` with
+`accepted: false`, `lifted_ok: true`, the sentence "banned operator: proved, not an entry" in `notes` and exit status
+0; its ranked headline says so too. `leaderboard.py add` refuses any result that carries `banlist_lifted`, and its own
+check never lifts the banlist. With `--unproved` it is the same fast loop as without (stage `unproved`), on the lifted
+banlist. `tests/run.py` (step `baseline-proofs`) checks the proved comparison designs with a banned operator this way.
 
 ADVISORY output, which never changes `accepted`, `stage` or another field:
   * `stages.postsynth.functional` and one line of the top-level `warnings`
@@ -1802,13 +1814,36 @@ def fourstate_points(task):
     return [first] + [p for p in probe_points(task) if p != first]
 
 
+def lifted_banlist_task(task):
+    """`--lift-banlist`: the task as the banlist stage sees it with its own operators lifted, `banlist.operators` empty
+    (`task_banlist` then adds the run-time / % ** every task bans, ALWAYS_BANNED). Everything else is the task's."""
+    return dict(task, banlist=dict(task.get("banlist") or {}, operators=[]))
+
+
+LIFTED_NOTE = "banned operator: proved, not an entry"
+
+
+def lifted_sentence(lifted, unproved=False):
+    """The note of a `--lift-banlist` run where every stage passed (`unproved`: every stage that needs no proof)."""
+    ops = " ".join(lifted["operators"]) or "none"
+    head = (f"{LIFTED_NOTE}: every stage passed with the task's operator banlist lifted (lifted: {ops}; the run-time "
+            "/ % ** every task bans were checked)" if not unproved else
+            f"--lift-banlist: the task's operator banlist was lifted (lifted: {ops}), so whatever the proof stages "
+            "say, the design is not an entry")
+    return head + ("; the task's banlist rejects the design, so it is never accepted and never a record"
+                   if lifted["task_banlist"] == "rejects" else
+                   "; the task's banlist passes this design: check it without --lift-banlist to make an entry")
+
+
 def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=True,
           build_trusted=True, unproved=False, keep=False, tactics=False, postsynth_mode=None,
-          ppa_mode="auto", latency=None, latency_at=None):
+          ppa_mode="auto", latency=None, latency_at=None, lift_banlist=False):
     """Check one submission. With `unproved` (and `lean_path` None), run every
     stage that needs no proof and stop at the pseudo-stage `unproved`, never
     accepting; with `tactics` (only then), also run the advisory fragment
-    pre-check after the `design` stage. With `keep`, the postsynth work
+    pre-check after the `design` stage. With `lift_banlist` (`--lift-banlist`), the task's own operator banlist is
+    lifted (only ALWAYS_BANNED is checked, `lifted_banlist_task`): the result carries `banlist_lifted` and is never
+    accepted; a run where every stage passed stops at the pseudo-stage `lifted` (`lifted_ok`). With `keep`, the postsynth work
     directory (netlist, vectors, simulator outputs) is kept and named in the
     result. `postsynth_mode` is "light" or "full" (None: `$SVGOLF_POSTSYNTH`,
     else light; check/postsynth.py, "TWO MODES"); the result's
@@ -1992,11 +2027,26 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         # every task runs the front check, which also reads slang's analysis errors, and the backstop. (An `else` that
         # skipped both for a task with no banned operator was removed: no task could reach it any more.)
         ops, points = banlist.task_banlist(task)
+        lifted = None
+        if lift_banlist:
+            # `--lift-banlist`: the task's own banlist runs once for its verdict, which is recorded and decides
+            # nothing; the stage then checks the lifted list (ALWAYS_BANNED only), as for a task whose list is empty
+            t_front, _ = banlist.front_check([sv], top, ops, probe_pts + points)
+            t_back = banlist.backstop_check([sv], top, ops, points)
+            t_found = [f.replace(sv, shown) for f in t_front + t_back]
+            task_ops = ops
+            ops, points = banlist.task_banlist(lifted_banlist_task(task))
+            lifted = {"operators": [op for op in task_ops if op not in ops], "task_operators": task_ops,
+                      "task_banlist": "rejects" if t_found else "passes", "task_findings": t_found[:6],
+                      "verdict": LIFTED_NOTE}
+            res["banlist_lifted"] = lifted
         front, diags = banlist.front_check([sv], top, ops, probe_pts + points)
         back = banlist.backstop_check([sv], top, ops, points)
         front, back, diags = ([f.replace(sv, shown) for f in xs] for xs in (front, back, diags))
         st["banlist"] = {"operators": ops, "front": front, "backstop": back,
                          "diagnostics": diags}
+        if lifted is not None:
+            st["banlist"]["lifted"] = lifted
         if front or back or diags:
             raise Reject("banlist", "banned run-time operators (or the design does not "
                          f"elaborate): {(front + back + diags)[:6]}")
@@ -2254,6 +2304,13 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         if changed:
             raise Reject("integrity", "trusted files changed after the solution was built "
                          f"(or another build ran concurrently; rerun): {changed[:5]}")
+        if lift_banlist:
+            # every stage passed with the task's banlist lifted: proved, and never an entry
+            res["stage"] = "lifted"
+            res["lifted_ok"] = True
+            res.setdefault("notes", []).append(lifted_sentence(res["banlist_lifted"]))
+            log("check: " + lifted_sentence(res["banlist_lifted"]))
+            return res
         res["accepted"] = True
         res["stage"] = "done"
         incomplete = incomplete_reasons(task, st, do_score, build_trusted, time_limit)
@@ -2740,6 +2797,8 @@ def finish_unproved(res, st, task, sv, env_path, do_score, ps_work, keep, oracle
                                            "extract, banlist, fourstate, design"
                                            + (", score, postsynth" if do_score else "")
                                            + "); the proof stages were not run, so the design is not accepted")
+        if res.get("banlist_lifted"):
+            res["notes"].append(lifted_sentence(res["banlist_lifted"], unproved=True))
         res["unproved_ok"] = True
     except Reject as r:
         res["stage"] = r.stage
@@ -2859,7 +2918,7 @@ def par_elsewhere(task_name):
         records = lb.good_records(loaded)
         par = lb.par_of(task, records, flow=None, identity=lb.ppa_identity(),
                         input_drive=lb.ppa_setup_now(task).get("input_drive"),
-                        names=lb.reference_names(lb.DEFAULT_TASKS, task),
+                        names=lb.par_names(lb.DEFAULT_TASKS, task),
                         statement=lb.current_statement_or_none(task))
         if par is None:
             return []
@@ -2891,7 +2950,9 @@ def ranked_headline(res):
         factors = f"{n} cycle{'' if n == 1 else 's'} x {sc['period_ps']} ps"
     else:
         factors = f"{time_ps} ps"
-    line = f"ranked (sky130 A0'): {block['area_um2_sky130']} um^2 x {factors} = {comb.um2ns(exact):.2f} um2*ns"
+    # a `--lift-banlist` run is never an entry: its numbers are shown, not ranked
+    head = "not rankable, banned operator" if res.get("banlist_lifted") else "ranked"
+    line = f"{head} (sky130 A0'): {block['area_um2_sky130']} um^2 x {factors} = {comb.um2ns(exact):.2f} um2*ns"
     par, why = task_par(res.get("task"))
     if par is not None:
         return line + f"; par {par['um2ns']:.2f} ({par['name']})"
@@ -2977,6 +3038,11 @@ def main(argv=None):
                     help="with --unproved: also ask the sv_comb tactics (`sv_structure?`, one "
                     "extra Lean job) whether they can read the design at all; advisory: the "
                     "result's `tactics` says in_fragment true/false and why, nothing else changes")
+    ap.add_argument("--lift-banlist", action="store_true",
+                    help="check a design that uses an operator the task bans: every stage, the proof's included, with "
+                    "the task's own operator banlist lifted (the run-time / %% ** every task bans stay banned). The "
+                    "result is NEVER accepted (`banlist_lifted`; a clean run stops at stage `lifted`, `lifted_ok`, exit "
+                    "0: \"banned operator: proved, not an entry\") and `leaderboard.py add` refuses it")
     args = ap.parse_args(argv)
     if args.unproved != (args.solution_lean is None):
         ap.error("give Solution.lean (the proof), or --unproved without one")
@@ -3029,7 +3095,7 @@ def main(argv=None):
                     args.solution_lean and os.path.abspath(args.solution_lean), stage,
                     wrap, args.time_limit, not args.no_score,
                     not args.no_trusted_build, args.unproved, args.keep or bool(args.stage_dir),
-                    args.tactics, pmode, args.ppa, args.latency, latency_at)
+                    args.tactics, pmode, args.ppa, args.latency, latency_at, args.lift_banlist)
     except RuntimeError as e:
         print(json.dumps({"accepted": False, "stage": "infrastructure", "errors": [str(e)]},
                          indent=2))
@@ -3056,8 +3122,8 @@ def main(argv=None):
         headline = f"ranked: not computed: {type(e).__name__}: {e}"
     if headline:
         log(headline)     # the LAST line on stderr (contract: the ranked headline)
-    # 0: accepted, or a clean `--unproved` run (every stage it runs passed); 1: a stage failed
-    return 0 if res["accepted"] or res.get("unproved_ok") else 1
+    # 0: accepted, or a clean `--unproved` or `--lift-banlist` run (every stage it runs passed); 1: a stage failed
+    return 0 if res["accepted"] or res.get("unproved_ok") or res.get("lifted_ok") else 1
 
 
 if __name__ == "__main__":

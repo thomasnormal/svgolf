@@ -70,6 +70,14 @@ def section(page_html, sid):
     return page_html[start:]
 
 
+def shown_refs(task):
+    """The task.json references the site shows (decided 2026-11-12): the proofs of par's design, the one design
+    leaderboard/par.json names; every other reference is an entry, shown once a player's record holds it."""
+    par = lb.par_names(os.path.join(SVGOLF, "tasks"), task)
+    return [r for r in task.get("references", [])
+            if lb.sha256_file(os.path.join(SVGOLF, "tasks", task["name"], r["sv"])) in par]
+
+
 def records():
     out = []
     data = os.path.join(SVGOLF, "leaderboard", "data")
@@ -113,7 +121,7 @@ class DetailTest(unittest.TestCase):
                     out.append((t, f"tasks/{t}/records/{r['record_hash']}.html", r, None))
                     if r["player"] == self.config["reference_player"]:
                         recorded.add((r["files"]["sv"]["sha256"], r["files"]["lean"]["sha256"]))
-            for ref in task.get("references", []):
+            for ref in shown_refs(task):
                 stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
                 with open(os.path.join(SVGOLF, "tasks", t, ref["sv"]), "rb") as a, \
                         open(os.path.join(SVGOLF, "tasks", t, ref["lean"]), "rb") as b:
@@ -131,7 +139,8 @@ class DetailTest(unittest.TestCase):
         for t in ("fdivp", "aes_sbox"):        # seeded under the current ppa_version (PLAN4 3b step 4)
             task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
             mine = [r for r in self.recs if r["task"] == t and r["player"] == self.config["reference_player"]]
-            self.assertEqual(len(mine), len(task["references"]), t)
+            # (2026-11-12) par's design alone is recorded under the reference handle: one proof of it here
+            self.assertEqual(len(mine), len(shown_refs(task)), t)
             for r in mine:
                 self.assertEqual(r["ppa"]["ppa_version"], lb.ppa_identity()["ppa_version"])
 
@@ -165,7 +174,7 @@ class DetailTest(unittest.TestCase):
                 self.assertEqual(pages, [])
                 task_html = self.page(f"tasks/{t}/index.html")
                 refs = section(task_html, "references")
-                for ref in task.get("references", []):
+                for ref in shown_refs(task):
                     stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
                     self.assertIn(f'id="ref-{stem}"', refs)
                     self.assertNotIn(f'href="reference/{stem}.html"', task_html)

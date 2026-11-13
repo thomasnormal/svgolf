@@ -99,281 +99,169 @@
   {
    "at": {
     "N=16": {
-     "area_e4um2": 29603392,
-     "area_ge": 672.635,
-     "area_mge": 672635,
-     "area_um2": 2960.3392,
+     "area_e4um2": 28902720,
+     "area_ge": 651.95,
+     "area_mge": 651950,
+     "area_um2": 2890.272,
      "buffers": 0,
-     "cells": 390,
-     "delay_ps": 2055,
-     "depth": 10,
-     "gates": {
-      "AND": 84,
-      "ANDNOT": 8,
-      "NAND": 41,
-      "NOR": 1,
-      "NOT": 1,
-      "OR": 1,
-      "ORNOT": 3,
-      "XNOR": 159,
-      "XOR": 92
-     },
-     "netlist_sha256": "07ffd971806d41a19c647f2d291e536bdfefc510d57f9ce02f89ec08575bfc99",
-     "num_gates": 390,
-     "repaired_sha256": "def3ca453600efab257df8e6e23c6aa2201d917809df164741341a76cad26875",
-     "rtlil_sha256": "2c6abfddc2004620c2ace4009a036648b023afd2029ae13b0b099586bb6f82a5",
-     "time_ps": 2055,
-     "unit_depth": 10
-    }
-   },
-   "banned": false,
-   "family": "kara_b2_16",
-   "id": "baseline/kara_b2_16",
-   "kind": "baseline",
-   "name": "kara_b2_16",
-   "sha256": "4096df5dd5392b5824e62d1992ab01f99897c6b8ad6d7b325794306cbe180a7f",
-   "src": "tests/clmul/baselines/kara_b2_16.sv"
-  },
-  {
-   "at": {
-    "N=16": {
-     "area_e4um2": 27563936,
-     "area_ge": 621.959,
-     "area_mge": 621959,
-     "area_um2": 2756.3936,
-     "buffers": 0,
-     "cells": 371,
-     "delay_ps": 1807,
-     "depth": 8,
-     "gates": {
-      "AND": 120,
-      "ANDNOT": 4,
-      "NAND": 34,
-      "NOT": 2,
-      "OR": 1,
-      "XNOR": 162,
-      "XOR": 48
-     },
-     "netlist_sha256": "81911f8ff5c524b5054de715323fc498ac1b98603bba51b8b2c537a4dd9dff32",
-     "num_gates": 371,
-     "repaired_sha256": "762890f9f97df3005dab965396ec1683d928b754ca49ff7d5648492f8c26b53c",
-     "rtlil_sha256": "8c26789c1b7f33bd03fe5e50735a163a7f6ab10d7b5037fbfa306df9c7f8d4c1",
-     "time_ps": 1807,
-     "unit_depth": 8
-    }
-   },
-   "banned": false,
-   "family": "kara_b4",
-   "id": "baseline/kara_b4_16",
-   "kind": "baseline",
-   "name": "kara_b4_16",
-   "sha256": "c2a4f21b055ac5744e3bede36110728c53cf5272b87cafd14351d4561496bf37",
-   "src": "tests/clmul/baselines/kara_b4_16.sv"
-  },
-  {
-   "at": {
-    "N=32": {
-     "area_e4um2": 91625376,
-     "area_ge": 2068.877,
-     "area_mge": 2068877,
-     "area_um2": 9162.5376,
-     "buffers": 0,
-     "cells": 1203,
-     "delay_ps": 2565,
-     "depth": 11,
-     "gates": {
-      "AND": 363,
-      "ANDNOT": 4,
-      "NAND": 87,
-      "NOT": 2,
-      "OR": 2,
-      "ORNOT": 2,
-      "XNOR": 561,
-      "XOR": 182
-     },
-     "netlist_sha256": "4ccc3a6c341fd1ed3c443ae5967bbd096115777ae550d592cb0d1707c6100f93",
-     "num_gates": 1203,
-     "repaired_sha256": "0b69b63e125b86adca5042bc3bab9ec4358f47d58a7aace437c1a66f73a1da3e",
-     "rtlil_sha256": "2988a6d03bebe41f7442297c52ed28fc9a2db0bb2977c152fc8cc69acbc82ab8",
-     "time_ps": 2565,
-     "unit_depth": 11
-    }
-   },
-   "banned": false,
-   "family": "kara_b4",
-   "id": "baseline/kara_b4_32",
-   "kind": "baseline",
-   "name": "kara_b4_32",
-   "sha256": "d5de824e7f055363b4b9725cb50797997a609f8e8d228ed28721e3d41c862cde",
-   "src": "tests/clmul/baselines/kara_b4_32.sv"
-  },
-  {
-   "at": {
-    "N=8": {
-     "area_e4um2": 7444640,
-     "area_ge": 166.986,
-     "area_mge": 166986,
-     "area_um2": 744.464,
-     "buffers": 0,
-     "cells": 101,
-     "delay_ps": 1109,
-     "depth": 5,
-     "gates": {
-      "AND": 42,
-      "NAND": 7,
-      "XNOR": 43,
-      "XOR": 9
-     },
-     "netlist_sha256": "a38daddb87f55b55f27e219ee01c271b1d1e1cbdb519d3faf4d33be3d0599b84",
-     "num_gates": 101,
-     "repaired_sha256": "062c66f6446cacf7a8d77f6c3d5ad5811686f054afc1704ac4cc2b91e8e9d897",
-     "rtlil_sha256": "1e7bc2d00e9853782d21e3f1cf60c0e42614c7ba78502b0d1c795ff0b0a68604",
-     "time_ps": 1109,
-     "unit_depth": 5
-    }
-   },
-   "banned": false,
-   "family": "kara_b4",
-   "id": "baseline/kara_b4_8",
-   "kind": "baseline",
-   "name": "kara_b4_8",
-   "sha256": "87da5fc3568ec21c4806f2ede05c8670134bde769d0748423e2d323972a72fb2",
-   "src": "tests/clmul/baselines/kara_b4_8.sv"
-  },
-  {
-   "at": {
-    "N=16": {
-     "area_e4um2": 28539872,
-     "area_ge": 643.283,
-     "area_mge": 643283,
-     "area_um2": 2853.9872,
-     "buffers": 0,
-     "cells": 393,
-     "delay_ps": 1372,
+     "cells": 398,
+     "delay_ps": 1424,
      "depth": 7,
      "gates": {
-      "AND": 151,
-      "NAND": 42,
-      "XNOR": 181,
+      "AND": 150,
+      "NAND": 44,
+      "XNOR": 185,
       "XOR": 19
      },
-     "netlist_sha256": "9bff1f3575dab0b9da392b44d8ffba6d45ff0acd7394509074816549f740fd74",
-     "num_gates": 393,
-     "repaired_sha256": "553af55a2f97dc7d47ce619f7e92f0fb99ee0b0f9fdd02af34704dcf0d27d5f0",
-     "rtlil_sha256": "3a9fe1d73e56ba8753c90cc7644b705b40c169b7632b887a3f53a06ff261fc50",
-     "time_ps": 1372,
+     "netlist_sha256": "9e5208754b0f8506969ff7570fb4452b226ac86031b2cf53c9ab9131c3983158",
+     "num_gates": 398,
+     "repaired_sha256": "8be80f6c13ec1ee324790b0a5e33b3f826854500d7f5c85e727125877793c33c",
+     "rtlil_sha256": "d79dbd370b2bd5fd2079cd49fcb9b253e67f74b59fd0c876b4eea062c0250ae2",
+     "time_ps": 1424,
      "unit_depth": 7
-    }
-   },
-   "banned": false,
-   "family": "kara_b8_16",
-   "id": "baseline/kara_b8_16",
-   "kind": "baseline",
-   "name": "kara_b8_16",
-   "sha256": "c21035e29c3a4a99a180dcc17cdd0ceca8fd95560fb07dda3b4e9f9f33a400c0",
-   "src": "tests/clmul/baselines/kara_b8_16.sv"
-  },
-  {
-   "at": {
-    "N=16": {
-     "area_e4um2": 29791072,
-     "area_ge": 677.638,
-     "area_mge": 677638,
-     "area_um2": 2979.1072,
+    },
+    "N=32": {
+     "area_e4um2": 113271136,
+     "area_ge": 2556.137,
+     "area_mge": 2556137,
+     "area_um2": 11327.1136,
      "buffers": 0,
-     "cells": 389,
-     "delay_ps": 2089,
-     "depth": 9,
+     "cells": 1565,
+     "delay_ps": 1840,
+     "depth": 8,
      "gates": {
-      "AND": 81,
-      "ANDNOT": 6,
-      "NAND": 41,
-      "NOT": 1,
-      "XNOR": 167,
-      "XOR": 93
+      "AND": 589,
+      "NAND": 181,
+      "XNOR": 754,
+      "XOR": 41
      },
-     "netlist_sha256": "58a79a19d006d8e068680f4cd4b6574eba8df1463a5c177dda1eaf8f87bf5e9e",
-     "num_gates": 389,
-     "repaired_sha256": "e207d46a0e3b1d9cb978b4895196e681db916182fda99eceffaa9fdea91e7f62",
-     "rtlil_sha256": "c8a494967af2980af2c0e805498ed059b8b22edb67e8c99ddf947c1c42b5c99e",
-     "time_ps": 2089,
-     "unit_depth": 9
+     "netlist_sha256": "eec51423c449247a973b277e8d4f08997895be44c8a97738aeac2d3685b3d7ae",
+     "num_gates": 1565,
+     "repaired_sha256": "99d31450f6ba364bbafcb174acd5e92ec4c838b490b2243afb867c05625683e5",
+     "rtlil_sha256": "7e4a3c7d14f84d96f9746333037b474976423f0b7047d94bfb5fddcdbbe1c9ac",
+     "time_ps": 1840,
+     "unit_depth": 8
+    },
+    "N=4": {
+     "area_e4um2": 1939360,
+     "area_ge": 43.663,
+     "area_mge": 43663,
+     "area_um2": 193.936,
+     "buffers": 0,
+     "cells": 27,
+     "delay_ps": 960,
+     "depth": 4,
+     "gates": {
+      "AND": 11,
+      "NAND": 3,
+      "XNOR": 9,
+      "XOR": 4
+     },
+     "netlist_sha256": "9542b91093451a40898e64cef5872b24b8dcb00b3d59e9f28fdc144160372684",
+     "num_gates": 27,
+     "repaired_sha256": "1af6a24704f127833bda79c3facdf035c3e701bd72b55d16075890b4d55d6c24",
+     "rtlil_sha256": "facb390a09a3cc621f71e516325e15c1196ef3ae2c1c86d84c10ea197b8e2a34",
+     "time_ps": 960,
+     "unit_depth": 4
+    },
+    "N=8": {
+     "area_e4um2": 7432128,
+     "area_ge": 167.32,
+     "area_mge": 167320,
+     "area_um2": 743.2128,
+     "buffers": 0,
+     "cells": 102,
+     "delay_ps": 1233,
+     "depth": 6,
+     "gates": {
+      "AND": 40,
+      "NAND": 10,
+      "XNOR": 44,
+      "XOR": 8
+     },
+     "netlist_sha256": "4f455c08c84265a6dbb43e1f2dbd362a18965b151ac7787b2f4359feb072ea18",
+     "num_gates": 102,
+     "repaired_sha256": "eb2a372fd764ea5372b559f5680c5a9be6202ae90ca7139cbc2ca160c32e1a21",
+     "rtlil_sha256": "603132310775c4c29a822cbce27e0d8a4a96b0583417f3e91f4ba286bd8ad190",
+     "time_ps": 1233,
+     "unit_depth": 6
     }
    },
    "banned": false,
-   "family": "kara_full_16",
-   "id": "baseline/kara_full_16",
+   "family": "clmul_k1",
+   "id": "baseline/clmul_k1",
    "kind": "baseline",
-   "name": "kara_full_16",
-   "sha256": "cbe48f8fb2bd75165d6e746c7f5c9c5fa0506925714cec075726afa860cfa194",
-   "src": "tests/clmul/baselines/kara_full_16.sv"
+   "lean": "tests/clmul/baselines/clmul_k1.lean",
+   "name": "clmul_k1",
+   "proved": true,
+   "sha256": "f2806e9f3d9bf621bb5aa7875a3a7b6c38fcd644ec0ad5441b81f45df955c4a6",
+   "src": "tests/clmul/baselines/clmul_k1.sv"
   },
   {
    "at": {
     "N=16": {
-     "area_e4um2": 34195296,
-     "area_ge": 770.935,
-     "area_mge": 770935,
-     "area_um2": 3419.5296,
+     "area_e4um2": 34295392,
+     "area_ge": 772.267,
+     "area_mge": 772267,
+     "area_um2": 3429.5392,
      "buffers": 0,
      "cells": 481,
      "delay_ps": 969,
      "depth": 5,
      "gates": {
-      "AND": 195,
-      "NAND": 61,
+      "AND": 199,
+      "NAND": 57,
       "XNOR": 225
      },
-     "netlist_sha256": "141c9d25d02b3f891a61aa442aa9953e85918fd3939652dbf082538546ce9f44",
+     "netlist_sha256": "15702a70b6f6cd35d271e5fe4985349630b7bf0af78f9ba20ac5fe24c7995ed5",
      "num_gates": 481,
-     "repaired_sha256": "9769b283b741860a868168c281f02962acf76c384fba609ab3f50e6b8d840149",
-     "rtlil_sha256": "18b3bd46af9ac3d3dfac894526db6c1b7efb7f1ead7873a68317cbc8e1113fc5",
+     "repaired_sha256": "5f62c54389ac19e5adfb606b3defd34c444aa5b33fce68e5e336b6b62bc5362b",
+     "rtlil_sha256": "3a4418bcac5a69d0aa5e70985f3c1ce3e1d76739993064b33a425abdfbd72e48",
      "time_ps": 969,
      "unit_depth": 5
-    }
-   },
-   "banned": false,
-   "family": "school_tree",
-   "id": "baseline/school_tree_16",
-   "kind": "baseline",
-   "name": "school_tree_16",
-   "sha256": "e8f6018a76fbda9e9c4aa77bd9c5f6a00dedd5674fdd97507218905f2c877374",
-   "src": "tests/clmul/baselines/school_tree_16.sv"
-  },
-  {
-   "at": {
+    },
     "N=32": {
-     "area_e4um2": 143149792,
-     "area_ge": 3219.393,
-     "area_mge": 3219393,
-     "area_um2": 14314.9792,
+     "area_e4um2": 143349984,
+     "area_ge": 3222.057,
+     "area_mge": 3222057,
+     "area_um2": 14334.9984,
      "buffers": 0,
      "cells": 1985,
-     "delay_ps": 1143,
+     "delay_ps": 1141,
      "depth": 6,
      "gates": {
-      "AND": 821,
-      "NAND": 203,
+      "AND": 829,
+      "NAND": 195,
       "XNOR": 961
      },
-     "netlist_sha256": "aadd04fa10baf8d7ba96d5a66a3529441755b976498b2c12eacebd40dfff17cc",
+     "netlist_sha256": "e6246f3622ac5d081c6600b5a2d20b3771e1a0f21584223760323f020aa8f7bf",
      "num_gates": 1985,
-     "repaired_sha256": "878bf852221391fb5c3205d0e6fd63a9e7ad2835e05337dc892b787224f6eef6",
-     "rtlil_sha256": "e9f696c3ca30dc25826cacc05f1add6be7db2adb4ad011ecad12dfdc4501e679",
-     "time_ps": 1143,
+     "repaired_sha256": "d31be17d3cca80c1cc956921516f6a29dcc1686194ebf42d04185f95621d281b",
+     "rtlil_sha256": "0f4435c3b1d0fbe81fb6ee1babf811162066c078745e45daa3e54da933b094d7",
+     "time_ps": 1141,
      "unit_depth": 6
-    }
-   },
-   "banned": false,
-   "family": "school_tree",
-   "id": "baseline/school_tree_32",
-   "kind": "baseline",
-   "name": "school_tree_32",
-   "sha256": "8e04a2c4bf2671905a56c358bfc8993b60ae5b83a9d00cdbfbed6d172ab92719",
-   "src": "tests/clmul/baselines/school_tree_32.sv"
-  },
-  {
-   "at": {
+    },
+    "N=4": {
+     "area_e4um2": 1714144,
+     "area_ge": 38.329,
+     "area_mge": 38329,
+     "area_um2": 171.4144,
+     "buffers": 0,
+     "cells": 25,
+     "delay_ps": 645,
+     "depth": 3,
+     "gates": {
+      "AND": 13,
+      "NAND": 3,
+      "XNOR": 9
+     },
+     "netlist_sha256": "c8e5d841fca1e9b08281153ed3f1f3a078eada55e3d346e08ea888ecdf1ca066",
+     "num_gates": 25,
+     "repaired_sha256": "594ea7e65b5b9a0cbf73068e8f081b4fdfdc2dc92b67e718da4fcba040053db0",
+     "rtlil_sha256": "6fec84560ecf5d8b30a84a23857cd9be50c3f988f6639f3426a13de2a13bbec6",
+     "time_ps": 645,
+     "unit_depth": 3
+    },
     "N=8": {
      "area_e4um2": 8020192,
      "area_ge": 179.649,
@@ -388,21 +276,130 @@
       "NAND": 11,
       "XNOR": 49
      },
-     "netlist_sha256": "0680f6ddabb27ad2641f7bc51203fdd13db65c5fa1119a58b6e7cf6c099b4afb",
+     "netlist_sha256": "c3e1b3dafa7584f455d411007f655bceec5ee78294c8621b8280a9d13dc97f1e",
      "num_gates": 113,
-     "repaired_sha256": "c33e73da15c77574efce5e43a303b16ab1cddc5e9688774e1d38e1ef593806e4",
-     "rtlil_sha256": "16e0d529f7efacda35c1ce6c526a993c704ad45a93176c3825ddd5a748188a32",
+     "repaired_sha256": "fd3f2423163541dd4efb5775ff169a5e04e845c7b47fe187c27da30f3a87f88c",
+     "rtlil_sha256": "e39f3d9d62c1762268e4f2e1bcfb2fa2e5514493b5914339ae421be586d3347d",
      "time_ps": 805,
      "unit_depth": 4
     }
    },
    "banned": false,
-   "family": "school_tree",
-   "id": "baseline/school_tree_8",
+   "family": "clmul_tree",
+   "id": "baseline/clmul_tree",
    "kind": "baseline",
-   "name": "school_tree_8",
-   "sha256": "b4c88d0af7848373e9d4dbf202e88ddd2b57c8418f72408ee921f6721ce7f3ce",
-   "src": "tests/clmul/baselines/school_tree_8.sv"
+   "lean": "tests/clmul/baselines/clmul_tree.lean",
+   "name": "clmul_tree",
+   "proved": true,
+   "sha256": "6085340d779a98cdfb85df1fe3817236abdbc9fb787bc7d0d8d3274ab1ad7419",
+   "src": "tests/clmul/baselines/clmul_tree.sv"
+  },
+  {
+   "at": {
+    "N=16": {
+     "area_e4um2": 27326208,
+     "area_ge": 616.626,
+     "area_mge": 616626,
+     "area_um2": 2732.6208,
+     "buffers": 0,
+     "cells": 368,
+     "delay_ps": 1810,
+     "depth": 8,
+     "gates": {
+      "AND": 119,
+      "ANDNOT": 4,
+      "NAND": 34,
+      "NOT": 2,
+      "ORNOT": 1,
+      "XNOR": 160,
+      "XOR": 48
+     },
+     "netlist_sha256": "43d7ca2144b60b68f3a205ef18c280fcc9f9df57dc618772ec2016d541d1b732",
+     "num_gates": 368,
+     "repaired_sha256": "6a0fc877a80ec3348d7262db28bedf1de1d95420353386a7ac94370363bc4c2d",
+     "rtlil_sha256": "a66d04aca7ef17009bce85afe787a763749b8cd0228c5922e683cbd583027d0e",
+     "time_ps": 1810,
+     "unit_depth": 8
+    },
+    "N=32": {
+     "area_e4um2": 90999776,
+     "area_ge": 2056.88,
+     "area_mge": 2056880,
+     "area_um2": 9099.9776,
+     "buffers": 0,
+     "cells": 1197,
+     "delay_ps": 2436,
+     "depth": 10,
+     "gates": {
+      "AND": 353,
+      "ANDNOT": 4,
+      "NAND": 95,
+      "NOT": 1,
+      "OR": 2,
+      "ORNOT": 2,
+      "XNOR": 551,
+      "XOR": 189
+     },
+     "netlist_sha256": "f5d2bf534fce36957c8813cc2d78982668a5b33b99409e1681cb7c1672edc46c",
+     "num_gates": 1197,
+     "repaired_sha256": "c072352aa0527616d78b06b82daf6d160cb744312afd5ae6cfce1b879bbb54e3",
+     "rtlil_sha256": "cb16ca016849d72d0b4407664c51d21fa681aaa41b58b074cd709cb7f0c99d03",
+     "time_ps": 2436,
+     "unit_depth": 10
+    },
+    "N=4": {
+     "area_e4um2": 1714144,
+     "area_ge": 38.329,
+     "area_mge": 38329,
+     "area_um2": 171.4144,
+     "buffers": 0,
+     "cells": 25,
+     "delay_ps": 645,
+     "depth": 3,
+     "gates": {
+      "AND": 13,
+      "NAND": 3,
+      "XNOR": 9
+     },
+     "netlist_sha256": "ba20464cddb05a2fddfd8c303d67a01099cd17cbc04ed44e99cb3e7a25c58ad9",
+     "num_gates": 25,
+     "repaired_sha256": "cf4403669c59b92db18ea0ede69f6c23d1a446ef831ccbbb7f1f73ca5cecd055",
+     "rtlil_sha256": "9e0e27b4044a9a3de6da7937bf24651c3d73852023666c6128b7b97f1abe8e4e",
+     "time_ps": 645,
+     "unit_depth": 3
+    },
+    "N=8": {
+     "area_e4um2": 7394592,
+     "area_ge": 166.32,
+     "area_mge": 166320,
+     "area_um2": 739.4592,
+     "buffers": 0,
+     "cells": 101,
+     "delay_ps": 1230,
+     "depth": 6,
+     "gates": {
+      "AND": 40,
+      "NAND": 9,
+      "XNOR": 43,
+      "XOR": 9
+     },
+     "netlist_sha256": "912f60490c86b3beb453d73d81a64bf6af55dc6c83ccb953af420ad6e2adf076",
+     "num_gates": 101,
+     "repaired_sha256": "e937ce18139e94953299a8a7049cd1428187d010e20d48034ec13ce68dd4edbb",
+     "rtlil_sha256": "09d79a80e548bc6140a046071e4fedecf97fc828887a1d24d1b021b3af092085",
+     "time_ps": 1230,
+     "unit_depth": 6
+    }
+   },
+   "banned": false,
+   "family": "kara_lv",
+   "id": "baseline/kara_lv",
+   "kind": "baseline",
+   "lean": "tests/clmul/baselines/kara_lv.lean",
+   "name": "kara_lv",
+   "proved": true,
+   "sha256": "0cc4457548ad64997b461152c637a16fd3a1f8136b50ee64e3aeb75120309ed6",
+   "src": "tests/clmul/baselines/kara_lv.sv"
   }
  ],
  "flow": {

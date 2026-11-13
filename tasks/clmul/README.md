@@ -182,7 +182,9 @@ below `2^31`.
 * **Scoring at `N = 16`**, no depth budget. The one ranked number is area x time on sky130 A0' (A0' decided 2026-11-03,
   the product 2026-11-05; svGolf `README.md`, "Scoring"): the cell area in um^2 times the critical-path delay of the
   scored netlist of the pinned two-stage Yosys + ABC flow, weighed by `score/ppa.py` (`sky130_a0_v3`, repaired by
-  buffering only). Par, the proved array `clmul_n`, is 3429.5392 um^2 x 1114 ps = 3820.5 um2*ns. The Pareto frontier
+  buffering only). Par, the proved array `clmul_n`, the simplest algorithm (one design per task, `leaderboard/par.json`, decided 2026-11-12), is 3429.5392 um^2 x 1114 ps = 3820.5
+  um2*ns; the three designs under `tests/clmul/baselines/` are entries (the schoolbook tree `clmul_tree` 3323.2,
+  13 % under par). The Pareto frontier
   of area and time, area in NAND2 gate equivalents and depth in gates are extra columns, for exploring, and the
   research flow A1' (`ppa.mapped`) is an unranked one; `python3.12 score/ppa.py solution.sv --task tasks/clmul
   --no-mapped [--path]` measures a design in seconds, with no Lean; the table below has them all. The score is deterministic, the same file always scoring the same: names,
@@ -190,7 +192,8 @@ below `2^31`.
   gates is grouped, gate forms and the order of statements do, and trying them is golf (svGolf `README.md`,
   "Scoring"; commuting the XOR of `clmul_n` moved its area 0.44%, measured 2026-11-05). Every number can be
   reproduced bit for bit: score/PPA.md, "Reproduce a score". `N = 8` and `N = 32` are reported alongside (not
-  scored). The baselines here are in the generator's emission order, which is their canon.
+  scored). The one-width generated netlists of `tests/clmul/unproved/` are in the generator's emission order, which
+  is their canon.
 * Post-synthesis check (`task.json` `postsynth`): ls-sv's reading and the scored netlist must agree on the fixed
   corners, the harvested comparison constants and seeded random vectors at `N = 16`.
 * No x or z value may arise (README.md, "Rules"): no x/z literal digit (the source gate) and no out-of-range
@@ -263,15 +266,23 @@ frontier.
 | design | proved | N = 8 | N = 16 (scored) | N = 32 | A0' at 16 | A1' at 16 |
 |---|---|---|---|---|---|---|
 | reference array (`reference/clmul_n.sv`) | yes, ∀ N (tactics) | 179.649 / 4 | **772.267 / 6** | 3214.731 / 7 | 3429.5 / 1114 | 2941.6 / 957 |
-| schoolbook, XOR tree per column (`tests/clmul/baselines/school_tree_*.sv`) | no | 179.649 / 4 | 770.935 / 5 | 3219.393 / 6 | 3419.5 / 969 | 2936.6 / 753 |
-| Karatsuba, 4-bit schoolbook base (`kara_b4_*`) | no | 166.986 / 5 | **621.959 / 8** | **2068.877 / 11** | 2756.4 / 1807 | 2479.9 / 1896 |
-| Karatsuba, 8-bit base (`kara_b8_16`) | no | | 643.283 / 7 | | 2854.0 / 1372 | 2486.1 / 1287 |
-| Karatsuba, 2-bit base (`kara_b2_16`) | no | | 672.635 / 10 | | 2960.3 / 2055 | 2800.2 / 2129 |
-| Karatsuba all the way down (`kara_full_16`) | no | | 677.638 / 9 | | 2979.1 / 2089 | 2859.0 / 2011 |
+| entry: schoolbook, XOR tree per column, for every `N` (`tests/clmul/baselines/clmul_tree.sv`) | yes, ∀ N (tactics) | 179.649 / 4 | 772.267 / 5 | 3222.057 / 6 | 3429.5 / 969 | 2936.6 / 753 |
+| entry: Karatsuba, 4-bit schoolbook base, level by level for every `N` (`tests/clmul/baselines/kara_lv.sv`) | yes, ∀ N (by hand) | 166.32 / 6 | **616.626 / 8** | **2056.88 / 10** | 2732.6 / 1810 | 2437.3 / 1902 |
+| entry: one level of Karatsuba for every `N` (`tests/clmul/baselines/clmul_k1.sv`) | yes, ∀ N (tactics) | 167.32 / 6 | 651.95 / 7 | 2556.137 / 8 | 2890.3 / 1424 | 2563.7 / 1595 |
 
-The baselines are generated per width by `tests/clmul/baselines/gen_clmul.py` (flat netlists that keep the task
-header but are correct only at the width they were generated for, so they are NOT entries: the statement covers
-every `N`). They show where the frontier is: Karatsuba with a 4-bit base is 19.5 % smaller than the array at
+Measured, not proved, not on the site (test material since 2026-11-12, `tests/clmul/unproved/`, generated per
+width by `tests/clmul/unproved/gen_clmul.py`: flat netlists that keep the task header but are correct only at the
+width they were generated for, so no proof of the statement, which covers every `N`, can exist for them):
+
+| design | N = 8 | N = 16 | N = 32 | A0' at 16 | A1' at 16 |
+|---|---|---|---|---|---|
+| schoolbook, XOR tree per column (`school_tree_*`; `clmul_tree` above is its parametric form) | 179.649 / 4 | 770.935 / 5 | 3219.393 / 6 | 3419.5 / 969 | 2936.6 / 753 |
+| Karatsuba, 4-bit schoolbook base (`kara_b4_*`; `kara_lv` above is its parametric form) | 166.986 / 5 | 621.959 / 8 | 2068.877 / 11 | 2756.4 / 1807 | 2479.9 / 1896 |
+| Karatsuba, 8-bit base (`kara_b8_16`) | | 643.283 / 7 | | 2854.0 / 1372 | 2486.1 / 1287 |
+| Karatsuba, 2-bit base (`kara_b2_16`) | | 672.635 / 10 | | 2960.3 / 2055 | 2800.2 / 2129 |
+| Karatsuba all the way down (`kara_full_16`) | | 677.638 / 9 | | 2979.1 / 2089 | 2859.0 / 2011 |
+
+The one-width netlists show where the frontier is: Karatsuba with a 4-bit base is 19.5 % smaller than the array at
 `N = 16` and 35.7 % smaller at `N = 32`, for two and four more levels; the optimum in the base is interior (2
 bits 672.6, 4 bits 622.0, 8 bits 643.3, all the way down 677.6), and the schoolbook with a per-column XOR
 tree is the array's twin in area (770.9 against 772.3) and one level shallower.
@@ -286,7 +297,8 @@ L + x^m (M + L + H) + x^2m H` over coefficient functions. Published bars to beat
 Montgomery's 5-, 6- and 7-term formulas (13, 17 and 22 multiplications), Bernstein, Cenk-Ozbudak and Fan-Hasan's
 bit-parallel multipliers.
 
-**A one-level Karatsuba for every `N`, measured on 2026-11-01 (not a reference: its proof is not finished).** A generate-for
+**A one-level Karatsuba for every `N`, measured on 2026-11-01 (proved since: the baseline `tests/clmul/baselines/clmul_k1.sv`
+with `clmul_k1.lean`, 2026-11-12; the record below is the 2026-11-01 state).** A generate-for
 design that splits the operands at `H = (N+1)/2` (a localparam), zero-pads the odd case, builds `L`, `Hh` and
 `M = (aL ^ aH) (x) (bL ^ bH)` as three `H x H` arrays of the reference's shape and combines them with five more generate
 families is correct for every `N` (Verilator, `N = 1 .. 5, 8, 9, 16, 31, 32, 33`) and scores **651.950 GE, depth 7 at
@@ -326,7 +338,7 @@ every `N`, simulated in Verilator, run through `check.py --unproved --tactics` b
 | 1 | **nested procedural loops, one XOR-accumulate per partial product** (`r[i] ^= a[i-j] & b[j]` into a vector bit; or a chain through an intermediate vector indexed `S[WIDTH*i+j]`) | `openhwfoundation/cv32e40x` `rtl/cv32e40x_alu.sv` (NOASSERTION); CORE-V-WALLY `clmul.sv` as `zeroasiccorp/logikbench` `logikbench/benchmarks/large/wally/rtl/clmul.sv` (MIT repo, file Apache-2.0 WITH SHL-2.1) and the copy `brlditos/tft-assignment` `src/ieu/bmu/clmul.sv` | `proc_nested_for`, `wally_chain` | **refused at `fourstate`**: "run-time index in `b[i]`: a signed 32-bit index addresses …, outside the declared range" (a procedural loop counter is an `int`, hence a run-time index); behind it ls-sv does not load the loop (the extractor marks `ForLoopStatement` Unsupported: register `st-for`, rank 1) |
 | 2 | **whole-word shift-and-XOR in a procedural loop or function**: `if (b[i]) p = p ^ (a << i)` | `fontamsoc/hw` `cpu/clmul.sv` (GPL-2.0, Verilog-2001 function `clmulFull`); `effanem/set_project` `rtl/gf64_mul.v`, `rtl/gf128_naive.v` (no licence listed); `akerlund/rtl_bch` `rtl/bch_gf.sv` (MIT, SystemVerilog function with `return`); `efectn/riscv-crypto-extensions` `rtl/units/clmul_unit.sv` (MIT, a 2-stage sequential unit around the loop); `karucore/karu64` (the reduced GF(2^128) form) | `proc_shift_xor`, `func_oldstyle_xor`, `func_shift_xor` | `proc_shift_xor`: **`fourstate`** as in 1. `func_oldstyle_xor`: **refused at `source`**: its counter `integer i` is declared outside the loop header (source gate item 7, the stopgap for ls-sv's procedural-loop defects). `func_shift_xor` (the `return` form): **refused at `banlist`** because the scorer's own Yosys frontend rejects `return` ("syntax error"): not even the pinned flow can read it. Behind both: a user function call is Unsupported in ls-sv (`ex-user-call`, rank 2) |
 | 3 | **generate-for word-wide partial products and an XOR tree/chain**: `pp[i] = b[i] ? a << i : '0`, then XOR (a hand-unrolled tree of fixed depth for 32 bits) | `lowRISC/ibex` `rtl/ibex_alu.sv` (Apache-2.0); `ycakbas/rv32imafb-core` `rtl/execute/bitmanip/clmul_unit.sv` (no licence listed; "assumes WIDTH is a power of 2") | `gen_word_pp_chain`, `gen_pp_zerofill` | **accepted up to the proof** (source, extract, banlist, fourstate, design, score, postsynth all pass; the oracle agrees). The tactics refuse it: `site g_pp#0: unbased unsized literal '0/'1 inside an expression` (the zero-extension replication `{{(N-1){1'b0}}, a}` is read since 2026-11-02), and with the zero-fill written as a loop, `generate-for header outside for (g = <int>; …)` (the start must be an integer literal, `for (i = N; …)` is refused); behind that: the `'0` fill inside `?:` (PROVING.md, section 4: "write a sized literal") and, at the base commit these results were measured on (`9388ea91`), the run-time shift `aw << i`, which the tactics (`e862b83c`) have since added to the fragment: re-run `tests/run.py --only clmul` after merging it |
-| 4 | **hand-unrolled flat expression**, one conditional word per bit of `b`, XORed in one assign (32 terms) | `chipsalliance/Cores-VeeR-EL2` `design/exu/el2_exu_mul_ctl.sv` (Apache-2.0, `{63{rs2_in[i]}} & {..., rs1_in, i'b0}`); `Arvern-Silicon/arvern` `rtl/verilog/arv_alu.v` (BSD-3-Clause) | none: fixed width by construction (a for-every-`N` statement cannot be met), the same class as the generated baselines | n/a |
+| 4 | **hand-unrolled flat expression**, one conditional word per bit of `b`, XORed in one assign (32 terms) | `chipsalliance/Cores-VeeR-EL2` `design/exu/el2_exu_mul_ctl.sv` (Apache-2.0, `{63{rs2_in[i]}} & {..., rs1_in, i'b0}`); `Arvern-Silicon/arvern` `rtl/verilog/arv_alu.v` (BSD-3-Clause) | none: fixed width by construction (a for-every-`N` statement cannot be met), the same class as the one-width generated netlists of `tests/clmul/unproved/` | n/a |
 | 5 | **generate-for, one shift-and-add step per iteration, each an `always_comb` with a default and a conditional compound XOR** (`Z[i] ^= H[i-1]`) on 2-D packed arrays | `soc-hub-fi/Marian` `src/ip/crypto/gcm/src/mult_ghash.sv` (the RISC-V vector-crypto `vgmul`, with reduction) | `gen_always_step` | **refused at `design`**: ls-sv cannot run `AssignmentExpression:compound` (register `st-compound`, rank 17); a generate-local temporary (`logic [N-1:0] t;`) is refused the same way (`gen_local_column`, "generate-local declaration") |
 | 6 | **Karatsuba on module instances**: one level with three base multipliers, or per-width modules, or a recursive parameterized module | `effanem/set_project` `rtl/gf128_karatsuba.v` (three `gf64_mul` instances; no licence listed); `patwarind/Karatsuba_algorithm_for_Multiplication` `KA_131bit/*.v` (a module per width); `JC-S/Karatsuba_multiplier_HDL` `rtl/karat_mult_recursion.sv` (GPL-2.0; integer arithmetic, `nSTAGE` recursion with generate-if) | `inst_karatsuba_1level` (procedural base), `inst_karatsuba_1level_gen` (generate-array base), `inst_karatsuba_rec` (recursive) | `inst_karatsuba_1level`: `fourstate` (its procedural base). `inst_karatsuba_1level_gen`: **accepted up to the proof** (the loader, the scorer and postsynth handle instances); the tactics refuse module instances. `inst_karatsuba_rec`: **refused at `extract`** ("no such module among top instances": a self-instantiating top, register `le-recursion`, rank 14) |
 | 7 | **unary reduction XOR per column**, `p[k] = ^(a & window of b)` | not seen in the files read (the style the task description names; written here for coverage) | `reduce_xor_column` | **accepted up to the proof**; the tactics refuse the indexed part select `bpad[… +: N]` |
@@ -352,7 +364,7 @@ What the survey says:
   `docs/sv-refusals.json` or PROVING.md section 4, none touched here.
 * **The score does not depend on the style.** Every schoolbook form scores within 0.7 % of the array (Yosys + ABC
   canonicalize them: 770.9 to 775.6 GE at `N = 16`, depth 5 or 6); the `if (b[i])` form scores 774.3, the nested
-  loop form 770.9, the same as the per-column XOR tree baseline. Karatsuba on instances: 650.6 GE for one level,
+  loop form 770.9, the same as the one-width per-column XOR tree netlist. Karatsuba on instances: 650.6 GE for one level,
   625.0 for the recursion with a 4-bit base. So the proofs, not the scores, separate the styles.
 * The Zbc units of RISC-V cores (`clmul`, `clmulh`, `clmulr`) return one `N`-bit SLICE of the product and
   many compute `clmulr` by reversing the inputs and the result; this task's `2N-1`-bit full product is the form of
@@ -363,9 +375,10 @@ What the survey says:
 * `return` in a function is accepted by slang and refused by the Yosys frontend of the pinned scoring flow: a
   gap outside ls-sv, in the scorer (`func_shift_xor`).
 
-What the reference and the baselines cover: the generate-for AND/XOR array with a 2-D packed accumulator (the
-reference; the shape the tactics prove), generated flat netlists (schoolbook with XOR trees and Karatsuba with
-several bases), and, as ADVISORY attack entries, the styles above. Nothing in `LeanModels/Sv` was changed.
+What the reference and the proved designs cover: the generate-for AND/XOR array with a 2-D packed accumulator (the
+reference, par; the shape the tactics prove), the proved parametric entries (the schoolbook with an XOR tree per column,
+the level-by-level Karatsuba with a 4-bit base, the one-level Karatsuba), the generated one-width flat netlists as
+test material (`tests/clmul/unproved/`, not on the site), and, as ADVISORY attack entries, the styles above. Nothing in `LeanModels/Sv` was changed.
 
 ## Validation (`tests/clmul/validate/`)
 

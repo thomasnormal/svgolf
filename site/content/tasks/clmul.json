@@ -1,21 +1,11 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` (each proof of par's design, leaderboard/par.json) and `baselines` (each baseline with a banned operator) describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "Carry-less multiplier",
  "subtitle": "Multiply two polynomials over GF(2): ANDs and XORs, no carries.",
  "references": {
   "clmul_n": "The N × N array: AND partial products summed by rows of XORs, the multiplier's shape without carries."
  },
- "baselines": {
-  "school_tree_8": "Schoolbook: all N² partial products and a balanced XOR tree per output bit, generated for N = 8 only and checked by simulation.",
-  "school_tree_16": "Schoolbook: all N² partial products and a balanced XOR tree per output bit, generated for N = 16 only and checked by simulation.",
-  "school_tree_32": "Schoolbook: all N² partial products and a balanced XOR tree per output bit, generated for N = 32 only and checked by simulation.",
-  "kara_b4_8": "Karatsuba recursion down to a 4-bit schoolbook base, generated for N = 8 only and checked by simulation.",
-  "kara_b4_16": "Karatsuba recursion down to a 4-bit schoolbook base, generated for N = 16 only and checked by simulation: the smallest design on this page.",
-  "kara_b4_32": "Karatsuba recursion down to a 4-bit schoolbook base, generated for N = 32 only and checked by simulation.",
-  "kara_b2_16": "Karatsuba recursion down to a 2-bit schoolbook base, generated for N = 16 only and checked by simulation.",
-  "kara_b8_16": "Karatsuba recursion down to an 8-bit schoolbook base, generated for N = 16 only and checked by simulation.",
-  "kara_full_16": "Karatsuba recursion all the way down to single bits, generated for N = 16 only and checked by simulation."
- },
+ "baselines": {},
  "new_design_reviewed": {
   "opening": "c3d6daf19ae6"
  }

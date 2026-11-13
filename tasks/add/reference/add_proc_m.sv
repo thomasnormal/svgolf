@@ -1,4 +1,4 @@
-// svGolf task `add`, reference solution (WP-G S1b): the same ripple-carry adder as add_proc.sv with the
+// svGolf task `add`: the same ripple-carry adder as add_proc.sv with the
 // WHOLE bit cell in ONE `always_comb` body that writes two windows, c[i+1] and s[i]. p[i] is the propagate bit;
 // when p[i] the carry out is the carry in, otherwise the operands agree and the carry is their common value a[i].
 // c[i] is the carry INTO bit i; c[0] = cin, cout = c[N].

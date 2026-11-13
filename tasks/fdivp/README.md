@@ -13,7 +13,8 @@ reference"). `REVIEW.md` is the review of the trusted statement for the maintain
 
 **binary16 is the instance `(W, P) = (5, 11)`**, the scoring point. The former fixed-size 16-bit task (binary16 alone) was
 folded into this one on 2026-11-03: its function is this task's at `(5, 11)`, its flat reference
-is a baseline here (`tests/fdivp/baselines/flat_binary16.sv`), and its tests were ported to `(5, 11)`.
+is kept as test material (`tests/fdivp/unproved/flat_binary16.sv`: right at `(5, 11)` only, so it has no proof of
+this task's statement and is not on the site), and its tests were ported to `(5, 11)`.
 
 The task directory holds: `Spec.lean` and `IEEE754.lean` (TRUSTED: the statement and the IEEE 754 spec it uses),
 `task.json`, `README.md`, `REVIEW.md` (the review of the trusted files), `oracle.py` (the advisory oracle),
@@ -65,9 +66,8 @@ built):
 * the stages of a loop as the rows of 2-D arrays (the restoring reference's normalizer rows `na_r`, `ya_r` and
   its remainder rows `rr`);
 * derived sizes as `localparam integer` (`K = W + P`; `+`, `-`, `*` by a literal, `/` and `%` by a literal,
-  `$clog2`; not a 2-state `int`). The natural form D1 (`tests/fdivp/baselines/fdivp_d1.sv`: `$clog2`, `2**`,
-  replication, a logarithmic normalizer and shifter) is validated but ls-sv cannot load it; D2 (`fdivp_d2.sv`)
-  is the same divider written for the fragment;
+  `$clog2`; not a 2-state `int`). D2 (`tests/fdivp/baselines/fdivp_d2.sv`, a proved design, an entry, with
+  `fdivp_d2.lean`) is the same divider written for the fragment with about 90 plain sites;
 * every declared bit driven at `(5, 11)`.
 
 **The skeleton** (`reference/fdivp.lean` is it, filled in for the restoring divider):
@@ -360,8 +360,9 @@ neighbours `c·2^j`, `(c+1)·2^j`, and those two never both have even significan
 * **Scoring** at the scoring point `W = 5, P = 11` (binary16), no depth budget. The one ranked number is area x
   time on sky130 A0' (A0' decided 2026-11-03, the product 2026-11-05; svGolf `README.md`, "Scoring"): the cell area in um^2
   times the critical-path delay of the scored netlist of the pinned two-stage Yosys + ABC flow, weighed by
-  `score/ppa.py` (`sky130_a0_v3`). Par, the proved SRT divider `fdivp_srt`, is 12356.8512 um^2 x 27592 ps =
-  340 950.2 um2*ns (the restoring reference: 9675.5296 um^2 at 37984 ps, `score/tests/ppa/expected_ppa.json`). The
+  `score/ppa.py` (`sky130_a0_v3`). Par, the proved restoring divider `fdivp`, the simplest algorithm (one design per task, `leaderboard/par.json`, decided 2026-11-12), is 9675.5296 um^2 x
+  37984 ps = 367 515.3 um2*ns (`score/tests/ppa/expected_ppa.json`; the SRT divider `fdivp_srt`, 12356.8512 um^2 x
+  27592 ps = 340 950.2 um2*ns, the Newton divider and D2 are entries, recorded under a handle of their own). The
   Pareto frontier of area and time, area in NAND2 gate equivalents and depth in gates are extra columns, for
   exploring; `python3.12 score/ppa.py solution.sv --task tasks/fdivp --no-mapped [--path]` measures a design in
   seconds, with no Lean. The score is deterministic, the same file always scoring the same on the reference
@@ -414,11 +415,13 @@ within the time limit, the comparator and `leanchecker`, scoring and the post-sy
 
 **Score** in the extra GE columns (`score.py`; in `tests/expected.json`, re-measured by `tests/run.py`; the ranked A0' numbers are under "Scoring" above): **2166.076 GE, depth 289** at `(5, 11)`
 (1515 gates); 8826.016 GE, depth 1261 at `(8, 24)`; 1369.84 GE, depth 184 at `(8, 8)`; 102.985 GE, depth 18 at `(2, 2)`.
-The baselines (`tests/fdivp/baselines/`) are: D1, the natural parametric form (`$clog2`, `2**`, replication,
-logarithmic normalizer and shifter; validated, outside today's tactic fragment, ls-sv cannot load it): **1911.446 GE,
-depth 300** at `(5, 11)` and 7450.536 at `(8, 24)`; D2, the fragment-friendly form (about 90 plain sites): 2314.058 GE,
-depth 295 and 9813.601 at `(8, 24)`; and the flat binary16 divider (the former 16-bit task's reference) under the parametric header (right at
-`(5, 11)` only): 1944.775 GE, depth 303. So the proved reference is 13 % larger than D1 and 12 % larger than the
+The design under `tests/fdivp/baselines/` (proved; an entry since 2026-11-12, like every design but par's) is D2, the fragment-friendly
+form (about 90 plain sites, proved with the tactics: `fdivp_d2.lean`): 2314.058 GE, depth 295 and 9813.601 at
+`(8, 24)`. Measured, not proved, not on the site (test material, `tests/fdivp/unproved/`): D1, the natural
+parametric form (`$clog2`, `2**`, replication, logarithmic normalizer and shifter; validated, outside today's tactic
+fragment, ls-sv cannot load it): **1911.446 GE, depth 300** at `(5, 11)` and 7450.536 at `(8, 24)`; and the flat
+binary16 divider (the former 16-bit task's reference) under the parametric header (right at `(5, 11)` only):
+1944.775 GE, depth 303. So the proved reference is 13 % larger than D1 and 12 % larger than the
 hand-flattened binary16 divider (1929.778 in the former 16-bit task): the price of a proof for every format. Golf targets: the linear normalizer and the
 linear denormalizer are where the logarithmic forms of D1 save area; the serial `P + 2` restoring steps dominate the depth.
 
@@ -615,7 +618,8 @@ re-applied to the committed file), submitted with the SRT proof, which they must
 ## Findings
 
 * **The ladder of designs.** D1 (natural, 165 lines) is smallest but outside the tactic fragment in six independent ways and
-  refused at load; D2 (fragment-friendly, about 90 plain sites) is inside but costs `n^2` in the tactics; D3 (the
+  refused at load; D2 (fragment-friendly, about 90 plain sites) is inside but costs `n^2` in the tactics (proved since
+  2026-11-11, `tests/fdivp/baselines/fdivp_d2.lean`, its solution stage 164.8 CPU s of the 300 CPU s limit, measured 2026-11-12); D3 (the
   reference) has 34 sites by folding the bit-level structure into vector sites and generate families. With the grouped
   obligations of 2026-11-02 the tactics cost 239 thousand (`sv_structure`) and 320 thousand (`sv_equations`) heartbeats on D3.
 * **`sv_interface` and a two-parameter task.** The statement is `(task W P).StatementFixed (sem W P)`; the tactic unfolds the

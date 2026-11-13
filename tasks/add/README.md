@@ -5,7 +5,7 @@ function is one line, the obvious circuit (a ripple-carry chain) has a
 complete for-every-width proof to start from (`reference/add_n.lean`), and
 other circuits (carry-lookahead, parallel-prefix) trade area for delay.
 
-**Par** is the proved ripple-carry reference `add_n`: **460.4416 um^2 x 2611 ps =
+**Par** is the proved ripple-carry adder `add_n`, the simplest algorithm (one design per task, `leaderboard/par.json`, decided 2026-11-12): **460.4416 um^2 x 2611 ps =
 1202.2 um2*ns**. The one ranked number is area x time, the sky130 A0' cell area
 in um^2 times the critical-path delay (decided 2026-11-05; the svGolf README,
 "Scoring"); to beat par is to be accepted with a smaller product. The Pareto
@@ -218,7 +218,8 @@ ls-sv's sequential layer models clock edges.
   `c[i] = (a[i-1:0] > ~b[i-1:0]) | ((a[i-1:0] == ~b[i-1:0]) & cin)`, is the
   design the rule is for: with Yosys's adder in every carry it scores
   195.975 GE, depth 17 at `N = 16`, lower depth than every proved design;
-  it is a baseline scored with the banlist lifted, like Yosys's own `+`.
+  it is a baseline, scored and proved with the banlist lifted (`check.py
+  --lift-banlist`: proved, not an entry), like Yosys's own `+`.
 * **Constant arithmetic is fine**: parameter expressions (`N-1`,
   `$clog2(N+1)`), index arithmetic over genvars and parameters (`c[i+1]`,
   `g[l][((i >> l) << l) - 1]`, `i - (1 << l)`), generate conditions. Current
@@ -375,11 +376,11 @@ The ranked numbers at `N = 16` (sky130 A0', `score/tests/ppa/expected_ppa.json`,
 
 | design | area (um^2) | delay (ps) | area x time (um2*ns, ranked) |
 |---|---|---|---|
-| `reference/add_n.sv` (par; `add_proc`, `add_proc_m`, `add_mux` and `add_n_byhand` score the same) | 460.4416 | 2611 | **1202.2** |
-| `tests/add/baselines/add_n_sklansky.sv` (simulation only) | 541.7696 | 2451 | 1327.9 |
-| `tests/add/baselines/add_n_kogge_stone.sv` (simulation only) | 641.8656 | 2064 | 1324.8 |
-| `tests/add/negative/plus.sv` (Yosys's own `+`, banned) | 497.9776 | 3143 | 1565.1 |
-| `tests/add/baselines/cmp_carry.sv` (Yosys's `$alu` through run-time comparisons: banned since 2026-11-05, banlist lifted) | 857.072 | 1965 | 1684.1 |
+| `reference/add_n.sv` (par; `add_n_byhand` scores the same, and so do `add_proc`, `add_proc_m` and `add_mux`, entries that tie par) | 460.4416 | 2611 | **1202.2** |
+| `tests/add/baselines/add_n_sklansky.sv` (proved, an entry) | 541.7696 | 2451 | 1327.9 |
+| `tests/add/baselines/add_n_kogge_stone.sv` (proved, an entry) | 641.8656 | 2064 | 1324.8 |
+| `tests/add/negative/plus.sv` (Yosys's own `+`, banned; proved with the banlist lifted) | 497.9776 | 3143 | 1565.1 |
+| `tests/add/baselines/cmp_carry.sv` (Yosys's `$alu` through run-time comparisons: banned since 2026-11-05; proved with the banlist lifted) | 857.072 | 1965 | 1684.1 |
 
 The extra columns: pinned flow (the two-stage canonical flow of `score/score.py`), Yosys 0.53.
 Area in GE, depth in gates. Every number here is in `tests/expected.json`
@@ -394,10 +395,10 @@ one-process flow, whose results depended on the source's layout).
 | `reference/add_proc.sv`: the same ripple adder with the carry cell as an `always_comb` `if`/`else` | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_proc.lean`, PROVING.md section 12: the lowered shape of the tactics), accepted by `check.py` |
 | `reference/add_proc_m.sv`: the same ripple adder with the carry cell AND the sum bit in ONE `always_comb` body that writes two windows | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_proc_m.lean`: `add_proc.lean`'s proof, character for character, because the stable aliases count the windows that write a signal), accepted by `check.py` |
 | `reference/add_mux.sv`: the same ripple adder written with `~` and the conditional expression `?:` | **112.0 GE, depth 33** | 224.0, 65 | 448.0, 129 | proved for every `N ≥ 1` (`reference/add_mux.lean`, PROVING.md section 14: the second fragment), accepted by `check.py`; the same score as `add_n.sv` (the canonical flow maps the `?:` carry to the same netlist) |
-| `tests/add/baselines/add_n_sklansky.sv`: Sklansky prefix | **127.658 GE, depth 28** | 296.639, 43 | 601.274, 80 | simulation only (`tests/add/validate/`) |
-| `tests/add/baselines/add_n_kogge_stone.sv`: Kogge-Stone prefix | **149.652 GE, depth 24** | 325.296, 47 | 788.892, 66 | simulation only (`tests/add/validate/`) |
-| `tests/add/negative/plus.sv`: Yosys's own `assign {cout, s} = a + b + cin;` (banned; banlist lifted to score it) | 117.994 GE, depth 33 | 251.982, 57 | 494.973, 121 | simulation only; the baseline to beat |
-| `tests/add/baselines/cmp_carry.sv`: every carry a run-time comparison, i.e. Yosys's `$alu` (banned since 2026-11-05; banlist lifted to score it) | 195.975 GE, depth 17 | 391.952, 25 | 855.218, 30 | simulation only (Verilator, `run2`) |
+| `tests/add/baselines/add_n_sklansky.sv`: Sklansky prefix | **127.658 GE, depth 28** | 296.639, 43 | 601.274, 80 | proved for every `N ≥ 1` by hand (`tests/add/baselines/add_n_sklansky.lean`), accepted by `check.py`; an entry |
+| `tests/add/baselines/add_n_kogge_stone.sv`: Kogge-Stone prefix | **149.652 GE, depth 24** | 325.296, 47 | 788.892, 66 | proved for every `N ≥ 1` by hand (`tests/add/baselines/add_n_kogge_stone.lean`), accepted by `check.py`; an entry |
+| `tests/add/negative/plus.sv`: Yosys's own `assign {cout, s} = a + b + cin;` (banned; banlist lifted to score it) | 117.994 GE, depth 33 | 251.982, 57 | 494.973, 121 | proved for every `N ≥ 1` (`tests/add/baselines/plus.lean`) with the banlist lifted; the baseline to beat, never an entry |
+| `tests/add/baselines/cmp_carry.sv`: every carry a run-time comparison, i.e. Yosys's `$alu` (banned since 2026-11-05; banlist lifted to score it) | 195.975 GE, depth 17 | 391.952, 25 | 855.218, 30 | proved for every `N ≥ 1` (`tests/add/baselines/cmp_carry.lean`, the tactics) with the banlist lifted; never an entry |
 
 At `N = 16` the frontier is ripple (112.0, 33), Sklansky (127.658, 28),
 Kogge-Stone (149.652, 24); Yosys's own adder (117.994, 33) is dominated by
@@ -454,40 +455,25 @@ prove; `score/score.py` gives the GE columns alone).
   frontier of area and time counts as news too (above: the prefix adders).
   The comparison-built `tests/add/baselines/cmp_carry.sv` (1965 ps) does not
   count: its carries are Yosys's `$alu`, banned since 2026-11-05.
-* **Prove a prefix adder.** The Sklansky and Kogge-Stone baselines
-  (`tests/add/baselines/`) pass the
-  source gate, the extraction with its multi-point cross-check, the banlist
-  and ls-sv's loader (measured: `check.py` with a placeholder proof rejects
-  them only at the `comparator` stage), and match `a + b + cin` in Verilator
-  and `run2`; what they lack is the for-all-`N` proof. The route
-  that should work: instantiate the nested generate loops (the level loop
-  over `l < $clog2(N+1)`, the node loop, and the generate-if on bit `l` of
-  the node, `GenItem.expand2_genIf_of_ne`/`_of_eq`); then prove by induction
-  on the level `l` that `g[l][k]`, `p[l][k]` hold the group generate and
-  propagate of a block of positions ending at `k` (the prefix operator
-  `(g, p) ∘ (g', p') = (g | p & g', p & p')` is associative), and at the
-  last level that the block is `[0, k]`, so `g[L][k]` is core's
-  `BitVec.carry k a b cin`; from there the reference's step 4 carries over.
-  The `sv_comb` tactics do not take these baselines as written
-  (`sv_structure: outside the supported fragment — localparam `L`: `$clog2` is
-  outside the v1 fragment ...`, and a conditional generate inside a generate loop
-  is outside it too; [PROVING.md](../../PROVING.md), section 4), so the route
-  above is the by-hand one of `reference/add_n_byhand.lean`, with `CombLib`'s
-  bit functions for the arithmetic. (Even without the `$clog2` localparam, a prefix
-  adder's index arithmetic, `((i >> l) << l) - 1` or `i - (1 << l)`, is not
-  affine in the genvars, which the tactics' recognizer requires.)
-  The Sklansky MATHEMATICS is proved for every `N`, waiting for the glue:
-  `tests/add/baselines/add_n_sklansky_core.lean` (section `SklCore`, on the
-  library's `LeanModels/Sv/Lib/Prefix.lean`) defines the recurrence as the
-  source denotes it, proves the block invariant (after level `l`, position `i`
-  holds the group generate and propagate of the aligned block from
-  `(i >> l) << l` to `i`) and, from the netlist's equations stated per level
-  and position with the generate-if's guard as a hypothesis, the `CombLib.AddView`
-  that `CombLib.add_spec` turns into the task's `s` and `cout`. The source is
-  not rewritten around the tactics: the `int`-typed `localparam L = $clog2(N + 1)`,
-  the guarded generate family and the nonlinear partner index are for ls-sv to
-  accept (decided 2026-11-05: the tactics are made more robust, designs are not
-  rewritten around them).
+* **A prefix adder that is an entry.** The Sklansky and Kogge-Stone adders (`tests/add/baselines/`) are
+  PROVED for every `N` (decided 2026-11-12: every design the site shows is proved; and they are entries, like every
+  design but par's, recorded under a handle of their own), by hand, on the route of
+  `reference/add_n_byhand.lean`: instantiate the nested generate loops (the level loop over `l < $clog2(N+1)`,
+  the node loop, and the generate-if on bit `l` of the node, `GenItem.expand2_genIf_of_ne`/`_of_eq`), give one
+  driver per bit and a rank computed from the process, then prove by induction on the level `l` that `g[l][k]`,
+  `p[l][k]` hold the group generate and propagate of a block of positions ending at `k` (the prefix operator
+  `(g, p) ∘ (g', p') = (g | p & g', p & p')` is associative), and at the last level that the block is `[0, k]`,
+  so `g[L][k]` is core's `BitVec.carry k a b cin`. The Sklansky mathematics is
+  `tests/add/baselines/add_n_sklansky_core.lean` (section `SklCore`, on the library's
+  `LeanModels/Sv/Lib/Prefix.lean`), which `add_n_sklansky.lean` copies; the Kogge-Stone proof's block is
+  `LeanModels.Sv.Lib.pgBlock` over `[k + 1 - 2^l, k]`. The `sv_comb` tactics do not take these designs as written
+  (`sv_structure: outside the supported fragment — localparam `L`: `$clog2` is outside the v1 fragment ...`, and
+  a conditional generate inside a generate loop is outside it too; [PROVING.md](../../PROVING.md), section 4;
+  even without the `$clog2` localparam, a prefix adder's index arithmetic, `((i >> l) << l) - 1` or
+  `i - (1 << l)`, is not affine in the genvars, which the tactics' recognizer requires). The source is not
+  rewritten around the tactics (decided 2026-11-05: the tactics are made more robust, designs are not rewritten
+  around them). Neither beats the ripple's area x time at `N = 16` (1327.9 and 1324.8 against 1202.2), and a
+  baseline is never an entry: a prefix adder that beats par is a submission.
 
 ## Validation
 
@@ -514,6 +500,7 @@ an off-by-one carry out, a wrong carry gate, a design correct only at the
 scoring point, two interface tricks, two registers on a dead clock, and the
 banned `+`), with kernel-checked refutations in
 `tests/add/negative/Refute.lean` and the checker stage each one is rejected
-at (`tests/expected.json`, run by `tests/run.py`). The simulation-only
-designs and the `+` baseline are `baselines` entries of `tests/expected.json`:
-`tests/run.py` re-scores them and compares.
+at (`tests/expected.json`, run by `tests/run.py`). The proved prefix adders,
+`cmp_carry` and the `+` baseline are `baselines` entries of `tests/expected.json`,
+each with its proof (`lean`): `tests/run.py` re-scores them, compares, and
+checks each proof (step `baseline-proofs`).

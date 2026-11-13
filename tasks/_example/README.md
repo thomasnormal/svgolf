@@ -107,7 +107,7 @@ A further accepted solution, `reference/band_lp.sv` with
 `reference/band_lp.lean` (all three are listed in `task.json` `references`),
 declares localparams in the header (`W = N`, sizing the ports) and in the
 body (`MSB = W - 1`): the task's parameter list is `N` only, and localparams
-are the design's own business. Same score.
+are the design's own business. Same score: on the board it is an entry that ties par.
 
 The checker's source gate applies here as everywhere: no `` `ifdef ``, no
 attributes, no `// synopsys ...` pragmas, no `unique`/`priority` case

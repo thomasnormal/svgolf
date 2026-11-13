@@ -334,7 +334,7 @@
    "id": "reference/mul_tree",
    "kind": "reference",
    "name": "mul_tree",
-   "sha256": "dca1d7da6838f8f7eaaa2ee3094aa6148f5881d99fb5693c546da161d9056d37",
+   "sha256": "e961fdd999526406384d937f8803a44d710c3167f8c273aa8b6dcfeb5519b01d",
    "src": "tasks/mul/reference/mul_tree.sv"
   },
   {
@@ -436,7 +436,7 @@
    "id": "reference/mul_tree_h",
    "kind": "reference",
    "name": "mul_tree_h",
-   "sha256": "f77fcae9b71e648b5d7e30fa4c429b86f75c5315ddd543d6e875b94aa33c3f65",
+   "sha256": "8253e553b95f7c6b71a07452cd0b0039c6b8b27ddc275bba492de643334f3d49",
    "src": "tasks/mul/reference/mul_tree_h.sv"
   },
   {
@@ -548,99 +548,8 @@
    "id": "reference/mul_wallace",
    "kind": "reference",
    "name": "mul_wallace",
-   "sha256": "4369d9943d3ff63630a41058184b139e23e061aa2c27b361ebe53d220c00ae09",
+   "sha256": "1cff6478a2a02e3709085f6717a6511780509c8cee3365864873725cf8f57883",
    "src": "tasks/mul/reference/mul_wallace.sv"
-  },
-  {
-   "at": {
-    "N=16": {
-     "area_e4um2": 89373216,
-     "area_ge": 2076.51,
-     "area_mge": 2076510,
-     "area_um2": 8937.3216,
-     "buffers": 0,
-     "cells": 1483,
-     "delay_ps": 5148,
-     "depth": 48,
-     "gates": {
-      "AND": 370,
-      "ANDNOT": 24,
-      "MUX": 3,
-      "NAND": 551,
-      "NOR": 22,
-      "NOT": 3,
-      "OR": 29,
-      "ORNOT": 47,
-      "XNOR": 124,
-      "XOR": 310
-     },
-     "netlist_sha256": "27a254f0d99fca1d5977c64505fc5cd32b6ee6fc31df4cf2606ffb8075c24db5",
-     "num_gates": 1483,
-     "repaired_sha256": "6bced0e33b3d4a1732a611f605aab22ad281ea6cca07b0afd860311c8bb9868e",
-     "rtlil_sha256": "f3da25785330e8257592e99b70f906010460e4c04c4e3c5e1dc99b796fc90d21",
-     "time_ps": 5148,
-     "unit_depth": 48
-    }
-   },
-   "banned": false,
-   "family": "dadda_ks",
-   "id": "baseline/dadda_ks_16",
-   "kind": "baseline",
-   "name": "dadda_ks_16",
-   "sha256": "6fba2078ff3e8fdfed738fe20d2a584b717f0e84f9258adac5ab19aa5216967f",
-   "src": "tests/mul/baselines/dadda_ks_16.sv"
-  },
-  {
-   "at": {},
-   "banned": false,
-   "dropped": {
-    "N=32": "the pinned flow does not finish within the task's 120 s time limit"
-   },
-   "family": "dadda_ks",
-   "id": "baseline/dadda_ks_32",
-   "kind": "baseline",
-   "name": "dadda_ks_32",
-   "sha256": "331520b5892bc587e9e76302a9e13618f7d0fa34b246cc47828e5d3141c0e49f",
-   "src": "tests/mul/baselines/dadda_ks_32.sv"
-  },
-  {
-   "at": {
-    "N=8": {
-     "area_e4um2": 21057696,
-     "area_ge": 484.29,
-     "area_mge": 484290,
-     "area_um2": 2105.7696,
-     "buffers": 0,
-     "cells": 345,
-     "delay_ps": 3322,
-     "depth": 24,
-     "gates": {
-      "AND": 99,
-      "ANDNOT": 7,
-      "MUX": 2,
-      "NAND": 113,
-      "NOR": 4,
-      "NOT": 2,
-      "OR": 10,
-      "ORNOT": 14,
-      "XNOR": 30,
-      "XOR": 64
-     },
-     "netlist_sha256": "c0edcafb7a012c102e885299a464db155d3fc5c5f3b1470b5effd0ec454c93b0",
-     "num_gates": 345,
-     "repaired_sha256": "c8db6f045482927a772be0e743ba5a79d4b8ef632eb4aa1defddb4f649428b1a",
-     "rtlil_sha256": "6c1ffa08e96d81dbcc1d76ce606ad63aa216747e32abc44d9e80216219923522",
-     "time_ps": 3322,
-     "unit_depth": 24
-    }
-   },
-   "banned": false,
-   "family": "dadda_ks",
-   "id": "baseline/dadda_ks_8",
-   "kind": "baseline",
-   "name": "dadda_ks_8",
-   "sha256": "0635b512d97ce31708e4abbcd6303f4dbd556c42fcbe42ffc791a7cd95dad54f",
-   "src": "tests/mul/baselines/dadda_ks_8.sv"
   },
   {
    "at": {
@@ -663,24 +572,13 @@
       "XNOR": 50,
       "XOR": 410
      },
-     "netlist_sha256": "42b14484022d55d18259b461e98c223ce9294f1b610259464311026b1014f010",
+     "netlist_sha256": "e421a7d947d25216778979b0b3e9e0d6456233bbdecab0385b0f07dd486a18f4",
      "num_gates": 1408,
-     "repaired_sha256": "e7bdcb28dff206512a2cabe03f8bc52436e147112c8b9f38e91cffdf36ed29a1",
-     "rtlil_sha256": "9e130c4cddb4c0676acdd2a3a02aa79ee7d113828ce6e8beea51da5d20272d16",
+     "repaired_sha256": "048cfcb9dd59e27aa2cc970fd1cef28d4fb3959182253d33998d7195ee7cb40c",
+     "rtlil_sha256": "f80745b8f057b54dba46534b9cef268621a1e82643dda2d1cde97006a9cd0a1c",
      "time_ps": 5461,
      "unit_depth": 61
-    }
-   },
-   "banned": false,
-   "family": "dadda_rc",
-   "id": "baseline/dadda_rc_16",
-   "kind": "baseline",
-   "name": "dadda_rc_16",
-   "sha256": "49377aabf948105fba4a0ff64409eadd213c8610913ae4128a166715fc2f8407",
-   "src": "tests/mul/baselines/dadda_rc_16.sv"
-  },
-  {
-   "at": {
+    },
     "N=32": {
      "area_e4um2": 342378368,
      "area_ge": 8153.02,
@@ -700,24 +598,36 @@
       "XNOR": 158,
       "XOR": 1788
      },
-     "netlist_sha256": "ca544982bbe1a3b62f9ae07b655213310cf4b1d1563409885cd6fb68554c695f",
+     "netlist_sha256": "0b1c1f9c593fd62e7a29e7aff57c3e9aa524250fb4de949439bc9ea9592f96f5",
      "num_gates": 5888,
-     "repaired_sha256": "853199684537810be771e87fa961636a089aefae46151f53c6811834658e83c0",
-     "rtlil_sha256": "e96f4c420a4ee3a3b77b3631fa37db74f7ea0d1c315d34f413070000ffa65b9d",
+     "repaired_sha256": "1d0502b6f8329d6c02d4ae8f03a016ff888705313d62d28df778f19f75de2fab",
+     "rtlil_sha256": "870cee21490e1d4ca1aa77af65d245c54b2311781488138756e1dc58c914595c",
      "time_ps": 9861,
      "unit_depth": 125
-    }
-   },
-   "banned": false,
-   "family": "dadda_rc",
-   "id": "baseline/dadda_rc_32",
-   "kind": "baseline",
-   "name": "dadda_rc_32",
-   "sha256": "956edb5e210ad3e161143e433e00c76ccc5ad81fc8b7f9158f3fad8279bf80ac",
-   "src": "tests/mul/baselines/dadda_rc_32.sv"
-  },
-  {
-   "at": {
+    },
+    "N=4": {
+     "area_e4um2": 3741088,
+     "area_ge": 87.661,
+     "area_mge": 87661,
+     "area_um2": 374.1088,
+     "buffers": 0,
+     "cells": 63,
+     "delay_ps": 1824,
+     "depth": 13,
+     "gates": {
+      "AND": 16,
+      "ANDNOT": 1,
+      "NAND": 27,
+      "XNOR": 3,
+      "XOR": 16
+     },
+     "netlist_sha256": "5d1ea4e61a3021ec26db74ad5f93947e68faefd846e3a6dd03b2d480da7fcd4f",
+     "num_gates": 63,
+     "repaired_sha256": "516bd08ef42aff880f70df5194d404d6c9dc091939b0b677d9828c1b9c9396ca",
+     "rtlil_sha256": "6c1e99827e504a605d4d60deb357da91c9951b868fbe0ec897d36ed96ccea9ff",
+     "time_ps": 1824,
+     "unit_depth": 13
+    },
     "N=8": {
      "area_e4um2": 18918144,
      "area_ge": 445.978,
@@ -737,21 +647,23 @@
       "XNOR": 12,
       "XOR": 90
      },
-     "netlist_sha256": "b4d5aecfa3028bc128ca18ba1c8f0594c99baf17e5a9c16bbe3c4e53cd07bb8e",
+     "netlist_sha256": "3045ea5be819f897f66dda6ac1a70c52f5431896a8cf36e0efbc6cea9430047a",
      "num_gates": 320,
-     "repaired_sha256": "1c265c0c014ac4652efb29eb1c3288f50c420d88324b38a815d4e2cc8485f468",
-     "rtlil_sha256": "b2498003d6aff8fd2c814b2c869f2e9aabe8a8d4339104acb99561c4f6736feb",
+     "repaired_sha256": "d218d1aed33a2226a7b04e0831c66b55c10ac291dd7b5315d6380b23ae9ad49e",
+     "rtlil_sha256": "44d073cd5c0b95e5706d8abf1644d1850183e27cd8e2ec03c55214623fefd255",
      "time_ps": 3267,
      "unit_depth": 29
     }
    },
    "banned": false,
    "family": "dadda_rc",
-   "id": "baseline/dadda_rc_8",
+   "id": "baseline/dadda_rc",
    "kind": "baseline",
-   "name": "dadda_rc_8",
-   "sha256": "390b16f16a392440e2ae09d11e4086a421bd7515562f029f0f6e7b7bd7c8f2a3",
-   "src": "tests/mul/baselines/dadda_rc_8.sv"
+   "lean": "tests/mul/baselines/dadda_rc.lean",
+   "name": "dadda_rc",
+   "proved": true,
+   "sha256": "e4d405a7efe7dc72a192166bf3409d033b90a673f52ed3cf581032c38d78a4bb",
+   "src": "tests/mul/baselines/dadda_rc.sv"
   },
   {
    "at": {
@@ -865,7 +777,9 @@
    "family": "yosys_mul",
    "id": "baseline/yosys_mul",
    "kind": "baseline",
+   "lean": "tests/mul/baselines/yosys_mul.lean",
    "name": "yosys_mul",
+   "proved": true,
    "sha256": "1fa5b249500ea248c3b022ac475fb4b7d7bdc707cc6ba0ed489c65c70ba18ce9",
    "src": "tests/mul/baselines/yosys_mul.sv"
   }
@@ -921,7 +835,7 @@
    "x": 32
   }
  ],
- "records": true,
+ "records": false,
  "scale": {
   "label": "N",
   "param": "N"

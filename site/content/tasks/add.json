@@ -1,19 +1,14 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `references` (each proof of par's design, leaderboard/par.json) and `baselines` (each baseline with a banned operator) describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "N-bit adder",
  "subtitle": "Add two N-bit numbers and a carry in, with logic gates only.",
  "references": {
   "add_n": "A ripple-carry adder in a generate loop, proved with the sv_comb tactics: the intended way to work.",
-  "add_proc": "The same adder with its carry cell written as an `always_comb` `if`/`else`.",
-  "add_proc_m": "The same adder with the whole bit cell, carry and sum, in one `always_comb` block.",
-  "add_mux": "The same adder written with `~` and the conditional operator `?:`.",
   "add_n_byhand": "The same design as `add_n`, proved by hand without the tactics: the by-hand proof."
  },
  "baselines": {
-  "plus": "Yosys's own adder, `assign {cout, s} = a + b + cin;`, which uses the banned `+`.",
-  "add_n_sklansky": "A Sklansky parallel-prefix adder, checked by simulation, not proved yet.",
-  "add_n_kogge_stone": "A Kogge-Stone parallel-prefix adder, checked by simulation, not proved yet.",
-  "cmp_carry": "Every carry computed by a run-time comparison, which Yosys builds as its own adder: banned in this task since 2026-11-05, like `+`."
+  "plus": "Yosys's own adder, `assign {cout, s} = a + b + cin;`, which uses the banned `+`: proved with that banlist lifted, so not rankable.",
+  "cmp_carry": "Every carry computed by a run-time comparison, which Yosys builds as its own adder: banned in this task since 2026-11-05, like `+`; proved with that banlist lifted, so not rankable."
  },
  "new_design_reviewed": {
   "opening": "afc8a0b3ee6a"

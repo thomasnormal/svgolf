@@ -114,6 +114,20 @@ def records():
     return lb.good_records(lb.load_records(os.path.join(SVGOLF, "leaderboard", "data")))
 
 
+def shown_refs(task):
+    """The task.json references the site shows (decided 2026-11-12): the proofs of par's design, the one design
+    leaderboard/par.json names; every other reference is an entry, shown once a player's record holds it."""
+    par = lb.par_names(os.path.join(SVGOLF, "tasks"), task)
+    return [r for r in task.get("references", [])
+            if lb.sha256_file(os.path.join(SVGOLF, "tasks", task["name"], r["sv"])) in par]
+
+
+def waiting_refs(task):
+    """The task.json references the site does not show (decided 2026-11-12): entries until they are recorded."""
+    shown = [r["sv"] for r in shown_refs(task)]
+    return [r for r in task.get("references", []) if r["sv"] not in shown]
+
+
 def table_rows(h):
     """The rows of every table in the HTML `h`, each a list of its cells' text (whitespace runs as one space)."""
     return [[norm(text_of(c)).strip() for c in re.findall(r"<t[dh]\b[^>]*>(.*?)</t[dh]>", tr, re.S)]
@@ -174,15 +188,11 @@ def sky130_scores(task_name):
 
 
 def par_score(task_name):
-    """The exact score of the task's best proved reference, or None when none is weighed."""
+    """The exact score of the task's par design (decided 2026-11-12: one design per task, leaderboard/par.json; it was the
+    best proved reference's), or None when it is not weighed."""
     task = lb.load_task(os.path.join(SVGOLF, "tasks"), task_name)
     scores = sky130_scores(task_name)
-    mine = []
-    for ref in task.get("references", []):
-        with open(os.path.join(SVGOLF, "tasks", task_name, ref["sv"]), "rb") as fh:
-            sha = hashlib.sha256(fh.read()).hexdigest()
-        if sha in scores:
-            mine.append(scores[sha])
+    mine = [scores[sha] for sha in lb.par_names(os.path.join(SVGOLF, "tasks"), task) if sha in scores]
     return min(mine) if mine else None
 
 
@@ -409,13 +419,19 @@ class SiteTest(unittest.TestCase):
         for t in self.listed:
             task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
             pairs = [(f"tasks/{t}/Spec.lean", f"tasks/{t}/Spec.lean")]
-            for ref in task.get("references", []):
+            for ref in shown_refs(task):
                 stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
                 pairs += [(f"tasks/{t}/reference/{stem}.sv", f"tasks/{t}/{ref['sv']}"),
                           (f"tasks/{t}/reference/{stem}.lean", f"tasks/{t}/{ref['lean']}")]
             for out, src in pairs:
                 with self.subTest(file=out), open(os.path.join(SVGOLF, src), "rb") as fh:
                     self.assertEqual(self.files[out], fh.read())
+            # (decided 2026-11-12) a reference that is not par's design is an entry: no download, no page of its own
+            for ref in waiting_refs(task):
+                stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
+                with self.subTest(waiting=f"{t}/{stem}"):
+                    for ext in (".sv", ".lean", ".html"):
+                        self.assertNotIn(f"tasks/{t}/reference/{stem}{ext}", self.files)
 
     def test_chart_frontier_is_the_players_board_and_pareto(self):
         """The chart's record marks are the players' records; the reference player's records are par
@@ -480,11 +496,46 @@ class SiteTest(unittest.TestCase):
         for r in recs:
             if r["player"] == ref_player:
                 page_ = text_of(self.files[f"tasks/{r['task']}/records/{r['record_hash']}.html"])
-                # "reference: par, not an entry" only where its reference is par (test_pdk, per view)
+                # "par, not an entry" only where its proof is par's own (test_pdk, per view)
                 self.assertIn("not an entry", page_)
                 self.assertNotIn("on the Pareto frontier", page_)
 
-    def test_par_is_the_best_proved_references_area_time(self):
+    def test_par_is_one_design_per_task_and_every_other_design_is_an_entry(self):
+        """Decided 2026-11-12: par is ONE design per task, the simplest algorithm (leaderboard/par.json); the page shows that
+        design with every proof of it, the baselines with a banned operator, and the records. Every other proved
+        design (a reference that is not par's design, a baseline without a banned operator) is an entry: never drawn
+        as a reference or baseline line, at the scored point or any measured one, never in the task's data, until a
+        player's record holds it. The rules page names each listed task's par design and its algorithm."""
+        table = lb.load_par_table(os.path.join(SVGOLF, "tasks"))
+        with open(os.path.join(SVGOLF, "tests", "expected.json"), encoding="utf-8") as fh:
+            expected = json.load(fh)["tasks"]
+        rules = norm(text_of(self.files["rules.html"]))
+        for t in self.ranked:
+            with self.subTest(task=t):
+                task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
+                par = lb.par_names(os.path.join(SVGOLF, "tasks"), task)
+                self.assertEqual(len(par), 1)
+                data = json.loads(self.files[f"data/tasks/{t}.json"])
+                self.assertEqual([r["stem"] for r in data["references"] if r["par"]], [table[t]["design"]])
+                self.assertTrue(all(r["sha256"] in par for r in data["references"]), t)
+                self.assertTrue(all(b["banned"] for b in data["baselines"]), t)
+                waiting = ([f"reference/{posixpath.splitext(posixpath.basename(r['sv']))[0]}" for r in waiting_refs(task)]
+                           + [f"baseline/{b}" for b, e in expected.get(t, {}).get("baselines", {}).items()
+                              if not e.get("banned")])
+                html_, page = self.page_data(t)
+                ids = {d["id"] for d in page["designs"]} | {d["id"] for v in page.get("at", {}).values() for d in v}
+                ids |= {ln["id"] for ln in (page.get("scaling") or {}).get("lines", [])}
+                names = {n for ln in (page.get("scaling") or {}).get("lines", []) for n in ln["names"]}
+                for w in waiting:
+                    self.assertNotIn(w, ids)
+                    self.assertNotIn(f"line/{w}", ids)
+                    self.assertNotIn(w.split("/", 1)[1], names)
+                    self.assertNotIn(f'id="ref-{w.split("/", 1)[1]}"', html_)
+                    self.assertNotIn(f'id="baseline-{w.split("/", 1)[1]}"', html_)
+                if t != "_example" and table.get(t):
+                    self.assertIn(f"{t}: {table[t]['design']}, {table[t]['algorithm']}", rules)
+
+    def test_par_is_the_par_designs_area_time(self):
         """PAR is area x time of the best weighed proved reference (computed here from the goldens),
         in the display unit; RECORD is the best of par and the players' ranked records (with no
         submissions, par). A task with no weighed reference has no score, and its score card says so
@@ -645,7 +696,10 @@ class SiteTest(unittest.TestCase):
                        "par while no submission beats it", "A design without a weighing on the chosen course has no score",
                        "so paths from the inputs and to the outputs count too",
                        "The clock is ideal: no clock tree and no skew", "no wires, no place and route",
-                       "dated by when they joined the task"):
+                       "par's design, the first entry, dated by when it joined the task",
+                       "one design per task, the simplest algorithm for it",
+                       "Every other design is an entry",
+                       "it is never ranked, never par and never an entry"):
             self.assertIn(phrase, text)
         # each kind's time, in the task page's words, with every listed task of that kind named in its item
         items = [norm(text_of(li)) for li in re.findall(r"<li>(.*?)</li>", part.split('id="clock-period"', 1)[1]
@@ -662,8 +716,10 @@ class SiteTest(unittest.TestCase):
                 self.assertIn(t, names)
 
     def test_score_chart_and_explorer(self):
-        """The score chart draws the proved references (dated) and the players' records, par as a
-        line, and every weighed baseline as a level marked not proved, on a linear and a log axis.
+        """The score chart draws par's design (dated) and the players' records, par as a
+        line, and every weighed baseline as a level marked as a banned operator, on a linear and a
+        log axis, and never "not proved" (decided 2026-11-12: every baseline is proved, and a baseline shown has a banned
+        operator: one without is an entry, like every reference but par's design).
         The explorer's data names every scored design with the pinned flow's numbers."""
         with open(os.path.join(SVGOLF, "tests", "expected.json"), encoding="utf-8") as fh:
             expected = json.load(fh)["tasks"]
@@ -680,7 +736,7 @@ class SiteTest(unittest.TestCase):
                         s = exp[d["kind"] + "s"][d["name"]]["scores"][key]
                         self.assertEqual(round(d["m"]["area_ge"] * 1000), s["area_mge"], d["name"])
                         self.assertEqual(d["m"]["depth"], s["depth"], d["name"])
-                refs = {posixpath.splitext(posixpath.basename(r["sv"]))[0] for r in task.get("references", [])
+                refs = {posixpath.splitext(posixpath.basename(r["sv"]))[0] for r in shown_refs(task)
                         if (exp.get("references", {}).get(posixpath.splitext(posixpath.basename(r["sv"]))[0], {})
                             .get("scores") or {}).get(key)}
                 self.assertEqual({d["name"] for d in data["designs"] if d["kind"] == "reference"}, refs)
@@ -700,12 +756,14 @@ class SiteTest(unittest.TestCase):
                 self.assertEqual(wide.count('<line class="level"'), len(weighed))
                 for d in weighed:
                     self.assertIn(f">{html.escape(d['name'])}</text>", wide)
-                self.assertEqual(wide.count("not proved</text>") + wide.count("banned op</text>"), len(weighed))
+                self.assertEqual(wide.count(" · baseline</text>") + wide.count(" · banned op</text>"), len(weighed))
+                self.assertNotIn("not proved", score)
+                self.assertTrue(all(d["banned"] for d in data["designs"] if d["kind"] == "baseline"), t)
 
     def test_every_reference_shows_when_it_joined(self):
-        """The score chart plots each proved reference at the date it joined the task (content/reference_dates.json);
-        since the table "every entry by date" went (2026-11-11), Proved references says that date as text, in a
-        column "joined" after "design", YYYY-MM-DD, the same in both views."""
+        """The score chart plots each proof of par's design at the date it joined the task
+        (content/reference_dates.json); since the table "every entry by date" went (2026-11-11), the card Par says that
+        date as text, in a column "joined" after "design", YYYY-MM-DD, the same in both views."""
         dates = json.loads(read_text_file("site/content/reference_dates.json"))
         for t in self.listed:
             task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
@@ -713,7 +771,7 @@ class SiteTest(unittest.TestCase):
                 with self.subTest(task=t, view=pdk):
                     rows = table_rows(section(self.html(f"tasks/{t}/index.html", pdk), "references"))
                     self.assertEqual([c.lower() for c in rows[0][:2]], ["design", "joined"])
-                    for ref in task.get("references", []):
+                    for ref in shown_refs(task):
                         stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
                         if stem not in dates.get(t, {}):
                             continue
@@ -763,11 +821,11 @@ class SiteTest(unittest.TestCase):
                     desc = re.findall(r"<desc>(.*?)</desc>", score.split("data-score-chart>", 1)[1], re.S)
                     self.assertTrue(desc)
                     # the tables it names are the page's: Baselines only where the task has that card (2026-11-11)
-                    tail = ("The same entries as numbers: the Leaderboard (the records, with their dates), Proved "
-                            "references (with the date each joined the task) and Baselines."
+                    tail = ("The same entries as numbers: the Leaderboard (the records, with their dates), Par "
+                            "(with the date it joined the task) and Baselines."
                             if json.loads(self.files[f"data/tasks/{t}.json"])["baselines"] else
-                            "The same entries as numbers: the Leaderboard (the records, with their dates) and Proved "
-                            "references (with the date each joined the task).")
+                            "The same entries as numbers: the Leaderboard (the records, with their dates) and Par "
+                            "(with the date it joined the task).")
                     self.assertEqual('id="baselines"' in raw, tail.endswith("Baselines."))
                     for d in desc:
                         self.assertTrue(html.unescape(d).endswith(tail), d)
@@ -821,11 +879,22 @@ class SiteTest(unittest.TestCase):
 
     @staticmethod
     def measured(t):
+        """score/measured/<t>.json as the page shows it (decided 2026-11-12): par's design (each proof of it), the
+        baselines with a banned operator and the records; every other measured design is an entry, shown once a
+        player's record holds it, never as a reference or baseline line."""
         path = os.path.join(SVGOLF, "score", "measured", f"{t}.json")
         if not os.path.isfile(path):
             return None
         with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
+            data = json.load(fh)
+        task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
+        refs = {posixpath.splitext(posixpath.basename(r["sv"]))[0] for r in shown_refs(task)}
+        with open(os.path.join(SVGOLF, "tests", "expected.json"), encoding="utf-8") as fh:
+            base = json.load(fh)["tasks"].get(t, {}).get("baselines", {})
+        keep = [e for e in data["designs"] if (e["kind"] == "reference" and e["name"] in refs)
+                or (e["kind"] == "baseline" and (base.get(e["name"]) or {}).get("banned") is True)
+                or e["kind"] == "record"]
+        return dict(data, designs=keep)
 
     def page_data(self, t):
         html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
@@ -1012,7 +1081,7 @@ class SiteTest(unittest.TestCase):
                 card = section(html_, "baselines")
                 fold = card.index("<details><summary>every baseline with its numbers</summary>")
                 self.assertTrue(card[:fold].rstrip().endswith("</p>"))
-                self.assertIn("Not entries.", text_of(card[:fold]))
+                self.assertIn("Not rankable.", text_of(card[:fold]))
                 self.assertLess(fold, card.index("<table"))
                 self.assertEqual(card.count("<table"), 1)
                 self.assertEqual(element_end(card, fold, "details"), len(card.rstrip()))
@@ -1051,10 +1120,10 @@ class SiteTest(unittest.TestCase):
         leansrc = build.leansrc
         shown = 0
         for t in self.listed:
-            # the lead, above the fold, says that every proved reference meets the statement (with or without
-            # property cards; kept when the statement folded, 2026-11-11)
+            # the lead, above the fold, says that par's design and every accepted record meet the statement (with or
+            # without property cards; kept when the statement folded, 2026-11-11; par one design since 2026-11-12)
             lead = section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "spec").split("</p>", 1)[0]
-            self.assertIn("Every proved reference meets it.", text_of(lead), t)
+            self.assertIn("Par's design meets it, and so does every accepted record.", text_of(lead), t)
             pj = os.path.join(SVGOLF, "tasks", t, "properties.json")
             if not os.path.isfile(pj):
                 continue
@@ -2027,16 +2096,17 @@ class SiteTest(unittest.TestCase):
                 self.assertIn("Score = area × time: the sky130 cell area of the scored netlist", caption)
                 self.assertIn("It is the one ranked number", caption)
                 # 2026-11-11: the page head's numbers are defined there too (the quick start's terms, dropped with it)
-                self.assertIn("It is the one ranked number: Par (the best proved reference's score, the bar to beat), "
-                              "Record (the best accepted score so far, par while no submission beats it), Under par (how "
-                              "far the record is below par, as a share of par's score) and the leaderboard use it. The "
-                              "Pareto front, area in GE (NAND2 gate equivalents),", caption)
+                self.assertIn("It is the one ranked number: Par (the score of the task's par design, the simplest "
+                              "algorithm: the bar to beat), Record (the best accepted score so far, par while no "
+                              "submission beats it), Under par (how far the record is below par, as a share of par's "
+                              "score) and the leaderboard use it. The Pareto front, area in GE (NAND2 gate equivalents),",
+                              caption)
                 # one definition: the note, once per library view; How to submit and the card do not define it.
                 # The ranked score is sky130's: the ASAP7 view's caption says that view orders by its own score
                 # (review 2026-11-11), so "the one ranked number" is in the sky130 view only.
                 a7 = 'class="pdk-asap7' in html_
                 self.assertEqual(text_of(html_).count("It is the one ranked number"), 1)
-                self.assertEqual(text_of(html_).count("In this view Par (the best proved reference's score"),
+                self.assertEqual(text_of(html_).count("In this view Par (the score of the task's par design"),
                                  1 if a7 else 0)
                 if a7:
                     self.assertIn("as a share of par's score) and the leaderboard use it; the records' ranked score is "
@@ -2336,8 +2406,11 @@ class SiteTest(unittest.TestCase):
                 self.assertIn("the whole suite takes an hour or more on a laptop", norm(text).lower())
                 for stale in ("226 checks", "386 checks", "3154 s", "44 checks", "PLAN2.md):"):
                     self.assertNotIn(stale, text)
-        steps = re.findall(r'"(\w+)"', re.search(r"^STEPS = \[(.*?)\]", read_text_file("tests/run.py"), re.S | re.M).group(1))
-        self.assertEqual(re.findall(r"`(\w+)`", re.search(r"Steps: (.*?)\.", " ".join(contrib.split())).group(1)), steps)
+        # (a step's name may have a hyphen: `baseline-proofs`, 2026-11-12)
+        steps = re.findall(r'"([\w-]+)"', re.search(r"^STEPS = \[(.*?)\]", read_text_file("tests/run.py"),
+                                                    re.S | re.M).group(1))
+        self.assertIn("baseline-proofs", steps)
+        self.assertEqual(re.findall(r"`([\w-]+)`", re.search(r"Steps: (.*?)\.", " ".join(contrib.split())).group(1)), steps)
         skipped = re.search(r"--skip (\S+) +# no Lean", contrib).group(1).split(",")
         self.assertEqual(sorted(skipped + ["canon", "layout", "leaderboard", "unit"]), sorted(steps))
         task_readmes = sorted(f"tasks/{t}/README.md" for t in os.listdir(os.path.join(SVGOLF, "tasks"))
@@ -2383,9 +2456,11 @@ class SiteTest(unittest.TestCase):
         for stale in ("open decision", "possible hand-off", "CI re-verifies"):
             self.assertNotIn(stale, rules)
         first = norm(build.FIRST_ENTRIES_MD)                    # the front page's words (test_the_claims_...)
-        self.assertEqual(first, "Every record so far was added by the maintainers: the proved references, and trial "
-                         "designs made with an AI assistant (each record names the tool). There are no outside entries "
-                         "yet.")
+        # decided 2026-11-13: the maintainers' records are entries like any, seeded with AI assistance
+        self.assertEqual(first, "The board is seeded with entries the maintainers made with AI assistance (each record "
+                         "names the tools), each proved and scored like any entry: they are ordinary entries and can "
+                         "be beaten. There are no outside entries yet.")
+        self.assertNotIn("trial design", norm(text_of(self.files["index.html"])))
         self.assertIn(first, norm(read_text_file("README.md")))
         self.assertIn(first, norm(rules))
         # what holds for every record, whoever made it (decided 2026-11-12: an unassisted outside record is valid and
@@ -2425,7 +2500,7 @@ class SiteTest(unittest.TestCase):
         src = read_text_file("tasks/add/reference/add_n.sv")
         self.assertEqual(blocks[0] + "\n", "".join(ln for ln in src.splitlines(True) if not ln.startswith("//")))
         self.assertIn("theorem solution : Goal := by", blocks[1])
-        # the line check.py prints, from its own code: the add_n golden, par the best proved reference
+        # the line check.py prints, from its own code: the add_n golden, par the par design (leaderboard/par.json)
         with open(os.path.join(SVGOLF, "score", "tests", "ppa", "designs.json"), encoding="utf-8") as fh:
             name = next(d["name"] for d in json.load(fh)["designs"]
                         if d["src"] == "tasks/add/reference/add_n.sv" and d["task"] == "add")
@@ -2433,9 +2508,8 @@ class SiteTest(unittest.TestCase):
             gold = json.load(fh)["designs"][name]
         task = lb.load_task(os.path.join(SVGOLF, "tasks"), "add")
         scores = sky130_scores("add")
-        par_stem = min((posixpath.splitext(posixpath.basename(r["sv"]))[0] for r in task["references"]),
-                       key=lambda s: scores.get(hashlib.sha256(
-                           read_text_file(f"tasks/add/reference/{s}.sv").encode("utf-8")).hexdigest(), float("inf")))
+        par_stem = lb.par_stem(os.path.join(SVGOLF, "tasks"), task)
+        self.assertIn(next(iter(lb.par_names(os.path.join(SVGOLF, "tasks"), task))), scores)
         spec = importlib.util.spec_from_file_location("svgolf_check_py_site", os.path.join(SVGOLF, "check.py"))
         checkpy = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(checkpy)
@@ -2909,6 +2983,64 @@ class GuardTest(unittest.TestCase):
         self.assertNotIn("refuted in negative", page_)              # never the internal note instead
         with self.assertRaises(build.BuildError):
             self.with_content(edit, strict=True)
+
+    def test_a_design_without_a_proof_is_never_shown_and_fails_strict(self):
+        """Decided 2026-11-12: every design the site shows has a kernel-checked proof. Fixtures: a baseline of
+        tests/expected.json whose `lean` is dropped, one whose `lean` names a file that is not there, and a design in
+        the measured data (score/measured/<task>.json) that is not marked proved. Each is left out of every page and
+        data file, with a warning naming it, and the strict build fails."""
+        real_read, real_measured = build.read_text, build.metrics.load_measured
+
+        def read_text(rel):
+            text = real_read(rel)
+            if rel != "svgolf/tests/expected.json":
+                return text
+            e = json.loads(text)
+            del e["tasks"]["add"]["baselines"]["plus"]["lean"]
+            e["tasks"]["add"]["baselines"]["cmp_carry"]["lean"] = "baselines/no_such_proof.lean"
+            return json.dumps(e)
+
+        def load_measured(name, *a, **kw):
+            data = real_measured(name, *a, **kw)
+            if name != "clmul" or not data:
+                return data
+            data = json.loads(json.dumps(data))
+            fake = json.loads(json.dumps(next(e for e in data["designs"] if e["name"] == "kara_lv")))
+            fake.update(id="baseline/fake_unproved", name="fake_unproved", family="fake_unproved", proved=False)
+            fake["sha256"] = "f" * 64
+            data["designs"].append(fake)
+            return data
+
+        def build_with_fixtures(**kw):
+            with mock.patch.object(build, "read_text", read_text), \
+                    mock.patch.object(build.metrics, "load_measured", load_measured):
+                return self.build(**kw)
+        site = build_with_fixtures()
+        said = "\n".join(site.warnings)
+        for what in ("add: the baseline plus has no proof file (none named)",
+                     "add: the baseline cmp_carry has no proof file (svgolf/tests/add/baselines/no_such_proof.lean)",
+                     "clmul: the measured design baseline/fake_unproved"):
+            self.assertIn(what, said)
+        add = site.files["tasks/add/index.html"].decode("utf-8")
+        for stem in ("plus", "cmp_carry"):
+            self.assertNotIn(f'id="baseline-{stem}"', add)                  # not in the Baselines table
+            self.assertNotIn(f"tasks/add/baselines/{stem}.sv", site.files)  # and its file is not offered
+            self.assertNotIn(f"baseline/{stem}", add)                       # nor in the charts' data (any point)
+        listed = json.loads(site.files["data/tasks/add.json"])["baselines"]           # the published data
+        # (2026-11-12) add's other baselines have no banned operator: entries, never baseline lines
+        self.assertEqual(sorted(b["stem"] for b in listed), [])
+        mul = site.files["tasks/mul/index.html"].decode("utf-8")
+        listed = json.loads(site.files["data/tasks/mul.json"])["baselines"]
+        self.assertEqual(sorted(b["stem"] for b in listed), ["yosys_mul"])
+        for b in listed:
+            self.assertTrue(os.path.isfile(build.repo_file(b["lean"])), b)    # each names its proof (either layout)
+        self.assertIn('id="baseline-yosys_mul"', mul)                       # a proved baseline is still shown
+        self.assertIn("tasks/mul/baselines/yosys_mul.lean", site.files)
+        for path in ("tasks/clmul/index.html", "data/tasks/clmul.json"):
+            self.assertNotIn("fake_unproved", site.files[path].decode("utf-8"))
+        with self.assertRaises(build.BuildError) as e:
+            build_with_fixtures(strict=True)
+        self.assertIn("has no proof file", str(e.exception))
 
     def test_internal_markers_spare_verbatim_files_and_player_fields(self):
         deny = ["/nowhere/", {"text": "QQ-", "scope": "site-text"}, {"text": "zz-", "scope": "site-text"}]

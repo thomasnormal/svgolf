@@ -4,14 +4,14 @@ import LeanModels.Sv.CombEqTactic
 import LeanModels.Sv.CombLib
 
 /-!
-# Reference solution 5 for task `mul`: a carry-save tree with TWO-ROW leaves, proved with the `sv_comb` tactics
+# A carry-save tree multiplier with TWO-ROW leaves for task `mul`, proved with the `sv_comb` tactics
 
 This is a submission file like any player's `Solution.lean`. The checker generates the module
 `Submission.Design` (`Submission.design`, `Submission.Goal`); this file proves
 
     theorem Submission.solution : Submission.Goal
 
-for EVERY `N ≥ 1`. The design is `reference/mul_tree_h.sv`: the `N` partial-product rows are taken
+for EVERY `N ≥ 1`. The design is `mul_tree_h.sv`: the `N` partial-product rows are taken
 two at a time, `H = ceil(N/2)` leaves (nodes `H-1 .. 2H-2` of a binary HEAP, node `k` having the
 children `2k+1`, `2k+2`, the root node 0), each leaf a carry-save pair `(S, C) = (pp[2j], pp[2j+1])`;
 EVERY internal node is a 4:2 compressor, two stacked rows of full adders, on its children's pairs; the

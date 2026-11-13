@@ -1,0 +1,197 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "nand2_1": 37536,
+  "xnor2_1": 87584,
+  "xor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 1939360,
+  "cell_hist_sky130": {
+   "and2_1": 11,
+   "nand2_1": 3,
+   "xnor2_1": 9,
+   "xor2_1": 4
+  },
+  "cells_sky130": 27,
+  "critical": {
+   "cells": 4,
+   "edge": "r",
+   "output": "p[3]"
+  },
+  "delay_ps_sky130": 960,
+  "drawn": "full",
+  "drawn_cells": 27,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 116.7,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[1]",
+    "slew_ps": 24.0
+   },
+   {
+    "arrival_ps": 266.0,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_59_",
+    "net": "_38_",
+    "slew_ps": 43.2
+   },
+   {
+    "arrival_ps": 570.8,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_60_",
+    "net": "_9_",
+    "slew_ps": 359.5
+   },
+   {
+    "arrival_ps": 707.8,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_77_",
+    "net": "_52_",
+    "slew_ps": 87.7
+   },
+   {
+    "arrival_ps": 959.8,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_78_",
+    "net": "_33_",
+    "slew_ps": 264.4
+   }
+  ],
+  "repaired_sha256": "1af6a24704f127833bda79c3facdf035c3e701bd72b55d16075890b4d55d6c24",
+  "svg_bytes": 19574,
+  "svg_sha256": "69880998cd9bc436bbb3778b6eb8822b99105e5123a156aa94e77775f2850156"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 28902720,
+  "cell_hist_sky130": {
+   "and2_1": 150,
+   "nand2_1": 44,
+   "xnor2_1": 185,
+   "xor2_1": 19
+  },
+  "cells_sky130": 398,
+  "critical": {
+   "cells": 7,
+   "edge": "r",
+   "output": "p[14]"
+  },
+  "delay_ps_sky130": 1424,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.211,
+   "worst_transition_ratio": 0.241
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "9e5208754b0f8506969ff7570fb4452b226ac86031b2cf53c9ab9131c3983158",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 124.0,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "a[1]",
+    "slew_ps": 29.9
+   },
+   {
+    "arrival_ps": 275.3,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_0935_",
+    "net": "_0530_",
+    "slew_ps": 42.7
+   },
+   {
+    "arrival_ps": 447.0,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_0937_",
+    "net": "_0532_",
+    "slew_ps": 156.5
+   },
+   {
+    "arrival_ps": 548.1,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_0941_",
+    "net": "_0536_",
+    "slew_ps": 62.3
+   },
+   {
+    "arrival_ps": 878.0,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_0947_",
+    "net": "_90_",
+    "slew_ps": 359.3
+   },
+   {
+    "arrival_ps": 1015.0,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_0963_",
+    "net": "_0557_",
+    "slew_ps": 87.7
+   },
+   {
+    "arrival_ps": 1159.6,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_0964_",
+    "net": "_0558_",
+    "slew_ps": 73.9
+   },
+   {
+    "arrival_ps": 1424.2,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_0979_",
+    "net": "_493_",
+    "slew_ps": 264.5
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 398,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "8be80f6c13ec1ee324790b0a5e33b3f826854500d7f5c85e727125877793c33c",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 7
+ },
+ "sv_sha256": "f2806e9f3d9bf621bb5aa7875a3a7b6c38fcd644ec0ad5441b81f45df955c4a6",
+ "task": "clmul",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

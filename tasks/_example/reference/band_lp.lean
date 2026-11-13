@@ -4,7 +4,7 @@ import LeanModels.Sv.Gen2
 import LeanModels.Sv.Hier2Gen
 
 /-!
-# Reference solution for task `_example`, LOCALPARAM variant: the proof
+# One AND gate per bit for task `_example`, LOCALPARAM variant: the proof
 
 This is a submission file like any player's `Solution.lean`. The checker
 generates the module `Submission.Design`, which loads the player's envelope as
@@ -13,7 +13,7 @@ generates the module `Submission.Design`, which loads the player's envelope as
 
     theorem Submission.solution : Submission.Goal
 
-for EVERY `N` of the task's range (`1 ≤ N < 2^31`), for `reference/band_lp.sv`: the design of `band.lean`
+for EVERY `N` of the task's range (`1 ≤ N < 2^31`), for `band_lp.sv`: the design of `band.lean`
 (`assign y = a & b;`) with a header localparam `W = N` that sizes the ports
 and a body localparam `MSB = W - 1`. The only difference from `band.lean` is
 the parameter environment (`bandScope`): the localparams are bound after `N`,
@@ -227,7 +227,7 @@ theorem band_interface (N : Nat) (hN : 1 ≤ N) :
   simp [CombTask.Interface, inputPorts, outputPorts, band_sem_decls N hN, bandDecls,
     SvGolf.Tasks.Example.task]
 
-/-- **The reference solution**: the `_example` statement, for every `N` in range (`1 ≤ N < 2^31`). -/
+/-- **The solution**: the `_example` statement, for every `N` in range (`1 ≤ N < 2^31`). -/
 theorem solution : Goal := by
   intro N hN
   have hN' : 1 ≤ N := hN.1

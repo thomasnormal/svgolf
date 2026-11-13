@@ -1,0 +1,411 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "inv_1": 37536,
+  "mux2_1": 112608,
+  "nand2_1": 37536,
+  "nand2b_1": 62560,
+  "nor2_1": 37536,
+  "nor2b_1": 62560,
+  "or2_1": 62560,
+  "xnor2_1": 87584,
+  "xor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 9521632,
+  "cell_hist_sky130": {
+   "and2_1": 20,
+   "inv_1": 2,
+   "mux2_1": 3,
+   "nand2_1": 19,
+   "nand2b_1": 4,
+   "nor2_1": 3,
+   "nor2b_1": 6,
+   "or2_1": 3,
+   "xnor2_1": 56,
+   "xor2_1": 15
+  },
+  "cells_sky130": 131,
+  "critical": {
+   "cells": 18,
+   "edge": "r",
+   "output": "y[1]"
+  },
+  "delay_ps_sky130": 3670,
+  "drawn": "critical",
+  "drawn_cells": 18,
+  "params": {},
+  "path": [
+   {
+    "arrival_ps": 120.8,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "x[4]",
+    "slew_ps": 27.1
+   },
+   {
+    "arrival_ps": 477.1,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_374_",
+    "net": "_291_",
+    "slew_ps": 418.7
+   },
+   {
+    "arrival_ps": 735.8,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_375_",
+    "net": "_292_",
+    "slew_ps": 357.9
+   },
+   {
+    "arrival_ps": 992.1,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_404_",
+    "net": "_321_",
+    "slew_ps": 221.5
+   },
+   {
+    "arrival_ps": 1087.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_405_",
+    "net": "_322_",
+    "slew_ps": 82.5
+   },
+   {
+    "arrival_ps": 1327.0,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_406_",
+    "net": "_323_",
+    "slew_ps": 250.9
+   },
+   {
+    "arrival_ps": 1447.6,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_416_",
+    "net": "_333_",
+    "slew_ps": 73.8
+   },
+   {
+    "arrival_ps": 1695.9,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_421_",
+    "net": "_338_",
+    "slew_ps": 242.4
+   },
+   {
+    "arrival_ps": 1766.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_427_",
+    "net": "_344_",
+    "slew_ps": 59.7
+   },
+   {
+    "arrival_ps": 1914.5,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_428_",
+    "net": "_345_",
+    "slew_ps": 29.7
+   },
+   {
+    "arrival_ps": 2106.6,
+    "cell": "or2_1",
+    "edge": "f",
+    "inst": "_429_",
+    "net": "_346_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 2212.4,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_430_",
+    "net": "_347_",
+    "slew_ps": 106.3
+   },
+   {
+    "arrival_ps": 2586.9,
+    "cell": "mux2_1",
+    "edge": "f",
+    "inst": "_432_",
+    "net": "_349_",
+    "slew_ps": 92.6
+   },
+   {
+    "arrival_ps": 2767.3,
+    "cell": "xor2_1",
+    "edge": "f",
+    "inst": "_443_",
+    "net": "_360_",
+    "slew_ps": 86.3
+   },
+   {
+    "arrival_ps": 2843.6,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_446_",
+    "net": "_363_",
+    "slew_ps": 46.3
+   },
+   {
+    "arrival_ps": 2880.5,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_448_",
+    "net": "_365_",
+    "slew_ps": 27.1
+   },
+   {
+    "arrival_ps": 3066.9,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_449_",
+    "net": "_366_",
+    "slew_ps": 79.5
+   },
+   {
+    "arrival_ps": 3445.8,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_450_",
+    "net": "_367_",
+    "slew_ps": 441.1
+   },
+   {
+    "arrival_ps": 3670.2,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_477_",
+    "net": "_1_",
+    "slew_ps": 264.9
+   }
+  ],
+  "repaired_sha256": "87b7a0dedc815ced11f1b8d33dbbf400a204eeb516a40b725d2a1e8dbafd9e00",
+  "svg_bytes": 16089,
+  "svg_sha256": "e82cd2fdbe2d6e9c9c5cc358a11148f80dbfc2364cca54d1e2edd0a28412677b"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 9521632,
+  "cell_hist_sky130": {
+   "and2_1": 20,
+   "inv_1": 2,
+   "mux2_1": 3,
+   "nand2_1": 19,
+   "nand2b_1": 4,
+   "nor2_1": 3,
+   "nor2b_1": 6,
+   "or2_1": 3,
+   "xnor2_1": 56,
+   "xor2_1": 15
+  },
+  "cells_sky130": 131,
+  "critical": {
+   "cells": 18,
+   "edge": "r",
+   "output": "y[1]"
+  },
+  "delay_ps_sky130": 3670,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.272,
+   "worst_transition_ratio": 0.299
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "be0fe4438ab7736f1b75219ec6dbe89f108a9865e0a77693c52cd0e2f2439ad8",
+  "params": {},
+  "path": [
+   {
+    "arrival_ps": 120.8,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "x[4]",
+    "slew_ps": 27.1
+   },
+   {
+    "arrival_ps": 477.1,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_374_",
+    "net": "_291_",
+    "slew_ps": 418.7
+   },
+   {
+    "arrival_ps": 735.8,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_375_",
+    "net": "_292_",
+    "slew_ps": 357.9
+   },
+   {
+    "arrival_ps": 992.1,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_404_",
+    "net": "_321_",
+    "slew_ps": 221.5
+   },
+   {
+    "arrival_ps": 1087.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_405_",
+    "net": "_322_",
+    "slew_ps": 82.5
+   },
+   {
+    "arrival_ps": 1327.0,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_406_",
+    "net": "_323_",
+    "slew_ps": 250.9
+   },
+   {
+    "arrival_ps": 1447.6,
+    "cell": "xnor2_1",
+    "edge": "f",
+    "inst": "_416_",
+    "net": "_333_",
+    "slew_ps": 73.8
+   },
+   {
+    "arrival_ps": 1695.9,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_421_",
+    "net": "_338_",
+    "slew_ps": 242.4
+   },
+   {
+    "arrival_ps": 1766.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_427_",
+    "net": "_344_",
+    "slew_ps": 59.7
+   },
+   {
+    "arrival_ps": 1914.5,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_428_",
+    "net": "_345_",
+    "slew_ps": 29.7
+   },
+   {
+    "arrival_ps": 2106.6,
+    "cell": "or2_1",
+    "edge": "f",
+    "inst": "_429_",
+    "net": "_346_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 2212.4,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_430_",
+    "net": "_347_",
+    "slew_ps": 106.3
+   },
+   {
+    "arrival_ps": 2586.9,
+    "cell": "mux2_1",
+    "edge": "f",
+    "inst": "_432_",
+    "net": "_349_",
+    "slew_ps": 92.6
+   },
+   {
+    "arrival_ps": 2767.3,
+    "cell": "xor2_1",
+    "edge": "f",
+    "inst": "_443_",
+    "net": "_360_",
+    "slew_ps": 86.3
+   },
+   {
+    "arrival_ps": 2843.6,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_446_",
+    "net": "_363_",
+    "slew_ps": 46.3
+   },
+   {
+    "arrival_ps": 2880.5,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_448_",
+    "net": "_365_",
+    "slew_ps": 27.1
+   },
+   {
+    "arrival_ps": 3066.9,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_449_",
+    "net": "_366_",
+    "slew_ps": 79.5
+   },
+   {
+    "arrival_ps": 3445.8,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_450_",
+    "net": "_367_",
+    "slew_ps": 441.1
+   },
+   {
+    "arrival_ps": 3670.2,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_477_",
+    "net": "_1_",
+    "slew_ps": 264.9
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 131,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "87b7a0dedc815ced11f1b8d33dbbf400a204eeb516a40b725d2a1e8dbafd9e00",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 18
+ },
+ "sv_sha256": "dfe26b83d68a2d83eabe6a42568dbf3ffa3125730ae19cd49cfb4b8d66bcbc14",
+ "task": "aes_sbox",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

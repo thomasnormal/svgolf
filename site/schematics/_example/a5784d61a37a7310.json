@@ -1,0 +1,116 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560
+ },
+ "display": {
+  "area_e4um2_sky130": 250240,
+  "cell_hist_sky130": {
+   "and2_1": 4
+  },
+  "cells_sky130": 4,
+  "critical": {
+   "cells": 1,
+   "edge": "f",
+   "output": "y[0]"
+  },
+  "delay_ps_sky130": 280,
+  "drawn": "full",
+  "drawn_cells": 4,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 108.3,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "a[0]",
+    "slew_ps": 18.4
+   },
+   {
+    "arrival_ps": 279.6,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_0_",
+    "net": "y[0]",
+    "slew_ps": 66.6
+   }
+  ],
+  "repaired_sha256": "bbbff5e1613dcf43e05310554520a43fa28937100e3a6c3296a93e9f55500adc",
+  "svg_bytes": 4997,
+  "svg_sha256": "1c685ed16cbd7a185d56b49aef93a5f42c95e4f047f03d80b061018c082f52a0"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 1000960,
+  "cell_hist_sky130": {
+   "and2_1": 16
+  },
+  "cells_sky130": 16,
+  "critical": {
+   "cells": 1,
+   "edge": "f",
+   "output": "y[0]"
+  },
+  "delay_ps_sky130": 280,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.063,
+   "worst_transition_ratio": 0.074
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 108.3,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "a[0]",
+    "slew_ps": 18.4
+   },
+   {
+    "arrival_ps": 279.6,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_13_",
+    "net": "y[0]",
+    "slew_ps": 66.6
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 16,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "28a4d30c1807e8485a142102f5681ec21310c41266ebe9feb8aed005d456387d",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 1
+ },
+ "sv_sha256": "a5784d61a37a73102d0f55bb15fa259a55a1a303aa490d4fd01aa73ce97766c4",
+ "task": "_example",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

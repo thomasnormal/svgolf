@@ -106,9 +106,30 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaisesRegex(points.PlanError, "every parameter"):
             points.task_plan("fdivp", bad, expected=exp)
         bad = copy.deepcopy(CONFIG["tasks"]["mul"])
-        bad["families"]["x"] = ["no_such_baseline"]
+        bad.setdefault("families", {})["x"] = ["no_such_baseline"]
         with self.assertRaisesRegex(points.PlanError, "not a baseline"):
             points.task_plan("mul", bad, expected=exp)
+
+    def test_every_baseline_is_proved_in_the_plan_and_the_data(self):
+        """Decided 2026-11-12: every design the site shows has a kernel-checked proof. A baseline names its proof
+        (tests/expected.json `lean`), the plan carries it, the data marks it `proved` with that file, and a baseline
+        without one, or whose proof file is not there, is a plan error."""
+        plans = points.full_plan(CONFIG)
+        for t, p in plans.items():
+            for d in p["designs"]:
+                if d["kind"] == "baseline":
+                    self.assertTrue(os.path.isfile(os.path.join(SVGOLF, d["lean"])), d["lean"])
+            for e in data(t)["designs"]:
+                if e["kind"] == "baseline":
+                    self.assertIs(e.get("proved"), True, (t, e["id"]))
+                    self.assertTrue(os.path.isfile(os.path.join(SVGOLF, e["lean"])), (t, e["lean"]))
+        exp = load(points.EXPECTED)
+        for change, why in ((lambda b: b.pop("lean"), "names no proof"),
+                            (lambda b: b.update(lean="baselines/no_such_proof.lean"), "is not there")):
+            bad = copy.deepcopy(exp)
+            change(bad["tasks"]["add"]["baselines"]["add_n_sklansky"])
+            with self.assertRaisesRegex(points.PlanError, why):
+                points.task_plan("add", CONFIG["tasks"]["add"], expected=bad)
 
 
 class LatencyTest(unittest.TestCase):
@@ -208,13 +229,16 @@ class DataTest(unittest.TestCase):
             self.assertNotIn("seconds", text)            # no wall time in the data
 
     def test_drops_are_said(self):
-        """A dropped (design, point) carries its reason; the two pinned in points.json are the ones dropped."""
+        """A dropped (design, point) carries its reason; the one pinned in points.json is the one dropped, and its
+        reason names the time limit the task has now (task.json `time_limit_s`; 300 s since 2026-11-06, re-measured
+        2026-11-12: the reason named the 120 s of before)."""
         dropped = {(t, e["id"], k): why for t in TASKS for e in data(t)["designs"]
                    for k, why in (e.get("dropped") or {}).items()}
-        self.assertEqual(sorted(dropped), [("fdivp", "reference/fdivp_newton", "W=8,P=24"),
-                                           ("mul", "baseline/dadda_ks_32", "N=32")])
-        for why in dropped.values():
-            self.assertIn("120 s", why)
+        self.assertEqual(sorted(dropped), [("fdivp", "reference/fdivp_newton", "W=8,P=24")])
+        for (t, _, _), why in dropped.items():
+            with open(os.path.join(SVGOLF, "tasks", t, "task.json"), encoding="utf-8") as fh:
+                limit = json.load(fh)["time_limit_s"]
+            self.assertIn(f"time limit ({limit} s)", why)
 
 
 class RecordsFlagTest(unittest.TestCase):
@@ -263,7 +287,7 @@ class RemeasureTest(unittest.TestCase):
         self.assertLess(secs, 30)
 
     def test_measure_writes_the_committed_bytes(self):
-        """`measure --task clmul --out DIR` (the cheapest task: clmul_n at four points, eight fixed baselines) writes
+        """`measure --task clmul --out DIR` (the cheapest task: clmul_n and three proved baselines at four points) writes
         the committed file byte for byte."""
         with tempfile.TemporaryDirectory() as tmp:
             with contextlib.redirect_stderr(io.StringIO()):

@@ -1,4 +1,4 @@
-// svGolf task `mul` -- reference solution 3: a log-depth carry-save TREE multiplier, parametric in N.
+// svGolf task `mul` -- a log-depth carry-save TREE multiplier, parametric in N.
 //
 // The N partial-product rows pp[j] are the N leaves (a single row each: sum row S = pp[j], carry
 // row C = 0) of one balanced binary tree in a binary-HEAP numbering: the root is node 0, node k has

@@ -157,7 +157,7 @@
    },
    "banned": false,
    "dropped": {
-    "W=8,P=24": "the pinned flow does not finish within the task's 120 s time limit"
+    "W=8,P=24": "the pinned flow did not finish within the task's time limit (300 s)"
    },
    "family": "fdivp_newton",
    "id": "reference/fdivp_newton",
@@ -264,101 +264,6 @@
   {
    "at": {
     "W=5,P=11": {
-     "area_e4um2": 85757248,
-     "area_ge": 1911.446,
-     "area_mge": 1911446,
-     "area_um2": 8575.7248,
-     "buffers": 0,
-     "cells": 1290,
-     "delay_ps": 34994,
-     "depth": 300,
-     "gates": {
-      "AND": 199,
-      "ANDNOT": 72,
-      "MUX": 199,
-      "NAND": 340,
-      "NOR": 30,
-      "NOT": 28,
-      "OR": 70,
-      "ORNOT": 150,
-      "XNOR": 106,
-      "XOR": 96
-     },
-     "netlist_sha256": "709abb7508c9681123ad236cbb4312fa022336c494460196fc66de74cd23ea8c",
-     "num_gates": 1290,
-     "repaired_sha256": "398ddea589f5174345eaaa38ad58c30118910af0781e96b940715ca685fad7ea",
-     "rtlil_sha256": "a695f1763f4d45876d3c2bb646ec386ec73a87237179c77f92c82ff4164c4240",
-     "time_ps": 34994,
-     "unit_depth": 300
-    },
-    "W=8,P=24": {
-     "area_e4um2": 335509280,
-     "area_ge": 7450.536,
-     "area_mge": 7450536,
-     "area_um2": 33550.928,
-     "buffers": 4,
-     "cells": 4909,
-     "delay_ps": 147037,
-     "depth": 1256,
-     "gates": {
-      "AND": 748,
-      "ANDNOT": 168,
-      "MUX": 846,
-      "NAND": 1252,
-      "NOR": 54,
-      "NOT": 152,
-      "OR": 399,
-      "ORNOT": 383,
-      "XNOR": 493,
-      "XOR": 410
-     },
-     "netlist_sha256": "2b4dcd20f2ebae74c029bd6a6eddd8db0532fb8b101d1766c082d0fd575c01b3",
-     "num_gates": 4905,
-     "repaired_sha256": "c5d02d6859bf49ab96235f32894259524537f39323f9e431dcc52fc9635d4afa",
-     "rtlil_sha256": "c2f1b2d7474a8a744365bf16a8721668a8cea125dbba2afa61a02bb7e3904f4e",
-     "time_ps": 147037,
-     "unit_depth": 1256
-    },
-    "W=8,P=8": {
-     "area_e4um2": 56041248,
-     "area_ge": 1251.195,
-     "area_mge": 1251195,
-     "area_um2": 5604.1248,
-     "buffers": 0,
-     "cells": 859,
-     "delay_ps": 24886,
-     "depth": 181,
-     "gates": {
-      "AND": 169,
-      "ANDNOT": 48,
-      "MUX": 115,
-      "NAND": 223,
-      "NOR": 26,
-      "NOT": 28,
-      "OR": 54,
-      "ORNOT": 57,
-      "XNOR": 74,
-      "XOR": 65
-     },
-     "netlist_sha256": "f50a778fcf0a9638184e30468f86ea57b9c37d3f79b3104fd50df5cae2de9e5f",
-     "num_gates": 859,
-     "repaired_sha256": "29fd8e158ff306f86985798199b730f2900538c454883f8395233b95fcf98ef5",
-     "rtlil_sha256": "f5ca3aaed641c0331d2fd95082fcbffe5aff1cacb74f362e6ef001ba314ecb8f",
-     "time_ps": 24886,
-     "unit_depth": 181
-    }
-   },
-   "banned": false,
-   "family": "fdivp_d1",
-   "id": "baseline/fdivp_d1",
-   "kind": "baseline",
-   "name": "fdivp_d1",
-   "sha256": "167d342366b58696d725773cc592205d30b8dbe095f015029126e2222008197f",
-   "src": "tests/fdivp/baselines/fdivp_d1.sv"
-  },
-  {
-   "at": {
-    "W=5,P=11": {
      "area_e4um2": 103449216,
      "area_ge": 2314.058,
      "area_mge": 2314058,
@@ -447,48 +352,11 @@
    "family": "fdivp_d2",
    "id": "baseline/fdivp_d2",
    "kind": "baseline",
+   "lean": "tests/fdivp/baselines/fdivp_d2.lean",
    "name": "fdivp_d2",
+   "proved": true,
    "sha256": "153248f45ba3bb7ef4b55e0bfe6c391cee0dd429f71e3c1500715775b06dae0e",
    "src": "tests/fdivp/baselines/fdivp_d2.sv"
-  },
-  {
-   "at": {
-    "W=5,P=11": {
-     "area_e4um2": 87346272,
-     "area_ge": 1944.775,
-     "area_mge": 1944775,
-     "area_um2": 8734.6272,
-     "buffers": 0,
-     "cells": 1303,
-     "delay_ps": 35735,
-     "depth": 303,
-     "gates": {
-      "AND": 207,
-      "ANDNOT": 67,
-      "MUX": 208,
-      "NAND": 336,
-      "NOR": 29,
-      "NOT": 27,
-      "OR": 94,
-      "ORNOT": 126,
-      "XNOR": 106,
-      "XOR": 103
-     },
-     "netlist_sha256": "eee46ba3643f44d03fcc5aeef4fcf16cfa33f2f38f6b36ec0db91a05f33a6689",
-     "num_gates": 1303,
-     "repaired_sha256": "48a16f795e8f880ccc6a2913dd548da332ff706aaf0812644488a8b8f18253ea",
-     "rtlil_sha256": "be8372e2f5d07942cf854f94ec57bcbc1e495c37d617f6e1175f4f3d47636f3a",
-     "time_ps": 35735,
-     "unit_depth": 303
-    }
-   },
-   "banned": false,
-   "family": "flat_binary16",
-   "id": "baseline/flat_binary16",
-   "kind": "baseline",
-   "name": "flat_binary16",
-   "sha256": "6805686a973d1c4b9060b90f9aa2b69bd99569fa3944837551cad9bfa5cbde6a",
-   "src": "tests/fdivp/baselines/flat_binary16.sv"
   }
  ],
  "flow": {

@@ -1,0 +1,16 @@
+{
+ "_comment": [
+  "PAR, one design per task (decided 2026-11-12: only the simplest algorithm is par; every other proved design is an entry, recorded under a player's handle like any submission). One line per task: `design` is the stem of one of the task's task.json references (the design file; a second proof of the same file is par's too), `algorithm` the words the rules page names it by. Which algorithm is the simplest is the maintainers' reading, written down here so that changing it is one line. Read by leaderboard/leaderboard.py (`par_path`, `par_names`: par of the boards and of check.py's headline, `seed-references`, the reserved handle), site/build.py and the tests; it sits in leaderboard/ because tasks/ holds task directories only. A task without a line has no par."
+ ],
+ "par": {
+  "_example": {"design": "band", "algorithm": "one AND gate per bit"},
+  "add": {"design": "add_n", "algorithm": "the ripple-carry adder"},
+  "mul": {"design": "mul_n", "algorithm": "the array multiplier"},
+  "clmul": {"design": "clmul_n", "algorithm": "the array carry-less multiplier"},
+  "aes_sbox": {"design": "sbox_table", "algorithm": "the 256-entry lookup table"},
+  "fdivp": {"design": "fdivp", "algorithm": "restoring division"},
+  "matmul": {"design": "matmul_g1", "algorithm": "N x N multiply-accumulate units, one step of the dot products per cycle"},
+  "sorter": {"design": "sorter_ins", "algorithm": "the insertion-cell array"},
+  "arbiter": {"design": "rr_mask", "algorithm": "the masked round-robin arbiter"}
+ }
+}

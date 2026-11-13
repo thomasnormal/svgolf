@@ -1,31 +1,18 @@
 {
   "_comment": [
     "The parameter points each task is MEASURED at by score/points.py, besides the scored one. UNTRUSTED and not hashed by the checker: this is measurement only. Every proof holds at every point of the task's range, so a point here is the same proved design at other parameters; the ranked board stays at task.json's scoring.params, which must be one of the points (score/test_points.py checks it). The numbers are written to score/measured/<task>.json, which the site reads ('measured, not ranked').",
-    "Per task: `points`, each {params, label?}: `label` names a multi-parameter point ('binary32'); without one the site writes 'N = 8'. `scale`: the parameter the scaling view puts on its x axis (default: the task's only parameter), `scale_label` the axis title. `families`: fixed-size baselines generated once per size (one file per point), drawn as one line of the scaling view under the family's name. `skip`: (design, point) pairs that are not measured, each with the reason and the measurement it rests on.",
-    "The designs: every proved reference of task.json, every baseline of tests/expected.json (a baseline with `banlist_points` is a fixed-size design and is measured at those points only), and with `--records` the players' leaderboard records. Together they cover every design of score/tests/ppa/designs.json (checked). A point other than the scored one whose flow fails or does not finish within the task's time limit (task.json `time_limit_s`) is dropped for that design and the data says so; the scored point has no limit beyond the pinned flow's own."
+    "Per task: `points`, each {params, label?}: `label` names a multi-parameter point ('binary32'); without one the site writes 'N = 8'. `scale`: the parameter the scaling view puts on its x axis (default: the task's only parameter), `scale_label` the axis title. `families`: fixed-size baselines generated once per size (one file per point), drawn as one line of the scaling view under the family's name (none now: a design right at one size cannot be proved for the task's statement, and every baseline is proved, decided 2026-11-12). `skip`: (design, point) pairs that are not measured, each with the reason and the measurement it rests on.",
+    "The designs: every proved reference of task.json (one is par's design, leaderboard/par.json; the others are entries once recorded), every baseline of tests/expected.json (each a proved design that names its proof, `lean`: a comparison design when it has a banned operator, else an entry once recorded; a baseline with `banlist_points` is a fixed-size design and is measured at those points only), and with `--records` the players' leaderboard records. Together they cover every design of score/tests/ppa/designs.json (checked). A point other than the scored one whose flow fails or does not finish within the task's time limit (task.json `time_limit_s`) is dropped for that design and the data says so; the scored point has no limit beyond the pinned flow's own."
   ],
   "tasks": {
     "add": {
       "points": [{"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}, {"params": {"N": 64}}]
     },
     "mul": {
-      "points": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}],
-      "families": {
-        "dadda_rc": ["dadda_rc_8", "dadda_rc_16", "dadda_rc_32"],
-        "dadda_ks": ["dadda_ks_8", "dadda_ks_16", "dadda_ks_32"]
-      },
-      "skip": [
-        {"design": "dadda_ks_32", "point": "N=32",
-         "reason": "the pinned flow does not finish within the task's 120 s time limit",
-         "measured": "2026-11-05: stopped at 120 s (score/points.py measure, nice 19, load average 7 to 8); tests/expected.json: more than 1800 s"}
-      ]
+      "points": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}]
     },
     "clmul": {
-      "points": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}],
-      "families": {
-        "school_tree": ["school_tree_8", "school_tree_16", "school_tree_32"],
-        "kara_b4": ["kara_b4_8", "kara_b4_16", "kara_b4_32"]
-      }
+      "points": [{"params": {"N": 4}}, {"params": {"N": 8}}, {"params": {"N": 16}}, {"params": {"N": 32}}]
     },
     "aes_sbox": {
       "points": [{"params": {}}]
@@ -38,11 +25,11 @@
       ],
       "scale": "P",
       "scale_label": "P, significand bits",
-      "_timings": "Wall time of the pinned flow (score/points.py measure --timings, 2026-11-05, nice 19, load average 7 to 8, Apple M2 Pro): binary32 fdivp 9.1 s, fdivp_d1 9.1 s, fdivp_d2 30.1 s, all inside the 120 s limit; fdivp_newton stopped at 120 s (skipped below). bfloat16: fdivp 1.4 s, fdivp_newton 9.0 s, fdivp_d1 1.3 s, fdivp_d2 1.5 s. binary16 (the scored point, no limit): fdivp_newton 62.0 s, every other design under 2.2 s.",
+      "_timings": "Wall time of the pinned flow (score/points.py measure --timings, 2026-11-05, nice 19, load average 7 to 8, Apple M2 Pro): binary32 fdivp 9.1 s, fdivp_d1 9.1 s, fdivp_d2 30.1 s, all inside the 120 s limit of then; fdivp_newton stopped at 120 s (skipped below; again at 300 s, the limit since 2026-11-06, on 2026-11-12). bfloat16: fdivp 1.4 s, fdivp_newton 9.0 s, fdivp_d1 1.3 s, fdivp_d2 1.5 s. binary16 (the scored point, no limit): fdivp_newton 62.0 s, every other design under 2.2 s.",
       "skip": [
         {"design": "fdivp_newton", "point": "W=8,P=24",
-         "reason": "the pinned flow does not finish within the task's 120 s time limit",
-         "measured": "2026-11-05: stopped at 120 s (score/points.py measure, nice 19, load average 7 to 8); tests/expected.json: more than 30 min (&fraig -x on the multipliers)"}
+         "reason": "the pinned flow did not finish within the task's time limit (300 s)",
+         "measured": "2026-11-12: stopped at 300 s, the task's time limit since 2026-11-06 (score/points.py measure --retry-skipped, nice 19, load average 6 to 11, Apple M2 Pro, Yosys 0.53 the rating build); 2026-11-05: stopped at 120 s, the limit then; tests/expected.json: more than 30 min (&fraig -x on the multipliers)"}
       ]
     },
     "matmul": {

@@ -112,6 +112,7 @@
   --axis: #c3cba8;
   --axis-ink: #646b58;            /* chart tick labels (5.5:1 on the surface) */
   --hover: rgba(235, 104, 52, 0.10);
+  --off-front-opacity: 0.45;      /* the explorer's entries off the Pareto front, faded */
   /* links */
   --link: #1d5aa6;
   /* highlighting (highlight.py's token kinds) */
@@ -230,6 +231,9 @@
     --axis: #34466a;
     --axis-ink: #9ba595;
     --hover: rgba(240, 122, 69, 0.16);
+    /* faded less by night: at 0.45 a dominated entry's mark was about 1.5:1 on the navy card, hard to find; at 0.8
+       it is about 2.4:1 and still a step below the marks on the front */
+    --off-front-opacity: 0.8;
     --link: #8dbcf5;
     --hl-kw: #9085e9;
     --hl-str: #5cc25c;
@@ -1119,6 +1123,7 @@ ul.legend li { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
 }
 ul.levels-list { list-style: none; padding: 0; margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--text-2); }
 ul.levels-list li { display: flex; align-items: center; gap: 0.4rem; margin: 0.15rem 0; }
+ul.levels-list li > a { flex: none; }   /* a design's name stays whole; the words after it wrap */
 .chart-tools { display: inline-flex; }
 .chart-tools[hidden], .explorer-controls[hidden] { display: none; }
 svg.chart .par-line { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
@@ -1131,8 +1136,10 @@ svg.chart .drop { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 2 3; }
 svg.chart .lv-name { font-size: 11px; fill: var(--text); }
 svg.chart .lv-par { font-weight: 700; letter-spacing: 0.08em; }
 svg.chart .lv-note { font-size: 9.5px; fill: var(--text-3); }
+/* the score chart: how many entries one dot stands for (a tie; svgplot.stacked_entries) */
+svg.chart .mark-count { font-size: 10px; font-weight: 700; fill: var(--text); pointer-events: none; }
 svg.chart .mark:not(.best) .m-record { opacity: 0.75; }
-svg.chart .mark.off-front { opacity: 0.45; }
+svg.chart .mark.off-front { opacity: var(--off-front-opacity); }
 svg.chart .mark.off-front:hover, svg.chart a:focus .mark { opacity: 1; }
 svg.chart a { cursor: pointer; }
 svg.chart a:focus { outline: none; }
@@ -1416,6 +1423,8 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
   dl.facts { grid-template-columns: minmax(0, 1fr); }
   dl.facts dt { padding-bottom: 0; border-bottom: 0; }
   ol.board > li { grid-template-columns: 1.6rem minmax(0, 1fr) auto; gap: var(--sp-2); }
+  /* the lead's rank box fits its narrower column (at 2rem it touched the name) */
+  ol.board > li.lead .board-rank { width: 1.6rem; height: 1.6rem; }
   /* charts: the compact drawings' text set larger */
   .chart-box svg.chart text { font-size: 15px; }
   .chart-box svg.chart .axis-title { font-size: 15px; }

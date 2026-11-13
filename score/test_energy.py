@@ -27,8 +27,8 @@ GOLDEN = os.path.join(SVGOLF, "tests", "expected_sky130.json")
 # (`seq/`) goes through the clocked flow, the banned Yosys multiplier past the source gate
 GOLDEN_SOURCES = {"add/add_n": "tasks/add/reference/add_n.sv", "add/add_n_kogge_stone": "tests/add/baselines/add_n_kogge_stone.sv",
                   "add/add_n_sklansky": "tests/add/baselines/add_n_sklansky.sv", "add/cmp_carry": "tests/add/baselines/cmp_carry.sv",
-                  "clmul/clmul_n": "tasks/clmul/reference/clmul_n.sv", "mul/dadda_ks_16": "tests/mul/baselines/dadda_ks_16.sv",
-                  "mul/dadda_rc_16": "tests/mul/baselines/dadda_rc_16.sv", "mul/mul_n": "tasks/mul/reference/mul_n.sv",
+                  "clmul/clmul_n": "tasks/clmul/reference/clmul_n.sv", "mul/dadda_rc": "tests/mul/baselines/dadda_rc.sv",
+                  "mul/mul_n": "tasks/mul/reference/mul_n.sv",
                   "mul/mul_tree": "tasks/mul/reference/mul_tree.sv", "mul/mul_tree_h": "tasks/mul/reference/mul_tree_h.sv",
                   "mul/mul_wallace": "tasks/mul/reference/mul_wallace.sv", "mul/yosys_mul": "tests/mul/baselines/yosys_mul.sv",
                   "seq/cnt": "tests/seq_counter/reference/cnt.sv"}

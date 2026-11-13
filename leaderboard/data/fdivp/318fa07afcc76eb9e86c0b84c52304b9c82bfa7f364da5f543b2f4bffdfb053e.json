@@ -1,0 +1,280 @@
+{
+  "assisted_by": [
+    "Claude Sonnet 5.5",
+    "Claude Opus 5.5"
+  ],
+  "canonical_sha256": "55b9d0b4f038e23153d22cffa431eff679079a01ee8bbc901d10c2fc760ec45c",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "0d02004b32270261ca7f048a5f7937e6dcbac751193368e71119dd8d630c661d",
+      "check/Comparator.lean": "b7808bbe32f19297df5b04047c071861ef67bdf4384be38d65f6605aab2629ef",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "79a90f5a426e2b0370e5f6b5f6ada5193575b6e02785f4b7d6952c39238a1545",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "967b637c59121cb1ddb49fea3f4376f1670a06a5cc947ab04fb03a5a3115ee86",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "04452f98591eda86a4cea28d5c7cfd9c296247726d5460599f4fbc5c60aa371b",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "68ca0805bcd29a82d0a7d4e78870fb1558b69e65",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "tasks/fdivp/IEEE754.lean": "ea783e2a80d8cfc63b65087c7de0fac92ea584352817a0ea6e38239aa2726218",
+      "tasks/fdivp/Spec.lean": "71e46a4ce975b44f690c98d1170b9c5c83b21db7243bff4a526ff7852a1979b4"
+    },
+    "svgolf_revision": "68ca0805bcd29a82d0a7d4e78870fb1558b69e65",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "fdivp_d2.lean",
+      "sha256": "df1078944b3660ee6bb28fc4e572300bae4f0b718f74de4aa9cb2832de157596"
+    },
+    "sv": {
+      "name": "fdivp_d2.sv",
+      "sha256": "153248f45ba3bb7ef4b55e0bfe6c391cee0dd429f71e3c1500715775b06dae0e"
+    }
+  },
+  "notes": "Restoring division written as about 90 plain assignments, all inside the fragment the proof tactics read, and proved with them for every format.",
+  "player": "loamstep",
+  "postsynth": {
+    "full_vectors": 4458,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "W=5,P=11",
+    "salted": false,
+    "seed": "42809616d52ee517207ef8950d62ac6bb9fe6311bec5ca4e3097af05860db0c9",
+    "vectors": 4458
+  },
+  "ppa": {
+    "area_e4um2_sky130": 103449216,
+    "area_um2_sky130": 10344.9216,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 303,
+      "inv_1": 39,
+      "mux2_1": 204,
+      "nand2_1": 449,
+      "nand2b_1": 130,
+      "nor2_1": 48,
+      "nor2b_1": 115,
+      "or2_1": 113,
+      "xnor2_1": 135,
+      "xor2_1": 82
+    },
+    "cells_sky130": 1618,
+    "constants": false,
+    "critical": {
+      "cells": 292,
+      "edge": "r",
+      "output": "q[13]"
+    },
+    "delay_ps_sky130": 38294,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.572,
+      "worst_transition_ratio": 0.579
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+      "area_e4um2_sky130_mapped_v1": 87383808,
+      "area_um2_sky130_mapped_v1": 8738.3808,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 104,
+        "edge": "r",
+        "output": "q[14]"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "a2111oi_0": 2,
+        "a211o_1": 8,
+        "a211oi_1": 9,
+        "a21o_1": 11,
+        "a21oi_1": 90,
+        "a221o_1": 1,
+        "a221oi_1": 10,
+        "a222oi_1": 1,
+        "a22o_1": 5,
+        "a22oi_1": 8,
+        "a2bb2oi_1": 4,
+        "a311o_1": 3,
+        "a311oi_1": 19,
+        "a31o_1": 3,
+        "a31oi_1": 15,
+        "a32oi_1": 1,
+        "a41oi_1": 1,
+        "and2_0": 52,
+        "and3_1": 7,
+        "and3b_1": 2,
+        "and4_1": 1,
+        "and4b_1": 1,
+        "inv_1": 56,
+        "maj3_1": 9,
+        "mux2_1": 19,
+        "mux2i_1": 58,
+        "nand2_1": 233,
+        "nand2b_1": 28,
+        "nand3_1": 21,
+        "nand3b_1": 1,
+        "nand4_1": 18,
+        "nand4b_1": 1,
+        "nor2_1": 222,
+        "nor2b_1": 15,
+        "nor3_1": 28,
+        "nor3b_1": 1,
+        "nor4_1": 17,
+        "nor4b_1": 2,
+        "nor4bb_1": 1,
+        "o2111ai_1": 5,
+        "o211a_1": 5,
+        "o211ai_1": 18,
+        "o21a_1": 8,
+        "o21ai_0": 137,
+        "o21bai_1": 2,
+        "o221a_1": 1,
+        "o221ai_1": 10,
+        "o22a_1": 2,
+        "o22ai_1": 12,
+        "o2bb2ai_1": 2,
+        "o311a_1": 3,
+        "o311ai_0": 18,
+        "o31a_1": 3,
+        "o31ai_1": 16,
+        "o41ai_1": 2,
+        "or2_0": 34,
+        "or3_1": 13,
+        "or3b_1": 1,
+        "or4_1": 4,
+        "xnor2_1": 135,
+        "xor2_1": 47
+      },
+      "mapped_cells_sky130_v1": 1462,
+      "mapped_delay_sky130_v1": 36130,
+      "mapped_inverters_sky130_v1": 56,
+      "mapped_levels_sky130_v1": 108,
+      "netlist_sha256": "66a1c6abeac683ecd546d3345935d84d6778f7d60035d0a1e1b59305049f36e6",
+      "ppa_mapped_pins_sha256": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v1",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+      "rtlil_sha256": "95eb4bea18ef64c28f572ae49bcec2dd8193914e40d5953bc627e07c2390ec0e",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "netlist_sha256": "b7dae79dd7fb975f4670e9b0b90c933949a5b5fbd5f92c2f03739b264660c80b",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 1618,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "bfcc5c686b6734a776a43ef9a91d59ecc2c1e1e97d29a8ad596b52560e563079",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 295
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 114.82,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombLib",
+      "LeanModels.Sv.Lib"
+    ],
+    "lines": 4231,
+    "tactics": [
+      "decide",
+      "grind",
+      "induction",
+      "omega",
+      "simp",
+      "sv_cover",
+      "sv_equations",
+      "sv_interface",
+      "sv_rowmajor",
+      "sv_structure"
+    ],
+    "uses_comb_eq": true,
+    "uses_comb_view": false
+  },
+  "record_hash": "318fa07afcc76eb9e86c0b84c52304b9c82bfa7f364da5f543b2f4bffdfb053e",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 2314.058,
+    "area_mge": 2314058,
+    "depth": 295,
+    "gates": {
+      "AND": 303,
+      "ANDNOT": 115,
+      "MUX": 204,
+      "NAND": 449,
+      "NOR": 48,
+      "NOT": 39,
+      "OR": 113,
+      "ORNOT": 130,
+      "XNOR": 135,
+      "XOR": 82
+    },
+    "num_gates": 1618,
+    "rtlil_sha256": "95eb4bea18ef64c28f572ae49bcec2dd8193914e40d5953bc627e07c2390ec0e",
+    "scoring_point": {
+      "P": 11,
+      "W": 5
+    },
+    "top": "fdiv"
+  },
+  "submitted_at": "2026-11-12",
+  "task": "fdivp"
+}

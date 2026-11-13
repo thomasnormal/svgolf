@@ -1,5 +1,5 @@
-// svGolf task `add`, third reference (validated by simulation; no proof
-// yet): a Kogge-Stone parallel-prefix adder, built from gates in generate
+// svGolf task `add`, a design proved for every N (add_n_kogge_stone.lean
+// beside it): a Kogge-Stone parallel-prefix adder, built from gates in generate
 // loops. Positions 0..N: position 0 carries cin (generate = cin,
 // propagate = 0), position k+1 is bit k. Level l combines every position
 // k >= 2^l with position k - 2^l, so after L = $clog2(N+1) levels g[L][k] is

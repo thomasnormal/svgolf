@@ -78,6 +78,39 @@
    "netlist_sha256": "cb9b9db85144c9e4de87aef25bab952c761c07cabe656a90684242cf3a822575",
    "rtlil_sha256": "eddd85d36baa6c187965abb158dc6e7fa9093842fba34629a700261fc08feddc"
   },
+  "clmul_k1": {
+   "area_e4um2": 25637088,
+   "buffers": 0,
+   "cells": 392,
+   "constants": false,
+   "delay_ps": 1595,
+   "inverters": 0,
+   "levels": 6,
+   "netlist_sha256": "2fbc3ca6ecbcc8ddc568f33bc017170a1ab26f4ecc0dd233e328d5c0d7e48a4a",
+   "rtlil_sha256": "d79dbd370b2bd5fd2079cd49fcb9b253e67f74b59fd0c876b4eea062c0250ae2"
+  },
+  "clmul_kara_lv": {
+   "area_e4um2": 24373376,
+   "buffers": 0,
+   "cells": 354,
+   "constants": false,
+   "delay_ps": 1902,
+   "inverters": 0,
+   "levels": 7,
+   "netlist_sha256": "62c57ed581c5e1bb3cd65321762545c93e315d745fdb92e3c063c7d52bf1f871",
+   "rtlil_sha256": "a66d04aca7ef17009bce85afe787a763749b8cd0228c5922e683cbd583027d0e"
+  },
+  "clmul_tree": {
+   "area_e4um2": 29365664,
+   "buffers": 0,
+   "cells": 481,
+   "constants": false,
+   "delay_ps": 753,
+   "inverters": 0,
+   "levels": 5,
+   "netlist_sha256": "664128860fb9146e47692705df6ccc165c3cf8d2241cfd1266b594a98cba113d",
+   "rtlil_sha256": "3a4418bcac5a69d0aa5e70985f3c1ce3e1d76739993064b33a425abdfbd72e48"
+  },
   "fdivp": {
    "area_e4um2": 82666784,
    "buffers": 0,
@@ -111,17 +144,6 @@
    "netlist_sha256": "a5d32466c5b1df780032d58783b63fd6098afbafc5d37357278bfa33e4610961",
    "rtlil_sha256": "634df8d8d27f0d4373f170a5af67c0e34fd5fb74b57d9c65856321f754858203"
   },
-  "flat_binary16": {
-   "area_e4um2": 78738016,
-   "buffers": 0,
-   "cells": 1276,
-   "constants": false,
-   "delay_ps": 37868,
-   "inverters": 57,
-   "levels": 105,
-   "netlist_sha256": "eba1243eae9e2d64e70a81102ffd6c5beab1b201bf9e9bfd821818014a985bf2",
-   "rtlil_sha256": "be8372e2f5d07942cf854f94ec57bcbc1e495c37d617f6e1175f4f3d47636f3a"
-  },
   "lut_case": {
    "area_e4um2": 337824,
    "buffers": 0,
@@ -144,17 +166,6 @@
    "netlist_sha256": "1ccdbdca0e2a7ecfb3a31eba8981e1de24e254931abf04e8ad4174fdf9fe5e41",
    "rtlil_sha256": "1c37f1d4fe0b4ceae577abaa09b4aef630e8c297aa0d0543b2a94911801e21e8"
   },
-  "mul_dadda_ks": {
-   "area_e4um2": 82654272,
-   "buffers": 0,
-   "cells": 1063,
-   "constants": false,
-   "delay_ps": 5506,
-   "inverters": 23,
-   "levels": 20,
-   "netlist_sha256": "245ffdd493b8db7e71cf0c547494ce16c82fe7570173c6c06f327f3a25cc1847",
-   "rtlil_sha256": "f3da25785330e8257592e99b70f906010460e4c04c4e3c5e1dc99b796fc90d21"
-  },
   "mul_dadda_rc": {
    "area_e4um2": 75509920,
    "buffers": 0,
@@ -164,7 +175,7 @@
    "inverters": 20,
    "levels": 31,
    "netlist_sha256": "e88ccea1101a9d5215b643ed7bac24c2330a8d97bb691f6385175e8979883fd0",
-   "rtlil_sha256": "9e130c4cddb4c0676acdd2a3a02aa79ee7d113828ce6e8beea51da5d20272d16"
+   "rtlil_sha256": "f80745b8f057b54dba46534b9cef268621a1e82643dda2d1cde97006a9cd0a1c"
   },
   "mul_tree": {
    "area_e4um2": 79751488,

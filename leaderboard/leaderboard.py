@@ -112,9 +112,14 @@ PPA_KEY = "ppa"
 # `ppa.mapped` (an unranked research column set beside A0''s, with its own field names, version and hashes: A0' is the
 # ranked flow, A1' an extra column). A record without it, every record made before WP-X4, stays valid and verifies as it did.
 PPA_MAPPED_KEY = "mapped"
-# The player whose records are the proved references (`seed-references`): PAR, the bar to beat (site/config.json's
-# `reference_player` names the same player).
+# The player whose records are PAR, the bar to beat (`seed-references`; site/config.json's `reference_player` names
+# the same player). Only par's design is recorded under it (decided 2026-11-12, `PAR_FILE`).
 REFERENCE_PLAYER = "svgolf-reference"
+# PAR IS ONE DESIGN PER TASK (decided 2026-11-12: only the simplest algorithm is par; every other proved design is an
+# entry, recorded under a player's handle like any submission). leaderboard/par.json names it, one line per task: the
+# stem of one of task.json's references (`par_names`). A task without a line has no par. The file sits beside the tasks
+# directory's tree, in leaderboard/ (`par_path`; tasks/ holds task directories only).
+PAR_FILE = "par.json"
 OFFICIAL_PPA_MODE = "require"
 # Every check an official artifact comes from runs its untrusted processes in the OS sandbox (WP-S): the
 # mechanism missing, or failing its self-test, is an infrastructure error, never a record made without it.
@@ -479,6 +484,16 @@ def acceptance_problems(res, task, sv_sha256, postsynth="full"):
     if res.get("unproved_ok") or res.get("stage") == "unproved":
         p.append("this is the result of a `check.py --unproved` run: it checked no proof (its exit status 0 says "
                  "the design is admissible), and only a run with the Lean file can be recorded")
+    if ("banlist_lifted" in res or res.get("lifted_ok") or res.get("stage") == "lifted"
+            or _get(res, "stages", "banlist", "lifted") is not None):
+        p.append("this is the result of a `check.py --lift-banlist` run: the task's operator banlist was lifted "
+                 "(banned operator: proved, not an entry), so it can never be recorded")
+    # the banlist stage checked every operator the task bans (a lifted run checks fewer, whatever its keys say)
+    checked = _get(res, "stages", "banlist", "operators")
+    want = (task.get("banlist") or {}).get("operators") or []
+    if isinstance(checked, list) and any(op not in checked for op in want):
+        p.append("the banlist stage did not check every operator the task bans (stages.banlist.operators "
+                 f"{checked!r}, the task's {want!r}): the banlist was lifted, and such a result is never recorded")
     if res.get("accepted") is not True:
         p.append(f"check.py did not accept the submission (accepted={res.get('accepted')!r}, "
                  f"stage {res.get('stage')!r})")
@@ -1499,16 +1514,15 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
 
 def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=None,
            reference_player=REFERENCE_PLAYER, statement=None, pdk=DEFAULT_PDK, asap7=None, asap7_identity=None):
-    """PAR of `task`, the bar to beat: among the reference player's records (the proved references,
-    `seed-references`) that rank under `flow`, `identity` and `input_drive` (`unranked_reason`, as on the
-    board), the one with the best area x time (leaderboard/combined.py: the ONE ranked number); None when
-    there is none. Pure. A tie of the exact product goes to the design listed first among task.json's
-    references (`names`: design sha256 -> (index, stem), `reference_names`; a design not listed comes after
-    them), then to `row_key`. Returns the record's row plus `name` (the reference's stem, else the stored
-    .sv's name without `.sv`), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit). With `pdk` "asap7": par
-    of the ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule). Only a
-    design task.json lists counts (decided 2026-11-12): a record of the reference player whose design is not in
-    `names` is never par, and without `names` there is none."""
+    """PAR of `task`, the bar to beat: the reference player's record of par's design (`names`: design sha256 ->
+    (index, stem), `par_names`: the one design leaderboard/par.json names, decided 2026-11-12) that ranks under `flow`,
+    `identity` and `input_drive` (`unranked_reason`, as on the board), with its area x time (leaderboard/combined.py:
+    the ONE ranked number); None when there is none. Pure. Two records of that design (two proofs of it) have the same
+    product; a tie goes to the index `names` gives, then to `row_key`. Returns the record's row plus `name` (the
+    stem `names` gives), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit). With `pdk` "asap7": par of the
+    ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule). Only a design in
+    `names` counts: a record of the reference player of any other design is never par, and without `names` there is
+    none."""
     names = names or {}
     best = None
     for rec in records:
@@ -1702,9 +1716,9 @@ def par_line(par):
     """The board's par line (`par`: `par_of`'s row, or None)."""
     if par is None:
         return (f"Par: none recorded (no record of `{REFERENCE_PLAYER}` ranks here; `leaderboard.py seed-references "
-                "--task <task>` records the proved references).")
-    return ("Par, the best proved reference by area x time (the ranked number; lower is better): "
-            + fmt_par(par) + ".")
+                "--task <task>` records par's design).")
+    return ("Par, the task's par design (the simplest algorithm, leaderboard/par.json) by area x time (the ranked "
+            "number; lower is better): " + fmt_par(par) + ".")
 
 
 PARETO_EXPLORATION = "exploration: the board ranks area x time; # is the entry's rank there"
@@ -2951,15 +2965,22 @@ def all_task_names(tasks_dir):
                   if os.path.isfile(os.path.join(tasks_dir, t, "task.json")))
 
 
-RESERVED_HANDLE = (f"the handle `{REFERENCE_PLAYER}` is the proved references' own (their records are par, not "
-                   "entries; `seed-references` makes them): a player's record needs a handle of its own")
+RESERVED_HANDLE = (f"the handle `{REFERENCE_PLAYER}` is par's own (its records are par, not entries; "
+                   "`seed-references` makes them): a player's record needs a handle of its own")
+
+
+def not_par_design(task_name, stem):
+    """Why a design that is not par's is never recorded under REFERENCE_PLAYER (decided 2026-11-12)."""
+    stem = stem or "none: the task has no par line in leaderboard/" + PAR_FILE
+    return (f"only par's design ({stem}) is recorded under `{REFERENCE_PLAYER}`; every other design of {task_name} is "
+            "an entry, recorded under a player's handle")
 
 
 def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_check=None, reference=False):
     """Check (or read the result of) one submission and record it. Returns the
     record's path. Raises Refused (not accepted / malformed / duplicate) or
     RuntimeError (infrastructure). Only `seed-references` (`reference`) records
-    under REFERENCE_PLAYER (decided 2026-11-12)."""
+    under REFERENCE_PLAYER, and only par's design (decided 2026-11-12)."""
     task = load_task(args.tasks_dir, args.task)
     mode = getattr(args, "postsynth", None) or DEFAULT_POSTSYNTH_MODE
     # The board's own data directory takes only a record whose kernel check `add` ran itself, in the sandbox: a
@@ -2987,6 +3008,8 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
             problems += e.problems
     if player == REFERENCE_PLAYER and not reference:
         problems.append(RESERVED_HANDLE)
+    elif player == REFERENCE_PLAYER and sha256_file(sv) not in par_names(args.tasks_dir, task):
+        problems.append(not_par_design(task["name"], par_stem(args.tasks_dir, task)))
     if problems:
         raise Refused(problems)
     for _, other, _ in load_records(args.data_dir, args.task):
@@ -3124,10 +3147,17 @@ def cmd_seed_references(args):
             print(f"error: {name} has no reference {sorted(only - stems)} (its references: {sorted(stems)})",
                   file=sys.stderr)
             return 2
+        par = par_names(args.tasks_dir, task)
         for ref in refs:
-            if only and os.path.splitext(os.path.basename(ref["sv"]))[0] not in only:
+            stem = os.path.splitext(os.path.basename(ref["sv"]))[0]
+            if only and stem not in only:
                 continue
             sv = os.path.join(args.tasks_dir, name, ref["sv"])
+            if sha256_file(sv) not in par:              # only par's design is seeded (decided 2026-11-12)
+                print(f"{name}: {ref['sv']}: not seeded: {not_par_design(name, par_stem(args.tasks_dir, task))}")
+                if only:
+                    status = 1
+                continue
             lean = os.path.join(args.tasks_dir, name, ref["lean"])
             args.task = name
             try:
@@ -3252,10 +3282,10 @@ def _boards(args, names, unassisted=False):
               if pdk == "asap7" else None)
         board = build_board(task, mine, flow=flow, unassisted=unassisted, identity=identity, input_drive=drive,
                             statement=statement, pdk=pdk, asap7=a7, asap7_identity=a7_identity)
-        # par: the best of the reference player's records that rank here (whatever `unassisted` says: par is the
-        # bar, not an entry)
+        # par: the reference player's record of par's design, if it ranks here (whatever `unassisted` says: par is
+        # the bar, not an entry)
         board["par"] = par_of(task, mine, flow=flow, identity=identity, input_drive=drive,
-                              names=reference_names(args.tasks_dir, task), statement=statement, pdk=pdk, asap7=a7,
+                              names=par_names(args.tasks_dir, task), statement=statement, pdk=pdk, asap7=a7,
                               asap7_identity=a7_identity)
         out.append(board)
     return out
@@ -3275,13 +3305,52 @@ def reference_names(tasks_dir, task):
     return out
 
 
+def par_path(tasks_dir=DEFAULT_TASKS):
+    """The par table of the tree whose tasks are `tasks_dir`: leaderboard/par.json beside it."""
+    return os.path.join(os.path.dirname(os.path.abspath(tasks_dir)), "leaderboard", PAR_FILE)
+
+
+def load_par_table(tasks_dir=DEFAULT_TASKS):
+    """leaderboard/par.json's `par` (task -> {design, algorithm}), or {} when there is no such file. Raises ValueError
+    for a file that is not the table."""
+    path = par_path(tasks_dir)
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as fh:
+        table = json.load(fh).get("par")
+    if not isinstance(table, dict) or not all(isinstance(v, dict) and isinstance(v.get("design"), str)
+                                              for v in table.values()):
+        raise ValueError(f"{path}: `par` is not a table of task -> {{design, algorithm}}")
+    return table
+
+
+def par_stem(tasks_dir, task):
+    """The stem of `task`'s par design (leaderboard/par.json), or None for a task without a line."""
+    return (load_par_table(tasks_dir).get(task["name"]) or {}).get("design")
+
+
+def par_names(tasks_dir, task):
+    """design sha256 -> (index, stem) of PAR's design alone (`PAR_FILE`): the task.json reference named `par_stem`,
+    at its index in the listing (a record of another proof of the same file is par's too: the key is the design's
+    sha256). {} when the task has no par line, or its line names no reference the task lists (a file that cannot be
+    read included): then the task has no par. What `par_of` takes as `names`."""
+    stem = par_stem(tasks_dir, task)
+    for i, ref in enumerate(task.get("references") or []):
+        try:
+            if os.path.splitext(os.path.basename(ref["sv"]))[0] == stem:
+                return {sha256_file(os.path.join(tasks_dir, task["name"], ref["sv"])): (i, stem)}
+        except (OSError, KeyError, TypeError):
+            break
+    return {}
+
+
 def par_now(task_name, data_dir=DEFAULT_DATA, tasks_dir=DEFAULT_TASKS):
     """PAR of a task as its board shows it now (`par_of` over the records of `data_dir`, under the current
     flow, sky130 identity and the task's input drive), or None. What check.py's ranked headline names."""
     task = load_task(tasks_dir, task_name)
     records = good_records(load_records(data_dir, task_name))
     return par_of(task, records, flow=current_flow(SVGOLF, task_flow(task)), identity=ppa_identity(),
-                  input_drive=ppa_setup_now(task).get("input_drive"), names=reference_names(tasks_dir, task),
+                  input_drive=ppa_setup_now(task).get("input_drive"), names=par_names(tasks_dir, task),
                   statement=current_statement_or_none(task))
 
 
@@ -3492,7 +3561,7 @@ def board_now(task, data_dir, tasks_dir=DEFAULT_TASKS, flows=None):
     kw = dict(flow=flow, identity=ppa_identity(), input_drive=ppa_setup_now(task).get("input_drive"),
               statement=current_statement_or_none(task))
     board = build_board(task, [r for r in records if r["player"] != REFERENCE_PLAYER], **kw)
-    return board, par_of(task, records, names=reference_names(tasks_dir, task), **kw)
+    return board, par_of(task, records, names=par_names(tasks_dir, task), **kw)
 
 
 def board_line(board, par, record_hash):
@@ -3767,7 +3836,8 @@ def make_parser():
     a.set_defaults(fn=cmd_add)
 
     s = sub.add_parser("seed-references", parents=[common],
-                       help="record every proved reference solution (runs check.py on each)")
+                       help="record par's design, every proof of it task.json lists (leaderboard/par.json; runs "
+                            "check.py on each)")
     s.add_argument("--task")
     s.add_argument("--ref", action="append", default=[], metavar="STEM",
                    help="only this reference of --task (its .sv's stem, e.g. add_n; repeatable)")

@@ -1,4 +1,4 @@
-// svGolf task `add`, reference solution (WP-G S2): a ripple-carry adder written with `~` and `?:`.
+// svGolf task `add`: a ripple-carry adder written with `~` and the conditional operator `?:`.
 // e[i] = (a[i] == b[i]) is the XNOR of the operand bits; when they agree the carry out is their common
 // value a[i], otherwise it is the carry in c[i]; the sum bit is the XNOR of e[i] and c[i]
 // (= a[i] ^ b[i] ^ c[i]). c[0] = cin, cout = c[N].

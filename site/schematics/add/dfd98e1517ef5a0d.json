@@ -1,0 +1,423 @@
+{
+ "cell_area_e4um2": {
+  "nand2_1": 37536,
+  "xor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 1151104,
+  "cell_hist_sky130": {
+   "nand2_1": 12,
+   "xor2_1": 8
+  },
+  "cells_sky130": 20,
+  "critical": {
+   "cells": 8,
+   "edge": "r",
+   "output": "s[3]"
+  },
+  "delay_ps_sky130": 970,
+  "drawn": "full",
+  "drawn_cells": 20,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 114.4,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[0]",
+    "slew_ps": 22.5
+   },
+   {
+    "arrival_ps": 302.4,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_49_",
+    "net": "_34_",
+    "slew_ps": 190.5
+   },
+   {
+    "arrival_ps": 374.2,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_50_",
+    "net": "_35_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 461.4,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_51_",
+    "net": "_36_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 511.0,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_53_",
+    "net": "_38_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 598.2,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_54_",
+    "net": "_39_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 647.7,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_56_",
+    "net": "_41_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 734.9,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_57_",
+    "net": "_42_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 970.2,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_64_",
+    "net": "_29_",
+    "slew_ps": 247.2
+   }
+  ],
+  "repaired_sha256": "918379978cd4caf91f4aed7e8469b7a353fa5e38f2d6393cf0bd2052a08ee58a",
+  "svg_bytes": 15230,
+  "svg_sha256": "c853d72f1e89354d4f2fb75dfe00922c4c2f562e3aee12d963ba4b86c7790893"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 4604416,
+  "cell_hist_sky130": {
+   "nand2_1": 48,
+   "xor2_1": 32
+  },
+  "cells_sky130": 80,
+  "critical": {
+   "cells": 32,
+   "edge": "r",
+   "output": "s[15]"
+  },
+  "delay_ps_sky130": 2611,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.13,
+   "worst_transition_ratio": 0.165
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "95fe9838b1afc8a017600192554b525e00f08988267efdee8fcce4296fe61616",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 114.4,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[0]",
+    "slew_ps": 22.5
+   },
+   {
+    "arrival_ps": 302.4,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_193_",
+    "net": "_144_",
+    "slew_ps": 190.5
+   },
+   {
+    "arrival_ps": 374.2,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_194_",
+    "net": "_145_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 461.4,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_195_",
+    "net": "_146_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 511.0,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_197_",
+    "net": "_148_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 598.2,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_198_",
+    "net": "_149_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 647.7,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_200_",
+    "net": "_151_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 734.9,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_201_",
+    "net": "_152_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 784.5,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_203_",
+    "net": "_154_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 871.7,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_204_",
+    "net": "_155_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 921.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_206_",
+    "net": "_157_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1008.5,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_207_",
+    "net": "_158_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1058.1,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_209_",
+    "net": "_160_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1145.3,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_210_",
+    "net": "_161_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1194.8,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_212_",
+    "net": "_163_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1282.0,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_213_",
+    "net": "_164_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1331.6,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_215_",
+    "net": "_166_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1418.8,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_216_",
+    "net": "_167_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1468.4,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_218_",
+    "net": "_169_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1555.6,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_219_",
+    "net": "_170_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1605.2,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_221_",
+    "net": "_172_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1692.4,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_222_",
+    "net": "_173_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1741.9,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_224_",
+    "net": "_175_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1829.1,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_225_",
+    "net": "_176_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 1878.7,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_227_",
+    "net": "_115_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 1965.9,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_228_",
+    "net": "_116_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 2015.5,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_230_",
+    "net": "_118_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 2102.7,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_231_",
+    "net": "_119_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 2152.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_233_",
+    "net": "_121_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 2239.5,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_234_",
+    "net": "_122_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 2289.0,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_236_",
+    "net": "_124_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 2376.2,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_237_",
+    "net": "_125_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 2611.5,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_256_",
+    "net": "_113_",
+    "slew_ps": 247.2
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 80,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "c816b580f0d5aea91d8f56530360f51fb6ef01068b76b83e5ff513f1f06da577",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 33
+ },
+ "sv_sha256": "dfd98e1517ef5a0dd364dfcf108bf474615061c851ecca801ffc5f753a098ddb",
+ "task": "add",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+ }
+}

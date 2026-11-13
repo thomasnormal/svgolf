@@ -1223,6 +1223,23 @@ class CliEnv:
             fh.write(LEAN_TEXT)
         return sv, lean
 
+    def with_references(self, stems=("ref_n",), par="ref_n"):
+        """The toy task with proved references `stems` (task.json `references`, files under reference/) and
+        leaderboard/par.json naming `par` its par design (None: no par line)."""
+        ref = os.path.join(self.tasks, "toy", "reference")
+        os.makedirs(ref, exist_ok=True)
+        for stem in stems:
+            sv, lean = self.files(stem)
+            shutil.copy(sv, os.path.join(ref, f"{stem}.sv"))
+            shutil.copy(lean, os.path.join(ref, f"{stem}.lean"))
+        with open(os.path.join(self.tasks, "toy", "task.json"), "w") as fh:
+            json.dump(toy_task(leaderboard={"depth_budget": 22},
+                               references=[{"sv": f"reference/{s}.sv", "lean": f"reference/{s}.lean"}
+                                           for s in stems]), fh)
+        os.makedirs(os.path.dirname(lb.par_path(self.tasks)), exist_ok=True)
+        with open(lb.par_path(self.tasks), "w") as fh:
+            json.dump({"par": {} if par is None else {"toy": {"design": par, "algorithm": "a toy"}}}, fh)
+
     def run(self, *argv):
         return quiet(lb.main, list(argv[:1]) + ["--data-dir", self.data, "--tasks-dir", self.tasks,
                                                  "--check-py", self.fake] + list(argv[1:]))
@@ -1590,24 +1607,38 @@ class PostsynthModeCliTest(Tmp):
         self.assertTrue(all(ln.endswith("--postsynth full") for ln in self.argv_log()))
 
     def test_the_reference_handle_is_seed_references_own(self):
-        """Decided 2026-11-12: `add` refuses the proved references' handle for any record (before any check runs);
-        `seed-references`, the maintainers' path, records the task's listed references under it."""
+        """Decided 2026-11-12: `add` refuses par's handle for any record (before any check runs); `seed-references`,
+        the maintainers' path, records par's design under it (leaderboard/par.json), and only that one."""
         rc, _, err = self.env.add(lb.REFERENCE_PLAYER)
         self.assertEqual(rc, 1)
         self.assertIn(lb.RESERVED_HANDLE, err)
         self.assertFalse(os.path.exists(self.log))                  # check.py never ran
         self.assertEqual(self.records(), [])
-        ref = os.path.join(self.env.tasks, "toy", "reference")
-        os.makedirs(ref)
-        sv, lean = self.env.files("ref_n")
-        shutil.copy(sv, os.path.join(ref, "ref_n.sv"))
-        shutil.copy(lean, os.path.join(ref, "ref_n.lean"))
-        with open(os.path.join(self.env.tasks, "toy", "task.json"), "w") as fh:
-            json.dump(toy_task(leaderboard={"depth_budget": 22},
-                               references=[{"sv": "reference/ref_n.sv", "lean": "reference/ref_n.lean"}]), fh)
+        self.env.with_references(("ref_n", "ref_tree"), par="ref_n")
         rc, out, err = self.env.run("seed-references", "--task", "toy")
         self.assertEqual(rc, 0, out + err)
-        self.assertEqual([r["player"] for r in self.records()], [lb.REFERENCE_PLAYER])
+        self.assertIn("seeded toy: reference/ref_n.sv", out)
+        self.assertIn("toy: reference/ref_tree.sv: not seeded: only par's design (ref_n) is recorded under "
+                      f"`{lb.REFERENCE_PLAYER}`", out)
+        (rec,) = self.records()
+        self.assertEqual((rec["player"], rec["files"]["sv"]["sha256"]),
+                         (lb.REFERENCE_PLAYER, lb.sha256_file(os.path.join(self.env.tasks, "toy", "reference",
+                                                                          "ref_n.sv"))))
+
+    def test_only_par_s_design_is_recorded_under_the_reference_handle(self):
+        """Decided 2026-11-12: the other references are entries; naming one to seed-references records nothing (exit
+        1), and a task without a par line in leaderboard/par.json seeds nothing at all."""
+        self.env.with_references(("ref_n", "ref_tree"), par="ref_n")
+        rc, out, err = self.env.run("seed-references", "--task", "toy", "--ref", "ref_tree")
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("not seeded: only par's design (ref_n)", out)
+        self.assertEqual(self.records(), [])
+        self.env.with_references(("ref_n", "ref_tree"), par=None)
+        rc, out, err = self.env.run("seed-references", "--task", "toy")
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("only par's design (none: the task has no par line in leaderboard/par.json)", out)
+        self.assertEqual(self.records(), [])
+        self.assertFalse(os.path.exists(self.log))                  # check.py never ran
 
 
 class PpaRecordTest(Tmp):
@@ -2488,8 +2519,9 @@ class PpaCliTest(Tmp):
 
 
 class ParTest(Tmp):
-    """PAR (item 12 of the 11/05 newcomer study): the board shows the best proved reference by area x time, the ONE
-    ranked number (leaderboard/combined.py), from the reference player's records that rank on it."""
+    """PAR (item 12 of the 11/05 newcomer study): the board shows par by area x time, the ONE ranked number
+    (leaderboard/combined.py), from the reference player's records of par's design (one design per task,
+    leaderboard/par.json, decided 2026-11-12) that rank on it."""
     REF = lb.REFERENCE_PLAYER
 
     def rec(self, player, tag, area_e4, delay, **kw):
@@ -2547,9 +2579,10 @@ class ParTest(Tmp):
         self.assertNotIn("Par:", lb.render_markdown(board))
         board["par"] = lb.par_of(task, [ref], flow=FLOW, names={ref["files"]["sv"]["sha256"]: (0, "ref_n")})
         md = lb.render_markdown(board)
-        self.assertIn("Par, the best proved reference by area x time (the ranked number; lower is better): "
+        self.assertIn("Par, the task's par design (the simplest algorithm, leaderboard/par.json) by area x time (the ranked "
+                      "number; lower is better): "
                       f"`ref_n`: 100.0000 um^2 x 2000 ps = 200.00 um2*ns (record `{ref['record_hash'][:12]}`).", md)
-        self.assertIn("  Par, the best proved reference by area x time", lb.render_pareto_text(board))
+        self.assertIn("  Par, the task's par design (the simplest algorithm", lb.render_pareto_text(board))
         board["par"] = None
         self.assertIn("Par: none recorded (no record of `svgolf-reference` ranks here", lb.render_markdown(board))
 
@@ -2560,16 +2593,10 @@ class ParTest(Tmp):
         rc, md, _ = env.run("board", "--task", "toy")
         self.assertEqual(rc, 0)
         self.assertIn("Par: none recorded", md)
-        # the reference handle is `seed-references`' own (decided 2026-11-12): par is a listed reference of task.json
+        # the reference handle is `seed-references`' own (decided 2026-11-12): par is the design leaderboard/par.json names,
+        # one of task.json's references
         self.assertEqual(env.add(self.REF)[0], 1)
-        ref = os.path.join(env.tasks, "toy", "reference")
-        os.makedirs(ref)
-        sv, lean = env.files("ref_n")
-        shutil.copy(sv, os.path.join(ref, "ref_n.sv"))
-        shutil.copy(lean, os.path.join(ref, "ref_n.lean"))
-        with open(os.path.join(env.tasks, "toy", "task.json"), "w") as fh:
-            json.dump(toy_task(leaderboard={"depth_budget": 22},
-                               references=[{"sv": "reference/ref_n.sv", "lean": "reference/ref_n.lean"}]), fh)
+        env.with_references(("ref_n",), par="ref_n")
         rc, out, err = env.run("seed-references", "--task", "toy")
         self.assertEqual(rc, 0, out + err)
         self.assertIn("seeded toy: reference/ref_n.sv", out)
@@ -2577,12 +2604,12 @@ class ParTest(Tmp):
         self.assertEqual(rc, 0, err)
         self.assertIn("(area x time ", out)
         rc, md, _ = env.run("board", "--task", "toy")
-        self.assertIn("Par, the best proved reference by area x time (the ranked number; lower is better): "
-                      "`ref_n`: ", md)
+        self.assertIn("Par, the task's par design (the simplest algorithm, leaderboard/par.json) by area x time (the ranked "
+                      "number; lower is better): `ref_n`: ", md)
         rc, js, _ = env.run("board", "--task", "toy", "--format", "json")
         self.assertEqual(json.loads(js)["par"]["player"], self.REF)
         rc, out, _ = env.run("pareto", "--task", "toy")
-        self.assertIn("Par, the best proved reference", out)
+        self.assertIn("Par, the task's par design", out)
 
     def test_every_ranked_task_shows_par_from_the_committed_records(self):
         """The shipped reference records give every listed task a par (site/config.json `listed`/`tutorial`), and
@@ -2599,6 +2626,49 @@ class ParTest(Tmp):
                 self.assertIsNotNone(par, f"{t}: no par (seed its references: leaderboard.py seed-references --task {t})")
                 task = lb.load_task(lb.DEFAULT_TASKS, t)
                 self.assertIn(par["name"], [os.path.splitext(os.path.basename(r["sv"]))[0] for r in task["references"]])
+                self.assertEqual(par["name"], lb.par_stem(lb.DEFAULT_TASKS, task))     # leaderboard/par.json's design
+
+    def test_par_is_one_design_per_task_and_only_it_carries_the_reference_handle(self):
+        """Decided 2026-11-12: leaderboard/par.json names, for every task the site lists, one of its task.json references,
+        and every committed record under the reference handle is of that design (the other proved designs are
+        entries, under players' handles)."""
+        with open(os.path.join(SVGOLF, "site", "config.json")) as fh:
+            listing = json.load(fh)["tasks"]
+        table = lb.load_par_table()
+        self.assertEqual(sorted(table), sorted(t for t, kind in listing.items() if kind in ("listed", "tutorial")))
+        for t in sorted(table):
+            with self.subTest(task=t):
+                task = lb.load_task(lb.DEFAULT_TASKS, t)
+                names = lb.par_names(lb.DEFAULT_TASKS, task)
+                self.assertEqual([stem for _, stem in names.values()], [table[t]["design"]])
+                refs = [r for r in lb.good_records(lb.load_records(lb.DEFAULT_DATA, t))
+                        if r["player"] == lb.REFERENCE_PLAYER]
+                self.assertTrue(refs, f"{t}: no record of par's design")
+                for r in refs:
+                    self.assertIn(r["files"]["sv"]["sha256"], names, r["record_hash"])
+
+    def test_par_names_is_the_par_line_s_reference_alone(self):
+        tmp = os.path.join(self.tmp, "tasks")
+        os.makedirs(os.path.join(tmp, "toy", "reference"))
+        for stem, body in (("a", b"module a;"), ("b", b"module b;"), ("a_again", b"module a;")):
+            with open(os.path.join(tmp, "toy", "reference", f"{stem}.sv"), "wb") as fh:
+                fh.write(body)
+        task = toy_task(references=[{"sv": f"reference/{s}.sv", "lean": f"reference/{s}.lean"}
+                                    for s in ("a", "b", "a_again")])
+        self.assertEqual(lb.par_names(tmp, task), {})                         # no leaderboard/par.json: no par
+        self.assertEqual(lb.par_path(tmp), os.path.join(self.tmp, "leaderboard", lb.PAR_FILE))    # beside tasks/
+        for par, want in (("b", {lb.sha256_bytes(b"module b;"): (1, "b")}),
+                          ("a", {lb.sha256_bytes(b"module a;"): (0, "a")}),
+                          ("a_again", {lb.sha256_bytes(b"module a;"): (2, "a_again")}),     # a second file of a
+                          ("nonesuch", {})):
+            os.makedirs(os.path.dirname(lb.par_path(tmp)), exist_ok=True)
+            with open(lb.par_path(tmp), "w") as fh:
+                json.dump({"par": {"toy": {"design": par, "algorithm": "x"}}}, fh)
+            self.assertEqual(lb.par_names(tmp, task), want, par)
+        with open(lb.par_path(tmp), "w") as fh:
+            json.dump({"par": {"toy": "a"}}, fh)
+        with self.assertRaises(ValueError):
+            lb.par_names(tmp, task)
 
     def test_an_unproved_result_is_refused_by_name(self):
         res = fake_result()
@@ -2606,6 +2676,41 @@ class ParTest(Tmp):
                    unproved_ok=True)
         problems = lb.acceptance_problems(res, toy_task(), SV_SHA)
         self.assertIn("check.py --unproved", problems[0])
+
+    def test_a_lifted_banlist_result_is_never_a_record(self):
+        """`check.py --lift-banlist` (decided 2026-11-12): a design with a banned operator, proved, is not an entry.
+        Its result is refused by name, whichever marker it still carries, and also when every marker was removed and it
+        was made to look accepted: its banlist stage checked fewer operators than the task bans."""
+        task = toy_task(banlist={"operators": ["+", "-", "/", "%", "**"]})
+        lifted = {"operators": ["+", "-"], "task_operators": ["+", "-", "/", "%", "**"], "task_banlist": "rejects",
+                  "task_findings": ["banned run-time binary `+`"], "verdict": "banned operator: proved, not an entry"}
+        clean = fake_result()
+        clean["stages"]["banlist"] = {"operators": ["+", "-", "/", "%", "**"], "front": [], "backstop": [],
+                                      "diagnostics": []}
+        self.assertEqual(lb.acceptance_problems(clean, task, SV_SHA), [])
+        res = json.loads(json.dumps(clean))
+        res.update(accepted=False, stage="lifted", lifted_ok=True, banlist_lifted=lifted,
+                   notes=["banned operator: proved, not an entry: ..."])
+        res["stages"]["banlist"].update(operators=["/", "%", "**"], lifted=lifted)
+        res.pop("complete")
+        problems = lb.acceptance_problems(res, task, SV_SHA)
+        self.assertTrue(any("check.py --lift-banlist" in p for p in problems), problems)
+        self.assertTrue(any("did not check every operator the task bans" in p for p in problems), problems)
+        # forged: accepted, stage done, and no marker left; the operators the banlist stage checked still tell
+        forged = json.loads(json.dumps(res))
+        forged.update(accepted=True, stage="done", complete=True)
+        for k in ("lifted_ok", "banlist_lifted", "notes"):
+            forged.pop(k)
+        forged["stages"]["banlist"].pop("lifted")
+        problems = lb.acceptance_problems(forged, task, SV_SHA)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("did not check every operator the task bans", problems[0])
+        # each marker alone is enough
+        for key, value in (("banlist_lifted", lifted), ("lifted_ok", True), ("stage", "lifted")):
+            one = json.loads(json.dumps(clean))
+            one[key] = value
+            self.assertTrue(any("check.py --lift-banlist" in p for p in lb.acceptance_problems(one, task, SV_SHA)),
+                            key)
 
 
 def _load_by_path(name, rel):
@@ -3526,7 +3631,7 @@ class SubmitTest(Tmp):
             self.assertIn("is not a GitHub repository", err)
 
     def test_a_record_under_the_reference_handle_is_refused(self):
-        """Decided 2026-11-12: the proved references' handle is not a player's; `submit` refuses such a record (one
+        """Decided 2026-11-12: par's handle is not a player's; `submit` refuses such a record (one
         made before `add` refused the handle, or by hand) before it verifies anything."""
         rec = make_record(player=lb.REFERENCE_PLAYER)
         lb.store_record(self.env.data, rec, SV_TEXT, LEAN_TEXT)
@@ -3789,14 +3894,14 @@ class PrCheckTest(Tmp):
         self.assertFalse(os.path.exists(self.log))          # check.py never ran
 
     def test_a_record_under_the_reference_handle_is_refused(self):
-        """Decided 2026-11-12 (the review's F3): the proved references' records are par; a pull request cannot add
+        """Decided 2026-11-12 (the review's F3): the records under par's handle are par; a pull request cannot add
         one, and the full check does not run."""
         r = self.add_record(player=lb.REFERENCE_PLAYER)
         self.commit("a record under the reference handle")
         rc, out, err, summary = self.check()
         self.assertEqual(rc, 1)
-        self.assertIn(f"record `toy/{r['record_hash'][:12]}` is under the handle `{lb.REFERENCE_PLAYER}`, the proved "
-                      "references' own", summary)
+        self.assertIn(f"record `toy/{r['record_hash'][:12]}` is under the handle `{lb.REFERENCE_PLAYER}`, par's "
+                      "own", summary)
         self.assertIn("the records it adds: not run", summary)
         self.assertFalse(os.path.exists(self.log))
 

@@ -37,7 +37,7 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md        # every
 python3.12 leaderboard/leaderboard.py pareto --task T [--format text|json] [--unassisted]   # exploration: the frontier
 python3.12 leaderboard/leaderboard.py pareto --task T --axes area_mge,depth   # opt-in: n-D frontier over chosen columns (here GE)
 python3.12 leaderboard/leaderboard.py pareto --task T --axes area_um2_sky130_mapped_v1,mapped_delay_sky130_v1   # ... of flow A1' (mapped)
-python3.12 leaderboard/leaderboard.py seed-references [--task T [--ref STEM ...]]   # the proved references
+python3.12 leaderboard/leaderboard.py seed-references [--task T [--ref STEM ...]]   # par's design (leaderboard/par.json)
 python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7     # the ASAP7 view (also pareto, export): below
 python3.12 leaderboard/leaderboard.py asap7 [--task T] [--rescore | --write]   # the ASAP7 view's columns
 python3.12 leaderboard/leaderboard.py submit --task T --record HASH [--dry-run]   # hand a record in: below
@@ -143,7 +143,10 @@ $ python3.12 leaderboard/leaderboard.py board --task mul
 ```
 
 Both `mul` records are on the frontier (`mul_n_byhand` has the smaller area, `mul_tree_h` the shorter time); the board
-ranks them by area x time:
+ranks them by area x time (output of 2026-11-05: since 2026-11-12 par is one design per task, `leaderboard/par.json`, so
+`mul`'s par is the array `mul_n`, whose record is `mul_n_byhand`'s, the par line reads "Par, the task's par design
+(the simplest algorithm, leaderboard/par.json) by area x time ...", and the `mul_tree_h` record has left the board, to
+come back as an entry under a handle of its own):
 
 | # | player | assisted by | area x time (um2*ns) | area (um^2) | time (ps) | layer | area (GE) | depth | proof lines | date | record |
 |--:|---|---|--:|--:|--:|--:|--:|--:|--:|---|---|
@@ -188,7 +191,7 @@ checker it runs). Then it runs `verify --offline` on every record and `verify --
 Yosys is the rating build's, and that the ranked number is re-made on the rating build at merge (the commands are
 in ../CONTRIBUTING.md, "For the maintainers"), to the job summary.
 A record's file must be a plain one (git's mode 100644: not a symbolic link, not an executable), a record under
-`svgolf-reference`, the proved references' handle, is refused, and the two refs are resolved to commits first (one
+`svgolf-reference`, par's handle, is refused, and the two refs are resolved to commits first (one
 that begins with `-` is refused).
 It informs and ranks nothing: it runs the pull request's own files, with no secret and a read-only token. The
 workflow builds Yosys 0.53 and Verilator 5.042 from the release archives the rating build's packages come from, and
@@ -414,7 +417,7 @@ not intact (hash, name, shape) and say so. `submitted_at`, `player`,
 
 ## Records in the tree
 
-`data/<task>/` holds the board's records: the proved references, as player `svgolf-reference` (`assisted_by`
+`data/<task>/` holds the board's records: par's design, as player `svgolf-reference` (`assisted_by`
 `["Claude (Anthropic)"]`, notes `reference solution`, each from a real `check.py --ppa require` run, their stored
 files byte-identical to `tasks/<task>/reference/` when they were recorded), and the players' records. The record
 fingerprint is strict (a score is tied to an exact checker and statement), so after a change to a checker file or a
@@ -423,17 +426,22 @@ and post-synthesis vectors (new: the checker hashes and revisions, the statement
 record hash). A player's record made before such a change is not ranked until it is made again; the maintainers
 have re-recorded such records with the design, the player, the assistance and the date kept (`add
 --require-clean`; a proof ported to a changed statement says so in its notes). The git history keeps every earlier record and says when each was made; the site shows what the board
-ranks now. Only `seed-references` records under `svgolf-reference` (decided 2026-11-12: `add`, `submit` and the
-pull-request check refuse the handle), and par is the best of the task's listed references.
-`seed-references` records the references of every `ready` task (`--task T --ref STEM` for one reference): it runs `check.py` on each reference that is
-not already recorded (same player, same two files), so after a reference
-changes it adds a new record for the new files and leaves the old one; with
-nothing changed it is instant. Baselines
-are **not** records: a baseline is
-scored but never accepted by `check.py` (no proof), so `add` refuses it. The
-unscored reference points live in `tests/expected.json` (`baselines`) and in
-the README's task table (Yosys's own `+` and `*`; the Sklansky, Kogge-Stone
-and Dadda designs).
+ranks now. Par is ONE design per task, the simplest algorithm (decided 2026-11-12: `leaderboard/par.json`, one line per
+task, `par_names`), and only its records are under `svgolf-reference`: only `seed-references` records under the handle
+(`add`, `submit` and the pull-request check refuse it), and only par's design (`add` refuses any other design under
+it, and `seed-references` passes over the other references: "not seeded: only par's design ... is recorded under
+`svgolf-reference`"). Par is the score of that record; a record of another design under the handle is never par.
+`seed-references` records par's design for every `ready` task (`--task T --ref STEM` for one proof of it): it runs
+`check.py` on each proof of it that is not already recorded (same player, same two files), so after the design or a
+proof changes it adds a new record for the new files and leaves the old one; with nothing changed it is instant.
+Every other design the maintainers proved (the other references task.json lists, the baselines of
+`tests/<task>/baselines/` without a banned operator) is an entry: `add` under a handle of its own, ranked with the
+players' records. The records of the other references (`band_lp`, `sbox_bp`, `fdivp_newton`, `fdivp_srt`,
+`mul_tree_h`) left the board on 2026-11-12, to come back that way. A baseline with a banned operator is **not** a
+record: a proved comparison design (its proof beside it in `tests/<task>/baselines/`, checked by `tests/run.py`, step
+`baseline-proofs`) proved with `check.py --lift-banlist`, whose result `add` refuses (and `add`'s own check never
+lifts the banlist), never an entry and never par. They live in `tests/expected.json` (`baselines`) and in the
+README's task table (Yosys's own `+` and `*`, the comparison-carry adder).
 
 ## Tests
 

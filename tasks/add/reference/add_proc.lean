@@ -5,15 +5,15 @@ import LeanModels.Sv.CombLib
 import LeanModels.Sv.ProcNoQualified
 
 /-!
-# Reference solution for task `add` with an `always_comb` carry cell (WP-G)
+# A ripple-carry adder for task `add` with an `always_comb` carry cell
 
-The design is `reference/add_proc.sv`: a ripple-carry adder whose carry cell is an `always_comb`
+The design is `add_proc.sv`: a ripple-carry adder whose carry cell is an `always_comb`
 `if (p[i]) c[i+1] = c[i]; else c[i+1] = a[i];` inside the generate loop. This file proves
 
     theorem Submission.solution : Submission.Goal
 
 for EVERY `N ≥ 1` (`N` stays a variable from the envelope to the conclusion; nothing is unrolled), with the
-`sv_comb` tactics, exactly like `reference/add_n.lean`. What differs is one fact about the design and one
+`sv_comb` tactics, exactly like `add_n.lean` (par's design). What differs is one fact about the design and one
 lemma:
 
 * **`design.sem N` is not a `CombDesign`** (`CombDesign.assign`: every process is a continuous assign), because
@@ -149,7 +149,7 @@ theorem add_final {N : Nat} {st : SvState} {x y : BitVec N} {c0 : Bool}
 
 /-! ## 4. The statement -/
 
-/-- **The reference solution**: the `add` statement, for every `N ≥ 1`. -/
+/-- **The solution**: the `add` statement, for every `N ≥ 1`. -/
 
 theorem solution : Goal := by
   intro N hN

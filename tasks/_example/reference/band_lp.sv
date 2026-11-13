@@ -1,4 +1,4 @@
-// svGolf task `_example` -- a second reference solution, with localparams:
+// svGolf task `_example` -- the AND circuit of band.sv, with localparams:
 // the header localparam `W` sizes the ports, and the body localparam `MSB` is
 // constant arithmetic (allowed under the task's arithmetic banlist). The
 // checker compares only the overridable parameters (`N`) with the task.

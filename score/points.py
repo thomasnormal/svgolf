@@ -17,9 +17,13 @@ the scored point that is exactly how the goldens were recorded, and `check` (and
 data equals them bit for bit: score/tests/ppa/expected_ppa.json for every design of designs.json, tests/expected.json's
 GE columns at EVERY point where it has them, and its clocked columns (area, period, cycles, time) at the scored point.
 
-THE DESIGNS of a task: the proved references of task.json, the baselines of tests/expected.json (a baseline with
-`banlist_points` is a fixed-size design and is measured at those points only), and with `--records` the leaderboard
-records of the players (not the reference player's, which are the references; a record whose design file is a
+THE DESIGNS of a task: the maintainers' proved designs, the references of task.json (one of them is par's design,
+leaderboard/par.json; decided 2026-11-12, every other one is an entry, shown once a player's record holds it) and the
+baselines of tests/expected.json (each names its proof, `lean`, and a baseline without one is a plan error, decided
+2026-11-12: every design the site shows has a kernel-checked proof; one with a banned operator is a comparison design,
+never an entry, one without is an entry like a reference that is not par; a baseline with `banlist_points` is a
+fixed-size design and is measured at those points only), and with `--records` the leaderboard
+records of the players (not the reference player's, which are par's; a record whose design file is a
 reference's or baseline's is that design). A design file shared by two entries is measured once.
 
 A CLOCKED task's time is cycles x the register-to-register period. The cycles at a point are the latency function the
@@ -64,7 +68,7 @@ RECORDS = os.path.join(SVGOLF, "leaderboard", "data")
 SCHEMA = "svgolf-points/1"
 CLOCKED_KINDS = ("seq-family", "tx-family", "stream-family", "react-family")
 LATENCY_KINDS = ("tx-family", "stream-family")
-REFERENCE_PLAYER = "svgolf-reference"        # the player of the proved references (site/config.json `reference_player`)
+REFERENCE_PLAYER = "svgolf-reference"        # par's player (site/config.json `reference_player`)
 KIND_ORDER = {"reference": 0, "baseline": 1, "record": 2}
 # the flow files a clocked and a combinational run hash (score.py's FLOWS), relative to score/
 FLOW_FILES = {"comb": ("svgolf.ys", "ge.json"), "seq": ("svgolf_seq.ys", "ge_seq.json")}
@@ -216,7 +220,8 @@ def rel(path):
 def task_plan(name, tcfg, *, expected, records=None):
     """The measurement plan of one task (pure apart from reading the design files): {"task", "kind", "top", "order",
     "scored", "limit", "scale", "points": [{key, params, label, x, scored}], "designs": [...], "skip": {(id, key): entry}}.
-    Each design: {id, kind, name, src (relative to svgolf/), sha256, banned, family, lean, points (keys)}. `records`:
+    Each design: {id, kind, name, src (relative to svgolf/), sha256, banned, family, lean, points (keys)}; a baseline's
+    `lean` is its proof (tests/expected.json `lean`, relative to tests/<task>/), required. `records`:
     leaderboard records (dicts) to include, or None."""
     task = lb.load_task(TASKS, name)
     order = param_order(task)
@@ -250,12 +255,17 @@ def task_plan(name, tcfg, *, expected, records=None):
                         "src": f"tasks/{name}/{ref['sv']}", "lean": f"tasks/{name}/{ref['lean']}",
                         "banned": False, "points": list(keys)})
     for stem, e in sorted((exp.get("baselines") or {}).items()):
+        if not e.get("lean"):
+            raise PlanError(f"{name}: the baseline {stem} names no proof (tests/expected.json `lean`): every design the "
+                            "site shows is proved")
         mine = [k for k in keys if k in e["banlist_points"]] if "banlist_points" in e else list(keys)
         designs.append({"id": f"baseline/{stem}", "kind": "baseline", "name": stem,
-                        "src": f"tests/{name}/" + e.get("sv", f"baselines/{stem}.sv"), "lean": None,
+                        "src": f"tests/{name}/" + e.get("sv", f"baselines/{stem}.sv"), "lean": f"tests/{name}/{e['lean']}",
                         "banned": bool(e.get("banned")), "points": mine})
     for d in designs:
         d["sha256"] = sha256_file(os.path.join(SVGOLF, d["src"]))
+        if d["kind"] == "baseline" and not os.path.isfile(os.path.join(SVGOLF, d["lean"])):
+            raise PlanError(f"{name}: the proof {d['lean']} of the baseline {d['name']} is not there")
     known = {d["sha256"] for d in designs}
     for r in sorted(records or [], key=lambda r: r["record_hash"]):
         if r["task"] != name or r["player"] == REFERENCE_PLAYER or r["files"]["sv"]["sha256"] in known:
@@ -434,6 +444,8 @@ def task_data(plan, rows, ident, flow):
     designs = []
     for d in plan["designs"]:
         e = {k: d[k] for k in ("id", "kind", "name", "src", "sha256", "banned", "family")}
+        if d["kind"] == "baseline":
+            e.update(lean=d["lean"], proved=True)      # its proof (checked by tests/run.py, step `baseline-proofs`)
         if d.get("latency"):
             e["latency"] = d["latency"]
         e["at"] = {k: v for (i, k), (what, v) in sorted(rows.items()) if i == d["id"] and what == "at"}
@@ -514,7 +526,7 @@ def check_task(plan, data):
         e = by_id.get(d["id"])
         if e is None:
             continue
-        for k in ("src", "sha256", "kind", "banned", "family"):
+        for k in ("src", "sha256", "kind", "banned", "family") + (("lean",) if d["kind"] == "baseline" else ()):
             if e.get(k) != d[k]:
                 bad.append(f"{name}: {d['id']}: {k} is {e.get(k)!r}, the plan's {d[k]!r} (a changed design file: "
                            "measure again)")
@@ -524,6 +536,8 @@ def check_task(plan, data):
                 bad.append(f"{name}: {d['id']} @ {key}: {'neither measured nor dropped' if not here else 'both'}")
             if key == plan["scored"] and key not in e.get("at", {}):
                 bad.append(f"{name}: {d['id']} has no numbers at the scored point {key}")
+        if d["kind"] == "baseline" and e.get("proved") is not True:
+            bad.append(f"{name}: {d['id']}: not marked proved (`proved`): measure again")
         extra = set(e.get("at", {})) | set(e.get("dropped", {}))
         if extra - set(d["points"]):
             bad.append(f"{name}: {d['id']} has numbers at points it is not measured at: {sorted(extra - set(d['points']))}")

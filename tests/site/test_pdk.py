@@ -107,23 +107,20 @@ class PdkTest(unittest.TestCase):
         return sky, a7
 
     def a7_par(self, t):
-        """(stem, exact ASAP7 score) of par in the ASAP7 view, from the data: the proved reference with the best ASAP7
-        area x time, ties to task.json's order (a reference needs a score at the scoring point, tests/expected.json)."""
+        """(stem, exact ASAP7 score) of par in the ASAP7 view, from the data: par's design (decided 2026-11-12: one
+        design per task, leaderboard/par.json; it was the proved reference with the best ASAP7 area x time), the same design
+        as sky130's, with its ASAP7 entry (it needs a score at the scoring point, tests/expected.json)."""
         task, table = self.task(t), lb.load_asap7(t)
         with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
             exp = json.load(fh)["tasks"].get(t, {})
         key = lb.point_key(lb.scoring_point(task))
-        best = None
-        for k, ref in enumerate(task.get("references", [])):
-            stem = os.path.splitext(os.path.basename(ref["sv"]))[0]
-            if not ((exp.get("references", {}).get(stem) or {}).get("scores") or {}).get(key):
-                continue
-            e = lb.asap7_entry(table, lb.sha256_file(os.path.join(lb.DEFAULT_TASKS, t, ref["sv"])))
-            if e is None:
-                continue
-            cand = (e["area_e5um2"] * e["time_ps"], k, stem)
-            best = cand if best is None or cand < best else best
-        return (best[2], best[0]) if best else (None, None)
+        stem = lb.par_stem(lb.DEFAULT_TASKS, task)
+        ref = next((r for r in task.get("references", []) if os.path.splitext(os.path.basename(r["sv"]))[0] == stem),
+                   None)
+        if ref is None or not ((exp.get("references", {}).get(stem) or {}).get("scores") or {}).get(key):
+            return None, None
+        e = lb.asap7_entry(table, lb.sha256_file(os.path.join(lb.DEFAULT_TASKS, t, ref["sv"])))
+        return (stem, e["area_e5um2"] * e["time_ps"]) if e is not None else (None, None)
 
     # ---- the selector
 
@@ -264,17 +261,18 @@ class PdkTest(unittest.TestCase):
                     self.assertEqual(shown, [r["record_hash"] for r in board["ranking"]], pdk)
                     for r in board["ranking"]:
                         self.assertIn(flat(combined.fmt(r["um2ns"])), text_of(lst))
-        # where the libraries disagree (measured 2026-11-09): on mul, plus-minus-two beats par on sky130 and not on ASAP7
-        sky, a7 = self.boards("mul")
-        _, par7 = self.a7_par("mul")
-        pm2 = {r["player"]: r for r in a7["ranking"]}["plus-minus-two"]
-        self.assertGreater(pm2["exact"], par7)
-        task = self.task("mul")
-        sky_par = lb.par_of(task, [r for r in self.records if r["task"] == "mul"], flow=pinned_flow(task),
+        # where the libraries disagree: on add, select-six beats par on sky130 and not on ASAP7 (on mul, plus-minus-two
+        # did against the tree par of before 2026-11-12, measured 2026-11-09; against the array par it beats par on both)
+        sky, a7 = self.boards("add")
+        _, par7 = self.a7_par("add")
+        s6 = {r["player"]: r for r in a7["ranking"]}["select-six"]
+        self.assertGreater(s6["exact"], par7)
+        task = self.task("add")
+        sky_par = lb.par_of(task, [r for r in self.records if r["task"] == "add"], flow=pinned_flow(task),
                             identity=lb.ppa_identity(), input_drive=lb.ppa_setup_now(task).get("input_drive"),
                             statement=lb.current_statement_or_none(task),
-                            names=lb.reference_names(lb.DEFAULT_TASKS, task))
-        self.assertLess({r["player"]: r for r in sky["ranking"]}["plus-minus-two"]["exact"], sky_par["exact"])
+                            names=lb.par_names(lb.DEFAULT_TASKS, task))
+        self.assertLess({r["player"]: r for r in sky["ranking"]}["select-six"]["exact"], sky_par["exact"])
 
     def test_par_record_and_under_par_in_both_views(self):
         for t in self.listed:
@@ -294,12 +292,16 @@ class PdkTest(unittest.TestCase):
                 # the sky130 view keeps the sky130 numbers
                 self.assertNotIn(flat(f"{combined.fmt(combined.um2ns(exact, 'asap7'))} µm²·ns {stem}"),
                                  text_of(section(self.view(f"tasks/{t}/index.html", "sky130"), "numbers")))
-        # add: the record of the ASAP7 view is par (select-six does not beat add_n there), unlike on sky130
+        # add: the two views name different records. On sky130 it is select-six; on ASAP7 select-six does not beat
+        # add_n, and the record is fernladder's Sklansky adder (an entry since 2026-11-12: 1% under par on ASAP7,
+        # 10% over it on sky130)
         h7 = text_of(section(self.view("tasks/add/index.html", "asap7"), "numbers"))
         h1 = text_of(section(self.view("tasks/add/index.html", "sky130"), "numbers"))
-        self.assertIn("0%", h7)
+        self.assertIn("fernladder", h7)
+        self.assertIn("1%", h7)
         self.assertNotIn("select-six", h7)
         self.assertIn("select-six", h1)
+        self.assertNotIn("fernladder", h1)
 
     def test_the_asap7_explorer_and_score_chart_draw_the_asap7_numbers(self):
         for t in self.listed:
@@ -406,15 +408,16 @@ class PdkTest(unittest.TestCase):
 
     def test_par_sits_in_its_place_on_each_board_and_the_lead_beats_par(self):
         """The leaderboard list puts par's row under the records that beat par and above the rest, in both views; the
-        first record is highlighted as the lead only when it beats par (on ASAP7's add board select-six does not:
-        the record there is par)."""
+        first record is highlighted as the lead only when it beats par (on ASAP7's add board select-six does not; since
+        2026-11-12 fernladder's Sklansky adder does, so it leads there and par is second, above the three entries that tie
+        par and select-six)."""
         for t in self.listed:
             sky, a7 = self.boards(t)
             task = self.task(t)
             sky_par = lb.par_of(task, [r for r in self.records if r["task"] == t], flow=pinned_flow(task),
                                 identity=lb.ppa_identity(), input_drive=lb.ppa_setup_now(task).get("input_drive"),
                                 statement=lb.current_statement_or_none(task),
-                                names=lb.reference_names(lb.DEFAULT_TASKS, task))
+                                names=lb.par_names(lb.DEFAULT_TASKS, task))
             pars = {"sky130": sky_par["exact"] if sky_par else None, "asap7": self.a7_par(t)[1]}
             for pdk, board in (("sky130", sky), ("asap7", a7)):
                 lst = section(self.view(f"tasks/{t}/index.html", pdk), "leaderboard")
@@ -433,10 +436,14 @@ class PdkTest(unittest.TestCase):
                     first = board["ranking"][0] if board["ranking"] else None
                     leads = [lead for _, lead in kinds if lead]
                     self.assertEqual(len(leads), 1 if first and first["exact"] < par_exact else 0)
-        rows = re.findall(r'<li(?: class="(lead|par)")?>', section(self.view("tasks/add/index.html", "asap7"),
-                                                                   "leaderboard"))
-        self.assertEqual(rows[0], "par")
-        self.assertNotIn("lead", rows)
+        lst = section(self.view("tasks/add/index.html", "asap7"), "leaderboard")
+        ol = lst.split('<ol class="board">', 1)[1].split("</ol>", 1)[0]
+        rows = re.findall(r'<li(?: class="(lead|par)")?>(.*?)</li>', ol, re.S)
+        self.assertEqual([k for k, _ in rows][:2], ["lead", "par"])
+        self.assertIn("fernladder", text_of(rows[0][1]))
+        # since 2026-11-13 cobblerill's three ripple-carry entries, which tie par, sit right under par (a tie does not
+        # beat par), then select-six
+        self.assertEqual([text_of(r[1]).split()[1] for r in rows[2:6]], ["cobblerill"] * 3 + ["select-six"])
 
     def test_a_reference_players_record_says_par_only_where_it_is_par(self):
         """A record of the reference player calls itself par in a view only when its reference is that view's par;
@@ -461,12 +468,13 @@ class PdkTest(unittest.TestCase):
                     if stem is not None and stem == par:
                         seen["par"] += 1
                         self.assertIn("It is par, the bar to beat", head)
-                        self.assertIn("reference: par, not an entry", head)
+                        self.assertIn("par, not an entry", head)
+                        self.assertNotIn("par's design: not an entry", head)
                     else:
                         seen["not"] += 1
                         self.assertIn("It is shown with par", head)
                         self.assertNotIn("It is par", head)
-                        self.assertIn("reference: not an entry", head)
+                        self.assertIn("par's design: not an entry", head)
         self.assertTrue(seen["par"] and seen["not"], seen)
 
     def test_the_home_selector_may_shrink_on_a_phone(self):

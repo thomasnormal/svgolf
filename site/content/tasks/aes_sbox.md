@@ -3,9 +3,8 @@ defines `S` the way the standard does, algebraically (the multiplicative inverse
 map), so a lookup table and a gate network are judged against the same mathematics.
 
 The task has one fixed size, bans no operator but the run-time `/ % **` every task bans, and its post-synthesis
-check covers all 256 inputs. The
-proved Boyar-Peralta 113-gate circuit has {{sbox_bp.area}} and a {{sbox_bp.time}} critical path on sky130
-({{sbox_bp.ge}}, depth {{sbox_bp.depth}}), {{sbox_bp.score}}: par. The proved 256-entry table is almost four
-times larger and nearly twice as fast, {{sbox_table.area}} at {{sbox_table.time}} ({{sbox_table.ge}}, depth
-{{sbox_table.depth}}). The S-box is the most golfed Boolean function in cryptography, so the
-published circuits are strong comparison points.
+check covers all 256 inputs. Par is the
+proved 256-entry lookup table: {{sbox_table.area}} and a {{sbox_table.time}} critical path on sky130
+({{sbox_table.ge}}, depth {{sbox_table.depth}}), {{sbox_table.score}}. The S-box is the most golfed Boolean
+function in cryptography, so the published gate circuits (Boyar and Peralta's of 113 gates among them) are strong
+comparison points.

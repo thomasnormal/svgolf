@@ -5,8 +5,9 @@
     python3.12 site/gen_schematics.py --check                                      # the committed files, no tools
 
 Run from svgolf/ (any directory works). For every design that gets a page on the site (each proved reference of a
-task with a display instance, which every listed task has, and each record in leaderboard/data/<task>/; a design
-file shared by several is done once) it writes
+task with a display instance, which every listed task has: par's design has a page of its own, and another reference
+is an entry whose page is its record's, the same file; and each record in leaderboard/data/<task>/; a design file
+shared by several is done once) it writes
 two files under site/schematics/<task>/, named by the first 16 hex digits of the design file's sha256:
 
   <key>.json   the scored point: score/ppa.py --path on the design at task.json's scoring point (the ranked area

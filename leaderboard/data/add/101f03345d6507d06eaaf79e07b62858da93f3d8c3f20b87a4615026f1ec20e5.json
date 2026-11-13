@@ -1,0 +1,227 @@
+{
+  "assisted_by": [
+    "Claude Sonnet 5.5",
+    "Claude Opus 5.5",
+    "Claude Fable 5.2"
+  ],
+  "canonical_sha256": "cf2d342cc0a53167c35a89c54dccec91e68edb7ba6880daee4850729b0339870",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "0d02004b32270261ca7f048a5f7937e6dcbac751193368e71119dd8d630c661d",
+      "check/Comparator.lean": "b7808bbe32f19297df5b04047c071861ef67bdf4384be38d65f6605aab2629ef",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "79a90f5a426e2b0370e5f6b5f6ada5193575b6e02785f4b7d6952c39238a1545",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "967b637c59121cb1ddb49fea3f4376f1670a06a5cc947ab04fb03a5a3115ee86",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "04452f98591eda86a4cea28d5c7cfd9c296247726d5460599f4fbc5c60aa371b",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "b6f917eae69e2e3191f9786d4a801ce4c88fdc94",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "tasks/add/Spec.lean": "08be62a5c0b228b14ffb23c4d02148d62972027480a4ebbc50a9de7e53a201cb"
+    },
+    "svgolf_revision": "b6f917eae69e2e3191f9786d4a801ce4c88fdc94",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "add_n_kogge_stone.lean",
+      "sha256": "a8dc3e638f8626c652d0f2f072100550f884ad8b18a0708dd7915c276894faf0"
+    },
+    "sv": {
+      "name": "add_n_kogge_stone.sv",
+      "sha256": "c69f27263a9122680a53e711956c20d415259ce22d0699e2d2257f0e946ed062"
+    }
+  },
+  "notes": "A Kogge-Stone parallel-prefix adder: every carry comes out of a log-depth prefix network over the bits' generate and propagate pairs; one design for every `N`, proved by hand.",
+  "player": "fernladder",
+  "postsynth": {
+    "full_vectors": 4132,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "N=16",
+    "salted": false,
+    "seed": "5ee5cc9d65d8f1b7c7ef56f41bd5936777ab3ec7b1ec2575a03d8099fafd785d",
+    "vectors": 4132
+  },
+  "ppa": {
+    "area_e4um2_sky130": 6418656,
+    "area_um2_sky130": 641.8656,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 30,
+      "nand2_1": 51,
+      "nand2b_1": 2,
+      "or2_1": 12,
+      "xnor2_1": 3,
+      "xor2_1": 17
+    },
+    "cells_sky130": 115,
+    "constants": false,
+    "critical": {
+      "cells": 24,
+      "edge": "r",
+      "output": "s[15]"
+    },
+    "delay_ps_sky130": 2064,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.144,
+      "worst_transition_ratio": 0.178
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
+      "area_e4um2_sky130_mapped_v1": 5680448,
+      "area_um2_sky130_mapped_v1": 568.0448,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 10,
+        "edge": "r",
+        "output": "s[15]"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "a21oi_1": 3,
+        "a221o_1": 1,
+        "a311o_1": 4,
+        "a311oi_1": 1,
+        "a31o_1": 1,
+        "a31oi_1": 7,
+        "and2_0": 1,
+        "and3_1": 1,
+        "inv_1": 1,
+        "maj3_1": 2,
+        "nand2_1": 17,
+        "nand2b_1": 6,
+        "nor2_1": 16,
+        "nor2b_1": 4,
+        "o211ai_1": 1,
+        "o21a_1": 1,
+        "o21ai_0": 2,
+        "o221ai_1": 1,
+        "o22ai_1": 1,
+        "or2_0": 2,
+        "xnor2_1": 13,
+        "xor2_1": 6
+      },
+      "mapped_cells_sky130_v1": 92,
+      "mapped_delay_sky130_v1": 2661,
+      "mapped_inverters_sky130_v1": 1,
+      "mapped_levels_sky130_v1": 10,
+      "netlist_sha256": "3fbc1b4c2920e065298809aedf87608770ef2b045759976c1c01d52c24ccb67e",
+      "ppa_mapped_pins_sha256": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v1",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+      "rtlil_sha256": "b5a02db613b0cb2c879374e9dccdf82e5a7e10240d786eb013b1e4c0a09d7628",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+    },
+    "netlist_sha256": "563f2789769f2c027f0e537ca324ca3c8f9c5950aaf8d63a13b13d0ef1972919",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 115,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "cfb6d49c09217ca3e41e09417e0d314ad66eee318fdc967c37908d09f5a50f16",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 24
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 3.79,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.Known2",
+      "LeanModels.Sv.Lib.Prefix"
+    ],
+    "lines": 1026,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": false
+  },
+  "record_hash": "101f03345d6507d06eaaf79e07b62858da93f3d8c3f20b87a4615026f1ec20e5",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 149.652,
+    "area_mge": 149652,
+    "depth": 24,
+    "gates": {
+      "AND": 30,
+      "NAND": 51,
+      "OR": 12,
+      "ORNOT": 2,
+      "XNOR": 3,
+      "XOR": 17
+    },
+    "num_gates": 115,
+    "rtlil_sha256": "b5a02db613b0cb2c879374e9dccdf82e5a7e10240d786eb013b1e4c0a09d7628",
+    "scoring_point": {
+      "N": 16
+    },
+    "top": "add_n"
+  },
+  "submitted_at": "2026-11-13",
+  "task": "add"
+}

@@ -257,8 +257,15 @@ class ChartTest(unittest.TestCase):
         self.assertEqual(svg.count('class="mark best"'), 2)        # a and b set a new best, c does not
         self.assertEqual(svg.count('<line class="par-line"'), 1)
         self.assertEqual(svg.count('<line class="level"'), 2)
-        for text in (">PAR<", ">dadda<", ">yosys<", "not proved", "banned op"):
+        for text in (">PAR<", ">dadda<", ">yosys<", "45.9 · baseline</text>", "56.5 · banned op</text>",
+                     "2 proved baselines are labelled on the right"):
             self.assertIn(text, svg)
+        self.assertNotIn("not proved", svg)              # every baseline is proved (decided 2026-11-12)
+        # the levels a task page draws are the baselines with a banned operator (decided 2026-11-12): the description
+        # says so when every level is one
+        banned = svgplot.score_chart(entries, par={"value": 52.3, "label": "par"}, levels=levels[1:], title="t",
+                                     unit="u", until="2026-11-04")
+        self.assertIn("1 proved baseline with a banned operator is labelled on the right", banned)
         compact = svgplot.score_chart(entries, par={"value": 52.3, "label": "par"}, levels=levels, title="t",
                                       unit="u", compact=True)
         self.assertNotIn(">dadda<", compact)                      # named under the chart instead
@@ -266,6 +273,46 @@ class ChartTest(unittest.TestCase):
         logs = svgplot.score_chart(entries, levels=levels, title="t", unit="u", log=True)
         self.assertIn("log scale", logs)
         self.assertEqual(svgplot.score_chart([dict(entries[0], date=None)], title="t", unit="u"), "")
+        self.assertNotIn("mark-count", svg)                       # no two entries share a point there
+
+    def test_score_chart_entries_at_one_point_are_counted_and_named(self):
+        """Decided 2026-11-13: entries the score chart draws at one point (a record that ties another of its day, or
+        two nearly equal scores of one day) hide one another, so the dot carries a count and every mark of it the one
+        tooltip that names them all with their scores; each link keeps its own entry's name. A dot alone, or entries
+        of other days at the same score (a tie with par drawn on its own date), carry no count."""
+        entries = [{"id": "par", "kind": "reference", "date": "2026-10-29", "value": 100.0, "score": 1000,
+                    "tip": ["add_n", "par's design"], "href": "p.html"},
+                   {"id": "r1", "kind": "record", "date": "2026-11-13", "value": 100.0, "score": 1000,
+                    "tip": ["ripple", "record"], "brief": "ripple · record r1", "href": "r1.html"},
+                   {"id": "r2", "kind": "record", "date": "2026-11-13", "value": 100.0, "score": 1000,
+                    "tip": ["ripple", "record"], "brief": "ripple · record r2", "href": "r2.html"},
+                   {"id": "r3", "kind": "record", "date": "2026-11-13", "value": 100.0, "score": 1000,
+                    "tip": ["ripple", "record"], "brief": "ripple · record r3", "href": "r3.html"},
+                   {"id": "f1", "kind": "record", "date": "2026-11-12", "value": 132.48, "score": 1324810,
+                    "tip": ["ladder", "record"], "brief": "ladder · record f1", "href": "f1.html"},
+                   {"id": "f2", "kind": "record", "date": "2026-11-12", "value": 132.79, "score": 1327880,
+                    "tip": ["ladder", "record"], "brief": "ladder · record f2", "href": "f2.html"},
+                   {"id": "lo", "kind": "record", "date": "2026-11-12", "value": 60.0, "score": 600,
+                    "tip": ["low", "record"], "href": "lo.html"}]
+        for compact in (False, True):
+            svg = svgplot.score_chart(entries, par={"value": 100.0, "label": "par"}, title="t", unit="u",
+                                      until="2026-11-14", compact=compact)
+            self.assertEqual(re.findall(r'class="mark-count"[^>]*>([^<]*)<', svg), ["×2", "×3"])
+            tip3 = "3 entries at this point\nripple · record r1 · 100\nripple · record r2 · 100\nripple · record r3 · 100"
+            self.assertEqual(svg.count(f'data-tip="{tip3}"'), 3)
+            self.assertEqual(svg.count('data-tip="2 entries at this point\nladder · record f1 · 132.5\n'
+                                       'ladder · record f2 · 132.8"'), 2)        # `value_fmt` (num) rounds
+            for h in ("r1", "r2", "r3", "f1", "f2"):
+                self.assertIn(f'<a href="{h}.html" aria-label="', svg)
+            self.assertIn('data-tip="low\nrecord"', svg)          # alone at its point: its own tip
+            self.assertIn('data-tip="add_n\npar&#x27;s design"', svg.replace("&#39;", "&#x27;"))
+            self.assertIn("A count beside a dot (×2) is how many entries are drawn there", svg)
+        apart = svgplot.stacked_entries(entries[:2], {"par": (10.0, 50.0), "r1": (40.0, 50.0)}, svgplot.STACK_PX)
+        self.assertEqual(apart, {})                               # the same score on two days: two dots
+        # one day, dots 4.9 px apart (mul's 52 729 and 53 635) are one stack; 7.7 px apart they stand apart
+        near = svgplot.stacked_entries(entries[4:7], {"f1": (90.0, 100.0), "f2": (90.0, 104.9), "lo": (90.0, 112.6)},
+                                       svgplot.STACK_PX)
+        self.assertEqual(sorted(near), ["f1", "f2"])
 
     def test_log_ticks_inside_one_decade(self):
         s = svgplot.Scale(1198, 1682, 0, 1, log=True)

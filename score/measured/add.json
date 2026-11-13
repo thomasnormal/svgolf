@@ -92,7 +92,7 @@
    "id": "reference/add_mux",
    "kind": "reference",
    "name": "add_mux",
-   "sha256": "38c18aa06073e785a3ff5d9fe715d9c00b90683a25a11495e28c989411149dbd",
+   "sha256": "824073f06b1ce4600e10ec7cbe8606ad3defda46d2d59a56ea153b37643f9d54",
    "src": "tasks/add/reference/add_mux.sv"
   },
   {
@@ -368,7 +368,7 @@
    "id": "reference/add_proc",
    "kind": "reference",
    "name": "add_proc",
-   "sha256": "a940dbcecfa882af983100946b2fa7a911eb0463cf67bb203ef4aca63d699132",
+   "sha256": "e7a066631b417e4a58179a26e8c1596b823a9e3ab7ffb1f416307b7a1789346e",
    "src": "tasks/add/reference/add_proc.sv"
   },
   {
@@ -462,7 +462,7 @@
    "id": "reference/add_proc_m",
    "kind": "reference",
    "name": "add_proc_m",
-   "sha256": "2c38a1b41f8793d4d0b8c54298e59cb0e234601e734f30e12fc9d626c177e3dc",
+   "sha256": "dfd98e1517ef5a0dd364dfcf108bf474615061c851ecca801ffc5f753a098ddb",
    "src": "tasks/add/reference/add_proc_m.sv"
   },
   {
@@ -571,8 +571,10 @@
    "family": "add_n_kogge_stone",
    "id": "baseline/add_n_kogge_stone",
    "kind": "baseline",
+   "lean": "tests/add/baselines/add_n_kogge_stone.lean",
    "name": "add_n_kogge_stone",
-   "sha256": "1d06e14e5558ad82e246454d8a8f9f51d6b44b9f7a0f18aa2d484010668f1d45",
+   "proved": true,
+   "sha256": "c69f27263a9122680a53e711956c20d415259ce22d0699e2d2257f0e946ed062",
    "src": "tests/add/baselines/add_n_kogge_stone.sv"
   },
   {
@@ -683,8 +685,10 @@
    "family": "add_n_sklansky",
    "id": "baseline/add_n_sklansky",
    "kind": "baseline",
+   "lean": "tests/add/baselines/add_n_sklansky.lean",
    "name": "add_n_sklansky",
-   "sha256": "7618b0e842a6fe886ef40f8aa69ff9f9d26437ac02eed8b1d36464be32ce7dd9",
+   "proved": true,
+   "sha256": "f274cc954edcb1179025cfac2df267c4458a4c24e60757d4cdfbff057aee96c9",
    "src": "tests/add/baselines/add_n_sklansky.sv"
   },
   {
@@ -798,8 +802,10 @@
    "family": "cmp_carry",
    "id": "baseline/cmp_carry",
    "kind": "baseline",
+   "lean": "tests/add/baselines/cmp_carry.lean",
    "name": "cmp_carry",
-   "sha256": "8b8d0d15b16b92b6a2c2f7e56a7af1c1dba3a8afe7f07fcb702c9c95460273c9",
+   "proved": true,
+   "sha256": "448122829cbce522a807e30951a68a5679c13c1fb98d285e088b8ea001a267b8",
    "src": "tests/add/baselines/cmp_carry.sv"
   },
   {
@@ -906,7 +912,9 @@
    "family": "plus",
    "id": "baseline/plus",
    "kind": "baseline",
+   "lean": "tests/add/baselines/plus.lean",
    "name": "plus",
+   "proved": true,
    "sha256": "7a912122989bbd16b2f67e0a78910c7bee554b4bf70d01e73ad8eab55754bf0d",
    "src": "tests/add/negative/plus.sv"
   }
@@ -962,7 +970,7 @@
    "x": 64
   }
  ],
- "records": true,
+ "records": false,
  "scale": {
   "label": "N",
   "param": "N"

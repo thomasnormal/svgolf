@@ -1,16 +1,12 @@
 {
- "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `banlist_note` replaces task.json's banlist comment; `references` and `baselines` describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_lead` (optional, Markdown): the opening of How to submit's last part, \"Proving a new design\", a fact of the route that the README's opening gives first (the page shows none of the README's opening: site/build.py `new_design_parts`); `new_design_checks` (optional, Markdown): replaces the README card's text on what its two commands do (shown under them, the first two of How to submit), where that text restates the task's facts (it must name the same options). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
+ "_comment": "Public texts of the task page and the scorecard (site/build.py). `title` and `subtitle` replace task.json's title; `banlist_note` replaces task.json's banlist comment; `references` (each proof of par's design, leaderboard/par.json) and `baselines` (each baseline with a banned operator) describe each design in one sentence (the internal notes of task.json and tests/expected.json are never shown). `new_design_lead` (optional, Markdown): the opening of How to submit's last part, \"Proving a new design\", a fact of the route that the README's opening gives first (the page shows none of the README's opening: site/build.py `new_design_parts`); `new_design_checks` (optional, Markdown): replaces the README card's text on what its two commands do (shown under them, the first two of How to submit), where that text restates the task's facts (it must name the same options). `new_design_reviewed`: the fingerprints (site/build.py `reviewed_hash`) of the README card's parts the page replaces with its own text, its opening and, with `new_design_checks`, its text on the commands, as last checked against the page; a README edit there warns (fatal under --strict) until the page is checked again.",
  "title": "AES S-box",
  "subtitle": "The byte substitution of AES (FIPS 197): 8 bits in, 8 bits out.",
  "banlist_note": "No task-specific ban: a lookup table, `+ - *` and everything else are legal and simply score what they score. Run-time `/ % **` are banned here as in every task: a zero divisor makes an unknown value from known inputs, which the proof and the synthesized circuit resolve differently.",
  "references": {
-  "sbox_bp": "The Boyar-Peralta 113-gate circuit, translated gate for gate from the authors' netlist.",
   "sbox_table": "The 256-entry table of FIPS 197 as one `case` statement."
  },
- "baselines": {
-  "sbox_table": "The 256-entry `case` table, the naive design, checked by simulation (now also proved: the reference `sbox_table`).",
-  "sbox_bp_d16": "The Boyar-Peralta depth-16 circuit of 125 gates, translated gate for gate, checked by simulation."
- },
+ "baselines": {},
  "new_design_lead": "A new flat netlist needs no proof engineering here: `sv_exhaustive` reads the design, compiles it into a gate program and decides `y = sbox x` on all 256 inputs by kernel evaluation.",
  "new_design_reviewed": {
   "opening": "8590e0b2b9b1"

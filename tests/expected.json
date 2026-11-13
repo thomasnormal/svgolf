@@ -1,7 +1,7 @@
 {
   "_comment": [
     "Golden expectations for tests/run.py: every score quoted in a README is here and is re-measured by tests/run.py (area_mge and depth exactly, and the gate mix).",
-    "Per task: `references` (tasks/<task>/reference/<stem>.sv; accepted by check.py with <stem>.lean, or for a draft task the `stage` check.py stops at with the draft's partial Lean file), `baselines` (tests/<task>/baselines/<stem>.sv unless `sv` says otherwise, relative to tests/<task>/; scored only, never accepted: `banned` says whether the task's banlist rejects it, the score is taken with the banlist lifted), `negatives` (tests/<task>/negative/<stem>.sv; rejected by check.py at `stage` when submitted with the task's first reference proof).",
+    "Per task: `references` (tasks/<task>/reference/<stem>.sv; accepted by check.py with <stem>.lean, or for a draft task the `stage` check.py stops at with the draft's partial Lean file), `baselines` (tests/<task>/baselines/<stem>.sv unless `sv` says otherwise, relative to tests/<task>/; PROVED comparison designs, never entries (decided 2026-11-12: every design the site shows has a kernel-checked proof): `lean` is its proof, relative to tests/<task>/, which tests/run.py's step `baseline-proofs` checks with check.py; `banned` says whether the task's banlist rejects it, and then the proof is checked and the score taken with the banlist lifted, `check.py --lift-banlist`), `negatives` (tests/<task>/negative/<stem>.sv; rejected by check.py at `stage` when submitted with the task's first reference proof).",
     "`scores` maps a parameter point (`N=16`, or `default` for a parameterless top) to the pinned flow's result there (score/score.py: score/svgolf.ys + score/ge.json, Yosys 0.53). Regenerate the scores with `python3.12 tests/run.py --update-scores` after a deliberate change of the flow. `flow` pins that combinational flow and `flow_seq` the clocked one (score/svgolf_seq.ys + score/ge_seq.json, the same Yosys and canon.ys): the boards compare a record with the pin of its task's kind (decided 2026-11-07).",
     "`attacks` (tests/<task>/attacks/<stem>.sv; through `check.py --unproved`, or with a reference proof when `lean` says so: `reference` the task's first, `reference/<stem>.lean` that one; rejected at `stage`): optional `message_contains` (a phrase the rejection must carry, or a list of phrases of which it must carry one, with the reason in `why`; WP-C3's `design` rejections name the unsupported construct), `postsynth_alone` (`rejects` | `passes`: the postsynth check alone with the source gate and the fourstate stage bypassed), `postsynth_mode` (`light` when absent; `full` for an attack that ONLY the full post-synthesis check rejects: the mode of the check.py run and of the `postsynth_alone` run, WP-C2), `postsynth_light` (the LIGHT mode's own verdict where it is documented, `rejects` | `passes`), `functional` and `tactics` (the advisory checks). `advisory` (true): a test of the checker's own behavior that the refusal register (docs/sv-refusals.json, tools/gen_sv_refusals.py) does not need to cite; WP-C2/WP-C3 set it on `func_call`, `assign_func` and `rare_mid` until the register has entries for them."
   ],
@@ -409,7 +409,7 @@
       "baselines": {
         "add_n_sklansky": {
           "banned": false,
-          "why": "Sklansky parallel prefix; simulation only (validate/validate.py, verilator.py, postsynth.py), no proof yet",
+          "why": "Sklansky parallel prefix; proved by hand for every N (baselines/add_n_sklansky.lean: the sv_comb tactics refuse a conditional generate inside an inner generate loop), and simulated (validate/validate.py, verilator.py, postsynth.py): a proved comparison design, not an entry",
           "scores": {
             "N=16": {
               "area_ge": 127.658,
@@ -458,11 +458,12 @@
                 "XOR": 54
               }
             }
-          }
+          },
+          "lean": "baselines/add_n_sklansky.lean"
         },
         "add_n_kogge_stone": {
           "banned": false,
-          "why": "Kogge-Stone parallel prefix; simulation only (validate/validate.py, verilator.py, postsynth.py), no proof yet",
+          "why": "Kogge-Stone parallel prefix; proved by hand for every N (baselines/add_n_kogge_stone.lean: the sv_comb tactics refuse a conditional generate inside an inner generate loop), and simulated (validate/validate.py, verilator.py, postsynth.py): a proved comparison design, not an entry",
           "scores": {
             "N=16": {
               "area_ge": 149.652,
@@ -510,11 +511,12 @@
                 "XOR": 56
               }
             }
-          }
+          },
+          "lean": "baselines/add_n_kogge_stone.lean"
         },
         "cmp_carry": {
           "banned": true,
-          "why": "every carry a run-time comparison, which alumacc builds as Yosys's own adder ($alu): banned run-time ordering comparisons in a task that bans + and - (decided 2026-11-05; scored with the banlist lifted); simulation only (validate/validate.py, postsynth.py)",
+          "why": "every carry a run-time comparison, which alumacc builds as Yosys's own adder ($alu): banned run-time ordering comparisons in a task that bans + and - (decided 2026-11-05); proved with the banlist lifted (check.py --lift-banlist; baselines/cmp_carry.lean, by the sv_comb tactics), which still rejects it: a proved comparison design, never an entry; also simulated (validate/validate.py, postsynth.py)",
           "scores": {
             "N=16": {
               "area_ge": 195.975,
@@ -565,12 +567,13 @@
                 "XOR": 35
               }
             }
-          }
+          },
+          "lean": "baselines/cmp_carry.lean"
         },
         "plus": {
           "sv": "negative/plus.sv",
           "banned": true,
-          "why": "Yosys's own `assign {cout, s} = a + b + cin;` (banned run-time +; scored with the banlist lifted): the baseline to beat",
+          "why": "Yosys's own `assign {cout, s} = a + b + cin;` (banned run-time +): the baseline to beat; proved with the banlist lifted (check.py --lift-banlist; baselines/plus.lean, by hand), which still rejects it: a proved comparison design, never an entry",
           "scores": {
             "N=16": {
               "area_ge": 117.994,
@@ -617,7 +620,8 @@
                 "XOR": 68
               }
             }
-          }
+          },
+          "lean": "baselines/plus.lean"
         }
       },
       "negatives": {
@@ -702,7 +706,7 @@
         "add_proc_case": {
           "stage": "solution",
           "lean": "negative/add_proc_case.lean",
-          "why": "a CORRECT ripple adder whose carry cell is an always_comb `case` with an arm in `begin … end`: every design check passes, but such an arm is outside the fragment of the sv_comb tactics (a plain `case` with single-assignment arms and a `default` is inside since WP-G S3a), so sv_structure in the proof file (the add_proc reference proof) logs its refusal and admits the goal. check.py must reject it at the solution stage: an error from the new tactic elaborators plus an admitted goal can never be accepted (the compile error, and sorryAx in the axiom check)",
+          "why": "a CORRECT ripple adder whose carry cell is an always_comb `case` with an arm in `begin \u2026 end`: every design check passes, but such an arm is outside the fragment of the sv_comb tactics (a plain `case` with single-assignment arms and a `default` is inside since WP-G S3a), so sv_structure in the proof file (the add_proc reference proof) logs its refusal and admits the goal. check.py must reject it at the solution stage: an error from the new tactic elaborators plus an admitted goal can never be accepted (the compile error, and sorryAx in the axiom check)",
           "message_contains": "`case` arm is not a single assignment"
         }
       },
@@ -850,7 +854,7 @@
         "tactics_proc_case": {
           "sv": "negative/add_proc_case.sv",
           "stage": "unproved",
-          "why": "ADVISORY CHECK (--tactics) on an always_comb body with a `case` whose arm is in `begin … end` (outside the fragment: a plain `case` with single-assignment arms and a `default` is inside since WP-G S3a): the answer is the second elaborator's refusal naming the construct, not the plain tactic's 'procedural process'",
+          "why": "ADVISORY CHECK (--tactics) on an always_comb body with a `case` whose arm is in `begin \u2026 end` (outside the fragment: a plain `case` with single-assignment arms and a `default` is inside since WP-G S3a): the answer is the second elaborator's refusal naming the construct, not the plain tactic's 'procedural process'",
           "args": [
             "--tactics",
             "--no-score"
@@ -1080,7 +1084,7 @@
       "baselines": {
         "yosys_mul": {
           "banned": true,
-          "why": "Yosys's own `assign p = a * b;` (banned run-time *; scored with the banlist lifted): the baseline to beat",
+          "why": "Yosys's own `assign p = a * b;` (banned run-time *): the baseline to beat; proved with the banlist lifted (check.py --lift-banlist; baselines/yosys_mul.lean, by the sv_comb tactics), which still rejects it: a proved comparison design, never an entry",
           "scores": {
             "N=8": {
               "area_ge": 468.637,
@@ -1133,15 +1137,26 @@
                 "XOR": 1968
               }
             }
-          }
+          },
+          "lean": "baselines/yosys_mul.lean"
         },
-        "dadda_rc_8": {
+        "dadda_rc": {
           "banned": false,
-          "banlist_points": [
-            "N=8"
-          ],
-          "why": "Dadda tree + ripple final adder, generated for N = 8 only (gen_dadda.py 8)",
+          "why": "Dadda tree (column compression with full and half adders down to two rows) + ripple-carry final adder: ONE parametric design for every N (generate loops over closed forms of N, the stage and the column), proved for every N in range by hand (baselines/dadda_rc.lean, no tactic); at N = 8 and 16 it has the cells of tests/mul/unproved/gen_dadda.py's one-width netlist (equal AND/OR/XOR counts before ABC) and its score: a proved comparison design, never an entry",
           "scores": {
+            "N=4": {
+              "area_ge": 87.661,
+              "area_mge": 87661,
+              "depth": 13,
+              "num_gates": 63,
+              "gates": {
+                "AND": 16,
+                "ANDNOT": 1,
+                "NAND": 27,
+                "XNOR": 3,
+                "XOR": 16
+              }
+            },
             "N=8": {
               "area_ge": 445.978,
               "area_mge": 445978,
@@ -1157,16 +1172,7 @@
                 "XNOR": 12,
                 "XOR": 90
               }
-            }
-          }
-        },
-        "dadda_rc_16": {
-          "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "Dadda tree + ripple final adder, generated for N = 16 only (gen_dadda.py 16)",
-          "scores": {
+            },
             "N=16": {
               "area_ge": 1953.585,
               "area_mge": 1953585,
@@ -1182,16 +1188,7 @@
                 "XNOR": 50,
                 "XOR": 410
               }
-            }
-          }
-        },
-        "dadda_rc_32": {
-          "banned": false,
-          "banlist_points": [
-            "N=32"
-          ],
-          "why": "Dadda tree + ripple final adder, generated for N = 32 only (gen_dadda.py 32)",
-          "scores": {
+            },
             "N=32": {
               "area_ge": 8153.02,
               "area_mge": 8153020,
@@ -1209,71 +1206,7 @@
               }
             }
           },
-          "postsynth_points": [],
-          "postsynth_why": "too slow for ls-sv: on this flat 32-bit Dadda tree `run2` takes seconds per vector (both schedules), so even the 258 fixed corners at N = 32 overran the mul task's 900 s fail-closed cap (measured 2026-10-28: 458 vectors not done in 900 s). Its 8- and 16-bit siblings pass the check; N = 32 is not the scoring point."
-        },
-        "dadda_ks_8": {
-          "banned": false,
-          "banlist_points": [
-            "N=8"
-          ],
-          "why": "Dadda tree + Kogge-Stone final adder, generated for N = 8 only (gen_dadda.py 8 --final ks)",
-          "scores": {
-            "N=8": {
-              "area_ge": 484.29,
-              "area_mge": 484290,
-              "depth": 24,
-              "num_gates": 345,
-              "gates": {
-                "AND": 99,
-                "ANDNOT": 7,
-                "MUX": 2,
-                "NAND": 113,
-                "NOR": 4,
-                "NOT": 2,
-                "OR": 10,
-                "ORNOT": 14,
-                "XNOR": 30,
-                "XOR": 64
-              }
-            }
-          }
-        },
-        "dadda_ks_16": {
-          "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "Dadda tree + Kogge-Stone final adder, generated for N = 16 only (gen_dadda.py 16 --final ks)",
-          "scores": {
-            "N=16": {
-              "area_ge": 2076.51,
-              "area_mge": 2076510,
-              "depth": 48,
-              "num_gates": 1483,
-              "gates": {
-                "AND": 370,
-                "ANDNOT": 24,
-                "MUX": 3,
-                "NAND": 551,
-                "NOR": 22,
-                "NOT": 3,
-                "OR": 29,
-                "ORNOT": 47,
-                "XNOR": 124,
-                "XOR": 310
-              }
-            }
-          }
-        },
-        "dadda_ks_32": {
-          "banned": false,
-          "banlist_points": [
-            "N=32"
-          ],
-          "why": "Dadda tree + Kogge-Stone final adder, generated for N = 32 only (gen_dadda.py 32 --final ks); NOT scored: the pinned flow exceeded score.py's 1800 s Yosys limit (ABC alone over 25 minutes)",
-          "postsynth_points": [],
-          "postsynth_why": "not scored (the pinned flow exceeds 1800 s), and slower than dadda_rc_32 for ls-sv"
+          "lean": "baselines/dadda_rc.lean"
         }
       },
       "negatives": {
@@ -1358,7 +1291,7 @@
           }
         },
         "sbox_table": {
-          "why": "the 256-entry plain `case` table of FIPS 197 Table 4 with a `default`, in one always_comb (WP-G S3a); PROVED (reference/sbox_table.lean): `by sv_exhaustive`, the design read through its lowering, the `case` compiled once into a word-level table lookup, the 256 inputs by kernel evaluation; the same design (and so the same netlist and score) as the baseline tests/aes_sbox/baselines/sbox_table.sv",
+          "why": "the 256-entry plain `case` table of FIPS 197 Table 4 with a `default`, in one always_comb (WP-G S3a); PROVED (reference/sbox_table.lean): `by sv_exhaustive`, the design read through its lowering, the `case` compiled once into a word-level table lookup, the 256 inputs by kernel evaluation",
           "scores": {
             "default": {
               "area_ge": 786.894,
@@ -1382,33 +1315,9 @@
         }
       },
       "baselines": {
-        "sbox_table": {
-          "banned": false,
-          "why": "the 256-entry case table (FIPS 197 Table 4): the naive design; no operator is banned for this task, so the banlist passes; simulation only (validate.py: Verilator on all 256 inputs); the exhaustive post-synthesis check passes it",
-          "scores": {
-            "default": {
-              "area_ge": 786.894,
-              "area_mge": 786894,
-              "depth": 11,
-              "num_gates": 612,
-              "gates": {
-                "AND": 129,
-                "ANDNOT": 21,
-                "MUX": 63,
-                "NAND": 264,
-                "NOR": 18,
-                "NOT": 3,
-                "OR": 70,
-                "ORNOT": 38,
-                "XNOR": 5,
-                "XOR": 1
-              }
-            }
-          }
-        },
         "sbox_bp_d16": {
           "banned": false,
-          "why": "the Boyar-Peralta depth-16 circuit (125 gates, depth 16 in the authors' file), translated gate for gate; a second Pareto point (+7.6% area, 3 levels shallower than the 113-gate circuit in this flow); simulation only",
+          "why": "the Boyar-Peralta depth-16 circuit (125 gates, depth 16 in the authors' file), translated gate for gate; a second Pareto point (+7.6% area, 3 levels shallower than the 113-gate circuit in this flow); proved on the 113-gate reference's route (baselines/sbox_bp_d16.lean, generated by validate/gen_d16_proof.py): a proved comparison design, not an entry",
           "scores": {
             "default": {
               "area_ge": 216.322,
@@ -1428,7 +1337,8 @@
                 "XOR": 15
               }
             }
-          }
+          },
+          "lean": "baselines/sbox_bp_d16.lean"
         }
       },
       "negatives": {
@@ -1500,9 +1410,9 @@
           "advisory": true
         },
         "table_unproved": {
-          "sv": "baselines/sbox_table.sv",
+          "sv": "../../tasks/aes_sbox/reference/sbox_table.sv",
           "stage": "unproved",
-          "why": "ADVISORY CHECK (--tactics) on the case-table baseline: it loads in ls-sv with no unsupported node, so check.py --unproved reaches the end (the design stage included) and the oracle agrees on all 256 vectors; since WP-G S3a the sv_comb tactics READ it (a plain `case` with constant items and a `default` is in the always_comb fragment; the proved reference is tasks/aes_sbox/reference/sbox_table.*), so the row is in_fragment true and `lowered`: it is the regression for that",
+          "why": "ADVISORY CHECK (--tactics) on the proved case-table reference (tasks/aes_sbox/reference/sbox_table.*; until 2026-11-12 also a baseline under a second path, the same tokens): it loads in ls-sv with no unsupported node, so check.py --unproved reaches the end (the design stage included) and the oracle agrees on all 256 vectors; since WP-G S3a the sv_comb tactics READ it (a plain `case` with constant items and a `default` is in the always_comb fragment), so the row is in_fragment true and `lowered`: it is the regression for that",
           "args": [
             "--tactics"
           ],
@@ -1585,13 +1495,22 @@
         }
       },
       "baselines": {
-        "school_tree_8": {
+        "clmul_tree": {
           "banned": false,
-          "banlist_points": [
-            "N=8"
-          ],
-          "why": "schoolbook: all N^2 partial products, a balanced XOR tree per output column, generated for N = 8 only (gen_clmul.py); simulation only (sim.py --width 8); a flat netlist, scored in the generator's emission order",
+          "lean": "baselines/clmul_tree.lean",
+          "why": "schoolbook: all N^2 partial products and a XOR tree per output column, written once for every N as a tape per column (the parametric form of the one-width generated school_tree_<N> files, tests/clmul/unproved/: the same XOR trees at N = 1, 2, 4, 8, 16, 32); proved with the sv_comb tactics (baselines/clmul_tree.lean): a proved comparison design, not an entry",
           "scores": {
+            "N=4": {
+              "area_ge": 38.329,
+              "area_mge": 38329,
+              "depth": 3,
+              "num_gates": 25,
+              "gates": {
+                "AND": 13,
+                "NAND": 3,
+                "XNOR": 9
+              }
+            },
             "N=8": {
               "area_ge": 179.649,
               "area_mge": 179649,
@@ -1602,189 +1521,143 @@
                 "NAND": 11,
                 "XNOR": 49
               }
-            }
-          }
-        },
-        "school_tree_16": {
-          "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "schoolbook: all N^2 partial products, a balanced XOR tree per output column, generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
-          "scores": {
+            },
             "N=16": {
-              "area_ge": 770.935,
-              "area_mge": 770935,
+              "area_ge": 772.267,
+              "area_mge": 772267,
               "depth": 5,
               "num_gates": 481,
               "gates": {
-                "AND": 195,
-                "NAND": 61,
+                "AND": 199,
+                "NAND": 57,
                 "XNOR": 225
               }
-            }
-          }
-        },
-        "school_tree_32": {
-          "banned": false,
-          "banlist_points": [
-            "N=32"
-          ],
-          "why": "schoolbook: all N^2 partial products, a balanced XOR tree per output column, generated for N = 32 only (gen_clmul.py); simulation only (sim.py --width 32); a flat netlist, scored in the generator's emission order",
-          "scores": {
+            },
             "N=32": {
-              "area_ge": 3219.393,
-              "area_mge": 3219393,
+              "area_ge": 3222.057,
+              "area_mge": 3222057,
               "depth": 6,
               "num_gates": 1985,
               "gates": {
-                "AND": 821,
-                "NAND": 203,
+                "AND": 829,
+                "NAND": 195,
                 "XNOR": 961
               }
             }
-          },
-          "postsynth_points": [],
-          "postsynth_why": "too slow for ls-sv: on this flat 32-bit netlist (about 1200 to 2000 assigns) `run2` takes 0.25 to 0.4 s per vector (both schedules), so even the 278 fixed corners took 67 s (kara_b4_32) and 109 s (school_tree_32) of ls-sv time and the whole check 177 s and 359 s on a loaded machine (measured 2026-11-01, 20 random vectors). Its 8- and 16-bit siblings pass the check; N = 32 is not the scoring point."
+          }
         },
-        "kara_b4_8": {
+        "kara_lv": {
           "banned": false,
-          "banlist_points": [
-            "N=8"
-          ],
-          "why": "Karatsuba recursion with a schoolbook base of 4 bits, generated for N = 8 only (gen_clmul.py); simulation only (sim.py --width 8); a flat netlist, scored in the generator's emission order",
+          "lean": "baselines/kara_lv.lean",
+          "why": "Karatsuba recursion to a 4-bit schoolbook base, written level by level for every N (operands padded to 4 * 2^L; the parametric form of the one-width generated kara_b4_<N> files, tests/clmul/unproved/: the same expression trees at N <= 4 and N = 8, 16, 32); proved by hand (baselines/kara_lv.lean: the tactics refuse `**` in a localparam): a proved comparison design, not an entry",
           "scores": {
+            "N=4": {
+              "area_ge": 38.329,
+              "area_mge": 38329,
+              "depth": 3,
+              "num_gates": 25,
+              "gates": {
+                "AND": 13,
+                "NAND": 3,
+                "XNOR": 9
+              }
+            },
             "N=8": {
-              "area_ge": 166.986,
-              "area_mge": 166986,
-              "depth": 5,
+              "area_ge": 166.32,
+              "area_mge": 166320,
+              "depth": 6,
               "num_gates": 101,
               "gates": {
-                "AND": 42,
-                "NAND": 7,
+                "AND": 40,
+                "NAND": 9,
                 "XNOR": 43,
                 "XOR": 9
               }
-            }
-          }
-        },
-        "kara_b4_16": {
-          "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "Karatsuba recursion with a schoolbook base of 4 bits (the study's best area/depth point), generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
-          "scores": {
+            },
             "N=16": {
-              "area_ge": 621.959,
-              "area_mge": 621959,
+              "area_ge": 616.626,
+              "area_mge": 616626,
               "depth": 8,
-              "num_gates": 371,
+              "num_gates": 368,
               "gates": {
-                "AND": 120,
+                "AND": 119,
                 "ANDNOT": 4,
                 "NAND": 34,
                 "NOT": 2,
-                "OR": 1,
-                "XNOR": 162,
+                "ORNOT": 1,
+                "XNOR": 160,
                 "XOR": 48
               }
-            }
-          }
-        },
-        "kara_b4_32": {
-          "banned": false,
-          "banlist_points": [
-            "N=32"
-          ],
-          "why": "Karatsuba recursion with a schoolbook base of 4 bits, generated for N = 32 only (gen_clmul.py); simulation only (sim.py --width 32); a flat netlist, scored in the generator's emission order",
-          "scores": {
+            },
             "N=32": {
-              "area_ge": 2068.877,
-              "area_mge": 2068877,
-              "depth": 11,
-              "num_gates": 1203,
+              "area_ge": 2056.88,
+              "area_mge": 2056880,
+              "depth": 10,
+              "num_gates": 1197,
               "gates": {
-                "AND": 363,
+                "AND": 353,
                 "ANDNOT": 4,
-                "NAND": 87,
-                "NOT": 2,
+                "NAND": 95,
+                "NOT": 1,
                 "OR": 2,
                 "ORNOT": 2,
-                "XNOR": 561,
-                "XOR": 182
-              }
-            }
-          },
-          "postsynth_points": [],
-          "postsynth_why": "too slow for ls-sv: on this flat 32-bit netlist (about 1200 to 2000 assigns) `run2` takes 0.25 to 0.4 s per vector (both schedules), so even the 278 fixed corners took 67 s (kara_b4_32) and 109 s (school_tree_32) of ls-sv time and the whole check 177 s and 359 s on a loaded machine (measured 2026-11-01, 20 random vectors). Its 8- and 16-bit siblings pass the check; N = 32 is not the scoring point."
-        },
-        "kara_b2_16": {
-          "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "Karatsuba recursion with a schoolbook base of 2 bits, generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
-          "scores": {
-            "N=16": {
-              "area_ge": 672.635,
-              "area_mge": 672635,
-              "depth": 10,
-              "num_gates": 390,
-              "gates": {
-                "AND": 84,
-                "ANDNOT": 8,
-                "NAND": 41,
-                "NOR": 1,
-                "NOT": 1,
-                "OR": 1,
-                "ORNOT": 3,
-                "XNOR": 159,
-                "XOR": 92
+                "XNOR": 551,
+                "XOR": 189
               }
             }
           }
         },
-        "kara_b8_16": {
+        "clmul_k1": {
           "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "Karatsuba recursion with a schoolbook base of 8 bits, generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
+          "lean": "baselines/clmul_k1.lean",
+          "why": "one level of Karatsuba for every N (H = (N + 1) / 2, three H x H schoolbook arrays and a combination layer; the same file as design/tasks-week2/clmul/karatsuba/clmul_k1u.sv); proved with the sv_comb tactics (baselines/clmul_k1.lean): a proved comparison design, not an entry",
           "scores": {
-            "N=16": {
-              "area_ge": 643.283,
-              "area_mge": 643283,
-              "depth": 7,
-              "num_gates": 393,
+            "N=4": {
+              "area_ge": 43.663,
+              "area_mge": 43663,
+              "depth": 4,
+              "num_gates": 27,
               "gates": {
-                "AND": 151,
-                "NAND": 42,
-                "XNOR": 181,
+                "AND": 11,
+                "NAND": 3,
+                "XNOR": 9,
+                "XOR": 4
+              }
+            },
+            "N=8": {
+              "area_ge": 167.32,
+              "area_mge": 167320,
+              "depth": 6,
+              "num_gates": 102,
+              "gates": {
+                "AND": 40,
+                "NAND": 10,
+                "XNOR": 44,
+                "XOR": 8
+              }
+            },
+            "N=16": {
+              "area_ge": 651.95,
+              "area_mge": 651950,
+              "depth": 7,
+              "num_gates": 398,
+              "gates": {
+                "AND": 150,
+                "NAND": 44,
+                "XNOR": 185,
                 "XOR": 19
               }
-            }
-          }
-        },
-        "kara_full_16": {
-          "banned": false,
-          "banlist_points": [
-            "N=16"
-          ],
-          "why": "Karatsuba recursion all the way down (base 1), generated for N = 16 only (gen_clmul.py); simulation only (sim.py --width 16); a flat netlist, scored in the generator's emission order",
-          "scores": {
-            "N=16": {
-              "area_ge": 677.638,
-              "area_mge": 677638,
-              "depth": 9,
-              "num_gates": 389,
+            },
+            "N=32": {
+              "area_ge": 2556.137,
+              "area_mge": 2556137,
+              "depth": 8,
+              "num_gates": 1565,
               "gates": {
-                "AND": 81,
-                "ANDNOT": 6,
-                "NAND": 41,
-                "NOT": 1,
-                "XNOR": 167,
-                "XOR": 93
+                "AND": 589,
+                "NAND": 181,
+                "XNOR": 754,
+                "XOR": 41
               }
             }
           }
@@ -1913,7 +1786,10 @@
           "stage": "design",
           "why": "STYLE (tests/clmul/attacks/README.md, tasks/clmul/README.md 'How people write clmul'): a column temporary declared inside a generate block (`logic [N-1:0] t;`) plus a conditional generate: ls-sv refuses the generate-local declaration. TWO PHRASES (2026-11-06): on lean-surfaces master the design loads and the unsupported-construct check names it ('GenerateDecl:Var: generate-local declaration 't''); on the ls-sv of svgolf-prep (measured 2026-11-06) the loader refuses it first, at the defaults, with `PDesign.int32Agrees` ('an INT-class constant expression leaves the 32-bit range'), although no constant of this design is near 2^31 at N = 16: the same ls-sv refusal as tests/{add,clmul,mul}/negative/only_n16.sv, which master fixes. Drop the second phrase at the master merge",
           "advisory": true,
-          "message_contains": ["generate-local declaration", "`PDesign.int32Agrees`"]
+          "message_contains": [
+            "generate-local declaration",
+            "`PDesign.int32Agrees`"
+          ]
         },
         "inst_karatsuba_1level": {
           "stage": "fourstate",
@@ -2233,53 +2109,9 @@
         }
       },
       "baselines": {
-        "fdivp_d1": {
-          "banned": false,
-          "why": "D1, the natural parametric form (gate 0 of WP-H3): $clog2, 2**, replication, sized localparams, a LOGARITHMIC normalizer and shifter; the constant arithmetic is allowed by the banlist; validated by Verilator (all 66 formats with W + P <= 14, both 2^32-pair formats, 14 larger formats), never proved: six of its constructs are outside the sv_comb fragment and ls-sv does not run it",
-          "scores": {
-            "W=5,P=11": {
-              "area_ge": 1911.446,
-              "area_mge": 1911446,
-              "depth": 300,
-              "num_gates": 1290,
-              "gates": {
-                "AND": 199,
-                "ANDNOT": 72,
-                "MUX": 199,
-                "NAND": 340,
-                "NOR": 30,
-                "NOT": 28,
-                "OR": 70,
-                "ORNOT": 150,
-                "XNOR": 106,
-                "XOR": 96
-              }
-            },
-            "W=8,P=24": {
-              "area_ge": 7450.536,
-              "area_mge": 7450536,
-              "depth": 1256,
-              "num_gates": 4905,
-              "gates": {
-                "AND": 748,
-                "ANDNOT": 168,
-                "MUX": 846,
-                "NAND": 1252,
-                "NOR": 54,
-                "NOT": 152,
-                "OR": 399,
-                "ORNOT": 383,
-                "XNOR": 493,
-                "XOR": 410
-              }
-            }
-          },
-          "postsynth_points": [],
-          "postsynth_why": "ls-sv cannot run D1: it loads with an unsupported node (the constant-expression conversions of its sized localparams), so svgolf-eval and the post-synthesis check do not apply (check.py's design stage would reject it); it is scored, banlist-checked and 4-state-checked, and simulated by Verilator"
-        },
         "fdivp_d2": {
           "banned": false,
-          "why": "D2, the fragment-friendly parametric form (gate 0 of WP-H3): every construct the sv_comb tactics refuse replaced by an affine one, a LINEAR normalizer and denormalizer, about 90 plain sites; validated by Verilator as D1; its sv_structure/sv_equations cost grows as n^2 in the sites (without WP-LIN), which is why the reference folds it into 34 sites",
+          "why": "D2, the fragment-friendly parametric form (gate 0 of WP-H3): every construct the sv_comb tactics refuse replaced by an affine one, a LINEAR normalizer and denormalizer, about 90 plain sites; validated by Verilator; proved with the sv_comb tactics on all 90 sites and the reference's math layer (baselines/fdivp_d2.lean; its sv_structure/sv_equations cost grows as n^2 in the sites, so its solution stage takes 164.8 CPU s of the task's 300, measured 2026-11-12, which is why the reference folds it into 34 sites): a proved comparison design, not an entry",
           "scores": {
             "W=5,P=11": {
               "area_ge": 2314.058,
@@ -2320,37 +2152,8 @@
           },
           "postsynth_points": [
             "W=5,P=11"
-          ]
-        },
-        "flat_binary16": {
-          "banned": false,
-          "banlist_points": [
-            "W=5,P=11"
           ],
-          "why": "the flat binary16 reference of the former 16-bit task (removed 2026-11-03: binary16 is this task's instance (5, 11); 111 sites) under the parametric header: right at (5, 11) ONLY (every width inside is a literal 16-bit one), so it is scored and simulated at the scoring point and has no proof for the parametric statement; its score differs from that reference's 1929.778 (in the former task) because the header declares W, P and the W+P-bit ports",
-          "scores": {
-            "W=5,P=11": {
-              "area_ge": 1944.775,
-              "area_mge": 1944775,
-              "depth": 303,
-              "num_gates": 1303,
-              "gates": {
-                "AND": 207,
-                "ANDNOT": 67,
-                "MUX": 208,
-                "NAND": 336,
-                "NOR": 29,
-                "NOT": 27,
-                "OR": 94,
-                "ORNOT": 126,
-                "XNOR": 106,
-                "XOR": 103
-              }
-            }
-          },
-          "postsynth_points": [
-            "W=5,P=11"
-          ]
+          "lean": "baselines/fdivp_d2.lean"
         }
       },
       "negatives": {
@@ -2667,7 +2470,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "N W AccW : Int\n⊢ False",
+          "message_contains": "N W AccW : Int\n\u22a2 False",
           "why": "the W x W product is sign-extended only to 2W bits (`p`, a 2W-bit net) and added to the AccW-bit accumulator zero-extended. Wrong when AccW > 2W and a product is negative (oracle.py `_faults`), right when AccW <= 2W: check.py --unproved --latency 4 passes it at (2,4,8) (AccW = 2W, 0 failures) and rejects it at postsynth at (4,8,32), 171 failures; the first: C[0][0] = 197120, want -65024 (min*max). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes), first in mm_decls (the extra net p: unsolved goal False), then pe_inst and mm_gens_src."
         },
         "done_early": {
@@ -2685,7 +2488,7 @@
           "args": [
             "--no-score"
           ],
-          "message_contains": "hle1 : ¬AccW + W ≤ AccW\n⊢ False",
+          "message_contains": "hle1 : \u00acAccW + W \u2264 AccW\n\u22a2 False",
           "why": "the accumulators are cleared by the reset, not by start: the first transaction after a reset is right, every later one adds onto the previous result. Wrong for every N, W, AccW. WRONG, independently of the proof: check.py --unproved --latency 4 (the clocked score) rejects it at postsynth, 150 failures at (2,4,8); the first: C[0][0] = -14, want -112 (checker, the second transaction). the reference's proof (reference/matmul_g1.lean) fails at the solution stage (check.py with the reference proof, --no-score; every earlier stage passes) in pe_inst: the instantiated PE process is not the reference's (unsolved goal False)."
         },
         "acc_2w": {
@@ -2958,7 +2761,7 @@
     }
   },
   "canonical_layout": {
-    "_comment": "The `canon` step of tests/run.py: each design below, re-laid-out and renamed (tests/canon/variants.py), must have a byte-identical canonical RTLIL and its score; reordered, its score; `commute` (the operands of every commutative operator swapped: a different expression tree for the same function) is the RECORDED score, a residual the canonical flow does not normalize (README.md, \"Scoring\"). Not in the list: the divider designs. The proved reference of the former 16-bit task (one flat netlist of 111 continuous assigns, now the baseline tests/fdivp/baselines/flat_binary16.sv): reordering its items changes its score (reverse 1920.446 GE / depth 304, shuffles 1938 to 1957 GE / depth 298 to 300, against 1929.778 / 299 as written; layout and renaming variants are byte-identical), so the canonical flow does not make the score of a flat netlist independent of the order of its assigns (WP-H2 finding, reported). The same holds for the fdivp designs at (5, 11) (2026-11-03, when the former 16-bit task and with it its first circuit, a draft baseline, which covered a divider here, were removed): every layout and renaming variant and `hoist` byte-identical, the reorderings not: reference/fdivp.sv 2166.076 / 289 as written, reverse 2173.402 / 287, shuffles 2159.083 to 2221.062 / 292 to 297 (one shuffle equal); baselines fdivp_d1.sv 1911.446 / 300, reorderings 1895.463 to 1956.444 / 285 to 301; fdivp_d2.sv 2314.058 / 295, every reordering 2326.389 / 297.",
+    "_comment": "The `canon` step of tests/run.py: each design below, re-laid-out and renamed (tests/canon/variants.py), must have a byte-identical canonical RTLIL and its score; reordered, its score; `commute` (the operands of every commutative operator swapped: a different expression tree for the same function) is the RECORDED score, a residual the canonical flow does not normalize (README.md, \"Scoring\"). Not in the list: the divider designs. The proved reference of the former 16-bit task (one flat netlist of 111 continuous assigns, now kept as test material, tests/fdivp/unproved/flat_binary16.sv): reordering its items changes its score (reverse 1920.446 GE / depth 304, shuffles 1938 to 1957 GE / depth 298 to 300, against 1929.778 / 299 as written; layout and renaming variants are byte-identical), so the canonical flow does not make the score of a flat netlist independent of the order of its assigns (WP-H2 finding, reported). The same holds for the fdivp designs at (5, 11) (2026-11-03, when the former 16-bit task and with it its first circuit, a draft baseline, which covered a divider here, were removed): every layout and renaming variant and `hoist` byte-identical, the reorderings not: reference/fdivp.sv 2166.076 / 289 as written, reverse 2173.402 / 287, shuffles 2159.083 to 2221.062 / 292 to 297 (one shuffle equal); tests/fdivp/unproved/fdivp_d1.sv 1911.446 / 300, reorderings 1895.463 to 1956.444 / 285 to 301; the baseline fdivp_d2.sv 2314.058 / 295, every reordering 2326.389 / 297.",
     "designs": {
       "tasks/_example/reference/band.sv": {
         "top": "band",
@@ -3021,21 +2824,21 @@
           }
         }
       },
-    "tasks/clmul/reference/clmul_n.sv": {
-      "top": "clmul_n",
-      "point": "N=16",
-      "commute": {
-        "area_ge": 774.265,
-        "area_mge": 774265,
-        "depth": 6,
-        "num_gates": 481,
-        "gates": {
-          "AND": 205,
-          "NAND": 51,
-          "XNOR": 225
+      "tasks/clmul/reference/clmul_n.sv": {
+        "top": "clmul_n",
+        "point": "N=16",
+        "commute": {
+          "area_ge": 774.265,
+          "area_mge": 774265,
+          "depth": 6,
+          "num_gates": 481,
+          "gates": {
+            "AND": 205,
+            "NAND": 51,
+            "XNOR": 225
+          }
         }
-      }
-    },
+      },
       "tests/add/baselines/add_n_sklansky.sv": {
         "top": "add_n",
         "point": "N=16",
@@ -3192,7 +2995,9 @@
       "Counterexamples"
     ],
     "mathlib_closure": {
-      "roots": ["Mathlib"],
+      "roots": [
+        "Mathlib"
+      ],
       "package_roots": [
         "Aesop",
         "Batteries",

@@ -10,8 +10,8 @@ on, the branch it goes to) and checks, in order:
   1. that it ADDS records and changes nothing else: every changed file is one of a record's three files
      (leaderboard/data/<task>/<record_hash>.json, .sv and .lean), added as a plain file (git's mode 100644: not a
      symbolic link, which would make the record's content another path's, and not an executable), and every record
-     comes with all three, of a task this repository has, under a player's handle (`svgolf-reference` is the
-     proved references' handle, whose records are par: decided 2026-11-12);
+     comes with all three, of a task this repository has, under a player's handle (`svgolf-reference` is
+     par's handle, whose records are par: decided 2026-11-12);
   2. `leaderboard.py verify --offline` on every record (hashes and arithmetic, the added ones included);
   3. `leaderboard.py verify --full` on the added records alone: check.py runs again on each pair, the whole check,
      with `--sandbox` as given (not run when step 1 failed: the pull request would bring the checker it runs).
@@ -120,7 +120,7 @@ def classify(changed):
 
 
 def handle_problems(added, data_dir):
-    """Problems of the added records' handles: a record under the proved references' handle (`lb.REFERENCE_PLAYER`)
+    """Problems of the added records' handles: a record under par's handle (`lb.REFERENCE_PLAYER`)
     is not a player's record. A JSON file that cannot be read is left to `verify --offline`."""
     out = []
     for task_name, h in sorted(added):
@@ -131,8 +131,8 @@ def handle_problems(added, data_dir):
         except (OSError, ValueError, AttributeError):
             continue
         if player == lb.REFERENCE_PLAYER:
-            out.append(f"record `{task_name}/{h[:12]}` is under the handle `{player}`, the proved references' own "
-                       "(their records are par, not entries): a player's record needs a handle of its own")
+            out.append(f"record `{task_name}/{h[:12]}` is under the handle `{player}`, par's own "
+                       "(its records are par, not entries): a player's record needs a handle of its own")
     return out
 
 

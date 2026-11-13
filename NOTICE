@@ -55,6 +55,7 @@ and its terms. A file that came with a notice keeps it.
 - tasks/aes_sbox/reference/sbox_bp.sv
 - tasks/aes_sbox/reference/sbox_bp.lean
 - tests/aes_sbox/baselines/sbox_bp_d16.sv
+- tests/aes_sbox/baselines/sbox_bp_d16.lean
 - design/tasks-week2/aes_sbox/reference/sbox_bp.sv
 - design/exh/mut/sbox_bp_mut.sv
 - tests/aes_sbox/negative/no_constant.sv
@@ -62,13 +63,16 @@ and its terms. A file that came with a notice keeps it.
 - tests/aes_sbox/negative/reversed_bits.sv
 - tests/aes_sbox/negative/wrong_names.sv
 - tests/aes_sbox/attacks/unique_zero_ge.sv
-- leaderboard/data/aes_sbox/baa9fb38c98506e2a068eb66d3d280bb807d94f9117619ff3f662f7d8c86a08f.sv
-- leaderboard/data/aes_sbox/baa9fb38c98506e2a068eb66d3d280bb807d94f9117619ff3f662f7d8c86a08f.lean
-    Gate-for-gate translations (the .lean file is generated from the first .sv; the
-    record's .sv and .lean are byte-identical copies of sbox_bp.sv and sbox_bp.lean; the
+- leaderboard/data/aes_sbox/6a7b5691ccd5523ec21bd597e3948931d2023e423e536bf679aaa6ab9a2ee167.sv
+- leaderboard/data/aes_sbox/6a7b5691ccd5523ec21bd597e3948931d2023e423e536bf679aaa6ab9a2ee167.lean
+- leaderboard/data/aes_sbox/1852a895190cd00bd301f465d043161aea5257a622ece5856aae06d8e149604c.sv
+- leaderboard/data/aes_sbox/1852a895190cd00bd301f465d043161aea5257a622ece5856aae06d8e149604c.lean
+    Gate-for-gate translations (each .lean file is generated from its .sv; the
     _mut file, the four negatives and the attack are copies with a deliberate
-    defect, each named in its header) of two AES S-box circuits published by the Circuit
-    Minimization Team (Joan Boyar, René Peralta and coauthors) on
+    defect, each named in its header; the records 6a7b5691ccd5 and 1852a895190c hold
+    byte-identical copies of sbox_bp's and sbox_bp_d16's two files) of two AES S-box
+    circuits published by the Circuit Minimization Team (Joan Boyar, René Peralta and
+    coauthors) on
     https://www.cs.yale.edu/homes/peralta/CircuitStuff/CMT.html: the netlist files
     SLP_AES_113.txt (113 gates, depth 27; the page credits it to Cagdas Calik's
     improvement of an earlier circuit there) and AESDEPTH16SIZE125 (125 gates, depth
@@ -93,7 +97,7 @@ and its terms. A file that came with a notice keeps it.
 - tests/fdivp/attacks/srt_qds_tm_d7.sv
 - tests/fdivp/attacks/srt_stages_m1.sv
 - tests/fdivp/attacks/srt_sticky_sign.sv
-- leaderboard/data/fdivp/6964007f10249ba54439d3df95df3981505f2e5d545b1690ba8c9965b1619d2a.sv
+- leaderboard/data/fdivp/eaec05cb8733b7ae46497a8b4071ed30f00914c284eaa754c95075574126ed71.sv
     The radix-4 SRT core of fdivp_srt.sv (the rest of that design is svGolf's) is
     adapted from CORE-V Wally (https://github.com/openhwgroup/cvw), commit
     c1e386b5d1155e92e21593a7986999274f086729: src/fpu/fdivsqrt/fdivsqrtiter.sv,
@@ -104,10 +108,10 @@ and its terms. A file that came with a notice keeps it.
     SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1 (the Apache License 2.0 with the
     Solderpad Hardware License v2.1 exception); the license texts are in
     tasks/fdivp/reference/LICENSES/ (Apache-2.0.txt, SHL-2.1.txt). The ten attacks
-    are copies of the design with one change each; the record's .sv is a byte-identical
-    copy of fdivp_srt.sv (the LICENSES/ its notice names is that directory). Every file
-    keeps the notice and lists the changes made. The selection constants that
-    fdivp_srt.lean and tests/fdivp/results/srt_model.py restate are Wally's.
+    are copies of the design with one change each; the record eaec05cb8733's .sv is a
+    byte-identical copy of fdivp_srt.sv. Every file keeps the notice and
+    lists the changes made. The selection constants that fdivp_srt.lean and
+    tests/fdivp/results/srt_model.py restate are Wally's.
 
 - tests/arbiter/designs/arbiter_ot.sv
 - tests/arbiter/designs/LICENSES/
