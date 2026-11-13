@@ -114,14 +114,14 @@ theorem solution : Goal := by
 end Submission
 ```
 
-**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-tips-the-library)):
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-what-the-libraries-already-give-you)):
 
 * `LeanModels.Sv.Lib`: `Restoring` (`restRem`, `restQuo`, `restore_spec`: `n + 1` restoring steps give the
   quotient and the remainder; `val_restQuo`: the value of a row of quotient bits), `XFVal` (the `Nat` value of
   windows, concatenations, extensions, constants, shifts, `addBits` / `subBits`, multiplexers, reductions),
   `NatArith` (scaled comparisons, products of powers, modular subtraction, the bands of a remainder),
   `BitVecArith`, `RowMajor`;
-* the IEEE 754 facts and the rounding certificate are in the references (a task ships no library: copy them):
+* in no library yet: the IEEE 754 facts and the rounding certificate (copy them from the reference):
   `reference/fdivp.lean`'s sections `IEEE754Proofs`, `ScaleInvariance`, `RneInterval`, `RoundingBounds` and
   `CertF` hold for every divider; `DpN` .. `DpU` and `DpG1` .. `DpG5` are the restoring datapath's;
 * the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`, `inKnown_ofBitVec`; `sv_bridge`.

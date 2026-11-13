@@ -2201,6 +2201,26 @@ class SiteTest(unittest.TestCase):
         self.assertIn("## 0. The loop", full)
         self.assertIn("sv_structure?", full)
 
+    def test_llms_txt_points_to_the_library_tables(self):
+        """2026-11-13 (provers re-proved and copied lemmas the libraries have): PROVING.md's section 6 is the tables
+        of library lemmas by area, llms.txt links it by its heading's anchor, the anchor is on proving.html, and every
+        task README that points to section 6 uses that anchor."""
+        proving = read_text_file("PROVING.md")
+        head = re.search(rf"^## ({build.LIBRARY_SECTION_NO}\. .+)$", proving, re.M).group(1)
+        self.assertEqual(head, "6. What the libraries already give you")
+        anchor = build.md.Slugger().slug(head)
+        self.assertIn(f"- [What the libraries already give you, by area](proving.html#{anchor})",
+                      self.files["llms.txt"].decode("utf-8"))
+        self.assertIn(f'id="{anchor}"', self.files["proving.html"].decode("utf-8"))
+        self.assertIn("### Common friction (2026-11-13)", proving)
+        for t in sorted(os.listdir(os.path.join(SVGOLF, "tasks"))):
+            if os.path.isfile(os.path.join(SVGOLF, "tasks", t, "README.md")):
+                with self.subTest(task=t):
+                    readme = read_text_file(f"tasks/{t}/README.md")
+                    for target in re.findall(r"\(\.\./\.\./PROVING\.md#(6-[\w-]+)\)", readme):
+                        self.assertEqual(target, anchor)
+                    self.assertNotIn("a task ships no library: copy", readme)
+
     def test_llms_txt_points_to_the_numbers_of_a_task_page(self):
         """llms.txt (2026-11-11) names where par, record and under par, the clock period and the score chart are
         defined (the rules page's section, which exists), and says that the sky130 score counts no wires and no place

@@ -3431,6 +3431,7 @@ def solution_skeleton(t):
 
 
 SEQ_SECTION_NO = 19                                  # PROVING.md's section on the latency kinds (`proving_anchor`)
+LIBRARY_SECTION_NO = 6                               # PROVING.md's tables of library lemmas by area (llms.txt links it)
 
 
 def proving_anchor(number):
@@ -6331,6 +6332,8 @@ def llms_txt(site, tasks):
              "- [Rules, checker stages, scoring, leaderboard](rules.html)",
              "- [Reproduce a score: the pinned tools, files and commands](reproduce.html)",
              "- [How to prove a task](proving.html) ([plain text](llms-full.txt))",
+             # 2026-11-13: the lemmas the libraries already have, by area, so an agent looks there before it re-proves one
+             f"- [What the libraries already give you, by area](proving.html#{proving_anchor(LIBRARY_SECTION_NO)})",
              "- [Everything the checker refuses](refusals.html)",
              "- [Roadmap](roadmap.html)",
              "- [About svGolf](about.html)", "",

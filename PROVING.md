@@ -685,7 +685,8 @@ is 300 CPU s). It was written in one pass from the `mul` recipe; what differed:
 * **The mathematics** is a row invariant by induction on the row, `r i j = XOR over t ≤ i of A t & B (i + j - t)` (a term whose
   `B` index reaches `N` is 0), then the collapse of the Spec's double sum over `i + j = k` into the single sum the invariant
   gives (`bx_pair`), for `k < N` (the low outputs) and `k ≥ N` (the last row). `bx f n` is the XOR of `f 0 … f (n-1)`; the
-  Spec's nested `List.foldl` becomes `bx` by `foldl_xor`; `getLsbD_ofBits` reads the Spec's `ofBits` vector bit by bit.
+  Spec's nested `List.foldl` becomes `bx` by `foldl_xor` (both in `LeanModels.Sv.XorSum`, section 6; the reference carries
+  its own copy); `getLsbD_ofBits` reads the Spec's `ofBits` vector bit by bit.
 * **A generate-for start must be an integer literal** (`for (i = 0; …)`): `for (i = N; i < 2*N-1; i++)`, the natural way to zero-fill
   a padded vector, is refused with `generate-for header outside for (g = <int>; g < <affine>; g++)`; write the loop from `0`
   and index `ap[N+i]`.
@@ -835,30 +836,98 @@ but the **reduction and the arithmetic still are**:
   "Proof effort"), and does not depend on the tactic library, but is four to six times longer for
   these two designs.
 
-## 6. Tips: the library
+## 6. What the libraries already give you
 
-`LeanModels/Sv/CombLib.lean` (plain Lean, no ls-sv dependency):
+Look here before you write a helper lemma: proofs on the board re-prove, or copy from a reference, lemmas that these
+modules already have. The second column is the module to import: `LeanModels.Sv.` followed by the name shown, or
+svGolf's own `SvGolf.…` (all are allowed). Write the name as it stands here, after the usual
+`open LeanModels.Sv SvGolf`; core Lean's names need no import. The modules hold more than these rows: their docstrings
+say what. A lemma that is in no library yet is named in its task's README, with the reference proof to copy it from.
 
-| name | what |
-|---|---|
-| `bfVal f n` | the value of a bit function: `Σ_{j<n} 2^j · f j`; `bfVal_bv x : bfVal x.getLsbD w = x.toNat` |
-| `bfVal_congr`, `bfVal_split`, `bfVal_shift`, `bfVal_and`, `bfVal_testBit`, `bfVal_bv_mod` | congruence, splitting at `m`, dropping bit 0, masking by a bit, the low `n` bits |
-| `fullAdder_arith` | `(x ^^ y ^^ c).toNat + 2 * ((x && y) \|\| (c && (x ^^ y))).toNat = x.toNat + y.toNat + c.toNat` (by `decide`) |
-| `ripple_row N x y t s c ht hs hc` | **a ripple row computes a sum**: the three row equations give `val s + 2^N · c N = val x + val y + c 0` |
-| `AddView`, `add_value`, `add_spec` | the adder's four equations as a structure; its value equation; the `BitVec` form of the task |
-| `MulNetlistView`, `ideal_mul`, `ideal_mul_view` | the array multiplier's eleven groups of equations, and the product |
-| `sum_split`, `bitvec_eq_ofNat_of_val`, `ofBool_eq_ofNat` | from `s < 2^w ∧ t = s + 2^w · q` to `s = t % 2^w ∧ q = t / 2^w`, and to a `BitVec` equation |
-| `rowMajor_inj`, `lexLt`, `lexLt_wf` | `i*W + j = i'*W + j'` with `j, j' < W` gives the same row and column; the lexicographic order on pairs (a rank for 2-D dependencies) |
+**Bit vectors and slices**
 
-`LeanModels/Sv/CombBridge.lean` (since 2026-10-31): `SvState.cell st n W r c`, bit `(r, c)` of the 2-D signal `n` whose
-rows are `W` bits wide, in `Nat` coordinates (`st.boolAt n (rmN W r c)`), and the tactic `sv_bridge` (below).
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `LVec.extract_extract` | Comb2Base | a window of a window is a window of the vector | a part select of a part select |
+| `LVec.extract_insertAt_self`, `LVec.extract_insertAt_of_disjoint` | Comb2Base | a write read back at its own window; every disjoint window is unchanged | reading a register after a select-write |
+| `LVec.insertAt_zero_of_width_eq`, `LVec.resizeU_of_width` | Comb2Base, Comb2Proc | a full-width write at offset 0 is the written vector; a resize to the vector's own width changes nothing | a whole-register write, and the `resize` the loader puts around it |
+| `LVec.extract_ofBitVec`, `LVec.extract_one_ofBitVec`, `LVec.eq_ofBitVec_of_extract_one` | Known2 | a window or a bit of a known vector, as a `BitVec`; a vector known bit by bit is `ofBitVec x` | going from `LVec` to `BitVec` (`Known2` has an `*_ofBitVec` lemma for each operator) |
+| `SvState.boolAt`, `KnownBit`, `XF.bv`, `XF.getLsbD_bv` | CombKnownBits | a signal's bit as a `Bool`; that bit is known; the `BitVec` of a bit function, and its bits | the vocabulary of the printed equations |
+| `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec` | CombKnownBits | a signal whose bits are all known is the `BitVec` of its bits; a bit of an input port is the bit of its `BitVec` | reading an output port back; reading an input bit |
+| `CombEq.inKnown_ofBitVec` | CombEqThm | an input port holding `ofBitVec x` is known at its width | the `inputsKnown_k` goals of `sv_equations` |
+| `Lib.setWidth_signExtend_of_le`, `Lib.setWidth_add_mul_signExtend` | Lib.BitVecArith | a sign extension truncated back; a multiply-accumulate at a wider width, truncated, is `x + ofInt (a.toInt * b.toInt)` | signed operands and accumulators |
+| `LVec.ofBitVec_replicate_append_eq_signExtend` | Known2 | `{{m{y[lo+W-1]}}, y[lo +: W]}` is the window sign-extended to `m + W` bits | the hand-written sign extension of an entry |
+| `RoundRobin.getLsbD_isolate`, `RoundRobin.isolate_eq_twoPow` | SvGolf.RoundRobin | `s & (~s + 1)` has exactly the lowest set bit of `s`: the one-hot `twoPow` | lowest-set-bit and priority logic |
+| `BitVec.setWidth_one`, `BitVec.extractLsb'_setWidth_of_le`, `BitVec.eq_of_getLsbD_eq` | core | truncation to one bit is `ofBool` of bit 0 (with `BitVec.setWidth_eq`: a `BitVec 1` is `ofBool` of its bit); a part select of a truncation; equality bit by bit | a 1-bit port such as a carry; part selects of truncated words |
 
-In `LeanModels/Sv/CombViewArith.lean`: `rmN W r c` (the row-major offset), `rmN_inj`,
-`rmN_lt_iff`, `rmN_le_iff`, `rmN_add_col`, `Key` and `KLt` (the key order of `lexRank`).
-In `CombKnownBits.lean`: `XF.bv`, `XF.getLsbD_bv`, `KnownBit`, `SvState.boolAt`,
-`SvState.boolAt_ofBitVec`; in `CombKnownThm.lean`: `SvState.lookup_eq_ofBitVec_bv` (a signal
-whose bits are all known IS the `BitVec` of its Boolean bits: the port bridge); in
-`CombEqThm.lean`: `inKnown_ofBitVec`.
+**Sums and XOR sums**
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `CombLib.bfVal`, `CombLib.bfVal_congr`, `CombLib.bfVal_split`, `CombLib.bfVal_shift`, `CombLib.bfVal_and`, `CombLib.bfVal_bv`, `CombLib.bfVal_bv_mod` | CombLib | `bfVal f n = Σ_{j<n} 2^j · f j`; congruence, a split at `m`, bit 0 taken off, a mask by one bit, the value of a `BitVec`'s bits (all, or the low `n`) | the value of the bit functions of a gate-level design |
+| `XF.val`, `XF.val_congr_lt`, `XF.val_lt`, `XF.val_split`, `XF.val_prefix`, `XF.val_window`, `XF.val_cat`, `XF.val_not`, `XF.val_all_false` | Lib.XFVal, which imports CombWord and CombKnownBits | the same sum under another name: the bound `< 2^n`, splits, prefixes, windows, concatenations, the complement, all-false bits | a word-level design (its equations print `XF.*` helpers); a `bfVal` lemma does not rewrite `XF.val`, so state your arithmetic over the one your lemmas use |
+| `XorSum.bx`, `XorSum.foldl_xor` | XorSum | `bx f n` is the XOR of `f 0, …, f (n-1)`; a `List.range` XOR fold is `bx` | GF(2) sums: carry-less products, parities, CRCs |
+| `XorSum.andBit_known`, `XorSum.xorBit_known` | XorSum | the AND of two known bits; XOR-accumulating a known bit into bit `k` flips that bit and no other | a procedural XOR-accumulate loop on known vectors |
+| `packBV`, `packBV_eq_ofNat`, `packBV_congr` | SeqFamily | `n` entries of `W` bits packed row-major into one `BitVec`; it is `Σ_r (v r) · 2^(r·W)`; it reads only the entries below `n` | a port that carries a matrix or a list of words |
+| `List.range_succ`, `List.foldl_append` | core | `range (n + 1) = range n ++ [n]`; a fold over an append | taking the last term off a spec written as a `List.range` fold (matmul's `dot`) |
+
+**Prefix and adder algebra**
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `CombLib.fullAdder_arith` | CombLib | `sum + 2 · carry = x + y + cin` for one full adder | a carry cell, however it is written |
+| `CombLib.ripple_row` | CombLib | a ripple row's three equations give `val s + 2^N · c N = val x + val y + c 0` | any carry-propagate row: an adder, a multiplier's final adder |
+| `CombLib.AddView`, `CombLib.add_value`, `CombLib.add_spec` | CombLib | the adder's four equations as a structure; its value; the task's `BitVec` form | an adder whose sum and carries are bit functions |
+| `CombLib.sum_split`, `CombLib.bitvec_eq_ofNat_of_val`, `CombLib.ofBool_eq_ofNat` | CombLib | `s < 2^w` and `t = s + 2^w · q` give `s = t % 2^w` and `q = t / 2^w`; then the `BitVec` equation | the last step to a task's `BitVec` statement |
+| `Lib.pgOp`, `Lib.pgOp_assoc`, `Lib.pgBlock`, `Lib.pgBlock_combine`, `Lib.grpG`, `Lib.grpP`, `Lib.grpG_combine` | Lib.Prefix | the carry operator on (generate, propagate) pairs is associative; the pair of a block of positions; adjacent blocks combine | the tree of a parallel-prefix adder (Kogge-Stone, Sklansky, Brent-Kung) |
+| `Lib.rippleCarry`, `Lib.rippleCarry_eq_block`, `Lib.rippleCarry_bv` | Lib.Prefix | the carry into bit `k` is the group generate of positions `[0, k]`, and is core's `BitVec.carry` | joining a prefix tree to the sum bits |
+
+**Multiplier arithmetic**
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `CombLib.MulNetlistView`, `CombLib.ideal_mul_view` | CombLib | an array multiplier's equations, as a structure, give `p = a * b` | an array shaped like `mul_n` |
+| `XF.val_csa` | Lib.XFVal | a carry-save row: the value of `x ^ y ^ z` plus twice the value of the majority is the sum of the three values (unshifted, over `XF.val`) | 3:2 compressor rows (the shifted `csa_row` of the tree references is in no library yet: the `mul` README) |
+| `XF.val_addBits`, `XF.val_subBits`, `XF.val_mulBits` | Lib.XFVal, CombWord | the value of a word-level `+`, `-`, `*`: the operands' values combined, modulo `2^w` | a design written with `+`, `-` and `*` |
+| `CombLib.rowMajor_inj`, `CombLib.lexLt`, `CombLib.lexLt_wf` | CombLib | `i*W + j` with `j < W` fixes the row and the column; the lexicographic order on pairs is well founded | 2-D arrays of partial products; a rank for 2-D dependencies |
+
+**Clocked designs: NBA folds, register windows, power-up**
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `cycleStep2_profile`, `ffDisjB_of_pairwise`, `driversOk_of_ff` | SeqProfile, SeqFamily | a cycle of an FF-only design runs every `always_ff` body on the pre-edge state, then commits the queue; the disjointness and one-driver conditions from pairwise-disjoint windows | one clock cycle (section 19, step 2) |
+| `GenItem.expand2_genFor_ascending_processes`, `pairwise_flatMap_range`, `DrvWin.overlaps_some_eq_false` | Gen2, Hier2Gen | a generate loop expands to a `flatMap` over its indices; a family's windows are pairwise disjoint when each cell's are and every two cells' are; two windows are disjoint when the names differ or the ranges do not meet | the agreement (section 19, step 1) |
+| `nbaFold`, `nbaFold_append`, `nbaFold_flatMap`, `nbaFold_flatMap_eq_self`, `lookup_commitNba2_of_not_mem` | NbaCommit | the commit restricted to one register; of an append; of a family's queues; a family that never writes the register leaves it; a register no write names is unchanged | committing one register at a time |
+| `extract_ofBitVec_packBV`, `bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV`, `LVec.insertEntries_ofBitVec`, `LVec.foldl_range_insertAt_last` | SeqFamily | read one entry of a packed family; write one entry; fold unit writes over entries `0 … m-1`; writing every entry gives `ofBitVec (packBV …)`; a reset that rewrites the same windows | register files and accumulators kept as one packed vector |
+| `Lib.rowMajor_window_le`, `Lib.mul_add_mem_window_iff`, `rowMajor_le` | Lib.NatArith, Hier2Gen | entry `(i, j)` of an `M×N` row-major array ends inside it; bit `r·W + j` (`j < W`) lies in window `m` exactly when `r = m`; row `i` ends before a later row begins | bounds and disjointness of row-major entries |
+| `powerUp_cons`, `powerUp_nil` | SvGolf.SeqV2 | a power-up state, one declaration at a time | rule 2: every power-up state has your register shape |
+
+**Parameters, `$clog2` and index arithmetic**
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `clog2`, `CombView.clog2_le`, `CombView.le_two_pow_clog2` | Param, CombView | the LRM's `$clog2`; `clog2 n ≤ n`; `n ≤ 2 ^ clog2 n` | a `$clog2` localparam (an opaque value in the goals, section 4) |
+| `Lib.natAbs_sub_one_add_one` | Lib.NatArith | `((x : Int) - 1).natAbs + 1 = x` for `x > 0` | the width of a declared range `[x-1:0]` |
+| `Lib.window_bounds_of_natCast`, `Lib.min_add_sub_one_self`, `Lib.max_add_sub_one_self`, `Lib.add_sub_one_sub_add_one` | Lib.NatArith | the `Int` facts the range checks of an instantiated part select need | instantiation lemmas (`sv2_inst_simp`) of parametric windows |
+| `LVec.ofInt_eq_ofBitVec`, `BitVec.ofInt_natCast` | Param, core | the loader's constant `LVec.ofInt w v` is `ofBitVec (BitVec.ofInt w v)`; `ofInt` of a natural number is `ofNat` | parameters and unsized constants (32-bit literals) |
+| `CombView.rmN`, `CombView.rmN_inj`, `CombView.rmN_lt_iff`, `CombView.rmN_le_iff`, `CombView.rmN_add_col`, `CombView.Key`, `CombView.KLt` | CombViewArith | the row-major offset the equations print; injective and ordered lexicographically; a column offset added; the key order of `lexRank` | 2-D goals (`sv_rowmajor` uses them) |
+| `SvState.cell` | CombBridge | bit `(r, c)` of a 2-D signal whose rows are `W` bits wide, in `Nat` coordinates (`st.boolAt n (rmN W r c)`) | stating a 2-D arithmetic lemma for `sv_bridge` (below) |
+| `Lib.rmN_row0`, `Lib.rmN_succ0`, `Lib.rmN_last_col`, `Lib.rmN_eq` | Lib.RowMajor | `rmN` at natural coordinates, in the forms `sv_equations` prints | turning printed indices into `Nat` ones |
+| `Nat.mul_add_mod_of_lt`, `Nat.add_mul_div_right` | core | `(a * b + c) % b = c` for `c < b`; `(x + y * z) / z = x / z + y` for `0 < z` | the column and the row of a row-major index |
+
+**Floating-point value functions.** No library has the IEEE 754 format or rounding lemmas yet (the `fdivp` README
+says where they are); these carry a datapath's netlist into `Nat`:
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `XF.val_shrBits`, `XF.val_shlBits_zext`, `XF.val_shlBits_one` | Lib.XFVal | the value of a logical right shift and of a left shift by a vector | normalizing, aligning and denormalizing shifters |
+| `XF.top_bit_iff`, `XF.val_ne_zero_iff`, `XF.any_eq_decide_val` | Lib.XFVal | the top bit is the test `2^(P-1) ≤ value`; a value is nonzero exactly when a bit is set; an OR reduction is that test | leading-one tests, sticky bits |
+| `XF.val_constBit`, `XF.val_ite`, `XF.val_zext` | Lib.XFVal, CombWord | the value of a constant, of a multiplexer, of a zero extension | exponent biases, special-case selection |
+| `Lib.restRem`, `Lib.restQuo`, `Lib.restore_spec`, `Lib.val_restQuo` | Lib.Restoring | `n + 1` restoring steps give the quotient `⌊2^n · x / d⌋` and the remainder; the value of the row of quotient bits | a restoring divider's quotient |
+| `Lib.scale_le`, `Lib.scale_ge`, `Lib.scale_lt`, `Lib.scale_gt` | Lib.NatArith | with `N · S = D · T`, comparing with `N / D` is comparing with `T / S` | rounding bounds stated by cross-multiplication |
+| `Lib.log2_mul_two_pow` | Lib.NatArith | `log2 (e · 2^j) = log2 e + j` for `e ≠ 0` | an exponent after a shift |
+
+### The tactics, Mathlib and habits
 
 **The tactics at a glance.**
 
@@ -1007,10 +1076,36 @@ Habits that help:
   go through, check the design (`--unproved` simulates it against the task's function) before blaming
   the proof.
 
+### Common friction (2026-11-13)
+
+Today's limits of the tools, as the proofs on the board met them: not rules of the game, and each may move.
+
+* **Heartbeats.** The default `maxHeartbeats 200000` is enough for most declarations: the clocked references and eleven
+  of the eighteen matmul proofs set nothing. The tactics' own `simp` needs more on a large or 2-D comb design (`mul_n`'s
+  structure theorem and its `solution`: 400000), with a localparam that has `/` or `%`, and for `sv_exhaustive` on a
+  flat netlist (1000000). Raise it for that declaration only, `set_option maxHeartbeats 400000 in` before the theorem.
+  A file-wide `set_option maxHeartbeats` (seven matmul proofs, 1000000 to 4000000) hides which declaration needed it
+  and lets a slow one run on toward the CPU limit; to find the slow one, compile the heavy parts as lemmas of their own
+  ("Timeouts", above). A `whnf` timeout in a clocked run lemma has its own fix (section 19.3).
+* **`instExpr2`'s `resize` equation.** In an instantiation lemma `simp`, and so `sv2_inst_simp`, cannot use it. Where
+  your `sv2_inst_simp` call stops at an `instExpr2` term, unfold it by hand, `repeat (unfold instExpr2; <the same
+  sv2_inst_simp call>)`, as `pe_inst` in `tasks/matmul/reference/matmul_g1.lean` does (16 of the 18 matmul proofs do).
+* **What the `sv_comb` tactics do not read yet**: a conditional generate (`if`) inside a generate loop; `**` in a
+  localparam (a `$clog2` localparam is read, as an opaque value: section 4); an inner loop bound computed from the
+  outer genvar (`tests/mul/baselines/dadda_rc.sv`); an index or bound that is not affine in the parameters and the
+  genvars (`i*j`, `i >> l`, a prefix adder's partner index). Know this before you design: the checker still accepts
+  such a design, and the fallback is a by-hand proof (section 5; the Kogge-Stone, Sklansky, Dadda and Karatsuba
+  baselines took it, about 1,000 to 3,200 code lines each). Section 4 lists every refusal with its message, and the
+  [Refusals page](REFUSALS.md) what the checker and the language refuse.
+* **Clocked designs need `always_ff` with fixed register windows.** The library's clock step (`cycleStep2_profile`)
+  covers a design whose every process is an `always_ff` on one clock, with nonblocking writes to windows fixed at
+  elaboration and distinct processes writing disjoint windows. An `assign` or an `always_comb` anywhere, an unregistered
+  output included, means proving the combinational settle yourself, as the arbiter's proof does (section 20).
+
 ## 7. Known limits, honestly
 
-* **Fragment.** See section 4. In particular no operators beyond `& | ^` (no `~`, `?:`,
-  comparisons), no `localparam` beyond the integer constant expressions of section 4,
+* **Fragment.** See section 4. In particular no operators beyond those of sections 14 and 17, no `localparam` beyond
+  the integer constant expressions of section 4,
   no conditional generate, no instances, no edge-triggered processes, and `always_comb` only in the first fragment of section 13. The prefix
   adders of `tests/add/baselines/` are refused today (conditional generate, non-affine indices); they are proved by
   hand (section 5). A design generated for one width (a flat netlist whose every width and index is a literal of that
@@ -1696,7 +1791,8 @@ design that needs them has the by-hand route of section 5.
 still contains the procedural process, so `CombDesign (design.sem N)` is false. What holds is the
 same statement about the LOWERING of the design (`Design2.lowerComb`: each `always_comb` body replaced
 by the one assign `assign {c[i+1]} = {...}` it computes). Three statements change shape; the tactics
-and their syntax are the same, and `import LeanModels.Sv.CombProcTactic` is the one extra line:
+and their syntax are the same, and `import LeanModels.Sv.CombProcTactic` and `import LeanModels.Sv.ProcNoQualified`
+are the extra lines:
 
 ```lean
 theorem add_struct (N : Nat) (hN : 1 ≤ N) :
@@ -1711,14 +1807,15 @@ theorem add_interface (N : Nat) (hN : 1 ≤ N) {d'} (hl : (design.sem N).lowerCo
 
 -- in `solution`:
   obtain ⟨d', hl, hc, ha⟩ := add_struct N hN'
-  refine satisfiedAt_of_lowered (add_interface N hN' hl) hl hc ha ?_
+  refine CombTask.satisfiedAt_of_lowered (add_interface N hN' hl) hl hc ha (NoQ.sem_noQ (by decide) _) ?_
   intro st heqs hs v hv        -- heqs : CombEqs d' st, hs : StateShape d' st
   ...
   sv_equations                 -- finds hl, hc, ha, heqs, hs by type
 ```
 
-* `satisfiedAt_of_lowered` is a ten-line lemma in the reference (copy it): `CombTask.satisfiedAt_of_comb`
-  for a design that lowers.
+* `CombTask.satisfiedAt_of_lowered` (`SvGolf.Comb`) is `CombTask.satisfiedAt_of_comb` for a design that lowers; its
+  argument `hnq` (no `unique` or `priority` `case`) is `NoQ.sem_noQ (by decide) _`. The reference keeps a ten-line copy
+  of its own; a new proof uses the library's.
 * `sv_structure` returns one more obligation, `noSelfRead` (no read of the body overlaps the window it
   writes), closed by `intros; omega` like the others; a violation at a sampled `N` is reported with the
   site.

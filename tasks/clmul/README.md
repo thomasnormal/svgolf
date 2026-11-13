@@ -92,11 +92,14 @@ theorem solution : Goal := by
 end Submission
 ```
 
-**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-tips-the-library)):
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-what-the-libraries-already-give-you)):
 
-* the XOR arithmetic is in the reference (a task ships no library: copy it): `bx` (the XOR of `f 0, …,
-  f (n-1)`) with `bx_congr`, `bx_trunc`, `bx_pair`, `foldl_xor`; `coeff_eq` (the Spec's double sum as a
-  nested `bx`), `getLsbD_ofBits`, `view_row`, `view_spec`;
+* `LeanModels.Sv.XorSum` (import it and `open LeanModels.Sv.XorSum`): `bx` (the XOR of `f 0, …, f (n-1)`) and
+  `foldl_xor` (a `List.range` XOR fold is `bx`); `reference/clmul_n.lean` defines the same two again, written
+  before the library had them;
+* in no library yet: `bx_congr`, `bx_trunc` and `bx_pair` (copy them from `reference/clmul_n.lean`; a library home
+  is planned), and the reference's own `coeff_eq` (the Spec's double sum as a nested `bx`), `getLsbD_ofBits`,
+  `view_row`, `view_spec`;
 * `LeanModels.Sv.CombLib`: the bit-function value `bfVal` and its lemmas, `rowMajor_inj`, `lexLt`;
 * `SvState.cell`, `sv_bridge` and `sv_rowmajor`; `rmN` and `Key` (`LeanModels/Sv/CombViewArith.lean`) and
   `LeanModels.Sv.Lib.RowMajor`; the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`,

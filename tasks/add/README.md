@@ -118,7 +118,7 @@ theorem solution : Goal := by
 end Submission
 ```
 
-**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-tips-the-library)):
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-what-the-libraries-already-give-you)):
 
 * `LeanModels.Sv.CombLib`: `AddView`, `add_value` and `add_spec` (an adder's equations give the sum),
   `ripple_row`, `fullAdder_arith`, the bit-function value `bfVal` and its lemmas, `sum_split`,

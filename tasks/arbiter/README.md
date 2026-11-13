@@ -128,7 +128,7 @@ end Submission
 
 `#print axioms solution` must show `propext`, `Classical.choice` and `Quot.sound` only.
 
-**Library lemmas that exist today**:
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-what-the-libraries-already-give-you)):
 
 * `SvGolf.React`: `ReactTask.satisfiedAt_of_rank` (the reduction), `ReactTask.RankModel`,
   `ReactTask.responds_of_rank` (the window argument, used inside the reduction), `ReactTask.snapshots_known`,

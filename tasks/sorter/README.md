@@ -110,7 +110,7 @@ end Submission
 
 `#print axioms solution` must show `propext`, `Classical.choice` and `Quot.sound` only.
 
-**Library lemmas that exist today**:
+**Library lemmas that exist today** (the tables: [PROVING.md, section 6](../../PROVING.md#6-what-the-libraries-already-give-you)):
 
 * `SvGolf.SeqV2`: `StreamTask.satisfiedAtV2_of_phases` (the reduction), `MooreOutDep.of_noComb`,
   `combDeps_of_ffOnly`, `MooreOutDep.of_check` (rule 1 by evaluation, for a design with combinational logic),
