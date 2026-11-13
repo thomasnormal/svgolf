@@ -10,16 +10,21 @@ ORFS's metric values are kept as their raw JSON text (parsed with Decimal, writt
 full sha256 of 1_2_yosys.v, 6_final.def, 6_final.v, 6_final.odb, the stage databases and 6_final.spef NORMALIZED (its
 *DATE, *VENDOR, *PROGRAM and *VERSION lines dropped: they name the time and the tool build, not the layout); the cell
 histogram of 6_final.v; per-step peak memory, elapsed and CPU seconds; the detailed-route DRC count; the verdict of
-every equivalence log (`<step>:IDENTICAL` when it prints "Circuits are IDENTICAL", `DIFFERENT` when it prints "Found
-difference", else `UNKNOWN`); the status line's exit status, seconds, CPUs and date. Never the host's name.
+every equivalence log of the flow (`<step>:IDENTICAL`, `:DIFFERENT` or `:UNKNOWN`, read by lec.py's rule: IDENTICAL
+only when "Circuits are IDENTICAL" is printed and no difference is); `lec_reference`, the reference-against-routed
+check's record (lec.py `record`: its verdict and the sha256 of its log, its configuration, the bound netlist and the
+routed 6_final_lec.v; null when it has not run); the status line's exit status, seconds, CPUs and date. Never the
+host's name.
 
-`entry`: the routed entry (schema svgolf-asap7pnr/2) of the design file with sha256 SV_SHA256, scored by this job:
+`entry`: the routed entry (schema svgolf-asap7pnr/3) of the design file with sha256 SV_SHA256, scored by this job:
   area   the routed netlist's cells (the row's histogram of 6_final.v) by the pinned ASAP7 liberty, summed exactly in
          1e-5 um^2 (the five files of score/ppa_pins_asap7.json, each sha256-checked; --liberty DIR, else
          $SVGOLF_ASAP7_LIB, else score/lib/asap7/, where `score/ppa.py --pdk asap7 --fetch-liberty` puts them)
   delay  half-even(P - WS) in ps: P the SDC's clock period, WS ORFS's worst setup slack after routing
          (finish__timing__setup__ws); time = cycles x delay on a clocked task; exact = area x time
-  valid  ORFS exit 0, detailed-route DRC 0, and every equivalence log IDENTICAL (score/pnr/pins.json validity_rule)
+  valid  ORFS exit 0, detailed-route DRC 0, every equivalence log of the flow IDENTICAL, and the reference-against-
+         routed check IDENTICAL against the bound netlist (the row's `lec_reference`, its reference the design's ASAP7
+         netlist; score/pnr/pins.json validity_rule, decided 2026-11-13); a valid run keeps that record
 It requires: the job's config.mk to be a course job under the pins, its seed to be the request's (the request is the one
 leaderboard/asap7pnr/T.json stores for the design), the placed netlist (1_2_yosys.v) to be the ASAP7 view's netlist of
 the design, and the SDC period its delay. Reads JOBDIR/rows/JOB.json (`row`'s output), JOBDIR/cfg/JOB.mk, the SDC,
@@ -29,7 +34,18 @@ JOBDIR/logs/JOB.host.json, JOBDIR/logs/JOB.render.out (the die and core boxes) a
 `sitedata`: OUTDIR/sitedata/T.json for `leaderboard.py asap7pnr --import OUTDIR --write`: the tree's routed table of T
 with the given entries added (an entry for a design that already has a scoring run is refused unless it is that entry,
 byte for byte: one run per design), every picture under OUTDIR/images/T/ (the new ones are encode.py's output there;
-the carried ones are copied from site/layouts/T/). Check it with score/pnr/check_sitedata.py before importing."""
+the carried ones are copied from site/layouts/T/). Check it with score/pnr/check_sitedata.py before importing.
+
+    python3.12 score/pnr/collect.py add-lec  --task T --records RECORDS.json --out OUTDIR
+
+`add-lec`: the tree's routed table of T as made before the reference-against-routed check was a validity condition
+(schema svgolf-asap7pnr/2, the old `validity_rule`) with that check added to every run, as site data like `sitedata`'s:
+RECORDS.json is a list of {job, measured_at, role, artifacts, lec_reference} made where the runs are stored (the check
+run on each stored run, lec.py `record`, and the sha256 of its 1_2_yosys.v, 6_final.v and 6_final.odb), matched to
+the table's runs by job, date and role. A run keeps every number; it gains `lec_reference` when its record says
+IDENTICAL against the entry's netlist and its artifacts are the run's; a run whose check says anything else becomes a
+failed run; a design with a run that has no record becomes pending again (no run, no number, its request kept), and
+is listed. The course block takes the pins' `validity_rule`, the file the current schema."""
 
 import argparse
 import collections
@@ -44,6 +60,7 @@ from decimal import ROUND_HALF_EVEN, Decimal
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lec  # noqa: E402
 import pnr  # noqa: E402
 
 sys.path.insert(0, os.path.join(pnr.SVGOLF, "leaderboard"))
@@ -78,13 +95,13 @@ def spef_sha256(path):
 
 
 def lec_verdicts(logs_dir):
-    """['<step>:IDENTICAL' | ':DIFFERENT' | ':UNKNOWN', ...] of every <step>_lec_check.log, by name."""
+    """['<step>:IDENTICAL' | ':DIFFERENT' | ':UNKNOWN', ...] of every <step>_lec_check.log of the flow, by name, read by
+    lec.py's rule (IDENTICAL only when "Circuits are IDENTICAL" is printed and no difference is)."""
     out = []
     for lg in sorted(glob.glob(os.path.join(logs_dir, "*_lec_check.log"))):
         with open(lg, errors="replace") as fh:
-            t = fh.read()
-        verdict = "IDENTICAL" if "Circuits are IDENTICAL" in t else ("DIFFERENT" if "Found difference" in t else "UNKNOWN")
-        out.append(os.path.basename(lg)[:-len("_lec_check.log")] + ":" + verdict)
+            word = lec.verdict(fh.read())
+        out.append(os.path.basename(lg)[:-len("_lec_check.log")] + ":" + {lec.NO_VERDICT: "UNKNOWN"}.get(word, word))
     return out
 
 
@@ -179,6 +196,7 @@ def collect_row(job_dir, job):
                          spef_sha256(os.path.join(res, f)) if f.endswith(".spef") else pnr.sha256_file(os.path.join(res, f)))
                      for f in HASHED}
     row["lec"] = lec_verdicts(logs)
+    row["lec_reference"] = lec.record(job_dir, job)
     return row
 
 
@@ -263,13 +281,18 @@ def build_entry(*, task_name, view_entry, of, request, row, mk_bytes, sdc_bytes,
            "peak_mb": row.get("peak_mem_mb")}
     if run["settings_sha256"] != lb.pnr_settings_sha256({}):
         raise CollectError("the settings hash rule changed")
-    lec = row.get("lec") or []
-    ok = row.get("status") == "ok" and row.get("rc") == 0 and row.get("drc") == 0 and bool(lec) \
-        and all(x.endswith(":IDENTICAL") for x in lec)
+    flow_lec = row.get("lec") or []
+    lr = row.get("lec_reference")
+    ref_bad = lb.pnr_lec_reference_problems(lr, view_entry["repaired_sha256"])
+    ok = row.get("status") == "ok" and row.get("rc") == 0 and row.get("drc") == 0 and bool(flow_lec) \
+        and all(x.endswith(":IDENTICAL") for x in flow_lec) and not ref_bad
     run["status"] = "ok" if ok else "failed"
     if not ok:
-        run["error"] = row.get("error") or (f"rc={row.get('rc')} status={row.get('status')} drc={row.get('drc')} "
-                                            f"lec={lec} last step {row.get('last_step')}")
+        said = lr.get("verdict") if isinstance(lr, dict) else "not run"
+        run["error"] = row.get("error") or (
+            f"rc={row.get('rc')} status={row.get('status')} drc={row.get('drc')} lec={flow_lec} "
+            f"reference-against-routed {said}" + (f" ({'; '.join(ref_bad)})" if ref_bad and isinstance(lr, dict) else "")
+            + f" last step {row.get('last_step')}")
     else:
         mt, sha = row["metrics"], row["sha256"]
         if sha["1_2_yosys.v"] != view_entry["repaired_sha256"]:
@@ -284,7 +307,7 @@ def build_entry(*, task_name, view_entry, of, request, row, mk_bytes, sdc_bytes,
                          "area_tap_cell": mt.get("finish__design__instance__area__class:tap_cell"), "setup_ws": ws,
                          "period_min": (row.get("period_min") or [None])[0], "sdc_period": period},
                    area_e5um2=area, delay_ps=delay, time_ps=time_ps, exact=area * time_ps, drc=row["drc"],
-                   lec=list(lec),
+                   lec=list(flow_lec), lec_reference=dict(lr),
                    drv={k: int(Decimal(mt.get(f"finish__timing__drv__{k}", "0")))
                         for k in ("max_slew", "max_cap", "max_fanout")},
                    hold_violations=int(Decimal(mt.get("finish__timing__drv__hold_violation_count", "0"))),
@@ -427,6 +450,91 @@ def sitedata(task_name, out_dir, new_entries, *, table, view, svgolf=pnr.SVGOLF,
     return data
 
 
+REF_FILES = ("1_2_yosys.v", "6_final.v", "6_final.odb")      # what ties a stored run to the table's run (add-lec)
+
+
+def add_lec(task_name, table, records, pins):
+    """`add-lec` (see the module text): the routed table `table` (schema svgolf-asap7pnr/2, made under the pins but for
+    the old validity_rule) with every run's reference-against-routed record added. Returns (the new table, [(sv16, of,
+    why)] of the designs made pending again, [(sv16, seed, role, verdict)] of the runs made failed). Pure;
+    CollectError when the table is not of that kind or a record does not belong to its run."""
+    if table.get("schema") != lb.ASAP7PNR_PREVIOUS_SCHEMA:
+        raise CollectError(f"schema {table.get('schema')!r}: add-lec takes a table of {lb.ASAP7PNR_PREVIOUS_SCHEMA!r} "
+                           "(made before the reference-against-routed check was a validity condition)")
+    course = dict(copy.deepcopy(table["course"]), validity_rule=pins["validity_rule"])
+    diff = sorted(k for k in lb.PNR_PINNED if course.get(k) != pins.get(k))
+    if diff:
+        raise CollectError(f"the table was made under other pins as well ({', '.join(diff)}): route it again")
+    index = {}
+    for rec in records:
+        k = (rec["job"], rec["measured_at"], rec["role"])
+        if k in index:
+            raise CollectError(f"two records for {k}")
+        index[k] = rec
+    new = copy.deepcopy(table)
+    new.update(schema=lb.ASAP7PNR_SCHEMA, course=course)
+    pended, failed = [], []
+    for e in new["designs"]:
+        runs, why = [], None
+        for r in e["runs"]:
+            if r.get("status") != "ok":
+                runs.append(r)                               # a failed run stays failed: it needs no record
+                continue
+            job = f"{task_name}_{e['netlist_sha256'][:12]}__min_s{r['seed']}"
+            rec = index.get((job, r["measured_at"], r["role"]))
+            lr = (rec or {}).get("lec_reference")
+            if rec is not None and {k: rec["artifacts"].get(k) for k in REF_FILES} != {k: r["artifacts"][k]
+                                                                                        for k in REF_FILES}:
+                raise CollectError(f"{job} ({r['measured_at']}, {r['role']}): the record's run is not the table's run "
+                                   f"(the sha256 of {', '.join(REF_FILES)})")
+            if not isinstance(lr, dict) or any(lr.get(k) is None for k in lb.PNR_LEC_REF_KEYS):
+                why = why or (f"{job} ({r['measured_at']}, {r['role']}): no reference-against-routed check"
+                              + (f" ({', '.join(rec.get('missing') or [])} missing where the run is stored)"
+                                 if rec and rec.get("missing") else ""))
+                continue
+            if lr["reference_sha256"] != e["netlist_sha256"]:
+                raise CollectError(f"{job}: the record's reference is not the entry's netlist_sha256")
+            if lr["verdict"] != lb.PNR_LEC_REF_OK:
+                runs.append(dict({k: r[k] for k in lb.PNR_RUN_KEYS}, status="failed",
+                                 error=f"the reference-against-routed equivalence check: {lr['verdict']}"))
+                failed.append((e["sv_sha256"][:16], r["seed"], r["role"], lr["verdict"]))
+                continue
+            runs.append(dict(r, lec_reference={k: lr[k] for k in sorted(lb.PNR_LEC_REF_KEYS)}))
+        if why:
+            e.update(runs=[], scores={"v_owner": None, "v_median": None}, status="pending", layout=None)
+            pended.append((e["sv_sha256"][:16], e["of"], why))
+            continue
+        e["runs"] = runs
+        e["scores"], e["status"] = lb._pnr_scores(e)
+        if e["status"] != "measured":
+            e["layout"] = None
+    bad = lb.asap7pnr_file_problems(new, task_name)
+    if bad:
+        raise CollectError("the result is not a well-formed table: " + "; ".join(bad[:5]))
+    return new, pended, failed
+
+
+def cmd_add_lec(args):
+    view, why = lb.read_asap7(args.task)
+    if why or view is None:
+        raise CollectError(why or f"no ASAP7 view for {args.task}")
+    table = json.loads(_read(lb.asap7pnr_path(args.task)))
+    records = [r for r in json.loads(_read(args.records)) if r.get("task", args.task) == args.task]
+    if (table.get("asap7_view"), table.get("scoring_point")) != (
+            {"identity": view["identity"], "ppa_script_sha256": view["ppa_script_sha256"]}, view["scoring_point"]):
+        raise CollectError("the table was routed from another ASAP7 view or scoring point than the current one")
+    new, pended, failed = add_lec(args.task, table, records, pnr.load_pins())
+    data = sitedata(args.task, args.out, [], table=new, view=view)
+    n = sum(len(e["runs"]) for e in table["designs"])
+    print(f"wrote {os.path.join(args.out, 'sitedata', args.task + '.json')}: {len(data['designs'])} entries, {n} runs "
+          f"checked; {len(failed)} runs failed the check, {len(pended)} designs not routed yet again")
+    for sv16, of, why in pended:
+        print(f"  pending again: {', '.join(of)} ({sv16}): {why}")
+    for sv16, seed, role, word in failed:
+        print(f"  failed: {sv16} seed {seed} ({role}): {word}")
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -445,8 +553,14 @@ def main(argv=None):
     s.add_argument("--task", required=True)
     s.add_argument("--out", required=True)
     s.add_argument("entries", nargs="+")
+    a = sub.add_parser("add-lec")
+    a.add_argument("--task", required=True)
+    a.add_argument("--records", required=True)
+    a.add_argument("--out", required=True)
     args = ap.parse_args(argv)
     try:
+        if args.cmd == "add-lec":
+            return cmd_add_lec(args)
         if args.cmd == "row":
             out = collect_row(args.job_dir, args.job)
         elif args.cmd == "entry":

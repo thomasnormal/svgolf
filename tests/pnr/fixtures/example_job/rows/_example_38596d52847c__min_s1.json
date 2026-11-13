@@ -15,6 +15,13 @@
  "lec": [
   "6_final:IDENTICAL"
  ],
+ "lec_reference": {
+  "config_sha256": "e8a93138c2e94eed500e6f925200fb8618b17955c6094ce08d211e9b293a1498",
+  "log_sha256": "11c3b3ddcea04a2fc8895fc18358df385bb912d5fc611829c155ee7435b0e54a",
+  "reference_sha256": "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902",
+  "routed_lec_sha256": "49a8a9946205c0e40f6005b21d2593eabafd5f39ac0b8ee363e34c9d89e78690",
+  "verdict": "IDENTICAL"
+ },
  "metrics": {
   "finish__clock__skew__hold": "0",
   "finish__clock__skew__setup": "0",

@@ -41,6 +41,6 @@
   },
   "threads": 2,
   "time_rule": "P_minus_WS_half_even_ps",
-  "validity_rule": "ORFS exit 0, detailed-route DRC 0, every LEC log 'Circuits are IDENTICAL' (DRV counts recorded, not part of validity)"
+  "validity_rule": "ORFS exit 0, detailed-route DRC 0, every LEC log of the flow 'Circuits are IDENTICAL', and the reference-against-routed check IDENTICAL (decided 2026-11-13): after the flow, kepler-formal in the pinned image with the flow's own configuration of the run, its reference the bound netlist file (sha256 = the entry's netlist_sha256), its other side the run's routed 6_final_lec.v, its log printing 'Circuits are IDENTICAL' and neither 'Found difference' nor 'Circuits are DIFFERENT' (score/pnr/lec.py) (DRV counts recorded, not part of validity)"
  }
 }

@@ -11,12 +11,23 @@ derived again from the job's own files, the area with score/ppa.py's own liberty
              (`asap7pnr_status`: failed, stale, unbound) under the tree's ASAP7 view, scoring point and pins
   one run    an entry the tree already has with a scoring run must come back unchanged (one run per design); the
              request of a design the tree has is the tree's (a request is never changed by a collection), and a new
-             entry needs a request the tree stores (leaderboard.py asap7pnr --request)
+             entry needs a request the tree stores (leaderboard.py asap7pnr --request). When the tree's table is of the
+             schema before the reference-against-routed check (svgolf-asap7pnr/2; `collect.py add-lec`), "unchanged"
+             means unchanged but for each valid run's new `lec_reference`, which is checked as below
   runs       for every run that is not the tree's, from its job directory: config.mk and SDC are the recorded files
              (sha256), the config.mk holds the pinned ORFS variables and no other, its seed is the run's and the
              request's; the SDC period is the ASAP7 view's delay; the collected row says exit 0, DRC 0 and every
              equivalence log IDENTICAL for a valid run; area = the liberty's areas over the row's cell histogram (exact);
-             delay = half-even(period - worst setup slack); artifacts = the row's hashes (the SPEF's normalized one)
+             delay = half-even(period - worst setup slack); artifacts = the row's hashes (the SPEF's normalized one);
+             the run's `lec_reference` is the row's
+  reference  for every valid run whose reference-against-routed record is not the tree's: its log is in a job
+             directory (lec/<job>_lec_check.log, found by its sha256) and says IDENTICAL by the rule read here again
+             ("Circuits are IDENTICAL", neither "Found difference" nor "Circuits are DIFFERENT"); the configuration
+             beside it (lec/<job>.yml) is the recorded one, its reference /work/designs/<nick>.v, its other side the
+             run's /work/run/results/asap7/<nick>/<variant>/6_final_lec.v and its log /work/lec/<job>_lec_check.log, and,
+             where the flow's own configuration is in that directory, it is that file but for those three lines; the
+             bound netlist (designs/<nick>.v) is the recorded reference and the entry's netlist_sha256; the routed
+             netlist, where it is in that directory, is the recorded one (else a note)
   pictures   the render PNG is the recorded one (sha256, pixel size), the die box is the render log's, the caption
              names the seed; with the Pillow and libwebp the committed pictures were made with (11.1.0, 1.5.0), the
              picture is the render encoded again at its recorded size and quality, byte for byte, and the thumbnail
@@ -104,6 +115,89 @@ def _find(job_dirs, *rel):
     return None
 
 
+def _verdict(text):
+    """The reference-against-routed check's verdict of a log's text (the rule, read here again: lec.py is not used)."""
+    same = "Circuits are IDENTICAL" in text
+    found, differ = "Found difference" in text, "Circuits are DIFFERENT" in text
+    return "IDENTICAL" if same and not found and not differ else ("DIFFERENT" if found and differ and not same
+                                                                   else "NO VERDICT")
+
+
+def check_lec(w, run, ent, task_name, job_dirs, P, N):
+    """Problems (via P) and notes (via N) of a valid run's reference-against-routed record (`lec_reference`), from the
+    job directories' own files (see the module text)."""
+    lr = run.get("lec_reference")
+    if run.get("status") != "ok":
+        return
+    nick = f"{task_name}_{ent['netlist_sha256'][:12]}"
+    variant = f"min_s{run['seed']}"
+    job = f"{nick}__{variant}"
+    if not isinstance(lr, dict):
+        P(f"{w}: a valid run without its reference-against-routed check")
+        return
+    found = None
+    for d in job_dirs:
+        p = os.path.join(d, "lec", f"{job}_lec_check.log")
+        if os.path.isfile(p) and H(_bytes(p)) == lr.get("log_sha256"):
+            found = d
+            break
+    if found is None:
+        P(f"{w}: the reference-against-routed log ({job}_lec_check.log, sha256 {str(lr.get('log_sha256'))[:12]}...) is "
+          "not in the job directories")
+        return
+    word = _verdict(_bytes(os.path.join(found, "lec", f"{job}_lec_check.log")).decode("utf-8", "replace"))
+    if word != lr.get("verdict") or word != "IDENTICAL":
+        P(f"{w}: the reference-against-routed log says {word}, the run records {lr.get('verdict')!r}; a valid run needs "
+          "IDENTICAL")
+    cfg_p = os.path.join(found, "lec", job + ".yml")
+    if not os.path.isfile(cfg_p) or H(_bytes(cfg_p)) != lr.get("config_sha256"):
+        P(f"{w}: the reference-against-routed configuration (lec/{job}.yml) is not the recorded one")
+    else:
+        cfg = _bytes(cfg_p).decode().splitlines()
+        want = {"reference": f"  - /work/designs/{nick}.v",
+                "routed": f"  - /work/run/results/asap7/{nick}/{variant}/6_final_lec.v",
+                "log": f"log_file: /work/lec/{job}_lec_check.log"}
+        i = cfg.index("input_paths:") if "input_paths:" in cfg else None
+        got = {"reference": cfg[i + 1] if i is not None and i + 1 < len(cfg) else None,
+               "routed": cfg[i + 2] if i is not None and i + 2 < len(cfg) else None,
+               "log": next((x for x in cfg if x.startswith("log_file: ")), None)}
+        if got != want or (i is not None and i + 3 < len(cfg) and cfg[i + 3].startswith("  - ")):
+            P(f"{w}: the reference-against-routed configuration does not compare the bound netlist with the run's "
+              "routed 6_final_lec.v")
+        flow_p = os.path.join(found, "run", "objects", "asap7", nick, variant, "6_final_lec_test.yml")
+        if i is None:
+            pass                                                  # said above
+        elif os.path.isfile(flow_p):
+            flow = _bytes(flow_p).decode().splitlines()
+            three = {i + 1, i + 2, next((n for n, x in enumerate(cfg) if x.startswith("log_file: ")), -1)}
+            if len(flow) != len(cfg) or any(a != b for n, (a, b) in enumerate(zip(flow, cfg)) if n not in three) \
+                    or not flow[i + 2].endswith(f"/{nick}/{variant}/6_final_lec.v"):
+                P(f"{w}: the reference-against-routed configuration is not the flow's own with its two inputs and "
+                  "its log file changed")
+        else:
+            N(f"{w}: the flow's own configuration of the run is not here: the rest of the check's configuration not "
+              "compared with it")
+    ref_p = os.path.join(found, "designs", nick + ".v")
+    if not os.path.isfile(ref_p) or H(_bytes(ref_p)) != lr.get("reference_sha256") \
+            or lr.get("reference_sha256") != ent["netlist_sha256"]:
+        P(f"{w}: the reference-against-routed reference is not the bound netlist (designs/{nick}.v, the entry's "
+          "netlist_sha256)")
+    routed_p = os.path.join(found, "run", "results", "asap7", nick, variant, "6_final_lec.v")
+    if os.path.isfile(routed_p):
+        if H(_bytes(routed_p)) != lr.get("routed_lec_sha256"):
+            P(f"{w}: the routed netlist the check compared (6_final_lec.v) is not the recorded one")
+    else:
+        N(f"{w}: the routed 6_final_lec.v is not here: its sha256 not re-derived")
+
+
+def _without_lec(e):
+    """An entry as the schema before the reference-against-routed check had it (every run's `lec_reference` dropped)."""
+    e = copy.deepcopy(e)
+    for r in e.get("runs") or []:
+        r.pop("lec_reference", None)
+    return e
+
+
 def check_run(w, run, ent, task_name, job_dirs, area_of, pins, P, N):
     """Problems (via P) and notes (via N) of one run that is not the tree's."""
     nick = f"{task_name}_{ent['netlist_sha256'][:12]}"
@@ -133,12 +227,17 @@ def check_run(w, run, ent, task_name, job_dirs, area_of, pins, P, N):
     if row.get("job") != job:
         P(f"{w}: the row is another job's")
         return
+    lr = row.get("lec_reference")
+    ref_ok = isinstance(lr, dict) and lr.get("verdict") == "IDENTICAL" and lr.get("reference_sha256") == ent["netlist_sha256"]
     valid = row.get("status") == "ok" and row.get("rc") == 0 and row.get("drc") == 0 and bool(row.get("lec")) \
-        and all(x.endswith(":IDENTICAL") for x in row["lec"])
+        and all(x.endswith(":IDENTICAL") for x in row["lec"]) and ref_ok
     if (run["status"] == "ok") != valid:
         P(f"{w}: status {run['status']!r}, but the row says exit {row.get('rc')}, DRC {row.get('drc')}, "
-          f"equivalence {row.get('lec')}")
+          f"equivalence {row.get('lec')}, reference-against-routed {(lr or {}).get('verdict', 'not run')}")
         return
+    if run["status"] == "ok" and run.get("lec_reference") != lr:
+        P(f"{w}: the run's reference-against-routed record is not the row's")
+    check_lec(w, run, ent, task_name, job_dirs, P, N)
     if (run["seconds"], run["peak_mb"]) != (row.get("seconds"), row.get("peak_mem_mb")):
         P(f"{w}: seconds or peak memory are not the row's")
     if run["status"] != "ok":
@@ -207,7 +306,15 @@ def check(out_dir, task_name, job_dirs, *, area_of, pins=None, tree=None):
     if tree is None:
         tree, why = lb.read_asap7pnr(task_name)
         if why:
-            return [f"{task_name}: the tree's routed table: {why}"], notes
+            try:                                     # a table of the schema before the reference-against-routed check
+                with open(lb.asap7pnr_path(task_name), encoding="utf-8") as fh:
+                    raw = json.load(fh)
+            except (OSError, ValueError):
+                raw = None
+            if not (isinstance(raw, dict) and raw.get("schema") == lb.ASAP7PNR_PREVIOUS_SCHEMA):
+                return [f"{task_name}: the tree's routed table: {why}"], notes
+            tree = raw
+    previous = tree.get("schema") == lb.ASAP7PNR_PREVIOUS_SCHEMA
     with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
         expected = json.load(fh)
     designs = lb.asap7_designs(task, lb.good_records(lb.load_records(lb.DEFAULT_DATA)), expected)
@@ -227,17 +334,21 @@ def check(out_dir, task_name, job_dirs, *, area_of, pins=None, tree=None):
         if status not in ("bound", "pending"):
             P(f"{w}: {status}: {why}")
         old = lb.asap7pnr_entry(tree, e["sv_sha256"])
-        if old is not None and any(r.get("role") == "scoring" for r in old["runs"]) and e != old:
+        if old is not None and any(r.get("role") == "scoring" for r in old["runs"]) \
+                and (_without_lec(e) if previous else e) != old:
             P(f"{w}: the tree's entry has a scoring run and this one is not it (one run per design)")
         if old is not None and e["request"] != old["request"]:
             P(f"{w}: the request is not the one the tree stores")
         if old is None:
             P(f"{w}: the tree stores no request for this design (make one with leaderboard.py asap7pnr --request)")
         for i, run in enumerate(e["runs"]):
+            wr = f"{w} run {i} ({run.get('role')}, seed {run.get('seed')})"
             if old is not None and run in old["runs"]:
                 continue                         # the tree's own run, carried unchanged (checked when it came in)
-            check_run(f"{w} run {i} ({run.get('role')}, seed {run.get('seed')})", run, e, task_name, job_dirs,
-                      area_of, pins, P, N)
+            if previous and old is not None and _without_lec({"runs": [run]})["runs"][0] in old["runs"]:
+                check_lec(wr, run, e, task_name, job_dirs, P, N)     # the tree's run, with its new record
+                continue
+            check_run(wr, run, e, task_name, job_dirs, area_of, pins, P, N)
     return problems, notes
 
 

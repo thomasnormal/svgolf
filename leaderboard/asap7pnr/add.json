@@ -53,7 +53,7 @@
   "scoring_host": "x86-64 Linux, Intel Xeon Platinum 8488C, the pinned image unpacked and run in a rootless user namespace (chroot)",
   "threads": 2,
   "time_rule": "P_minus_WS_half_even_ps",
-  "validity_rule": "ORFS exit 0, detailed-route DRC 0, every LEC log 'Circuits are IDENTICAL' (DRV counts recorded, not part of validity)",
+  "validity_rule": "ORFS exit 0, detailed-route DRC 0, every LEC log of the flow 'Circuits are IDENTICAL', and the reference-against-routed check IDENTICAL (decided 2026-11-13): after the flow, kepler-formal in the pinned image with the flow's own configuration of the run, its reference the bound netlist file (sha256 = the entry's netlist_sha256), its other side the run's routed 6_final_lec.v, its log printing 'Circuits are IDENTICAL' and neither 'Found difference' nor 'Circuits are DIFFERENT' (score/pnr/lec.py) (DRV counts recorded, not part of validity)",
   "variants": {
    "v_median": "unranked extra: seeds [1, 2, 3] of the 2026-11-11 campaign, the middle run by (exact, seed); only the designs whose entry was measured then have it (the runs of 2026-11-12 and 2026-11-13 are at seed 1 only)",
    "v_owner": "THE SCORE: the one run at the request's seed (the seed the record names, else a seed drawn once and stored with it; no record names a seed and none has been drawn yet, so every design measured so far, from 2026-11-11 to 2026-11-13, ran at seed 1, the default) and its settings ({} by default)"
@@ -148,6 +148,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "df98e0d3751fc6939cfbaadf7660fca4060a54ec0c0e9b85a7c85115e79993ea",
+      "log_sha256": "88758080925ef41f5e0956e403179c1b2411e68f41e1c33d7b6f54e323962db5",
+      "reference_sha256": "e854329780a1ad9d911d3023a1286433ff2f499723f812581d2d744dcd3855a8",
+      "routed_lec_sha256": "5d2a01ef7b505cc5f0ba988cb7e3b14997a5b2582d37ca9935c9907c889332a6",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-13",
      "orfs": {
       "area_stdcell": "13.7198",
@@ -269,6 +276,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "8453472cb550618a9b238770f9fcc7f54558001f1966a4e3753e0737fca8069e",
+      "log_sha256": "f473798de1a33d3e1af03350ca0764dd07b3fa31c0aadf7db2ebe22249a1d6a8",
+      "reference_sha256": "28254366c960942c7454283d58f262a05a2339152c15aab707fbf403b8981ba0",
+      "routed_lec_sha256": "546e25978c366c28f2ecbe1698f3cc5b91e03a9ffe7d6e8ff5b8186dd5596523",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-11",
      "orfs": {
       "area_stdcell": "8.06274",
@@ -322,6 +336,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "d42efff9b8ec3c08d2637870ef8b26fe70a07956ae5d070f30327f25fd14877f",
+      "log_sha256": "9678e571fd7e192383365c06ef26cb3348d80a099a89b85391d7e976475e7ecf",
+      "reference_sha256": "28254366c960942c7454283d58f262a05a2339152c15aab707fbf403b8981ba0",
+      "routed_lec_sha256": "546e25978c366c28f2ecbe1698f3cc5b91e03a9ffe7d6e8ff5b8186dd5596523",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-11",
      "orfs": {
       "area_stdcell": "8.06274",
@@ -375,6 +396,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "277be5ffef2186e80b9ef06abf0d095950ee7527846eb2b5fc349eb2b507396c",
+      "log_sha256": "448ebd3ba67c45b78938ee6bd755fb9c3658bf7f6f20f7751e6241d81094cc27",
+      "reference_sha256": "28254366c960942c7454283d58f262a05a2339152c15aab707fbf403b8981ba0",
+      "routed_lec_sha256": "546e25978c366c28f2ecbe1698f3cc5b91e03a9ffe7d6e8ff5b8186dd5596523",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-11",
      "orfs": {
       "area_stdcell": "8.06274",
@@ -510,6 +538,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "22319e34d55898fa41b2677dbb294ddbb80a2f60a4fee4778f61a9b79312afab",
+      "log_sha256": "8050313661b4173d7b5b0670c15afbe8d2cbe84193b17937b08e6b36cc269e87",
+      "reference_sha256": "3f31f3f295487ce12bd327899184cd8808d69916e3fc0426de4d1b512cf5a1bf",
+      "routed_lec_sha256": "77a22d39d4c8d2ccb6161c0c3c11b643a2a00d7ac5aec0637d444de719714ef0",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-11",
      "orfs": {
       "area_stdcell": "7.8732",
@@ -563,6 +598,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "2450c4d76888930ea4398d6cf2abdd5eb72df4aed2f5024fcdabf1699eecfd57",
+      "log_sha256": "96a62df1bf6e353ebf4584a2672df68aaaecb84b5b89bf00d8213893dece5f65",
+      "reference_sha256": "3f31f3f295487ce12bd327899184cd8808d69916e3fc0426de4d1b512cf5a1bf",
+      "routed_lec_sha256": "77a22d39d4c8d2ccb6161c0c3c11b643a2a00d7ac5aec0637d444de719714ef0",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-11",
      "orfs": {
       "area_stdcell": "7.8732",
@@ -616,6 +658,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "8224e7c62001deafb0c18cff3cb860c400ffdc96ab9ac3a56a53371830926852",
+      "log_sha256": "0aba41de062f7cc9a0b41858276c7193ba87296dd847e9cf133f237ec380ff46",
+      "reference_sha256": "3f31f3f295487ce12bd327899184cd8808d69916e3fc0426de4d1b512cf5a1bf",
+      "routed_lec_sha256": "77a22d39d4c8d2ccb6161c0c3c11b643a2a00d7ac5aec0637d444de719714ef0",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-11",
      "orfs": {
       "area_stdcell": "7.8732",
@@ -749,6 +798,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "9118b2178420a29c61916cd50d0fbdf7f2db8dac81547d7cc995ea815fb8b883",
+      "log_sha256": "b9819d10b678a7d07ffb3ac1b7639dea13d86825d000ffd6efafa1e8c950df5f",
+      "reference_sha256": "1378fd584139769e1de9b4ceef549758ae625003be1d9e42ee559a0de25d180a",
+      "routed_lec_sha256": "6e66b5074f9db436b632b8b16757376ce344d1c03b90b7c0df0761abc8a3aad7",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-12",
      "orfs": {
       "area_stdcell": "8.3106",
@@ -871,6 +927,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "d2805cb03dd25b1890da8319beb81d63727e1a0e41e8c1f279c75f5d5745902f",
+      "log_sha256": "c6725919beaed5e39aa536d38426974a9b7b0f5bc255c920e5e8d2668ac7ed43",
+      "reference_sha256": "392bedeed3a0f7441391502027fa001ce951e8151e773171dc751dbd57976337",
+      "routed_lec_sha256": "4e96809a78f96a7d970529c6f00e3fc39de7772e0d76e6f2a2524b48c95fc4d4",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-13",
      "orfs": {
       "area_stdcell": "7.8732",
@@ -993,6 +1056,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "b31c3effd3455da3efcfb3d730ca06e3e19ed5ac8759ddfed4a0d93b797e4733",
+      "log_sha256": "44abc3f3743ca7d645a008dab0385eafda7a812c622e3d1c16bdaed1da60b53e",
+      "reference_sha256": "e11990d2a7a4d60ba28310228fb03765df43ce5259fceb4468489f0f79f60c86",
+      "routed_lec_sha256": "cf1f613518a7347c5ad50b5e9f90605c8af0209fcc7f9a632c9ecb0200107596",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-13",
      "orfs": {
       "area_stdcell": "10.4684",
@@ -1115,6 +1185,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "a7145cd428e0edabccf91f911fcea33ecad91d147080339834e82d310c0195db",
+      "log_sha256": "0039d67236f25f7ed9a3f2b3f5195bbb7c1d4d423111225fca837ccaae12ae91",
+      "reference_sha256": "61806d575a845fd027ba6a098140558b3803561e6964c92d3d3cf8db19552e11",
+      "routed_lec_sha256": "be1b2d0faeafa3fb73bc846f8af44098a918e454efb5b1b9bcb747f9e1ca4549",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-13",
      "orfs": {
       "area_stdcell": "7.8732",
@@ -1237,6 +1314,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "62753603962d364adac75764ff21ff541a5800c8a17463325365f1e257c99943",
+      "log_sha256": "23b94a110a97787494b8fa6afbc2e75e5bb952081207a15a62d6a391f458c5ec",
+      "reference_sha256": "2d64bad1d8fc8f792f7d29355576161c31bd259fcf2ed9df05a2cd700bb9a64d",
+      "routed_lec_sha256": "90c4c761d65154a4d902f933a7407f5a4faf3540f5ae278ee326827600d27455",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-13",
      "orfs": {
       "area_stdcell": "7.8732",
@@ -1359,6 +1443,13 @@
      "lec": [
       "6_final:IDENTICAL"
      ],
+     "lec_reference": {
+      "config_sha256": "92119ea008123d73eae4d3549d1e25162442db7ec97b27c805f51aacfdff19b5",
+      "log_sha256": "2b77ecaaf8c877949c791f13ca189bef36e6d335f7acd7bc5d0ddd63d8498bfa",
+      "reference_sha256": "92b4d78f3193d0da31d31bad70021a4f15d08a98c547bd957507d913f32e442b",
+      "routed_lec_sha256": "de12784e7fc844b91907067ac9ffa5c5460744eb11576e41c20fa6ecbe1c2c30",
+      "verdict": "IDENTICAL"
+     },
      "measured_at": "2026-11-13",
      "orfs": {
       "area_stdcell": "8.98128",
@@ -1393,7 +1484,7 @@
    "sv_sha256": "f274cc954edcb1179025cfac2df267c4458a4c24e60757d4cdfbff057aee96c9"
   }
  ],
- "schema": "svgolf-asap7pnr/2",
+ "schema": "svgolf-asap7pnr/3",
  "scoring_point": {
   "N": 16
  },

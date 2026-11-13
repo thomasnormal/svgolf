@@ -190,9 +190,10 @@ class PdkTest(unittest.TestCase):
 
     def test_the_rules_say_how_the_routed_course_is_scored(self):
         """The rules page's section "How the routed course is scored" (2026-11-12): the flow and its pins, the score,
-        the seed rule, what a run must pass, what the equivalence check shows and the negative control of 2026-11-13
-        (said exactly: the flow compares the routed netlist with its own input, the sha256 binding ties that input to
-        the design, the control is not a step of every run), what is not checked or not done, what a record not routed
+        the seed rule, what a run must pass, what the equivalence checks show and the negative control of 2026-11-13
+        (said exactly: the flow compares the routed netlist with its own input; the reference-against-routed check, the
+        bound netlist against the routed one, is a step of every run and a validity condition since 2026-11-13), what
+        is not checked or not done (the calibration run of 2026-11-13 named), what a record not routed
         yet shows, the pictures, and where the files are; the routed course's pages link it."""
         rules = self.raw("rules.html")
         self.assertIn(f'id="{build.ASAP7PNR_ANCHOR}"', rules)
@@ -206,19 +207,27 @@ class PdkTest(unittest.TestCase):
                        "leaderboard.py asap7pnr --request --task <name> --design FILE --seed N --write",
                        "the run itself is still made by the maintainers on the course host",
                        "The flow's equivalence check compares the routed netlist with the netlist the run was given: it "
-                       "shows that place and route preserved the run's input, not that the input was the design's "
-                       "netlist", "That the input is the design's ASAP7 netlist is checked by sha256",
+                       "shows only that place and route preserved the run's input, not that the input was the design's "
+                       "netlist", "So every run has a second step, decided 2026-11-13",
+                       "compares the routed netlist with the design's netlist file itself, the file the course binds by "
+                       "its sha256", "The run counts only when that check says the circuits are identical",
+                       "A run that misses any of the four is failed and shows no number",
+                       "The placed netlist's sha256 is checked too",
                        "A negative control was run on 2026-11-13", "Circuits are DIFFERENT", "(4 of 4)",
-                       "The tool exits 0 either way; its verdict is read from its log, as the flow does",
-                       "This control is not a pinned step of every run", "Hold timing, other corners, and power are not "
+                       "The tool exits 0 either way, so its verdict is read from its log",
+                       "the check was made for every committed run (97 runs of 52 designs, from the stored runs): 97 "
+                       "IDENTICAL, and no number changed", "Hold timing, other corners, and power are not "
                        "scored", "score/pnr/README.md", "they write the config.mk and SDC of every committed run byte "
-                       "for byte", "no run has been made with their container runner yet",
+                       "for byte", "On 2026-11-13 the tutorial task's par design was placed and routed again with them",
+                       "A run under docker or podman itself has not been made",
                        "slow-signal (max-slew) warnings",
                        "not routed yet: place and route pending", "Since 2026-11-13 every design the tasks show",
                        "leaderboard/asap7pnr/<task>.json", "site/layouts/<task>/",
                        "a predictive library at one corner, not sign-off"):
             self.assertIn(phrase, part)
         self.assertNotIn("not yet checked by a negative control", part)
+        self.assertNotIn("This control is not a pinned step of every run", part)   # it is one since 2026-11-13
+        self.assertNotIn("no run has been made with their container runner yet", part)
         self.assertNotIn("not yet made again from the repository alone", part)     # the run tools are in score/pnr/
         self.assertNotIn("does not take a seed yet", part)                          # a request can name a seed
         for p in [f"tasks/{t}/index.html" for t in self.listed]:
@@ -498,7 +507,10 @@ class PdkTest(unittest.TestCase):
                 job = f"{t}_{e['netlist_sha256'][:12]}__min_s{run['seed']}"      # the in-tree tools' commands
                 self.assertIn(f"score/pnr/job.py --task {t} --netlist netlist.v --seed {run['seed']} --out job", rep)
                 self.assertIn(f"score/pnr/run_job.py run job {job}", rep)
-                self.assertIn("no run has been made with its container runner yet", rep)
+                self.assertIn("One run has been made again with these tools (2026-11-13", rep)
+                self.assertIn("None has been made under docker itself", rep)
+                self.assertNotIn("no run has been made with its container runner yet", rep)
+                self.assertIn("equivalence with the design's netlist IDENTICAL", rep)
                 self.assertNotIn("not in the repository yet", rep)
                 sky = text_of(section(self.view(path, "sky130"), "dashboard"))
                 self.assertNotIn(flat(f"{build.grouped(lb.fmt_um2_e5(vo['area_e5um2']))} µm² exactly"), sky)

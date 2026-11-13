@@ -8,10 +8,13 @@ stored run data (tests/pnr/fixtures/README.txt says where each fixture comes fro
   - the runner's container command (by digest, no network, the pinned CPUs and memory cap, inputs read-only) and its
     refusal of a config.mk made under other pins;
   - the collector: a row from the files fetched back of a run (hashes, cell histogram, the equivalence verdict), ORFS's
-    raw metric texts kept as text, the normalized SPEF hash; and the whole path render -> picture -> entry -> site
-    data -> `leaderboard.py asap7pnr --import` reproducing the committed leaderboard/asap7pnr/_example.json, byte for
-    byte, from the stored job of _example's band_lp design;
-  - the site-data check: clean on that data, and each planted fault caught.
+    raw metric texts kept as text, the normalized SPEF hash, the reference-against-routed check's record; and the
+    whole path render -> picture -> entry -> site data -> `leaderboard.py asap7pnr --import` reproducing the committed
+    leaderboard/asap7pnr/_example.json, byte for byte, from the stored job of _example's band_lp design; a run without
+    an IDENTICAL reference-against-routed check against the bound netlist is a failed run;
+  - `collect.py add-lec`: a table of the schema before that check (the committed one taken back) gains every run's
+    record and nothing else; a run without one makes its design pending, a DIFFERENT verdict a failed run;
+  - the site-data check: clean on that data, and each planted fault caught (the reference check's included).
 
 The area needs the pinned ASAP7 liberty (`score/ppa.py --pdk asap7 --fetch-liberty`, or $SVGOLF_ASAP7_LIB); without
 it the one cell the fixture uses is given its area here (0.08748 um^2, AND2x2_ASAP7_75t_R), which a test holds to the
@@ -41,6 +44,7 @@ import collect  # noqa: E402
 import encode  # noqa: E402
 import job as jobmod  # noqa: E402
 import leaderboard as lb  # noqa: E402
+import lec  # noqa: E402
 import pnr  # noqa: E402
 import run_job  # noqa: E402
 
@@ -48,6 +52,7 @@ FIX = os.path.join(HERE, "fixtures")
 EXJOB_DIR = os.path.join(FIX, "example_job")
 EXJOB = "_example_38596d52847c__min_s1"
 EXNICK = "_example_38596d52847c"
+EXNICK_NETLIST = "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902"   # its bound netlist (sha256)
 BAND_LP = "a5784d61a37a73102d0f55bb15fa259a55a1a303aa490d4fd01aa73ce97766c4"   # _example's band_lp design file
 ADD_JOB = "add_3f31f3f29548__min_s1"
 AND2_AREA = Decimal("0.08748")
@@ -258,7 +263,7 @@ class RunnerTest(TempDir):
         with self.assertRaises(ValueError):                                  # no run yet: nothing to draw
             run_job.render_command(d, EXJOB, pnr.load_pins())
         res = pnr.work_dirs(d, EXJOB)["results"]
-        os.makedirs(res)
+        os.makedirs(res, exist_ok=True)
         write(os.path.join(res, "6_final.odb"), b"")
         cmd = run_job.render_command(d, EXJOB, pnr.load_pins())
         mounts = {inside: ro for _h, inside, ro in run_job._mounts_of(cmd)}
@@ -281,6 +286,7 @@ class CollectorTest(TempDir):
         self.assertEqual(row["sha256"]["6_final.v"], run["artifacts"]["6_final.v"])
         self.assertEqual(sum(row["final_hist"].values()), run["cells_out"])
         self.assertEqual(row["lec"], ["6_final:IDENTICAL"])
+        self.assertIsNone(row["lec_reference"])                             # no reference-against-routed check here
         self.assertIsNone(row["sha256"]["6_final.odb"])                     # not fetched back: stays on the host
         self.assertEqual(collect.collect_row(os.path.join(FIX, "add_rerun"), "add_3f31f3f29548__min_s2")["status"],
                          "pending")
@@ -372,15 +378,170 @@ class CollectorTest(TempDir):
             with self.subTest(name), self.assertRaises(collect.CollectError):
                 collected_entry(out, table, **over)
 
+    def test_the_reference_check_s_record(self):
+        """The stored job's reference-against-routed check (run on the stored run on 2026-11-13): lec.py `record` over
+        its files is the row's `lec_reference` and the committed scoring run's; IDENTICAL against the bound netlist."""
+        rec = lec.record(EXJOB_DIR, EXJOB)
+        row = json.loads(read(os.path.join(EXJOB_DIR, "rows", EXJOB + ".json")))
+        run = lb.asap7pnr_entry(committed("_example")[1], BAND_LP)["runs"][0]
+        self.assertEqual(rec, row["lec_reference"])
+        self.assertEqual(rec, run["lec_reference"])
+        self.assertEqual((rec["verdict"], rec["reference_sha256"]), (lec.IDENTICAL, EXNICK_NETLIST))
+        self.assertEqual(rec["routed_lec_sha256"],
+                         pnr.sha256_file(os.path.join(pnr.work_dirs(EXJOB_DIR, EXJOB)["results"], "6_final_lec.v")))
+        self.assertIsNone(lec.record(os.path.join(FIX, "add_rerun"), ADD_JOB))          # the check has not run there
+        self.assertEqual(lb.pnr_lec_reference_problems(rec, EXNICK_NETLIST), [])
+
+    def test_the_flow_s_verdict_is_read_by_the_same_rule(self):
+        """The flow's own equivalence logs are read by lec.py's rule: a log that prints both lines is UNKNOWN, not
+        IDENTICAL."""
+        d = os.path.join(self.tmp, "logs")
+        os.makedirs(d)
+        ok = read(os.path.join(FIX, "add_rerun", "run", "logs", "asap7", "add_3f31f3f29548", "min_s1",
+                               "6_final_lec_check.log"))
+        for text, want in ((ok, "IDENTICAL"), (ok + "\nFound difference for PO: 5\nCircuits are DIFFERENT\n", "UNKNOWN"),
+                           ("", "UNKNOWN"), (read(os.path.join(FIX, "lec", "logs", "lec_add_perturbed_refB_lec_check.log")),
+                                             "DIFFERENT")):
+            with self.subTest(want=want, n=len(text)):
+                write(os.path.join(d, "6_final_lec_check.log"), text.encode())
+                self.assertEqual(collect.lec_verdicts(d), [f"6_final:{want}"])
+
     def test_a_failed_run(self):
         table = committed("_example")[1]
         row = json.loads(read(os.path.join(EXJOB_DIR, "rows", EXJOB + ".json")))
-        for bad in ({"drc": 3}, {"lec": ["6_final:UNKNOWN"]}, {"lec": []}, {"rc": 2, "status": "failed"}):
+        lr = row["lec_reference"]
+        both = os.path.join(self.tmp, "both")                  # the stored check's log with a difference appended
+        shutil.copytree(EXJOB_DIR, both)
+        log = os.path.join(both, "lec", EXJOB + "_lec_check.log")
+        write(log, read(log, "rb") + b"\nFound difference for PO: 3\nCircuits are DIFFERENT\n")
+        self.assertEqual(lec.record(both, EXJOB)["verdict"], lec.NO_VERDICT)
+        for bad in ({"drc": 3}, {"lec": ["6_final:UNKNOWN"]}, {"lec": []}, {"rc": 2, "status": "failed"},
+                    {"lec_reference": None}, {"lec_reference": dict(lr, verdict=lec.DIFFERENT)},
+                    {"lec_reference": lec.record(both, EXJOB)}, {"lec_reference": dict(lr, reference_sha256="0" * 64)},
+                    {"lec_reference": dict(lr, routed_lec_sha256=None)}):
             with self.subTest(bad=bad):
                 e, _ = collected_entry(os.path.join(self.tmp, "out"), table, row=dict(row, **bad))
                 self.assertEqual((e["status"], e["layout"], e["scores"]["v_owner"], e["runs"][0]["status"]),
                                  ("failed", None, None, "failed"))
                 self.assertIn("error", e["runs"][0])
+                self.assertNotIn("lec_reference", e["runs"][0])
+        e, _ = collected_entry(os.path.join(self.tmp, "out"), table, row=dict(row, lec_reference=dict(
+            lr, verdict=lec.DIFFERENT)))
+        self.assertIn("reference-against-routed DIFFERENT", e["runs"][0]["error"])
+
+
+OLD_RULE = ("ORFS exit 0, detailed-route DRC 0, every LEC log 'Circuits are IDENTICAL' (DRV counts recorded, not part of "
+            "validity)")                       # score/pnr/pins.json's validity_rule before 2026-11-13
+
+
+def previous_table(table):
+    """A routed table as the schema before the reference-against-routed check had it: schema 2, the old validity
+    rule, no run with `lec_reference`."""
+    t = copy.deepcopy(table)
+    t.update(schema=lb.ASAP7PNR_PREVIOUS_SCHEMA)
+    t["course"]["validity_rule"] = OLD_RULE
+    for e in t["designs"]:
+        for r in e["runs"]:
+            r.pop("lec_reference", None)
+    return t
+
+
+def records_of(task, table):
+    """add-lec's records of every run of a committed table (as the course host made them: the run's job, date, role,
+    three artifact hashes and its check's record)."""
+    return [{"task": task, "job": f"{task}_{e['netlist_sha256'][:12]}__min_s{r['seed']}", "measured_at": r["measured_at"],
+             "role": r["role"], "artifacts": {k: r["artifacts"][k] for k in collect.REF_FILES},
+             "lec_reference": copy.deepcopy(r["lec_reference"]), "missing": [], "problems": []}
+            for e in table["designs"] for r in e["runs"]]
+
+
+class AddLecTest(TempDir):
+    def setUp(self):
+        super().setUp()
+        self.text, self.table = committed("_example")
+        self.old = previous_table(self.table)
+        self.pins = pnr.load_pins()
+
+    def test_every_run_gains_its_record_and_nothing_else(self):
+        new, pended, failed = collect.add_lec("_example", self.old, records_of("_example", self.table), self.pins)
+        self.assertEqual((pended, failed), ([], []))
+        self.assertEqual(dict(new, _comment=None), dict(self.table, _comment=None))
+        # the old table itself is stale, never valid: refused as a whole, its designs never bound
+        bad = lb.asap7pnr_file_problems(self.old, "_example")
+        self.assertEqual(len(bad), 1)
+        self.assertIn("stale", bad[0])
+        self.assertIn("reference-against-routed", bad[0])
+
+    def test_a_run_without_its_record_or_with_another_verdict(self):
+        recs = records_of("_example", self.table)
+        miss = [r for r in recs if not (r["measured_at"] == "2026-11-11" and r["role"] == "spread" and "s2" in r["job"])]
+        new, pended, failed = collect.add_lec("_example", self.old, miss, self.pins)
+        (sv16, of, why), = pended
+        e = lb.asap7pnr_entry(new, next(x["sv_sha256"] for x in self.table["designs"] if x["sv_sha256"].startswith(sv16)))
+        self.assertEqual((e["status"], e["runs"], e["layout"], e["scores"]["v_owner"]), ("pending", [], None, None))
+        self.assertEqual(e["request"], lb.asap7pnr_entry(self.table, e["sv_sha256"])["request"])
+        self.assertIn("no reference-against-routed check", why)
+        diff = copy.deepcopy(recs)
+        for r in diff:
+            if r["job"].endswith("__min_s1") and r["measured_at"] == "2026-11-13":
+                r["lec_reference"]["verdict"] = lec.DIFFERENT
+        new, pended, failed = collect.add_lec("_example", self.old, diff, self.pins)
+        self.assertEqual(len(failed), 1)
+        e = lb.asap7pnr_entry(new, BAND_LP)
+        self.assertEqual((e["status"], e["runs"][0]["status"], e["layout"]), ("failed", "failed", None))
+        self.assertIn("DIFFERENT", e["runs"][0]["error"])
+        self.assertEqual(lb.asap7pnr_status(new, lb.load_asap7("_example"), BAND_LP, pins=self.pins)[0], "failed")
+
+    def test_refusals(self):
+        recs = records_of("_example", self.table)
+        other = copy.deepcopy(recs)
+        other[0]["artifacts"]["6_final.odb"] = "0" * 64                  # another stored run than the table's
+        ref = copy.deepcopy(recs)
+        ref[0]["lec_reference"]["reference_sha256"] = "0" * 64
+        pins = copy.deepcopy(self.old)
+        pins["course"]["flow"] = "min_v0"
+        for name, table, rr in (("the current schema", self.table, recs), ("another stored run", self.old, other),
+                                ("another reference", self.old, ref), ("other pins as well", pins, recs),
+                                ("two records for one run", self.old, recs + recs[:1])):
+            with self.subTest(name), self.assertRaises(collect.CollectError):
+                collect.add_lec("_example", table, rr, self.pins)
+
+    def test_the_command_and_the_check_of_its_data(self):
+        """`add-lec`'s site data of band_lp's entry, checked by check_sitedata against the table before the check
+        (schema 2) and the stored job's check files: clean; each planted fault in the record caught."""
+        old = dict(self.old, designs=[lb.asap7pnr_entry(self.old, BAND_LP)])
+        recs = [r for r in records_of("_example", self.table) if r["measured_at"] == "2026-11-13"]
+        new, pended, failed = collect.add_lec("_example", old, recs, self.pins)
+        self.assertEqual((pended, failed), ([], []))
+        out = os.path.join(self.tmp, "out")
+        collect.sitedata("_example", out, [], table=new, view=lb.load_asap7("_example"))
+        path = os.path.join(out, "sitedata", "_example.json")
+        good = read(path)
+
+        def run_check():
+            return check_sitedata.check(out, "_example", [EXJOB_DIR], area_of=area_of(), tree=old)
+        self.assertEqual(run_check()[0], [])
+        for name, fn, frag in (
+                ("a verdict DIFFERENT", lambda lr: lr.update(verdict="DIFFERENT"), ""),
+                ("another log", lambda lr: lr.update(log_sha256="1" * 64), "not in the job directories"),
+                ("another configuration", lambda lr: lr.update(config_sha256="1" * 64), "configuration"),
+                ("another reference", lambda lr: lr.update(reference_sha256="1" * 64), ""),
+                ("another routed netlist", lambda lr: lr.update(routed_lec_sha256="1" * 64), "6_final_lec.v")):
+            with self.subTest(name):
+                data = json.loads(good)
+                fn(data["designs"][0]["runs"][0]["lec_reference"])
+                with open(path, "w") as fh:
+                    fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+                problems = run_check()[0]
+                self.assertTrue(problems and any(frag in p for p in problems), problems)
+        with open(path, "w") as fh:
+            fh.write(good)
+        # a number changed beside the record: not the tree's run any more (one run per design)
+        data = json.loads(good)
+        data["designs"][0]["runs"][0]["seconds"] = 1.0
+        with open(path, "w") as fh:
+            fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+        self.assertTrue(any("one run per design" in p for p in run_check()[0]))
 
 
 class SitedataCheckTest(TempDir):
@@ -393,8 +554,8 @@ class SitedataCheckTest(TempDir):
         collect.sitedata("_example", self.out, [self.entry], table=self.tree, view=self.view)
         self.path = os.path.join(self.out, "sitedata", "_example.json")
 
-    def check(self, tree=None):
-        return check_sitedata.check(self.out, "_example", [EXJOB_DIR], area_of=area_of(),
+    def check(self, tree=None, jobs=None):
+        return check_sitedata.check(self.out, "_example", jobs or [EXJOB_DIR], area_of=area_of(),
                                     tree=self.tree if tree is None else tree)
 
     def edit(self, fn):
@@ -455,6 +616,46 @@ class SitedataCheckTest(TempDir):
                     fh.write(good)
                 self.edit(fn)
                 self.assertNotEqual(self.check()[0], [], name)
+        with open(self.path, "w") as fh:
+            fh.write(good)
+        # the reference-against-routed check: a record that is not the row's; a log that prints both verdicts (the
+        # job directory's log and the row's and entry's hashes changed together); a configuration comparing another
+        # file; the run's routed netlist not the one the check compared
+        lr = self.entry["runs"][0]["lec_reference"]
+        for name, edit_files, frag in (
+                ("a record that is not the row's", None, "not the row's"),
+                ("a log with both verdicts", ("lec", EXJOB + "_lec_check.log", b"\nFound difference for PO: 3\n"
+                                                                               b"Circuits are DIFFERENT\n"), "says NO VERDICT"),
+                ("a configuration comparing another file", ("lec", EXJOB + ".yml", None), "does not compare"),
+                ("another routed netlist", ("run/results/asap7/" + EXNICK + "/min_s1", "6_final_lec.v", b"// x\n"),
+                 "6_final_lec.v) is not the recorded one")):
+            with self.subTest(name):
+                with open(self.path, "w") as fh:
+                    fh.write(good)
+                jobs = os.path.join(self.tmp, "jobs-" + str(abs(hash(name))))
+                shutil.copytree(EXJOB_DIR, jobs)
+                new_lr = dict(lr)
+                if edit_files is None:
+                    new_lr["log_sha256"] = "2" * 64
+                    self.edit(lambda d, e: e["runs"][0].update(lec_reference=new_lr))
+                    self.assertTrue(any(frag in p for p in self.check(jobs=[jobs])[0]), name)
+                    continue
+                sub, fname, extra = edit_files
+                fp = os.path.join(jobs, *sub.split("/"), fname)
+                body = read(fp, "rb")
+                body = body + extra if extra is not None else body.replace(b"/work/designs/", b"/work/elsewhere/")
+                write(fp, body)
+                key = {"_lec_check.log": "log_sha256", ".yml": "config_sha256"}.get(
+                    next((k for k in ("_lec_check.log", ".yml") if fname.endswith(k)), ""), None)
+                if key:                                          # the hashes follow the file: only its content is wrong
+                    new_lr[key] = pnr.sha256_bytes(body)
+                    rowp = os.path.join(jobs, "rows", EXJOB + ".json")
+                    row = json.loads(read(rowp))
+                    row["lec_reference"] = new_lr
+                    write(rowp, (json.dumps(row, indent=1, sort_keys=True) + "\n").encode())
+                    self.edit(lambda d, e: e["runs"][0].update(lec_reference=new_lr))
+                problems = self.check(jobs=[jobs])[0]
+                self.assertTrue(any(frag in p for p in problems), (name, problems))
         with open(self.path, "w") as fh:
             fh.write(good)
         no_request = copy.deepcopy(self.tree)

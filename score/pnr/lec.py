@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
-"""lec.py: the reference-against-routed equivalence job of a routed-course run, and its log reader
-(score/pnr/README.md, "The reference-against-routed equivalence job"). A TOOL ONLY: it is not a step of the pinned flow,
-not part of a run's validity and not pinned (whether it should be is open).
+"""lec.py: the reference-against-routed equivalence check of a routed-course run, and its log reader
+(score/pnr/README.md, "The reference-against-routed equivalence check"). A STEP OF EVERY RUN AND A VALIDITY CONDITION
+(decided 2026-11-13; score/pnr/pins.json `validity_rule`): `run_job.py run` makes it after the flow, and a run is valid
+only when it says IDENTICAL against the bound netlist.
 
     python3.12 score/pnr/lec.py config  JOBDIR JOB              # writes JOBDIR/lec/JOB.yml
     python3.12 score/pnr/lec.py run     JOBDIR JOB [--runtime docker] [--cpuset 0-1] [--dry-run]
     python3.12 score/pnr/lec.py verdict LOG                     # IDENTICAL (exit 0), DIFFERENT (1), NO VERDICT (3)
+    python3.12 score/pnr/lec.py record  JOBDIR JOB              # the run's `lec_reference` record (JSON)
 
 Why: the flow's own equivalence step (step 6_report, `LEC_CHECK=1`) compares the routed netlist with the flow's
 rendering of the netlist the run was given, so it shows that place and route preserved the run's input, not that the
-input was the design's netlist (that is checked by sha256). This job compares the routed netlist with the netlist FILE
-the course binds (JOBDIR/designs/<nick>.v, whose sha256 is the ASAP7 view's `repaired_sha256`), with the same tool,
-kepler-formal, inside the pinned image, and the flow's own configuration of the run
-(run/objects/asap7/<nick>/<variant>/6_final_lec_test.yml) changed in three lines only: the first input (the reference)
-is the bound netlist file, the second the run's routed `6_final_lec.v`, and the log file is JOBDIR/lec/JOB_lec_check.log.
-The negative control of 2026-11-13 ran exactly this (score/PPA.md): 4 of 4 changed netlists DIFFERENT, 4 of 4
-unchanged ones IDENTICAL.
+input was the design's netlist (that is checked by sha256). This check compares the routed netlist with the netlist FILE
+the course binds (JOBDIR/designs/<nick>.v, whose sha256 is the ASAP7 view's `repaired_sha256` and the entry's
+`netlist_sha256`), with the same tool, kepler-formal, inside the pinned image, and the flow's own configuration of the
+run (run/objects/asap7/<nick>/<variant>/6_final_lec_test.yml) changed in three lines only: the first input (the
+reference) is the bound netlist file, the second the run's routed `6_final_lec.v`, and the log file is
+JOBDIR/lec/JOB_lec_check.log. The negative control of 2026-11-13 ran exactly this (score/PPA.md): 4 of 4 changed
+netlists DIFFERENT, 4 of 4 unchanged ones IDENTICAL.
 
 The verdict: kepler-formal exits 0 whether the circuits are equal or not, so the verdict is read from its log.
 IDENTICAL: the log prints "Circuits are IDENTICAL" and neither "Found difference" nor "Circuits are DIFFERENT".
 DIFFERENT: it prints "Found difference" and "Circuits are DIFFERENT", and not "Circuits are IDENTICAL". Anything else
-(an empty or cut-off log, both lines, neither) is NO VERDICT. Only IDENTICAL is a pass."""
+(an empty or cut-off log, both lines, neither) is NO VERDICT. Only IDENTICAL is a pass.
+
+The record (`record`, what a run's `lec_reference` holds): the verdict and the sha256 of the log, of the configuration
+JOBDIR/lec/JOB.yml, of the reference JOBDIR/designs/<nick>.v and of the routed netlist it compared
+(run/results/asap7/<nick>/<variant>/6_final_lec.v); None when the check has not run (no log or no configuration)."""
 
 import argparse
+import json
 import os
 import shlex
 import sys
@@ -66,7 +73,7 @@ def config(flow_config, reference, routed, log_file):
 
 
 def job_paths(job):
-    """(reference, routed, log file) of a job's equivalence job, as the container sees them."""
+    """(reference, routed, log file) of a job's reference-against-routed check, as the container sees them."""
     nick, variant, _ = pnr.parse_job(job)
     return (f"/work/designs/{nick}.v", f"/work/run/results/{pnr.PLATFORM_DIR}/{nick}/{variant}/6_final_lec.v",
             f"/work/lec/{job}_lec_check.log")
@@ -82,6 +89,25 @@ def write_config(job_dir, job):
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     return path
+
+
+def record(job_dir, job):
+    """The run's reference-against-routed record ({verdict, log_sha256, config_sha256, reference_sha256,
+    routed_lec_sha256}: see the module text), read from JOBDIR; None when the check has not run (its log or its
+    configuration is missing). A hash of a file that is missing is None (a valid run needs all of them)."""
+    nick, variant, _ = pnr.parse_job(job)
+    log = os.path.join(job_dir, "lec", f"{job}_lec_check.log")
+    cfg = os.path.join(job_dir, "lec", job + ".yml")
+    if not (os.path.isfile(log) and os.path.isfile(cfg)):
+        return None
+    with open(log, encoding="utf-8", errors="replace") as fh:
+        word = verdict(fh.read())
+
+    def h(path):
+        return pnr.sha256_file(path) if os.path.isfile(path) else None
+    return {"verdict": word, "log_sha256": h(log), "config_sha256": h(cfg),
+            "reference_sha256": h(os.path.join(job_dir, "designs", nick + ".v")),
+            "routed_lec_sha256": h(os.path.join(pnr.work_dirs(job_dir, job)["results"], "6_final_lec.v"))}
 
 
 def run_command(job_dir, job, pins, runtime="docker", cpuset=None):
@@ -114,8 +140,19 @@ def main(argv=None):
     r.add_argument("--dry-run", action="store_true")
     v = sub.add_parser("verdict")
     v.add_argument("log")
+    k = sub.add_parser("record")
+    k.add_argument("job_dir")
+    k.add_argument("job")
     args = ap.parse_args(argv)
     try:
+        if args.cmd == "record":
+            rec = record(args.job_dir, args.job)
+            if rec is None:
+                print(f"error: {args.job}: the check has not run (no lec/{args.job}_lec_check.log or lec/{args.job}.yml)",
+                      file=sys.stderr)
+                return 2
+            print(json.dumps(rec, indent=1, sort_keys=True))
+            return 0
         if args.cmd == "verdict":
             with open(args.log, encoding="utf-8", errors="replace") as fh:
                 word = verdict(fh.read())

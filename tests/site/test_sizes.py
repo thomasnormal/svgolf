@@ -237,6 +237,36 @@ class SizesSite(unittest.TestCase):
                 self.assertEqual("data-size-rel" in html_.split('id="explore-y"', 1)[1].split("</div>", 1)[0],
                                  any(d["par"] for d in data["designs"]))
 
+    def test_the_size_view_names_lines_by_title(self):
+        """The explorer's Size view (charts.js, under node: tests/site/chartsjs_sizes_check.js; skipped without node)
+        on every task page's data: each line named at the right edge by its submission's short title (decided
+        2026-11-13; par's "par · <title>", the player appended to a title two lines share, cut with an ellipsis to the
+        margin), the player in the tooltip, no two names closer than the frame's gap, every name inside the drawing;
+        on a phone no names, the tooltips naming each line."""
+        import shutil
+        import subprocess
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed")
+        paths = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for t in self.tasks:
+                data = page_data(self.files, t)
+                if data and data.get("sizes"):
+                    paths.append(os.path.join(tmp, f"{t}.json"))
+                    with open(paths[-1], "w", encoding="utf-8") as fh:
+                        json.dump(data, fh)
+            self.assertTrue(paths)
+            proc = subprocess.run([node, os.path.join(HERE, "chartsjs_sizes_check.js"), os.path.join(SITE, "charts.js")]
+                                  + paths, capture_output=True, text=True, timeout=120)
+        self.assertEqual(proc.returncode, 0, proc.stdout[-3000:] + proc.stderr[-2000:])
+        self.assertRegex(proc.stdout, r"chartsjs_sizes_check: \d+ ok, 0 failed, [1-9]\d* views")
+        with open(os.path.join(SITE, "charts.js"), encoding="utf-8") as fh:
+            js = fh.read()
+        self.assertIn("var named = !(sc.titled && compact);", js)      # the rule the check exercises is the page's
+        self.assertIn('SIZE_CAPTION + (drawn === "compact" ? SIZE_CAPTION_PHONE : "")', js)   # a phone says to tap
+        self.assertIn("tap a line for its design", js)
+
     def test_the_head_tag_and_the_legend_count(self):
         """The chart head carries the "not ranked" tag (hidden; charts.js shows it at another size) linking the rules
         page's "Other sizes", on sky130 only; the legend line has the count's item (hidden); no note above the chart."""

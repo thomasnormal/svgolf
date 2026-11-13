@@ -12,7 +12,13 @@ against the pins (every pinned ORFS variable with its pinned value and no other,
 own name and seed): a job made under other pins is refused, not run. The job's earlier ORFS directories are removed
 first (a clean run every time). Writes JOBDIR/logs/JOB.out (everything the job printed), appends
 `JOB rc=N seconds=S cpus=C date=YYYY-MM-DD` to JOBDIR/logs/status.txt and writes JOBDIR/logs/JOB.host.json (the CPU
-model, the OS, the kernel, the runtime; never the host's name). Exit status: the job's.
+model, the OS, the kernel, the runtime; never the host's name). Then, when the flow exited 0, THE
+REFERENCE-AGAINST-ROUTED EQUIVALENCE CHECK (a step of every run and a validity condition, decided 2026-11-13;
+score/pnr/lec.py): its configuration JOBDIR/lec/JOB.yml from the run's own, and kepler-formal on it in the same image,
+with no network, the bound netlist and the run's tree read-only (output JOBDIR/logs/JOB.lec.out, its log
+JOBDIR/lec/JOB_lec_check.log, a status line `JOB.lec rc=...`); its verdict is printed and `collect.py row` records
+it. Exit status: the flow's when it failed, else the check's tool's (0 when it ran; the verdict is read from its log,
+never from that status).
 
 `render`: the layout picture of a finished job: OpenROAD's own GUI renderer, off-screen (QT_QPA_PLATFORM=offscreen),
 draws the job's 6_final.odb (its run tree mounted READ-ONLY, so drawing cannot change a scored run) with
@@ -138,6 +144,9 @@ def main(argv=None):
         return 2
     if args.dry_run:
         print(" ".join(shlex.quote(c) for c in cmd))
+        if args.what == "run":
+            print(f"# then, when the flow exits 0, the reference-against-routed check: score/pnr/lec.py config and run "
+                  f"{shlex.quote(args.job_dir)} {args.job}")
         return 0
     if not host_ok():
         print("error: the course's image is x86-64 Linux only (score/pnr/README.md); use --dry-run elsewhere",
@@ -149,6 +158,25 @@ def main(argv=None):
     log = f"{args.job}.out" if args.what == "run" else f"{args.job}.render.out"
     rc = execute(args.job_dir, args.job, cmd, log, args.runtime, args.cpuset, pins, clean=args.what == "run")
     print(f"{args.job}: {args.what} rc={rc} (JOBDIR/logs/{log})")
+    if args.what != "run" or rc != 0:
+        return rc
+    return reference_check(args.job_dir, args.job, pins, args.runtime, args.cpuset)
+
+
+def reference_check(job_dir, job, pins, runtime, cpuset):
+    """The run's reference-against-routed equivalence check (lec.py), after a flow that exited 0: its configuration,
+    then kepler-formal in the image. Returns the tool's exit status (2 when the check could not be made)."""
+    import lec
+    try:
+        lec.write_config(job_dir, job)
+        cmd = lec.run_command(job_dir, job, pins, runtime=runtime, cpuset=cpuset)
+    except (OSError, ValueError) as e:
+        print(f"error: {job}: the reference-against-routed check: {e}", file=sys.stderr)
+        return 2
+    rc = execute(job_dir, job, cmd, f"{job}.lec.out", runtime, cpuset, pins, clean=False)
+    rec = lec.record(job_dir, job)
+    print(f"{job}: reference-against-routed check rc={rc}: {rec['verdict'] if rec else lec.NO_VERDICT} "
+          f"(JOBDIR/lec/{job}_lec_check.log)")
     return rc
 
 

@@ -5181,8 +5181,8 @@ def reproduce_html(s):
 def reproduce_pnr_html(site, s7):
     """The routed course's "Reproduce": the scored run (the image by digest, the flow, the seed, its config.mk and SDC by
     sha256), the commands of score/pnr/ that make such a job again on an x86-64 Linux host with docker, and the hashes
-    the run wrote; or why there is none. Honest about what is not measured: no run has been made with those tools'
-    container runner yet."""
+    the run wrote, its reference-against-routed check; or why there is none. Honest about what is not measured: the
+    tools' container command has been run once under the course host's chroot, never under docker itself."""
     t = s7.t
     e = (s7.ppa or {}).get("entry")
     if e is None:
@@ -5203,7 +5203,8 @@ def reproduce_pnr_html(site, s7):
               ("SDC sha256", code(run["sdc_sha256"])), ("placed netlist (1_2_yosys.v)", code(e["netlist_sha256"])),
               ("6_final.v", code(arts["6_final.v"])), ("6_final.def", code(arts["6_final.def"])),
               ("6_final.odb", code(arts["6_final.odb"])), ("area_e5um2", code(str(run["area_e5um2"]))),
-              ("delay_ps", code(str(run["delay_ps"])))]
+              ("delay_ps", code(str(run["delay_ps"]))),
+              ("equivalence with the design's netlist", code(str((run.get("lec_reference") or {}).get("verdict"))))]
     return ("<p>The scored run placed and routed this design's ASAP7 netlist (the ASAP7 view's repaired netlist) with "
             f"OpenROAD-flow-scripts from the pinned image {code(str(img.get('repo')) + ':' + str(img.get('tag')))}, used "
             f"by digest, flow {code(str(pins.get('flow')))}, at seed {run['seed']}, on an x86-64 Linux host with the image "
@@ -5214,9 +5215,12 @@ def reproduce_pnr_html(site, s7):
             + f"<p>{code(f'leaderboard/asap7pnr/{t.name}.json')} keeps them and "
             + code(f"python3.12 leaderboard/leaderboard.py asap7pnr --task {t.name}")
             + " checks them offline. The job's config.mk and SDC that " + code("score/pnr/job.py")
-            + " writes are this run's, byte for byte; no run has been made with its container runner yet, so a run "
-              "made again this way is expected, not yet shown, to give these hashes (the docker runtime is not "
-              "measured for this course).</p>")
+            + " writes are this run's, byte for byte. " + code("run_job.py run")
+            + " also makes the run's second equivalence check, the routed netlist against the design's netlist file "
+              "(a run counts only when it says IDENTICAL). One run has been made again with these tools (2026-11-13, "
+              "the tutorial task's par design), their container command under the course host's chroot: it gave the "
+              "committed files byte for byte. None has been made under docker itself, so a run made again this way "
+              "is expected, not yet shown, to give these hashes.</p>")
 
 
 def detail_head(s, title_html, status, lead, kind, chips=(), sub_html=None):

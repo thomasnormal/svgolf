@@ -2331,8 +2331,18 @@ def asap7_check(task, table, designs, *, identity=None, flow=None, rescore=None)
 # block equals the pins, and its scoring run is valid. Otherwise the design is "pending" (no run yet), "failed",
 # "stale" or "unbound", with the reason, and NO routed number is shown for it: never a stale one, never a cell-level one
 # in its place. Its layout picture (site/layouts/<task>/<sv16>.webp, a 640 px thumbnail beside it) is the scoring run's.
+#
+# A VALID run (decided 2026-11-13: the reference-against-routed equivalence check is a step of every routed run and a
+# validity condition): ORFS exit 0, detailed-route DRC 0, the flow's own equivalence check IDENTICAL (it compares the
+# routed netlist with the run's own input), AND the reference-against-routed check IDENTICAL against the BOUND netlist
+# (score/pnr/lec.py: the same tool in the same image, the reference being the netlist file whose sha256 is the entry's
+# `netlist_sha256`, the other side the run's routed `6_final_lec.v`). Every valid run records the second check as
+# `lec_reference` (PNR_LEC_REF_KEYS: its verdict and the sha256 of its log, its configuration, the reference netlist and
+# the routed netlist). Schema 3 is schema 2 with that field; a table of schema 2 was made under the old rule and is
+# refused as stale (`asap7pnr_file_problems`), never read as valid.
 
-ASAP7PNR_SCHEMA = "svgolf-asap7pnr/2"
+ASAP7PNR_SCHEMA = "svgolf-asap7pnr/3"
+ASAP7PNR_PREVIOUS_SCHEMA = "svgolf-asap7pnr/2"   # before the reference-against-routed check (2026-11-13): stale
 ASAP7PNR_RANKED_AXES = ("area_um2_asap7pnr", "time_ps")
 PNR_LAYOUTS = "site/layouts"                     # the pictures, relative to svgolf/: site/layouts/<task>/<sv16>.webp
 PNR_TOP_KEYS = {"schema", "task", "scoring_point", "asap7_view", "course", "designs"}
@@ -2348,7 +2358,12 @@ PNR_REQUEST_SOURCES = ("default", "record", "drawn")     # seed 1 for the design
 PNR_RUN_KEYS = {"seed", "role", "status", "settings_sha256", "config_mk_sha256", "sdc_sha256", "io_tcl_sha256", "host",
                 "measured_at", "seconds", "peak_mb"}
 PNR_RUN_OK_KEYS = PNR_RUN_KEYS | {"orfs", "area_e5um2", "delay_ps", "time_ps", "exact", "drc", "lec", "drv",
-                                  "hold_violations", "artifacts", "cells_in", "cells_out", "wire_um"}
+                                  "hold_violations", "artifacts", "cells_in", "cells_out", "wire_um", "lec_reference"}
+# a valid run's reference-against-routed check (score/pnr/lec.py): its verdict ("IDENTICAL" on a valid run) and the
+# sha256 of its log, of its configuration, of the reference netlist (the entry's netlist_sha256) and of the routed
+# netlist it compared (the run's 6_final_lec.v)
+PNR_LEC_REF_KEYS = {"verdict", "log_sha256", "config_sha256", "reference_sha256", "routed_lec_sha256"}
+PNR_LEC_REF_OK = "IDENTICAL"
 PNR_ROLES = {"scoring": 0, "spread": 1, "verification": 2}
 PNR_ARTIFACTS = {"1_2_yosys.v", "6_final.def", "6_final.v", "6_final.spef(normalized)", "6_final.odb",
                  "2_floorplan.odb", "3_place.odb", "4_cts.odb", "5_route.odb"}
@@ -2362,6 +2377,9 @@ PNR_PICTURE_MAX_SIDE = 1600
 PNR_THUMB_SIDE = 640
 # the words a design without a bound routed result shows, by its status (public text: the site shows them)
 PNR_PENDING = "not routed yet: place and route pending"
+PNR_FAILED = "place and route failed: its run did not finish with DRC 0 and an identical netlist"
+PNR_FAILED_REF = ("place and route failed: its routed netlist is not shown equal to the design's netlist by the "
+                  "reference-against-routed equivalence check: ")
 ASAP7PNR_BOARD_NOTE = ("Course: ASAP7 placed and routed (decided 2026-11-11/12): each design's ASAP7 netlist placed and "
                        "routed by OpenROAD-flow-scripts from one pinned image (score/pnr/pins.json), one run at the "
                        "seed its request names; area = the routed netlist's cells, time = the clock period minus the "
@@ -2408,6 +2426,23 @@ def webp_size(data):
     return None
 
 
+def pnr_lec_reference_problems(lr, netlist_sha256):
+    """Why a run's `lec_reference` (the reference-against-routed check) does not make it valid: not the record
+    (PNR_LEC_REF_KEYS, sha256s), a verdict other than IDENTICAL, or a reference that is not the entry's netlist
+    (`netlist_sha256`, the bound netlist). [] for a valid one. Pure."""
+    if not (isinstance(lr, dict) and set(lr) == PNR_LEC_REF_KEYS
+            and all(isinstance(lr[k], str) and SHA_RE.fullmatch(lr[k]) for k in PNR_LEC_REF_KEYS - {"verdict"})):
+        return ["lec_reference must be the reference-against-routed check's record: {verdict, log_sha256, "
+                "config_sha256, reference_sha256, routed_lec_sha256}"]
+    p = []
+    if lr["verdict"] != PNR_LEC_REF_OK:
+        p.append(f"a valid run has the reference-against-routed check's {PNR_LEC_REF_OK} (its verdict is "
+                 f"{lr['verdict']!r})")
+    if lr["reference_sha256"] != netlist_sha256:
+        p.append("the reference-against-routed check's reference is not the entry's netlist_sha256")
+    return p
+
+
 def _pnr_run_problems(r, e):
     """What is wrong with one run of an entry (`asap7pnr_file_problems`). Pure."""
     from decimal import Decimal, InvalidOperation
@@ -2428,6 +2463,7 @@ def _pnr_run_problems(r, e):
         return p
     if r["drc"] != 0 or r["lec"] != [PNR_LEC_OK]:
         p.append(f"a valid run has detailed-route DRC 0 and the equivalence check's {PNR_LEC_OK}")
+    p += pnr_lec_reference_problems(r.get("lec_reference"), e.get("netlist_sha256"))
     if not all(_nat(r[k]) for k in ("area_e5um2", "delay_ps", "time_ps", "exact")):
         return p + ["area_e5um2, delay_ps, time_ps and exact must be non-negative integers"]
     o, a0 = r["orfs"], e.get("a0_asap7") or {}
@@ -2574,6 +2610,10 @@ def asap7pnr_file_problems(data, task_name=None):
     keys = {k for k in data if not k.startswith("_")}
     if keys != PNR_TOP_KEYS:
         p.append(f"keys {sorted(keys ^ PNR_TOP_KEYS)} unexpected or missing")
+    if data.get("schema") == ASAP7PNR_PREVIOUS_SCHEMA:
+        return [f"stale: schema {ASAP7PNR_PREVIOUS_SCHEMA!r}, not {ASAP7PNR_SCHEMA!r}: made before the reference-"
+                "against-routed equivalence check was a validity condition (decided 2026-11-13); its runs must be "
+                "checked and collected again"]
     if data.get("schema") != ASAP7PNR_SCHEMA:
         p.append(f"schema is {data.get('schema')!r}, not {ASAP7PNR_SCHEMA!r}")
     if task_name is not None and data.get("task") != task_name:
@@ -2662,9 +2702,10 @@ def asap7pnr_table_mismatch(table, a7_table, *, task=None, pins=None):
 def asap7pnr_status(table, a7_table, sv_sha256, *, task=None, pins=None):
     """(status, reason, entry) of one design file on the routed course. "bound" (reason None): its entry is shown.
     Else no routed number is shown: "pending" (no routed table or no entry for the file: PNR_PENDING; or an entry whose
-    scoring run is not made yet), "failed" (its scoring run did not pass), "stale" (`asap7pnr_table_mismatch`, or a
-    request with settings the course does not take yet) or "unbound" (the ASAP7 view has no entry for the file, or the
-    entry's placed or scored netlist or cycles are not that entry's). Pure."""
+    scoring run is not made yet), "failed" (its scoring run did not pass, or, whatever its status says, it has no
+    reference-against-routed check IDENTICAL against the entry's netlist: `lec_reference`), "stale"
+    (`asap7pnr_table_mismatch`, or a request with settings the course does not take yet) or "unbound" (the ASAP7 view
+    has no entry for the file, or the entry's placed or scored netlist or cycles are not that entry's). Pure."""
     if table is None:
         return "pending", PNR_PENDING, None
     e = asap7pnr_entry(table, sv_sha256)
@@ -2685,7 +2726,18 @@ def asap7pnr_status(table, a7_table, sv_sha256, *, task=None, pins=None):
         return "pending", PNR_PENDING, e
     vo = (e.get("scores") or {}).get("v_owner")
     if e.get("status") != "measured" or vo is None:
-        return "failed", "place and route failed: its run did not finish with DRC 0 and an identical netlist", e
+        return "failed", PNR_FAILED, e
+    scoring = next((r for r in e.get("runs") or [] if isinstance(r, dict) and r.get("role") == "scoring"), None)
+    lr = (scoring or {}).get("lec_reference")
+    if pnr_lec_reference_problems(lr, e.get("netlist_sha256")):
+        said = lr.get("verdict") if isinstance(lr, dict) else None
+        if not isinstance(said, str) or not said:
+            what = "not made: the run has no record of it"
+        elif said != PNR_LEC_REF_OK:
+            what = f"its verdict is {said}"
+        else:
+            what = "its record names another reference netlist than the design's"
+        return "failed", PNR_FAILED_REF + what, e
     return "bound", None, e
 
 
@@ -2770,7 +2822,7 @@ def _draw_seed():
 
 
 def pnr_request(seed=None, *, draw=None):
-    """The request of a design not routed yet (schema svgolf-asap7pnr/2 `request`): source "record" with the seed it
+    """The request of a design not routed yet (schema svgolf-asap7pnr/3 `request`): source "record" with the seed it
     names, or, without one, source "drawn" with a seed drawn once (`draw`, default the operating system's random source:
     `secrets`); settings {} (the course takes none yet). ValueError for a seed outside 1..2^31-1."""
     source = "record" if seed is not None else "drawn"
@@ -4246,7 +4298,7 @@ PNR_IMPORT_COMMENT = ("GENERATED by `leaderboard.py asap7pnr --import DIR --writ
 
 
 def asap7pnr_import(src_dir, task, designs, *, layouts_root=SVGOLF):
-    """The routed table of `task` from a course host's collected site data (DIR/sitedata/<task>.json, schema 2, its
+    """The routed table of `task` from a course host's collected site data (DIR/sitedata/<task>.json, schema 3, its
     pictures under DIR/images/), as the tree keeps it: only the entries of design files the task's pages show now
     (`designs`, `asap7_designs`; the others are returned as dropped), `of` and `record` as the ASAP7 view names them now,
     each picture moved to site/layouts/<task>/<sv16>.webp (and .thumb.webp). Returns (data, pictures {tree path: bytes},
@@ -4859,7 +4911,7 @@ def make_parser():
                        "host's collected site data into the tree (--import DIR, with --write)")
     y.add_argument("--task")
     y.add_argument("--import", dest="import_dir", metavar="DIR",
-                   help="a course host's collected site data: DIR/sitedata/<task>.json (schema svgolf-asap7pnr/2) and "
+                   help="a course host's collected site data: DIR/sitedata/<task>.json (schema svgolf-asap7pnr/3) and "
                    "the pictures under DIR/images/; only the design files the task's pages show now are kept")
     y.add_argument("--write", action="store_true",
                    help="with --import: write leaderboard/asap7pnr/<task>.json and site/layouts/<task>/; with "

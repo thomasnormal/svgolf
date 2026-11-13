@@ -959,8 +959,9 @@ def step_unit():
                        # the routed course's run tools (score/pnr/) offline on stored run data: the job files of
                        # every committed run, the container command, the collector reproducing a committed table
                        ("tests/pnr/test_pnr_tools.py", [PY, "tests/pnr/test_pnr_tools.py"]),
-                       # the reference-against-routed equivalence job (a tool, not pinned): its configuration and
-                       # its log reader on the negative control's stored logs
+                       # the reference-against-routed equivalence check (a step of every run and a validity
+                       # condition since 2026-11-13): its configuration, record and log reader, and the rule on the
+                       # negative control's stored logs
                        ("tests/pnr/test_lec.py", [PY, "tests/pnr/test_lec.py"]),
                        # check.py's `--ppa` modes, the absent-liberty path, the byte-identity of the
                        # default result and the tripwire (no Lean: a fake Lean for the design stage)

@@ -11,7 +11,7 @@ config.mk are the ones the committed runs were made with:
     jobs/<job>.json       what job.py wrote about the job (not read by the image)
     run/                  ORFS's WORK_HOME (results/, logs/, reports/, objects/ under asap7/<nick>/<variant>/)
     logs/                 <job>.out (the job's output), status.txt (one line per finished job), <job>.host.json
-    img/, rows/, lec/     the picture, the collected row and the equivalence job (lec.py) of a job
+    img/, rows/, lec/     the picture, the collected row and the reference-against-routed check (lec.py) of a job
 
 <nick> = <task>_<first 12 hex of the netlist's sha256>, <variant> = min_s<seed>, <job> = <nick>__<variant>."""
 

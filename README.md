@@ -2052,29 +2052,37 @@ ran at seed 1. A design's request can name a seed before its run:
 and the run itself is still made by the maintainers on the course host. Another seed moves a score by about one per
 cent (measured on the first records: 0 to 2.8% between seeds 1, 2 and 3).
 
-**What a run must pass.** The flow finishes; the router reports no design-rule violation; and the flow's equivalence
-check prints that the routed netlist is identical to the one it read (the course requires that line, not merely the
-absence of an error). Recorded, not scored: hold violations (no hold repair is run, and clocked designs end with some)
-and slow-signal (max-slew) warnings, whose count a record page names.
+**What a run must pass.** The flow finishes; the router reports no design-rule violation; the flow's equivalence check
+prints that the routed netlist is identical to the one it read (the course requires that line, not merely the absence
+of an error); and the reference-against-routed check (below) prints that the routed netlist is identical to the
+design's netlist. A run that misses any of the four is failed and shows no number. Recorded, not scored: hold
+violations (no hold repair is run, and clocked designs end with some) and slow-signal (max-slew) warnings, whose count a
+record page names.
 
-**What the equivalence check shows.** The flow's equivalence check compares the routed netlist with the netlist the run
-was given: it shows that place and route preserved the run's input, not that the input was the design's netlist (the
-runs of the two changed netlists below both passed it). That the input is the design's ASAP7 netlist is checked by
-sha256: the placed netlist's hash must be the entry's and the ASAP7 view's, and a run of a changed netlist is refused
-there (the design shows "unbound", the file check "not the entry's netlist_sha256"). A negative control was run on
-2026-11-13: in add's and in sorter's par design one gate was changed, and the same equivalence tool, with the flow's own
-configuration, reported "Circuits are DIFFERENT" for the routed changed netlist against the unchanged one (4 of 4 cases:
-both designs, each against the netlist file the course binds and against the flow's own copy of it) and "Circuits are
-IDENTICAL" for the routed unchanged netlists (4 of 4). The tool exits 0 either way; its verdict is read from its log, as
-the flow does. This control is not a pinned step of every run.
+**What the equivalence checks show.** The flow's equivalence check compares the routed netlist with the netlist the run
+was given: it shows only that place and route preserved the run's input, not that the input was the design's netlist
+(the runs of the two changed netlists below both passed it). So every run has a second step, decided 2026-11-13: after
+the flow, the same equivalence tool in the same image, with the flow's own settings, compares the routed netlist with
+the design's netlist file itself, the file the course binds by its sha256. The run counts only when that check says
+the circuits are identical ("Circuits are IDENTICAL", and no difference found); the run's entry records the verdict and
+the sha256 of the check's log, its settings, the design's netlist and the routed netlist. The tool exits 0 either way,
+so its verdict is read from its log. The placed netlist's sha256 is checked too: it must be the entry's and the ASAP7
+view's. A negative control was run on 2026-11-13: in add's and in sorter's par design one gate was changed, and the
+check reported "Circuits are DIFFERENT" for the routed changed netlist against the unchanged one (4 of 4 cases: both
+designs, each against the netlist file the course binds and against the flow's own copy of it) and "Circuits are
+IDENTICAL" for the routed unchanged netlists (4 of 4); the repository's tests hold the rule to those logs. On
+2026-11-13 the check was made for every committed run (97 runs of 52 designs, from the stored runs): 97 IDENTICAL, and
+no number changed.
 
 **What is not checked.** Hold timing, other corners, and power are not scored: this is a predictive library at one
 corner, not sign-off. Every routed number comes from one host type (x86-64 Linux, Intel Xeon, the image unpacked into a
 rootless chroot); docker, other x86-64 hosts and Apple silicon are not measured. The tools that write a job's
-`config.mk` and SDC, run it in the pinned image by digest, draw its picture and collect its result are in `score/pnr/`
-([score/pnr/README.md](score/pnr/README.md)): they write the `config.mk` and SDC of every committed run byte for byte,
-and they rebuild a committed table from a stored run, but no run has been made with their container runner yet, so a
-run made again from the repository alone is expected, not yet shown, to give the committed numbers.
+`config.mk` and SDC, run it in the pinned image by digest, check it, draw its picture and collect its result are in
+`score/pnr/` ([score/pnr/README.md](score/pnr/README.md)): they write the `config.mk` and SDC of every committed run byte
+for byte, and they rebuild a committed table from a stored run. On 2026-11-13 the tutorial task's par design was placed
+and routed again with them, their container command run under the course host's chroot (the host has no docker or
+podman): the same files, picture and numbers as the committed run, byte for byte. A run under docker or podman itself
+has not been made, so that it gives the committed numbers is expected, not yet shown.
 
 **Not routed yet.** A record is placed and routed after it is recorded, on a course host. Until its run is in
 `leaderboard/asap7pnr/<task>.json`, bound to its design file (its sha256), to its ASAP7 netlist, to the task's scoring
@@ -2108,7 +2116,8 @@ record by `score/points.py`). These numbers are measured, not ranked: par, the r
 scoring size, and a chart at another size says "not ranked". A design not measured at a size (a run past the 900 s or
 6 GiB limit, a record newer than the data) is left out there and counted under the chart. The explorer's X axis
 "Size" draws each design's score against the size on log axes, one line per design, to show which designs scale
-better. The routed course is measured at the scoring size only ([leaderboard/README.md](leaderboard/README.md),
+better; each line is named at its right end by the submission's short title (its writeup's first line; par's line
+"par · " and its title), the player in its tooltip, and on a phone in its tooltip only. The routed course is measured at the scoring size only ([leaderboard/README.md](leaderboard/README.md),
 "Other sizes").
 
 ## The banlist

@@ -3605,7 +3605,20 @@ class Asap7PnrTest(Tmp):
                              (lambda e: e["request"].update(seed=0), "seed"),
                              (lambda e: e["request"].update(settings={"x": 1}), "settings_sha256"),
                              (lambda e: e.update(layout=None), "without its layout picture"),
-                             (lambda e: e["layout"].update(thumb_px=[600, 600]), "thumbnail")):
+                             (lambda e: e["layout"].update(thumb_px=[600, 600]), "thumbnail"),
+                             # the reference-against-routed check (a validity condition since 2026-11-13)
+                             (lambda e: e["runs"][0].pop("lec_reference"), "unexpected or missing"),
+                             (lambda e: e["runs"][0]["lec_reference"].update(verdict="DIFFERENT"),
+                              "reference-against-routed check's IDENTICAL"),
+                             (lambda e: e["runs"][0]["lec_reference"].update(verdict="NO VERDICT"),
+                              "reference-against-routed check's IDENTICAL"),
+                             (lambda e: e["runs"][1]["lec_reference"].update(verdict="DIFFERENT"),
+                              "runs[1]: a valid run has the reference-against-routed"),
+                             (lambda e: e["runs"][0]["lec_reference"].update(reference_sha256="0" * 64),
+                              "reference is not the entry's netlist_sha256"),
+                             (lambda e: e["runs"][0]["lec_reference"].pop("log_sha256"), "lec_reference must be"),
+                             (lambda e: e["runs"][0]["lec_reference"].update(routed_lec_sha256=None),
+                              "lec_reference must be")):
             bad = copy.deepcopy(base)
             mutate(bad["designs"][0])
             with self.subTest(frag):
@@ -3658,6 +3671,18 @@ class Asap7PnrTest(Tmp):
                 scored_netlist_sha256="0" * 64)), "unbound"),
             ("a failed run", mutated(lambda t: lb.asap7pnr_entry(t, sha).update(status="failed")),
              "place and route failed"),
+            ("the reference-against-routed check DIFFERENT", mutated(lambda t: lb.asap7pnr_entry(t, sha)["runs"][0][
+                "lec_reference"].update(verdict="DIFFERENT")),
+             "place and route failed: its routed netlist is not shown equal to the design's netlist by the "
+             "reference-against-routed equivalence check: its verdict is DIFFERENT"),
+            ("no reference-against-routed check", mutated(lambda t: lb.asap7pnr_entry(t, sha)["runs"][0].pop(
+                "lec_reference")), "reference-against-routed equivalence check: not made"),
+            ("the check against another netlist", mutated(lambda t: lb.asap7pnr_entry(t, sha)["runs"][0][
+                "lec_reference"].update(reference_sha256="0" * 64)), "names another reference netlist"),
+            ("the old validity rule", mutated(lambda t: t["course"].update(
+                validity_rule="ORFS exit 0, detailed-route DRC 0, every LEC log 'Circuits are IDENTICAL' (DRV counts "
+                              "recorded, not part of validity)")),
+             "stale: routed under another image, flow or settings than the pinned ones (validity_rule)"),
             ("no entry", mutated(lambda t: t.update(designs=[e for e in t["designs"] if e["sv_sha256"] != sha])),
              lb.PNR_PENDING),
             ("no file", None, lb.PNR_PENDING)]
@@ -3688,6 +3713,44 @@ class Asap7PnrTest(Tmp):
         self.assertIsNone(lb.asap7pnr_columns(rec, a7b, pnr, pins=self.pins, task=task))
         self.assertIn("not routed: no ASAP7 netlist bound to it",
                       lb.asap7pnr_mismatch(rec, task, a7b, pnr, a7_identity=lb.asap7_identity(), pins=self.pins))
+
+    def test_a_table_of_the_schema_before_the_reference_check_is_stale(self):
+        """A table made before the reference-against-routed check was a validity condition (schema
+        svgolf-asap7pnr/2, the old validity_rule, no `lec_reference`) is refused as a whole and said stale, never read
+        as valid: `read_asap7pnr` gives no table, `asap7pnr` and `verify` fail on it, the board ranks nothing routed."""
+        tdir = os.path.join(self.tmp, "asap7pnr")
+        shutil.copytree(lb.ASAP7PNR_DIR, tdir)
+        with open(os.path.join(tdir, "sorter.json"), encoding="utf-8") as fh:
+            old = json.load(fh)
+        old["schema"] = lb.ASAP7PNR_PREVIOUS_SCHEMA
+        old["course"]["validity_rule"] = ("ORFS exit 0, detailed-route DRC 0, every LEC log 'Circuits are IDENTICAL' "
+                                          "(DRV counts recorded, not part of validity)")
+        for e in old["designs"]:
+            for r in e["runs"]:
+                r.pop("lec_reference")
+        with open(os.path.join(tdir, "sorter.json"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(old, indent=1, sort_keys=True) + "\n")
+        data, why = lb.read_asap7pnr("sorter", tdir)
+        self.assertIsNone(data)
+        self.assertIn("stale: schema 'svgolf-asap7pnr/2'", why)
+        self.assertIn("reference-against-routed", why)
+        self.assertEqual(lb.asap7pnr_file_problems(old, "sorter"), [why.split(": ", 1)[1]])
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "sorter", "--asap7pnr-dir", tdir])
+        self.assertEqual(rc, 1, out + err)
+        self.assertRegex(out, r"(?m)^\[FAIL\] sorter: \S*sorter\.json: stale: schema 'svgolf-asap7pnr/2'")
+        rc, out, err = quiet(lb.main, ["verify", "--offline", "--task", "sorter", "--asap7pnr-dir", tdir])
+        self.assertEqual(rc, 1)
+        self.assertIn("[FAIL] asap7pnr/sorter:", out)
+        # given to the ranking anyway, its entries are never bound (the course pins name the new rule)
+        task, a7 = self.task("sorter"), lb.load_asap7("sorter")
+        for e in old["designs"]:
+            status, reason, _ = lb.asap7pnr_status(old, a7, e["sv_sha256"], task=task, pins=self.pins)
+            self.assertEqual(status, "stale")
+            self.assertIn("(validity_rule)", reason)
+        old["course"]["validity_rule"] = self.pins["validity_rule"]           # even under the new rule's words
+        for e in old["designs"]:
+            status, reason, _ = lb.asap7pnr_status(old, a7, e["sv_sha256"], task=task, pins=self.pins)
+            self.assertEqual((status, "not made" in reason), ("failed", True))
 
     def test_the_score_is_the_requests_run(self):
         """v_owner, the score, is the run at the request's seed (seed 1 for every design measured so far); the other
@@ -3749,7 +3812,7 @@ class Asap7PnrTest(Tmp):
         self.assertIn(lb.PNR_PENDING, md)
 
     def test_the_import_reproduces_the_committed_file(self):
-        """`asap7pnr --import`: a course host's site data (schema 2, pictures under images/) taken into the tree; on
+        """`asap7pnr --import`: a course host's site data (schema 3, pictures under images/) taken into the tree; on
         the committed file put back in the host's form it gives the committed file and pictures again, byte for byte,
         and leaves out an entry of a design file the task does not show any more; a picture that is not its entry's is
         refused."""

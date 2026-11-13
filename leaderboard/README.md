@@ -342,11 +342,12 @@ the board `pdk: "asap7pnr"`, `ranked_axes` `["area_um2_asap7pnr", "time_ps"]` an
 par design's routed score (leaderboard/par.json), none while that design is not routed. README.md, "How the routed
 course is scored", is the rule; score/PPA.md, "ASAP7 placed and routed", the flow and its measurements.
 
-**Where the results live: `leaderboard/asap7pnr/<task>.json`, not the records** (schema `svgolf-asap7pnr/2`), for the
+**Where the results live: `leaderboard/asap7pnr/<task>.json`, not the records** (schema `svgolf-asap7pnr/3`), for the
 reason the ASAP7 columns are not in them, and because a run is made after the record, on a course host. One entry per
 design file: the placed and scored netlists' sha256, the request (`source`, `seed`, `settings`), every run (the scoring
 run at the request's seed; on the 2026-11-11 records two more seeds, `spread`, never ranked; re-runs, `verification`)
-with ORFS's raw texts, the sha256 of the files it wrote and the config.mk and SDC it ran, the scores (`v_owner`, THE
+with ORFS's raw texts, the sha256 of the files it wrote and the config.mk and SDC it ran, its reference-against-routed
+check (`lec_reference`, below), the scores (`v_owner`, THE
 score: the request's run; `v_median`, an unranked extra) and the layout picture (`site/layouts/<task>/<sv16>.webp` and a
 640 px `.thumb.webp`, their sha256, sizes and caption). The file names the ASAP7 view it was routed from
 (`asap7_view`: identity and ppa.py hash) and its course (`course`: the pinned part must equal `score/pnr/pins.json`).
@@ -354,11 +355,23 @@ score: the request's run; `v_median`, an unranked extra) and the layout picture 
 **An entry is shown only when bound** (`asap7pnr_status`): its design file is the design's, its placed and scored
 netlists and cycles are its ASAP7 view entry's (and that entry is the record's, `asap7_binding_problems`), the file's
 scoring point is the task's, its view and pins are the current ones, its settings are none, and its scoring run passed
-(exit 0, DRC 0, the equivalence check's IDENTICAL). Otherwise the design is `pending` (no run yet: "not routed yet:
+(exit 0, DRC 0, the flow's equivalence check IDENTICAL, and the reference-against-routed check IDENTICAL against the
+entry's netlist). Otherwise the design is `pending` (no run yet: "not routed yet:
 place and route pending"), `failed`, `stale` or `unbound`, with the reason, and carries no routed number anywhere (the
 board rows take theirs from `asap7pnr_columns`, which applies the same rule with the task): never a stale one, never a
 cells-only one in its place. The site's build notes a pending design (the page says so) and warns, fatally under
 `--strict`, about a failed, stale or unbound one (`asap7pnr_gaps`).
+
+**Two equivalence checks per run** (the second decided 2026-11-13). The flow's own check compares the routed netlist
+with the netlist the run was given, so it only shows that place and route preserved the run's input. Every run
+therefore has a second step: the same tool in the same image compares the routed netlist with the design's netlist
+file, the one the entry binds by sha256 (`score/pnr/lec.py`, run by `run_job.py run` after the flow). A run counts only
+when both say IDENTICAL. A valid run records the second check as `lec_reference` (its verdict and the sha256 of its
+log, its configuration, the reference netlist, which must be the entry's `netlist_sha256`, and the routed netlist);
+`asap7pnr_file_problems` refuses a valid run without it, and `asap7pnr_status` shows a design whose scoring run lacks an
+IDENTICAL one as failed, with the reason. A table of schema 2, made before the rule, is refused as stale as a whole.
+Every committed run was checked on 2026-11-13 from the runs stored on the course host (97 runs, 97 IDENTICAL; no number
+changed) and its record added with `score/pnr/collect.py add-lec`.
 
 | command | what | cost |
 |---|---|---|
@@ -423,8 +436,9 @@ record has no sizes until `sizes --write --task T` runs; until then `sizes` fail
 **On the site.** A task page's "Compare the designs" and a record's "Area against time" offer these sizes under **Size**
 (sky130 only: on the routed course the selector holds the scoring size, disabled), each design drawn at the size chosen
 and one not measured there counted under the chart; the explorer's X axis "Size" draws each design's number against the
-size, one line per design. `site/build.py` `load_sizes` reads the file as it is and draws nothing from a file measured
-under other pins than the page's (a warning, fatal under `--strict`).
+size, one line per design, named by the submission's short title (the player in its tooltip). `site/build.py`
+`load_sizes` reads the file as it is and draws nothing from a file measured under other pins than the page's (a
+warning, fatal under `--strict`).
 
 ## Policy
 

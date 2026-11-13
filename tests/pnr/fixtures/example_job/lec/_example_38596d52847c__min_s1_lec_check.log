@@ -1,0 +1,55 @@
+[2026-11-13 15:37:20.076] [miter_logger] [info] MiterStrategy::run starting
+[2026-11-13 15:37:20.076] [miter_logger] [info] Collecting POs for design 0: band
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] Collected 32 PIs for design 0
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] Collected 16 POs for design 0
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] design 0 PI summary by model/term (32 total terminals, 2 unique rows):
+| Model | Term | Count |
+|-------|------|-------|
+| band  | a    |    16 |
+| band  | b    |    16 |
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] design 0 PO summary by model/term (16 total terminals, 1 unique rows):
+| Model | Term | Count |
+|-------|------|-------|
+| band  | y    |    16 |
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] Collecting POs for design 1: band
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of common inputs: 32
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of diff0 inputs: 0
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of diff1 inputs: 0
+[2026-11-13 15:37:20.080] [miter_logger] [info] Collected 32 PIs for design 1
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] Collected 16 POs for design 1
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] design 1 PI summary by model/term (32 total terminals, 2 unique rows):
+| Model | Term | Count |
+|-------|------|-------|
+| band  | a    |    16 |
+| band  | b    |    16 |
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] design 1 PO summary by model/term (16 total terminals, 1 unique rows):
+| Model | Term | Count |
+|-------|------|-------|
+| band  | y    |    16 |
+
+[2026-11-13 15:37:20.080] [miter_logger] [info] normalizeInputs: starting
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of common inputs: 32
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of diff0 inputs: 0
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of diff1 inputs: 0
+[2026-11-13 15:37:20.080] [miter_logger] [info] normalizeOutputs: starting
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of common outputs: 16
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of diff0 outputs: 0
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of diff1 outputs: 0
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of PIs in circuit 0: 32
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of PIs in circuit 1: 32
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of POs in circuit 0: 16
+[2026-11-13 15:37:20.080] [miter_logger] [info] size of POs in circuit 1: 16
+[2026-11-13 15:37:20.080] [miter_logger] [info] Building miter expression
+[2026-11-13 15:37:20.080] [miter_logger] [info] Finished building miter expression
+[2026-11-13 15:37:20.080] [miter_logger] [info] Starting solver
+[2026-11-13 15:37:20.080] [miter_logger] [info] SAT solver finished: UNSAT
+[2026-11-13 15:37:20.080] [miter_logger] [info] Circuits are IDENTICAL

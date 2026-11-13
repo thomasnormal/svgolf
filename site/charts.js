@@ -7,7 +7,8 @@
 //   * the explorer: the Size selector (the scoring size's ranked numbers, or another size's measured
 //     ones: leaderboard/sizes/ and score/measured/; the card's head then says "not ranked" and the legend line
 //     counts the designs not measured there), two axis menus (the X axis's "Size" options draw one line per
-//     design along the sizes: the score against size, log-log) and their log switches, and a redraw
+//     design along the sizes: the score against size, log-log; each line named at its right end by the
+//     submission's short title, on a phone in its tooltip only) and their log switches, and a redraw
 //     of the scatter from the page's data (the inert JSON in #task-data; the routed course's explorer, a
 //     second copy on the page, from #task-data-asap7pnr: site/build.py `dual`), with the Pareto front of
 //     the entries for the chosen pair. The drawing mirrors svgplot.scatter_chart: same frame,
@@ -37,6 +38,7 @@
   var SIZE_CAPTION = "One line per design: its number at each size (with ÷ par, over par's there: under 1 beats " +
     "par), the same proved design through the same pinned flow, measured, not ranked away from the scoring size. A " +
     "line that rises less steeply scales better; where two lines cross, one design starts to beat the other.";
+  var SIZE_CAPTION_PHONE = " On a narrow screen the lines are not named on the chart: tap a line for its design.";
   // svgplot.LINES_FRAME and LINES_COMPACT (the scaling view)
   var LINE_FRAMES = {
     wide: { w: 960, h: 430, left: 82, right: 196, top: 18, bottom: 56, ticks: 6, gap: 15, chars: 26, charW: 6.6 },
@@ -656,49 +658,7 @@
       log[a].checked = lo > 0 && (hi / lo > 10 || !!sizeAxis());   // the Size axis: log-log, so N^k is a line
     }
 
-    // One line per design along a Size axis (build.size_axes): its numbers at each size of the line, joined by id;
-    // par's line marked; the tooltips start with the design's title.
-    function sizeLines(ax, yk) {
-      var lines = [], byId = {};
-      data.designs.forEach(function (d) {
-        var ln = { id: d.id, kind: d.kind, banned: d.banned, href: d.href, family: false, par: !!d.par,
-                   name: (d.par ? "par · " : "") + d.name, names: [d.name], title: d.title && d.title !== d.name ? d.title : null,
-                   pts: [] };
-        ln.tip = (ln.title ? [ln.title, d.name + " · " + kindName(d.kind, d.banned)] : [d.name, kindName(d.kind, d.banned)])
-          .concat([(d.par ? "par's design · " : "") + MEASURED + " away from the scoring size"]);
-        byId[d.id] = ln;
-        lines.push(ln);
-      });
-      ax.keys.forEach(function (key) {
-        designsAt(key).forEach(function (d) {
-          var ln = byId[d.id];
-          if (ln && d.m[yk] !== undefined) { ln.pts.push({ key: key, x: ax.x[key], m: d.m }); }
-        });
-      });
-      // designs with the same numbers at every size (par's design and a second proof of it) share one line, named
-      // by the first with the count of the others (build.scaling_lines' rule)
-      var groups = {}, merged = [];
-      lines.forEach(function (ln) {
-        var k = ln.kind + "|" + ln.banned + "|" + JSON.stringify(ln.pts.map(function (p) { return [p.key, p.m]; }));
-        var g = ln.pts.length ? groups[k] : null;
-        if (!g) { groups[k] = ln; merged.push(ln); return; }
-        g.names.push(ln.names[0]);
-        if (ln.par && !g.par) { g.par = true; g.id = ln.id; g.title = ln.title || g.title; g.tip = ln.tip; }
-      });
-      merged.forEach(function (ln) {
-        if (ln.names.length > 1) {
-          var first = ln.par ? (byId[ln.id] || ln).names[0] : ln.names[0];
-          ln.name = (ln.par ? "par · " : "") + first + " +" + (ln.names.length - 1);
-          ln.tip = ln.tip.concat(["the same numbers at every size: " + ln.names.join(", ")]);
-        }
-      });
-      var names = {};
-      (data.points || []).forEach(function (p) { names[p.key] = p.full; });
-      var scored = (data.points || []).filter(function (p) { return p.scored; })[0];
-      var par = merged.filter(function (ln) { return ln.par && ln.pts.length; })[0];
-      return { lines: merged, ticks: ax.ticks, x_label: ax.axis, par: par ? par.id : null, points: names,
-               scored: scored ? scored.key : null };
-    }
+    function sizeLines(ax, yk) { return sizeLinesOf(data, ax, yk); }
 
     var drawn = null;                  // the size the script last drew at (null: the server's drawings)
 
@@ -707,7 +667,9 @@
       var tip = box.querySelector(":scope > .chart-tip");
       var ax = sizeAxis();
       if (rel) { rel.closest("label").hidden = !ax; }
-      if (caption) { caption.textContent = ax ? SIZE_CAPTION : caption0; }
+      if (caption) {
+        caption.textContent = ax ? SIZE_CAPTION + (drawn === "compact" ? SIZE_CAPTION_PHONE : "") : caption0;
+      }
       if (ax) {
         var sc = sizeLines(ax, sel.y.value);
         var relative = !!(rel && rel.checked && sc.par);
@@ -775,6 +737,54 @@
     }
   }
 
+  // One line per design along a Size axis (build.size_axes) of the explorer's data: its numbers at each size of the
+  // line, joined by id; par's line marked; the tooltips start with the design's title. Pure.
+  function sizeLinesOf(data, ax, yk) {
+    var points = {};
+    (data.points || []).forEach(function (p) { points[p.key] = p; });
+    function designsAt(key) { return points[key] && !points[key].scored ? (data.at[key] || []) : data.designs; }
+    var lines = [], byId = {};
+    data.designs.forEach(function (d) {
+      var ln = { id: d.id, kind: d.kind, banned: d.banned, href: d.href, family: false, par: !!d.par,
+                 name: (d.par ? "par · " : "") + d.name, names: [d.name], title: d.title && d.title !== d.name ? d.title : null,
+                 pts: [] };
+      ln.tip = (ln.title ? [ln.title, d.name + " · " + kindName(d.kind, d.banned)] : [d.name, kindName(d.kind, d.banned)])
+        .concat([(d.par ? "par's design · " : "") + MEASURED + " away from the scoring size"]);
+      byId[d.id] = ln;
+      lines.push(ln);
+    });
+    ax.keys.forEach(function (key) {
+      designsAt(key).forEach(function (d) {
+        var ln = byId[d.id];
+        if (ln && d.m[yk] !== undefined) { ln.pts.push({ key: key, x: ax.x[key], m: d.m }); }
+      });
+    });
+    // designs with the same numbers at every size (par's design and a second proof of it) share one line, named
+    // by the first with the count of the others (build.scaling_lines' rule)
+    var groups = {}, merged = [];
+    lines.forEach(function (ln) {
+      var k = ln.kind + "|" + ln.banned + "|" + JSON.stringify(ln.pts.map(function (p) { return [p.key, p.m]; }));
+      var g = ln.pts.length ? groups[k] : null;
+      if (!g) { groups[k] = ln; merged.push(ln); return; }
+      g.names.push(ln.names[0]);
+      if (ln.par && !g.par) { g.par = true; g.id = ln.id; g.title = ln.title || g.title; g.tip = ln.tip; }
+    });
+    merged.forEach(function (ln) {
+      ln.lead = ln.par ? (byId[ln.id] || ln).names[0] : ln.names[0];    // the design that names the line
+      if (ln.names.length > 1) {
+        var first = ln.lead;
+        ln.name = (ln.par ? "par · " : "") + first + " +" + (ln.names.length - 1);
+        ln.tip = ln.tip.concat(["the same numbers at every size: " + ln.names.join(", ")]);
+      }
+    });
+    var names = {};
+    (data.points || []).forEach(function (p) { names[p.key] = p.full; });
+    var scored = (data.points || []).filter(function (p) { return p.scored; })[0];
+    var par = merged.filter(function (ln) { return ln.par && ln.pts.length; })[0];
+    return { lines: merged, ticks: ax.ticks, x_label: ax.axis, par: par ? par.id : null, points: names,
+             scored: scored ? scored.key : null, titled: true };
+  }
+
   // -- the scaling view (svgplot.line_chart) ----------------------------------------------------
 
   function spread(ys, lo, hi, gap) {   // svgplot._spread: label positions at least `gap` apart in [lo, hi]
@@ -789,6 +799,41 @@
   }
 
   function shortName(name, n) { return name.length <= n ? name : name.slice(0, n - 1) + "…"; }
+
+  // The explorer's Size axis names each line at its right end by the submission's short title (its writeup's first
+  // line; a design without one, a reference or a baseline, by its name), par's line "par · <title>" (decided
+  // 2026-11-13); the player's name stays in the tooltips. Two lines with the same title get the player's name appended
+  // (" · <player>"); a line standing for several designs keeps its " +N". A label longer than `n` characters is cut
+  // with an ellipsis, the appended parts kept whole; when two cut labels would read the same, both are cut in the
+  // middle instead, so that their ends tell them apart. `lines`: the lines drawn (sizeLines' objects). Pure.
+  function sizeLabels(lines, n) {
+    var count = {};
+    function who(ln) { return ln.lead || ln.names[0]; }
+    function base(ln) { return ln.title || who(ln); }
+    lines.forEach(function (ln) { count[base(ln)] = (count[base(ln)] || 0) + 1; });
+    function parts(ln) {
+      return { pre: ln.par ? "par · " : "", core: base(ln),
+               post: (count[base(ln)] > 1 && ln.title ? " · " + who(ln) : "") +
+                     (ln.names.length > 1 ? " +" + (ln.names.length - 1) : "") };
+    }
+    function cut(p, middle) {
+      var room = n - p.pre.length - p.post.length;
+      if (p.pre.length + p.core.length + p.post.length <= n) { return p.pre + p.core + p.post; }
+      if (room < 6) { return shortName(p.pre + p.core + p.post, n); }
+      if (!middle) { return p.pre + p.core.slice(0, room - 1) + "…" + p.post; }
+      var head = Math.ceil((room - 1) / 2), tail = room - 1 - head;
+      return p.pre + p.core.slice(0, head) + "…" + p.core.slice(p.core.length - tail) + p.post;
+    }
+    var ps = lines.map(parts), out = ps.map(function (p) { return cut(p, false); }), seen = {};
+    out.forEach(function (l, k) { (seen[l] = seen[l] || []).push(k); });
+    Object.keys(seen).forEach(function (l) {
+      var ks = seen[l];
+      if (ks.length > 1 && ks.some(function (k) { return ps[k].core !== ps[ks[0]].core; })) {
+        ks.forEach(function (k) { out[k] = cut(ps[k], true); });
+      }
+    });
+    return out;
+  }
 
   function lineValues(sc, ln, key, relative) {   // [[point, value]]: the metric, or over par's at the same point
     var base = {};
@@ -817,9 +862,12 @@
   }
 
   // `sc`: the lines (the scaling fold's data.scaling, or the explorer's Size axis, `sizeLines`): a line's `tip` and
-  // `title`, when it has them, start its tooltips (the explorer's: the design's title first); `par` marks par's line
+  // `title`, when it has them, start its tooltips (the explorer's: the design's title first); `par` marks par's line.
+  // `sc.titled` (the explorer's): the margin names are `sizeLabels`', and on a phone (compact) there are none: the
+  // lines take the margin's width and are named in their tooltips only (decided 2026-11-13)
   function drawLines(data, sc, key, relative, xlog, ylog, compact) {
     var F = compact ? LINE_FRAMES.compact : LINE_FRAMES.wide, W = F.w, H = F.h;
+    var named = !(sc.titled && compact);
     var byKey = {};
     data.metrics.forEach(function (m) { byKey[m.key] = m; });
     var m = byKey[key];
@@ -834,7 +882,12 @@
       }) };
     }).filter(function (l) { return l.pts.length >= 2; });
     if (!lines.length) { return { svg: "", n: 0 }; }
-    var left = F.left, right = W - F.right, top = F.top, bottom = H - F.bottom;
+    var label = {};
+    if (sc.titled) {
+      var ls = sizeLabels(lines.map(function (l) { return l.ln; }), F.chars);
+      lines.forEach(function (l, k) { label[l.ln.id] = ls[k]; });
+    }
+    var left = F.left, right = W - (named ? F.right : FRAMES.compact.right), top = F.top, bottom = H - F.bottom;
     var xv = [], yv = relative ? [1] : [];
     lines.forEach(function (l) { l.pts.forEach(function (p) { xv.push(p.x); yv.push(p.y); }); });
     var xs = new Scale(Math.min.apply(null, xv), Math.max.apply(null, xv), left + 14, right - 14, { log: xlog, integer: !xlog });
@@ -850,7 +903,8 @@
                 ", one line per design";
     var s = ['<svg class="chart lines' + (compact ? " compact" : "") + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' +
              esc(title) + '" xmlns="http://www.w3.org/2000/svg"><title>' + esc(title) + "</title><desc>" + esc(lines.length +
-             " designs, " + yLabel + " (y) against " + sc.x_label + " (x), one line each, named on the right; lower is better.") +
+             " designs, " + yLabel + " (y) against " + sc.x_label + " (x), one line each, named " +
+             (named ? "on the right" : "in its tooltip") + "; lower is better.") +
              '</desc><g class="axes">'];
     ys.ticks(F.ticks).forEach(function (v) {
       var y = ys.map(v);
@@ -896,10 +950,12 @@
         g += ln.href ? '<a href="' + esc(ln.href) + '" aria-label="' + esc(p.tip[0]) + '">' + mk + "</a>" : mk;
       });
       var last = l.pts[l.pts.length - 1], x = xs.map(last.x), y = ys.map(last.y), ly = spot[ln.id];
-      g += '<g class="series-name" data-tip="' + esc(tip.join("\n")) + '"><path class="leader" d="M' + f1(x + 6) + " " + f1(y) +
-           "L" + f1(lx - 4) + " " + f1(ly - 4) + '"/><text class="lv-name" x="' + f1(lx) + '" y="' + f1(ly) + '">' +
-           esc(shortName(ln.name, F.chars)) + "</text></g></g>";
-      s.push(g);
+      if (named) {
+        g += '<g class="series-name" data-tip="' + esc(tip.join("\n")) + '"><path class="leader" d="M' + f1(x + 6) + " " +
+             f1(y) + "L" + f1(lx - 4) + " " + f1(ly - 4) + '"/><text class="lv-name" x="' + f1(lx) + '" y="' + f1(ly) + '">' +
+             esc(sc.titled ? label[ln.id] : shortName(ln.name, F.chars)) + "</text></g>";
+      }
+      s.push(g + "</g>");
     });
     s.push("</svg>");
     return { svg: s.join(""), n: lines.length };

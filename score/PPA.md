@@ -898,8 +898,9 @@ In the minimal flow nothing optimises against the period, so it is only the refe
 area less its tap cells. Time: the clock period minus ORFS's worst setup slack after routing, with the parasitics
 extracted from the layout, rounded half-even to whole ps (checked within 0.01 ps of ORFS's own `period_min`); on a
 clocked task, times the cycles. Score = area x time (`combined.py`, `AREA_SCALE["asap7pnr"]`, 1e-5 um^2 x ps).
-**Valid**: ORFS exit 0, detailed-route DRC 0, and every equivalence log printing "Circuits are IDENTICAL" (the
-positive line is required; the flow itself passes a run on the absence of a "Found difference" line). Recorded, not
+**Valid**: ORFS exit 0, detailed-route DRC 0, every equivalence log of the flow printing "Circuits are IDENTICAL" (the
+positive line is required; the flow itself passes a run on the absence of a "Found difference" line), and the
+reference-against-routed check IDENTICAL against the bound netlist (decided 2026-11-13: a step of every run, below). Recorded, not
 scored: hold violations (no hold repair: every clocked run ends with some, 13 to 288 on the 8 clocked scored runs) and
 slow-signal (max-slew) warnings (4 of the 39 scored runs; the record page names the count).
 
@@ -939,12 +940,23 @@ tables the ASAP7 view reads. None of the platform's files is in this repository 
 routed databases are), and nothing comes from the ASU download page. The full commit hash of the image's
 OpenROAD-flow-scripts is not recorded beyond its tag (an open item).
 
-**What the equivalence check shows, and the negative control.** The flow's own check (step `6_report`, with
+**What the equivalence checks show, and the negative control.** The flow's own check (step `6_report`, with
 `LEC_CHECK=1`: kepler-formal on `1_synth_lec.v` and `6_final_lec.v`) compares the routed netlist with the flow's
 rendering of the netlist the run was given (`1_synth_lec.v` is written from `1_synth.odb`, which is `1_2_yosys.v`, the
-job's input, loaded): it shows
+job's input, loaded): it shows only
 that place and route preserved the input, not that the input was the design's netlist. The runs of the two changed
-netlists below both passed it. That the input is the design's ASAP7 netlist is checked by sha256: `1_2_yosys.v`'s
+netlists below both passed it. **The reference-against-routed check** (decided 2026-11-13: a step of every run and a
+validity condition; `score/pnr/lec.py`, run by `score/pnr/run_job.py run` after the flow): the same kepler-formal in
+the pinned image, with the flow's own configuration of the run changed in its two inputs and its log file only, the
+reference being the netlist file the course binds (`designs/<nick>.v`, sha256 = the entry's `netlist_sha256`) and the
+other side the run's routed `6_final_lec.v`. kepler-formal exits 0 whether or not it finds a difference, so the verdict
+is read from its log: IDENTICAL when it prints "Circuits are IDENTICAL" and neither "Found difference" nor "Circuits
+are DIFFERENT"; anything else fails the run. Every valid run records it as `lec_reference`: the verdict and the sha256
+of the log, the configuration, the reference netlist and the routed netlist (schema `svgolf-asap7pnr/3`; a table of
+schema 2, made before the rule, is refused as stale). On 2026-11-13 the check was made for every committed run, from
+the runs stored on the course host (97 runs of 52 designs: scoring, spread and verification runs): 97 IDENTICAL, the
+stored runs' `1_2_yosys.v`, `6_final.v` and `6_final.odb` being the committed runs' (sha256), 0.9 to 2.5 s each; the
+committed numbers and pictures are unchanged. That the input is the design's ASAP7 netlist is checked by sha256: `1_2_yosys.v`'s
 hash must be the entry's `netlist_sha256` and the ASAP7 view's `repaired_sha256`, and a run of a changed netlist is
 refused there (`asap7pnr`: "the placed netlist (1_2_yosys.v) is not the entry's netlist_sha256"; the binding:
 "unbound: its routed netlist is not this design's ASAP7 netlist"). The negative control (2026-11-13, MEASURED): one gate
@@ -954,17 +966,20 @@ kepler-formal with the flow's own configuration of each case, its inputs set to 
 routed netlist, reported "Found difference ... Circuits are DIFFERENT" for both changed netlists against both forms
 of the unchanged one (the file the course binds, and the flow's `1_synth_lec.v` of a run of it): 4 of 4; and "Circuits
 are IDENTICAL" for the two unchanged runs against the same references: 4 of 4. kepler-formal exits 0 in both cases;
-its verdict is read from its log, as the flow does. This comparison is not a pinned step of a run: the results carry
-the flow's own verdict only. `score/pnr/lec.py` makes this job for a run (the bound netlist file as the reference) and
-reads its log (IDENTICAL, DIFFERENT, or no verdict for anything else); it is a tool, not part of a run's validity.
+its verdict is read from its log, as the flow does. Under the rule above both changed runs are refused
+(`tests/pnr/test_lec.py` holds the rule to the control's stored logs).
 
 **Not claimed.** One corner, setup only, no hold repair, no power: not sign-off, on a predictive library that was
 never fabricated. Docker, other x86-64 hosts, a GitHub-hosted runner and Apple silicon are not measured (the image is
-amd64 only). The run tools are in `score/pnr/` (its README: the job files, the runner by digest, the picture, the
-collector and the check of collected data): the `config.mk` and SDC they write are those of every committed run, byte
-for byte (97 runs), and their collector rebuilds the committed `_example` table from a stored run; no run has been made
-with their container runner yet (the committed runs ran the image unpacked into a rootless chroot), so a run made
-again from the repository alone is expected, not shown, to give the committed numbers. A request can name a seed
+amd64 only). The run tools are in `score/pnr/` (its README: the job files, the runner by digest, the equivalence check, the
+picture, the collector and the check of collected data): the `config.mk` and SDC they write are those of every
+committed run, byte for byte (97 runs), and their collector rebuilds the committed `_example` table from a stored run.
+One run has been made with them (2026-11-13, the tutorial task's par design at seed 1): the in-tree generator's job,
+the runner's container command (its read-only inputs, environment and `make`) under the course host's rootless chroot
+in place of docker or podman, which the host does not have, then the reference-against-routed check and the picture;
+it gave the committed run's files byte for byte (the 11 files the campaigns compare, the render and the WebP picture),
+and the in-tree collector its numbers. A run under docker or podman itself has not been made (the committed runs ran
+the image unpacked into a rootless chroot), so that it gives the committed numbers is expected, not shown. A request can name a seed
 (`leaderboard.py asap7pnr --request`), but the run itself is still made by the maintainers on the course host.
 
 ## What is NOT claimed
