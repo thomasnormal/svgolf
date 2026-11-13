@@ -2015,8 +2015,9 @@ python3.12 leaderboard/leaderboard.py board --task <name> --pdk asap7           
 
 ### How the routed course is scored
 
-**The second course is ASAP7 placed and routed** (decided 2026-11-11 and 2026-11-12). The front page's course
-selector, "The course", offers sky130 (the default) and ASAP7 · placed and routed; every other page has it in its header.
+**The second course is ASAP7 placed and routed** (decided 2026-11-11 and 2026-11-12). The course selector in the top
+bar of every page, "Course", offers sky130 (the default) and ASAP7 · placed and routed (since 2026-11-13 the front page's
+too: one control in one place).
 On the routed course every golf score of the site is the routed one: the boards and their order, par, the record and
 under par, the score chart, the area-time plots and each record's overview. The browser remembers the choice (where it
 allows it) and the address carries it: `?pdk=asap7pnr`, and `?pdk=sky130` once a reader has chosen a course. An old
@@ -2075,10 +2076,12 @@ yet, so a run can be checked against its recorded hashes but not yet made again 
 `leaderboard/asap7pnr/<task>.json`, bound to its design file (its sha256), to its ASAP7 netlist, to the task's scoring
 point and to the current pins, the routed course lists it under "Not ranked" with the reason ("not routed yet: place
 and route pending" while it has no run) and shows a dash: never a cells-only number or an older one in its place.
-Since 2026-11-13 every design the tasks show (39 design files: records, references and baselines) has a routed score.
+Since 2026-11-13 every design the tasks show (52 design files: records, references and baselines, the 13 matmul
+architecture records included) has a routed score.
 
-**The layout picture.** Each routed design's record page, and par's, shows the layout of its scored run under the
-schematic, on both courses: drawn by OpenROAD's own renderer from the run's final database, power and ground wires not
+**The layout picture.** Each routed design's record page, and par's, shows the layout of its scored run in the
+netlist card's Layout tab, beside the schematic, on the routed course only (decided 2026-11-13: on sky130 no ASAP7
+layout is shown): drawn by OpenROAD's own renderer from the run's final database, power and ground wires not
 drawn, at most 1600 px (a 640 px thumbnail on the page); its caption names the seed and the die size.
 
 **Where it lives.** `leaderboard/asap7pnr/<task>.json` (one entry per design file: every run's numbers and the hashes
@@ -2170,9 +2173,10 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks,
   record with `verify --offline` and refuses a failed, stale or light one; the pull request's text gives the
   task, the handle, `assisted_by` and the record's board line (its place on the board as the site shows it), in
   the parts of `.github/pull_request_template.md`. The check is `leaderboard/pr_check.py`, which the
-  repository's `records` workflow runs on every pull request that touches `leaderboard/data/`: it refuses one
-  that changes anything but added records, and writes each added record's board line and the outcome to the job
-  summary. `leaderboard/data/<task>/` is where `add` writes without `--data-dir`, and what a pull request adds;
+  repository's `records` workflow runs on every pull request that touches `leaderboard/data/` or
+  `leaderboard/writeups/`: it refuses one that changes anything but added records and added or improved writeups
+  ("Writeups" below; `submit` takes a record's writeup along when there is one), and writes each added record's
+  board line and the outcome to the job summary. `leaderboard/data/<task>/` is where `add` writes without `--data-dir`, and what a pull request adds;
   `--data-dir DIR` keeps a private trial out of it.
   **That directory takes only a record whose check the board ran itself** (decided 2026-11-06, the
   universal-correctness audit): `add` refuses `--from-check` (a stored result, never re-run) and `--sandbox off` there, and a check that did not run in the OS sandbox
@@ -2301,6 +2305,37 @@ same design and proof files, so they carry the ranked columns, again on
 2026-11-05 after the checker's own files changed, with the same files and numbers,
 and on 2026-11-06 after the statement change, from the proofs updated for the
 parameter range, with the same designs and numbers).
+
+### Writeups
+
+**Write up your submission** (decided 2026-11-13). The record proves that a design is correct and what it scores;
+a writeup tells the story, as a write-up post after a competition does: what the idea is, why it scores as it
+does, how the proof goes and what did not work. Every golfer and every agent is asked for one with each pull
+request of a record; a record without one is still accepted.
+
+A writeup is one Markdown file, `leaderboard/writeups/<record_hash>.md`, named by the full hash of its record.
+Start from `leaderboard/writeups/TEMPLATE.md`. Its first line is `# <title>`: the submission's short title, plain
+text of at most 60 characters, the name of the idea ("Kogge-Stone prefix adder", "Carry-save tree, ripple final
+adder", "Strassen, one level"). The site shows the title as the record page's heading, under the player in a
+task's submissions list and in every chart's tooltip, and the rest of the file as the record page's writeup card.
+A good writeup has:
+
+* **the approach**: the circuit's architecture and its trick, the area/time trade-off it makes;
+* **the key insight**: why it beats, or does not beat, par and the record before it;
+* **the numbers**: area, time, cycles and score, and what dominates them (the cells, the critical path);
+* **the proof strategy**: the structure of the proof, its invariants and key lemmas, the tactics that did the work;
+* **the dead ends**: variants that scored worse, proofs that did not go through, and why.
+
+The file lies outside the record: no field of the record and none of its hashes name it, so adding a writeup or
+improving one later never changes a record, its hash or its rank, and a pull request may add a writeup to a record
+already on the board. `leaderboard.py verify --offline` checks each writeup: it names a record, it is UTF-8 with
+Unix newlines and no control or bidirectional-override character, its first line is the title within its length,
+it is at most 200 kB, it carries none of the site's internal markers (`site/config.json`'s denylist: a writeup is
+shown as the site's own text), and its body stays inside the site's Markdown subset: headings, paragraphs, lists,
+code spans and fenced code, emphasis, tables and links to `http` or `https` addresses; no raw HTML (it is shown as
+text), no images, no block quotes. The site renders it with everything escaped. A record without a writeup shows
+its design file's name as its title and a short "No writeup yet" card. The writeups of the first records were
+written by the maintainers from each record's design and proof files, and say so at their end.
 
 ## Tests
 

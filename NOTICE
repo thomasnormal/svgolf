@@ -126,3 +126,14 @@ and its terms. A file that came with a notice keeps it.
     Derived from the default skin of netlistsvg 1.0.2 (lib/default.svg), as are the drawings
     site/schematics/*/*.svg made with it. Copyright (c) 2016 Neil Turley. MIT License; the full
     notice is site/schematics/LICENSE-netlistsvg.txt.
+
+- leaderboard/data/matmul/005371fa502c5904966c82c5ca55bc21a59f833dc9b54076e8fa8053206e8bed.sv
+    Translated from Gemmini (https://github.com/ucb-bar/gemmini), commit
+    b82d49cca798a59f010488a6f6de7243f0616536: src/main/scala/gemmini/PE.scala, Tile.scala,
+    Mesh.scala, MeshWithDelays.scala (with Shifter.scala and Util.scala, which it calls),
+    Dataflow.scala and Arithmetic.scala (SIntArithmetic), with the preload row order of
+    ExecuteController.scala. Copyright (c) 2018-2019, The Regents of the University of California
+    (Regents). A BSD-3-Clause-style licence: the file keeps the whole notice, verbatim, in its
+    header, and lists every change made. It is a modified translation, not Gemmini itself, and is
+    not endorsed by the Regents or by Gemmini's authors. The record's proof (its .lean) is a
+    proof about the translated design.

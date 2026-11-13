@@ -627,7 +627,8 @@ class SiteTest(unittest.TestCase):
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
                 self.assertIn("reproduce.html", section(html_, "score"))
-                for sid in ("references", "baselines"):
+                self.assertNotIn('id="references"', html_)              # no Par card since 2026-11-13
+                for sid in ("baselines",):
                     if sid == "baselines" and 'id="baselines"' not in html_:   # a task without baselines: no card
                         continue
                     head = section(html_, sid).split("</thead>", 1)[0]
@@ -762,24 +763,25 @@ class SiteTest(unittest.TestCase):
                 self.assertTrue(all(d["banned"] for d in data["designs"] if d["kind"] == "baseline"), t)
 
     def test_every_reference_shows_when_it_joined(self):
-        """The score chart plots each proof of par's design at the date it joined the task
-        (content/reference_dates.json); since the table "every entry by date" went (2026-11-11), the card Par says that
-        date as text, in a column "joined" after "design", YYYY-MM-DD, the same in both views."""
+        """The score chart plots par's design at the date it joined the task (content/reference_dates.json); since the
+        Par card went (decided 2026-11-13, the owner's UI feedback item 7) the leaderboard's par row says that date as
+        text, "joined YYYY-MM-DD", the same in both views."""
         dates = json.loads(read_text_file("site/content/reference_dates.json"))
-        for t in self.listed:
+        seen = 0
+        for t in self.ranked:
             task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
+            stem = lb.par_stem(os.path.join(SVGOLF, "tasks"), task)
+            if stem not in dates.get(t, {}):
+                continue
             for pdk in ("sky130", "asap7pnr"):
                 with self.subTest(task=t, view=pdk):
-                    rows = table_rows(section(self.html(f"tasks/{t}/index.html", pdk), "references"))
-                    self.assertEqual([c.lower() for c in rows[0][:2]], ["design", "joined"])
-                    for ref in shown_refs(task):
-                        stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
-                        if stem not in dates.get(t, {}):
-                            continue
-                        row = [r for r in rows[1:] if r and r[0].split(" ", 1)[0] == stem]
-                        self.assertEqual(len(row), 1, stem)
-                        self.assertEqual(row[0][1], dates[t][stem][:10], stem)
-                        self.assertRegex(row[0][1], r"^\d{4}-\d\d-\d\d$")
+                    board = section(self.html(f"tasks/{t}/index.html", pdk), "leaderboard")
+                    row = re.findall(r'<li class="par">(.*?)</li>', board, re.S)
+                    self.assertEqual(len(row), 1)
+                    self.assertIn(f"<code>{stem}</code>", row[0])
+                    self.assertIn(f"joined {dates[t][stem][:10]}", norm(text_of(row[0])))
+                    seen += 1
+        self.assertGreaterEqual(seen, 10)
 
     def test_the_score_card_says_little_under_the_plot(self):
         """Decided 2026-11-11: under the plot, the Score card shows the legend, one line of links (on sky130 the rating
@@ -826,12 +828,13 @@ class SiteTest(unittest.TestCase):
                     self.assertLessEqual(len(norm(text_of(under)).split()), 40, norm(text_of(under)))
                     desc = re.findall(r"<desc>(.*?)</desc>", score.split("data-score-chart>", 1)[1], re.S)
                     self.assertTrue(desc)
-                    # the tables it names are the page's: Baselines only where the task has that card (2026-11-11)
-                    tail = ("The same entries as numbers: the Leaderboard (the records, with their dates), Par "
-                            "(with the date it joined the task) and Baselines."
+                    # the tables it names are the page's: Baselines only where the task has that card (2026-11-11);
+                    # no Par card since 2026-11-13: the leaderboard's par row says when par joined
+                    tail = ("The same entries as numbers: the Leaderboard (the records with their dates, and par with "
+                            "the date it joined the task) and Baselines."
                             if json.loads(self.files[f"data/tasks/{t}.json"])["baselines"] else
-                            "The same entries as numbers: the Leaderboard (the records, with their dates) and Par "
-                            "(with the date it joined the task).")
+                            "The same entries as numbers: the Leaderboard (the records with their dates, and par with "
+                            "the date it joined the task).")
                     self.assertEqual('id="baselines"' in raw, tail.endswith("Baselines."))
                     for d in desc:
                         self.assertTrue(html.unescape(d).endswith(tail), d)
@@ -1191,18 +1194,20 @@ class SiteTest(unittest.TestCase):
 
     def test_a_recorded_reference_names_its_proof(self):
         """A reference record whose proof is not the par design's (the by-hand proof of the same
-        design) says which proof it is, and the references table links it from that proof's row."""
+        design) says which proof it is, and the explorer's table ("Compare the designs") links it from that proof's
+        row (since 2026-11-13 the task page has no Par card)."""
         rec = next(r for r in records() if r["task"] == "add" and r["player"] == self.config["reference_player"])
         with open(os.path.join(SVGOLF, "tasks", "add", "reference", "add_n_byhand.lean"), "rb") as fh:
             self.assertEqual(hashlib.sha256(fh.read()).hexdigest(), rec["files"]["lean"]["sha256"])
         page_ = text_of(self.files[f"tasks/add/records/{rec['record_hash']}.html"])
         self.assertIn("the proof of the reference add_n_byhand", page_)
         self.assertIn("by-hand proof", page_)
-        refs = section(self.files["tasks/add/index.html"].decode("utf-8"), "references")
-        row = next(r for r in refs.split("<tr") if "add_n_byhand</code>" in r)
-        self.assertIn(rec["record_hash"][:12], row)
-        row = next(r for r in refs.split("<tr") if "<code>add_n</code>" in r)
+        refs = section(self.files["tasks/add/index.html"].decode("utf-8"), "explore")
+        row = next(r for r in refs.split("<tr") if "add_n_byhand</" in r)
+        self.assertIn(f'href="records/{rec["record_hash"]}.html"', row)
+        row = next(r for r in refs.split("<tr") if ">add_n</" in r)
         self.assertNotIn(rec["record_hash"][:12], row)
+        self.assertNotIn('id="references"', self.files["tasks/add/index.html"].decode("utf-8"))
 
     def test_no_internal_why_on_any_page(self):
         """The internal notes of tests/expected.json (`why`) and task.json (`note`, the banlist
@@ -1259,11 +1264,14 @@ class SiteTest(unittest.TestCase):
             else:
                 self.assertIn(f"<h1>{html.escape(info['title'])} ", html_)
             data = json.loads(self.files[f"data/tasks/{t}.json"])
-            for kind, sec in (("references", "references"), ("baselines", "baselines")):
+            for kind, sec in (("references", None), ("baselines", "baselines")):
                 if kind == "baselines" and not data[kind]:    # no baseline, no card (2026-11-11)
                     continue
-                text = norm(text_of(section(html_, sec)))
                 for item in data[kind]:
+                    # a proof of par's design: on its own page (no Par card on the task page since 2026-11-13)
+                    text = norm(text_of(section(html_, sec) if sec else self.files[
+                        f"tasks/{t}/records/{item['record_hash']}.html" if item.get("record_hash")
+                        else f"tasks/{t}/reference/{item['stem']}.html"]))
                     with self.subTest(task=t, design=item["stem"]):
                         d = info[kind].get(item["stem"], "")
                         self.assertTrue(d.strip())
@@ -1611,7 +1619,12 @@ class SiteTest(unittest.TestCase):
                 files = section(html_, "files")
                 for target in re.findall(r'href="#([\w-]+)"', files):
                     self.assertIn("<table", section(html_, target), target)
-                self.assertIn('href="#references"', files)
+                # no Par card since 2026-11-13: the Files card links par's own page
+                par = lb.par_stem(os.path.join(SVGOLF, "tasks"), task_obj := lb.load_task(os.path.join(SVGOLF, "tasks"), t))
+                ref = next(r for r in json.loads(self.files[f"data/tasks/{t}.json"])["references"] if r["stem"] == par)
+                dest = (f"records/{ref['record_hash']}.html" if ref.get("record_hash") else f"reference/{par}.html")
+                self.assertIn(f'href="{dest}"', files)
+                self.assertNotIn('href="#references"', html_)
                 legend = re.search(r'<div class="legend-row"><span>(.*?)</span>', section(html_, "leaderboard")).group(1)
                 self.assertEqual(legend, "score: area × cycles × clock period, µm²·ns"
                                  if task["kind"] in build.LATENCY_KINDS else "score: area × time, µm²·ns")
@@ -1814,40 +1827,27 @@ class SiteTest(unittest.TestCase):
         self.assertGreater(len(a7["frontier"]), 1)
         self.assertNotEqual(a7["frontier"][0]["record_hash"], summary["matmul"]["asap7pnr"]["best"]["record_hash"])
 
-    def test_same_day_records_are_not_ordered_by_hash(self):
-        """A record stores the day it was submitted (a time only if it gives one): two records of one day are not
-        before one another, so neither record page compares with the other, and the page says why."""
-        self.assertTrue(build.submitted_before("2026-11-09", "2026-11-10"))
-        self.assertFalse(build.submitted_before("2026-11-10", "2026-11-10"))
-        self.assertFalse(build.submitted_before("2026-11-10", "2026-11-10T08:00:00Z"))
-        self.assertTrue(build.submitted_before("2026-11-10T07:00:00Z", "2026-11-10T08:00:00Z"))
-        by_task = {}
+    def test_no_record_page_diffs_against_an_earlier_record(self):
+        """Decided 2026-11-13 (the owner's UI feedback): a record page shows no diff against the previous frontier
+        record (a reader diffs the downloads if they want to), and its facts no longer name a previous frontier."""
         for r in records():
-            if r["player"] != "svgolf-reference":
-                by_task.setdefault(r["task"], []).append(r)
-        seen = 0
-        for task, recs in by_task.items():
-            for r in recs:
-                same = [o for o in recs if o is not r and o["submitted_at"][:10] == r["submitted_at"][:10]]
-                earlier = [o for o in recs if o["submitted_at"][:10] < r["submitted_at"][:10]]
-                if not same or earlier:
-                    continue
-                seen += 1
-                with self.subTest(record=r["record_hash"][:12]):
-                    page_ = norm(text_of(self.files[f"tasks/{task}/records/{r['record_hash']}.html"]))
-                    # the record page's redesign says it in the record's facts ("previous frontier: none: ...")
-                    self.assertIn("none: no submission of this task is dated before this one; "
-                                  f"{len(same)} other submission{'' if len(same) == 1 else 's'} "
-                                  f"{'is' if len(same) == 1 else 'are'} dated the same day "
-                                  f"({r['submitted_at'][:10]}), which does not order", page_)
-                    self.assertNotIn("this is the task's first submission", page_)
-                    self.assertNotIn("the best record before this one", page_)
-        self.assertGreaterEqual(seen, 6)                          # matmul's four of 2026-11-10, mul's two of 11-05
+            with self.subTest(record=r["record_hash"][:12]):
+                h = self.files[f"tasks/{r['task']}/records/{r['record_hash']}.html"].decode("utf-8")
+                self.assertNotIn('id="diff"', h)
+                self.assertNotIn('class="code diff"', h)
+                self.assertNotIn("Against the previous frontier record", h)
+                self.assertNotIn("<dt>previous frontier</dt>", h)
+        self.assertFalse(hasattr(build, "diff_html"))
+        self.assertFalse(hasattr(build, "previous_frontier_record"))
 
     def test_home_defines_under_par_and_the_clocked_time(self):
         html_ = self.files["index.html"].decode("utf-8")
-        note = norm(text_of(html_[html_.index('<p class="course-note">'):]))
-        self.assertIn("Under par is how far the record is below par, as a share of par's score", note)
+        # the note on par, record and under par is the rules page's since 2026-11-13 (the front page's block over the
+        # cards is its heading alone); every footer links it ("How it is scored")
+        self.assertNotIn('class="course-note"', html_)
+        rules = norm(text_of(self.files["rules.html"]))
+        self.assertIn("Under par is how far the record is below par, as a share of par's score", rules)
+        self.assertIn('href="rules.html#courses">How it is scored</a>', html_)
         lead = norm(text_of(html_[html_.index('class="hero-lead"'):html_.index('class="btn-row"')]))
         self.assertIn("on a clocked task, the time is the clock period, times the latency in cycles", lead)
         # how a record reaches the board, in the one sentence of this build's state (decided 2026-11-11)
@@ -1859,7 +1859,8 @@ class SiteTest(unittest.TestCase):
         page has the pane and says so), not that each has a kernel-checked refutation, and it calls the statements'
         authors the maintainers; home's "the same file always scores the same" is on the rating build; the random
         vectors' salt is described as it is (no record so far was checked with one: the records are read here); and
-        the line on who made the records so far sits right under the course's helper line, in build.py's words."""
+        the line on who made the records so far is the rules page's (README's Leaderboard, in build.py's words; since
+        2026-11-13 not the front page's, whose block over the task cards is its heading alone)."""
         home_html = self.files["index.html"].decode("utf-8")
         home, about = norm(text_of(home_html)), norm(text_of(self.files["about.html"]))
         for stale in ("kernel-checked refutations", "salted in competition runs", "the same file always scores the same (",
@@ -1890,9 +1891,11 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(build.salt_md([salted, clocked, {"postsynth": {"salted": False}}]),
                          "some of the board's records were checked with one (its page says so)")
         head = home_html[home_html.index('<div class="section-head" id="tasks">'):home_html.index('<ul class="task-cards">')]
-        self.assertLess(head.index('class="pdk-what'), head.index('<p class="first-entries small muted">'))
-        self.assertIn(norm(build.FIRST_ENTRIES_MD), norm(text_of(head)))
-        self.assertEqual(home.count("There are no outside entries yet."), 1)
+        self.assertEqual(head, '<div class="section-head" id="tasks"><h2>Tasks</h2></div>')
+        rules = norm(text_of(self.files["rules.html"]))
+        self.assertIn(norm(build.FIRST_ENTRIES_MD), rules)
+        self.assertEqual(home.count("There are no outside entries yet."), 0)
+        self.assertEqual(rules.count("There are no outside entries yet."), 1)
 
     def test_shown_paths_are_the_public_repositorys(self):
         """Decided 2026-11-11: the public repository is svGolf's own tree, so a path of it is shown as that repository
@@ -2051,7 +2054,8 @@ class SiteTest(unittest.TestCase):
                         self.assertIn(f'<li><a href="{build.repo_link(web, "svgolf/CONTRIBUTING.md")}">Contributing'
                                       '</a></li>', f)
                         root = build.root_of(path)
-                        for label, href in (("Roadmap", "roadmap.html"), ("Reproduce a score", "reproduce.html"),
+                        for label, href in (("How it is scored", "rules.html#courses"), ("Roadmap", "roadmap.html"),
+                                            ("Reproduce a score", "reproduce.html"),
                                             ("llms.txt", "llms.txt"), ("data", "data/site.json")):
                             self.assertIn(f'<li><a href="{root}{href}">{label}</a></li>', f)
             self.assertIn(f'questions go to <a href="{web}/issues">its issues</a>', files["about.html"].decode("utf-8"))
@@ -2065,7 +2069,8 @@ class SiteTest(unittest.TestCase):
                         f = foot(data.decode("utf-8"))
                         root = build.root_of(path)
                         self.assertTrue(f.startswith("<li>Apache-2.0</li>"), f[:80])
-                        for label, href in (("Roadmap", "roadmap.html"), ("Reproduce a score", "reproduce.html"),
+                        for label, href in (("How it is scored", "rules.html#courses"), ("Roadmap", "roadmap.html"),
+                                            ("Reproduce a score", "reproduce.html"),
                                             ("llms.txt", "llms.txt"), ("data", "data/site.json")):
                             self.assertIn(f'<li><a href="{root}{href}">{label}</a></li>', f)
                         self.assertNotIn("/issues", f)
@@ -2317,7 +2322,9 @@ class SiteTest(unittest.TestCase):
                 self.assertTrue(meta["description"].startswith("svGolf tutorial: "), meta["description"])
                 if "/records/" in rel:
                     self.assertRegex(title, r" on the tutorial · record [0-9a-f]{12} \| svGolf$")
-                    self.assertIn(" on the tutorial · ", h1)
+                    # the heading is the record's title since 2026-11-13; who, where and when is the line under it
+                    sub = norm(text_of(re.search(r'<p class="head-sub">(.*?)</p>', h, re.S).group(1)))
+                    self.assertIn(" on the tutorial · ", sub)
 
     def test_the_headline_has_one_source(self):
         """Decided 2026-11-11: the front page's headline and its sub-line are config.json `headline`, and everything
@@ -2467,7 +2474,7 @@ class SiteTest(unittest.TestCase):
         self.assertIn(want, norm(rules))
         for stale in ("open decision", "possible hand-off", "CI re-verifies"):
             self.assertNotIn(stale, rules)
-        first = norm(build.FIRST_ENTRIES_MD)                    # the front page's words (test_the_claims_...)
+        first = norm(build.FIRST_ENTRIES_MD)                    # README's Leaderboard words (test_the_claims_...)
         # decided 2026-11-13: the maintainers' records are entries like any, seeded with AI assistance
         self.assertEqual(first, "The board is seeded with entries the maintainers made with AI assistance (each record "
                          "names the tools), each proved and scored like any entry: they are ordinary entries and can "
@@ -2495,12 +2502,12 @@ class SiteTest(unittest.TestCase):
         self.assertIn('href="roadmap.html"', self.files["about.html"].decode("utf-8"))
 
     def test_home_steps_on_the_adder_follow_the_task_cards(self):
-        """The whole idea, on the adder: the three steps come after the hero, the note on par and record (closed, above
-        the cards since 2026-11-11) and the task cards (decided 2026-11-06); step 1 quotes the reference `add_n.sv` without its comments, byte for
+        """The whole idea, on the adder: the three steps come after the hero, the heading "Tasks" (since 2026-11-13 the
+        block over the cards holds nothing else) and the task cards (decided 2026-11-06); step 1 quotes the reference `add_n.sv` without its comments, byte for
         byte; step 3's last line is the line check.py prints for it (check.py's own `ranked_headline`, par
         from the goldens), and home.md types none of it."""
         html_ = self.files["index.html"].decode("utf-8")
-        order = [html_.index(s) for s in ('<header class="hero', '<p class="course-note">', '<ul class="task-cards">',
+        order = [html_.index(s) for s in ('<header class="hero', '<h2>Tasks</h2>', '<ul class="task-cards">',
                                           '<section class="how"')]
         self.assertEqual(order, sorted(order))
         how = html_[html_.index('<section class="how"'):html_.index("</section>", html_.index('<section class="how"'))]
@@ -2615,6 +2622,34 @@ class SiteTest(unittest.TestCase):
                     continue
                 self.assertNotIn(m["text"].lower(), text, f"{path} contains the internal marker {m['text']!r}")
 
+    def test_a_marker_in_a_player_proof_passes_only_by_the_file_block_exemption(self):
+        """Decided 2026-11-13: with the diff view gone, what a player wrote in a design or a proof reaches a record page
+        only in its verbatim file blocks (`<pre data-src>`), which the internal-marker guard exempts as it exempts every
+        repository file shown byte for byte; no exemption was added for it. Measured on the tree's own records (the
+        matmul proofs name an internal statement name in a comment): every record page whose files carry a marker
+        passes the guard as built, and fails it with that one exemption taken away, on exactly those markers, so no
+        other part of the page carries the files' text. The guard runs in every build, the strict one included. (The
+        markers are checked here without their allowances, which name other pages: no record page is allowed one.)"""
+        markers = [{k: v for k, v in e.items() if k != "allow"} for e in self.config["denylist"] if isinstance(e, dict)]
+        self.assertFalse(any(p.startswith("tasks/") and "/records/" in p for e in self.config["denylist"]
+                             if isinstance(e, dict) for p in e.get("allow", {})))
+        players = set()
+        for r in records():
+            players.update([r["player"], *r["assisted_by"], r.get("notes") or ""])
+        pages = {}
+        for r in records():
+            text = "".join(read_text_file(f"leaderboard/data/{r['task']}/{r['record_hash']}{ext}")
+                           for ext in (".sv", ".lean")).lower()
+            hit = sorted(m["text"] for m in markers if m["text"].lower() in text)
+            if hit:
+                pages[f"tasks/{r['task']}/records/{r['record_hash']}.html"] = hit
+        self.assertTrue(any(p.startswith("tasks/matmul/") for p in pages), "no player proof names a marker any more")
+        files = {p: self.files[p] for p in pages}
+        self.assertEqual(build.check_denylist(files, markers, copies=set(), player_text=players), [])
+        with mock.patch.object(build, "VERBATIM_BLOCK", re.compile(r"(?!)")):
+            hits = build.check_denylist(files, markers, copies=set(), player_text=players)
+        self.assertEqual(sorted(hits), sorted(f"{p}: contains the internal marker {m!r} (denylist, scope site-text)"
+                                              for p, ms in pages.items() for m in ms))
 
     def test_the_public_markers_and_the_docs_without_them(self):
         """Decided 2026-11-11: config.json's denylist holds the public markers of what is internal (work-package

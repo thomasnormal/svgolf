@@ -125,8 +125,6 @@
   --hl-cmd: #1c5cab;
   --hl-var: #9a4a12;
   --hl-opt: #5040c0;
-  --diff-add: rgba(12, 163, 12, 0.14);
-  --diff-del: rgba(208, 59, 59, 0.14);
   /* type (system fonts only: the display face is the system's rounded one where it has one) */
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --font-display: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -244,8 +242,6 @@
     --hl-cmd: #6da7ec;
     --hl-var: #e0895a;
     --hl-opt: #9085e9;
-    --diff-add: rgba(12, 163, 12, 0.22);
-    --diff-del: rgba(230, 103, 103, 0.22);
   }
 }
 
@@ -362,13 +358,15 @@ code {
 /* THE COURSE SELECTOR (decided 2026-11-09; 2026-11-11/12: sky130 or ASAP7 placed and routed). Every golf score is on
    the page twice, in `.pdk.pdk-sky130` and in `.pdk.pdk-asap7pnr` (site/build.py `dual`); <html data-pdk>, which pdk.js
    sets before the page is drawn, picks the one shown, sky130 without it. The wrappers draw no box (display: contents),
-   so the cards, rows and grids around them lay out as before; a lone `.pdk-asap7pnr` element (a note, the banner) is
+   so the cards, rows and grids around them lay out as before; a lone `.pdk-asap7pnr` element (a note, a tab) is
    shown on the routed course only. */
 .pdk { display: contents; }
 html:not([data-pdk="asap7pnr"]) .pdk-asap7pnr, html[data-pdk="asap7pnr"] .pdk-sky130 { display: none !important; }
-/* a reader who came by an old ?pdk=asap7 link or choice (pdk.js sets data-pdk-moved): the banner says what changed */
+/* a reader who came by an old ?pdk=asap7 link or choice (pdk.js sets data-pdk-moved): one line says what changed
+   (no banner for every reader, decided 2026-11-13) */
 .pdk-moved-note { display: none; }
-html[data-pdk-moved] .pdk-moved-note { display: inline; }
+html[data-pdk-moved] .pdk-moved-note { display: block; margin: 0 0 var(--sp-4); padding: var(--sp-2) var(--sp-3);
+  background: var(--accent-soft); color: var(--text); border-left: 4px solid var(--accent); font-size: var(--fs-sm); }
 .pdk-pick { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .pdk-pick[hidden] { display: none; }
 .site-header .pdk-pick, .site-header noscript { margin-left: auto; }
@@ -379,21 +377,10 @@ html[data-pdk-moved] .pdk-moved-note { display: inline; }
 }
 .pdk-pick select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .pdk-nojs { margin: 0; font: var(--fs-xs)/1.4 var(--mono); color: var(--text-2); }
-.pdk-pick-home select { font-size: var(--fs-md); border-color: var(--accent-line); }
-.pdk-banner { margin: 0 0 var(--sp-4); }
-.pdk-banner p { margin: 0; padding: var(--sp-3) var(--sp-4); background: var(--accent-soft); color: var(--text);
-  border-left: 4px solid var(--accent); font-size: var(--fs-sm); }
 .pdk-note { color: var(--text-2); margin: 0 0 var(--sp-3); }
-html[data-pdk="asap7pnr"] tr.par-row:not(.par-a7) td { background: none; }
-html[data-pdk="asap7pnr"] tr.par-row:not(.par-a7) td:first-child { box-shadow: none; }
-html[data-pdk="asap7pnr"] tr.par-a7 td { background: var(--surface-2); }
-html[data-pdk="asap7pnr"] tr.par-a7 td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
-/* the layout picture of the routed course's scored run, under the schematic in its pane (the netlist card is the
-   main column's: side by side, the schematic's notes ran in a third of it) */
-.sch-pair { display: grid; gap: var(--sp-5); grid-template-columns: minmax(0, 1fr); }
-.sch-main { min-width: 0; }
-.layout-fig { margin: 0; min-width: 0; max-width: 40rem; padding-top: var(--sp-4); border-top: 1px solid var(--border); }
-.layout-fig .layout-label { margin: 0 0 var(--sp-2); }
+/* the layout picture of the routed course's scored run: the netlist card's Layout tab, on that course only (decided
+   2026-11-13; the tab and its pane carry .pdk-asap7pnr) */
+.layout-fig { margin: 0; min-width: 0; max-width: 40rem; }
 .layout-link { display: block; line-height: 0; border: 2px solid var(--border-strong); background: #fff; }
 .layout-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .layout-fig img { display: block; width: 100%; max-width: 640px; height: auto; }
@@ -660,11 +647,6 @@ pre.code[data-src] { max-height: 40rem; }       /* whole files: scroll inside th
 .hl-var { color: var(--hl-var); }
 .hl-opt { color: var(--hl-opt); }
 
-.diff-add { background: var(--diff-add); }
-.diff-del { background: var(--diff-del); }
-.diff-hunk { color: var(--kind-reference); }
-.diff-head { color: var(--text-2); }
-
 /* ---------------------------------------------------------------- tables */
 
 .table-wrap { overflow-x: auto; margin: var(--sp-3) 0; border: 2px solid var(--border-strong); border-radius: 0; background: var(--surface); }
@@ -846,6 +828,8 @@ ol.board > li.par { background: var(--surface-2); }
 .board-name a { color: var(--text); text-decoration: none; }
 .board-name a:hover { color: var(--accent-ink); text-decoration: underline; }
 .board-meta { font: var(--fs-xs)/1.5 var(--mono); color: var(--text-3); }
+/* the submission's title under its player (its writeup's: build.py record_title) */
+.board-title { display: block; font-weight: 450; font-size: var(--fs-sm); line-height: 1.35; color: var(--text-2); }
 .board-score { text-align: right; font: 700 var(--fs-md)/1.2 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .board-score small { display: block; font-size: var(--fs-xs); font-weight: 500; color: var(--text-3); }
 .bar { display: block; height: 6px; margin-top: 6px; border-radius: 0; background: var(--sunken); overflow: hidden; max-width: 14rem; }
@@ -1054,18 +1038,6 @@ pre.code.source .decl:target .ln:first-child::before, pre.code.source .ln:target
 .course > .section-head { margin-top: 0; }
 .course > .section-head h2 { font-size: var(--fs-xl); }
 .course > .section-head > div { flex: 0 0 auto; }
-/* the course control (2026-11-11): the kicker "The course" is the select's label and the select sits beside it, over
-   the heading and the helper line; the block takes the line and may shrink below its one-line width (a phone) */
-.course > .section-head > .course-pick { flex: 1 1 auto; min-width: 0; }
-.course-pick > .label { display: inline-block; vertical-align: middle; margin: 0 var(--sp-2) var(--sp-2) 0; }
-.course-pick > .pdk-pick { vertical-align: middle; margin-bottom: var(--sp-2); }
-.course-fixed { font: 600 var(--fs-sm)/1.4 var(--font-display); color: var(--text); vertical-align: middle; }
-.course-pick > h2 { margin: 0 0 var(--sp-1); }
-.course-pick .pdk-what, .course-pick .pdk-nojs { margin: 0; max-width: 44rem; }
-.course-pick .first-entries { margin: var(--sp-1) 0 0; max-width: 44rem; }
-/* the closed note on par and record, above the cards */
-.course-note-fold { margin: 0 var(--px) var(--sp-5); max-width: 60rem; }
-.course-note { max-width: 60rem; }
 
 .task-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: calc(var(--sp-4) + 6px) var(--sp-4); }
 .task-card { margin: 0 var(--px); position: relative; display: flex; flex-direction: column; gap: var(--sp-3); background: var(--surface); padding: var(--sp-5); transition: transform 0.12s; }
@@ -1151,8 +1123,6 @@ svg.chart .drop { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 2 3; }
 svg.chart .lv-name { font-size: 11px; fill: var(--text); }
 svg.chart .lv-par { font-weight: 700; letter-spacing: 0.08em; }
 svg.chart .lv-note { font-size: 9.5px; fill: var(--text-3); }
-/* the score chart: how many entries one dot stands for (a tie; svgplot.stacked_entries) */
-svg.chart .mark-count { font-size: 10px; font-weight: 700; fill: var(--text); pointer-events: none; }
 svg.chart .mark:not(.best) .m-record { opacity: 0.75; }
 svg.chart .mark.off-front { opacity: var(--off-front-opacity); }
 svg.chart .mark.off-front:hover, svg.chart a:focus .mark { opacity: 1; }
@@ -1265,12 +1235,6 @@ dl.mfacts dd { color: var(--text-2); }
 .split-detail { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 72.01rem) {
   .split-detail { grid-template-columns: minmax(0, 2.25fr) minmax(15rem, 1fr); }
-  /* a record's checker card (build.py detail_layout's `more`) goes under the netlist, beside the rest of the side
-     column: the first row is the netlist's height, the second takes the rest */
-  .split-more { grid-template-rows: auto 1fr; }
-  .split-more > .col-main { grid-column: 1; grid-row: 1; }
-  .split-more > .col-side { grid-column: 2; grid-row: 1 / span 2; }
-  .split-more > .col-more { grid-column: 1; grid-row: 2; }
 }
 #sources .codebox-dl { font: 600 var(--fs-xs)/1 var(--mono); color: var(--link); }
 @media (min-width: 40.01rem) {           /* the main column is wide enough for a term beside its value */
@@ -1285,6 +1249,8 @@ dl.mfacts dd { color: var(--text-2); }
   text-transform: uppercase; color: var(--text-3); padding: 0.7rem 0 0.6rem; margin-bottom: -1px;
   border-bottom: 3px solid transparent; text-decoration: none; }
 .tabs-nav > a:hover { color: var(--text); }
+/* a phone: the four tabs of a record's netlist card (the routed course's Layout the fourth) on one line */
+@media (max-width: 30rem) { .tabs-nav { gap: 0 var(--sp-3); } .tabs-nav > a { letter-spacing: 0.04em; } }
 .tabs-nav > a[aria-selected="true"] { color: var(--text); border-bottom-color: var(--nav-on); }
 .tabs-pane[hidden] { display: none; }
 .tabs-pane + .tabs-pane { margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--border); }

@@ -275,44 +275,73 @@ class ChartTest(unittest.TestCase):
         self.assertEqual(svgplot.score_chart([dict(entries[0], date=None)], title="t", unit="u"), "")
         self.assertNotIn("mark-count", svg)                       # no two entries share a point there
 
-    def test_score_chart_entries_at_one_point_are_counted_and_named(self):
-        """Decided 2026-11-13: entries the score chart draws at one point (a record that ties another of its day, or
-        two nearly equal scores of one day) hide one another, so the dot carries a count and every mark of it the one
-        tooltip that names them all with their scores; each link keeps its own entry's name. A dot alone, or entries
-        of other days at the same score (a tie with par drawn on its own date), carry no count."""
+    def test_score_chart_spreads_entries_and_sets_ties_side_by_side(self):
+        """Decided 2026-11-13 (the owner's UI feedback, item 8: "just add some horizontal variation instead"): no count
+        beside a dot. An entry stands where its date's time of day puts it, else at a place in its day taken from its
+        hash (the same on every build), so entries of one day do not sit on one vertical line; entries that would
+        still be drawn at one point (one time and one score) are set side by side, JITTER_PX apart, and every mark of
+        them carries the one tooltip that names them all with their scores; each link keeps its own entry's name."""
         entries = [{"id": "par", "kind": "reference", "date": "2026-10-29", "value": 100.0, "score": 1000,
                     "tip": ["add_n", "par's design"], "href": "p.html"},
-                   {"id": "r1", "kind": "record", "date": "2026-11-13", "value": 100.0, "score": 1000,
+                   {"id": "r1", "kind": "record", "date": "2026-11-13T10:00:00Z", "value": 100.0, "score": 1000,
                     "tip": ["ripple", "record"], "brief": "ripple · record r1", "href": "r1.html"},
-                   {"id": "r2", "kind": "record", "date": "2026-11-13", "value": 100.0, "score": 1000,
+                   {"id": "r2", "kind": "record", "date": "2026-11-13T10:00:00Z", "value": 100.0, "score": 1000,
                     "tip": ["ripple", "record"], "brief": "ripple · record r2", "href": "r2.html"},
-                   {"id": "r3", "kind": "record", "date": "2026-11-13", "value": 100.0, "score": 1000,
+                   {"id": "r3", "kind": "record", "date": "2026-11-13T10:00:00Z", "value": 100.0, "score": 1000,
                     "tip": ["ripple", "record"], "brief": "ripple · record r3", "href": "r3.html"},
-                   {"id": "f1", "kind": "record", "date": "2026-11-12", "value": 132.48, "score": 1324810,
-                    "tip": ["ladder", "record"], "brief": "ladder · record f1", "href": "f1.html"},
-                   {"id": "f2", "kind": "record", "date": "2026-11-12", "value": 132.79, "score": 1327880,
-                    "tip": ["ladder", "record"], "brief": "ladder · record f2", "href": "f2.html"},
-                   {"id": "lo", "kind": "record", "date": "2026-11-12", "value": 60.0, "score": 600,
-                    "tip": ["low", "record"], "href": "lo.html"}]
+                   {"id": "a" * 64, "kind": "record", "date": "2026-11-12", "value": 132.48, "score": 1324810,
+                    "tip": ["ladder", "record"], "href": "f1.html"},
+                   {"id": "f" * 64, "kind": "record", "date": "2026-11-12", "value": 132.79, "score": 1327880,
+                    "tip": ["ladder", "record"], "href": "f2.html"}]
         for compact in (False, True):
             svg = svgplot.score_chart(entries, par={"value": 100.0, "label": "par"}, title="t", unit="u",
                                       until="2026-11-14", compact=compact)
-            self.assertEqual(re.findall(r'class="mark-count"[^>]*>([^<]*)<', svg), ["×2", "×3"])
+            self.assertNotIn("mark-count", svg)
+            self.assertNotIn("×", svg)
             tip3 = "3 entries at this point\nripple · record r1 · 100\nripple · record r2 · 100\nripple · record r3 · 100"
             self.assertEqual(svg.count(f'data-tip="{tip3}"'), 3)
-            self.assertEqual(svg.count('data-tip="2 entries at this point\nladder · record f1 · 132.5\n'
-                                       'ladder · record f2 · 132.8"'), 2)        # `value_fmt` (num) rounds
+            xs = {}
             for h in ("r1", "r2", "r3", "f1", "f2"):
                 self.assertIn(f'<a href="{h}.html" aria-label="', svg)
-            self.assertIn('data-tip="low\nrecord"', svg)          # alone at its point: its own tip
-            self.assertIn('data-tip="add_n\npar&#x27;s design"', svg.replace("&#39;", "&#x27;"))
-            self.assertIn("A count beside a dot (×2) is how many entries are drawn there", svg)
+                m = re.search(rf'<a href="{h}.html"[^>]*><g [^>]*><title>[^<]*</title><circle class="hit" cx="([\d.]+)"',
+                              svg)
+                xs[h] = float(m.group(1))
+            # the three ties: side by side, JITTER_PX apart, in id order; the two of 11-12 apart by their hashes
+            self.assertAlmostEqual(xs["r2"] - xs["r1"], svgplot.JITTER_PX, places=0)
+            self.assertAlmostEqual(xs["r3"] - xs["r2"], svgplot.JITTER_PX, places=0)
+            self.assertGreater(abs(xs["f2"] - xs["f1"]), 1)
+            self.assertIn('data-tip="ladder\nrecord"', svg)          # alone at its point: its own tip
+            self.assertIn("set side by side, each tooltip naming them all", svg)
+            again = svgplot.score_chart(entries, par={"value": 100.0, "label": "par"}, title="t", unit="u",
+                                        until="2026-11-14", compact=compact)
+            self.assertEqual(again, svg)                              # deterministic
+        # the place in a day: from the hash, inside the day, the same every time; a time of day wins
+        for key in ("a" * 64, "f" * 64, "reference/add_n", "0123abcd"):
+            f = svgplot.day_spread(key)
+            self.assertTrue(0.1 <= f <= 0.9, key)
+            self.assertEqual(f, svgplot.day_spread(key))
+        self.assertLess(svgplot.day_spread("0" * 64), svgplot.day_spread("f" * 64))
+        day = svgplot._ordinal("2026-11-13")
+        self.assertAlmostEqual(svgplot.entry_x({"id": "x", "date": "2026-11-13T12:00:00Z"}), day + 0.5)
+        self.assertEqual(svgplot.entry_x({"id": "f" * 64, "date": "2026-11-13"}), day + svgplot.day_spread("f" * 64))
         apart = svgplot.stacked_entries(entries[:2], {"par": (10.0, 50.0), "r1": (40.0, 50.0)}, svgplot.STACK_PX)
         self.assertEqual(apart, {})                               # the same score on two days: two dots
-        # one day, dots 4.9 px apart (mul's 52 729 and 53 635) are one stack; 7.7 px apart they stand apart
-        near = svgplot.stacked_entries(entries[4:7], {"f1": (90.0, 100.0), "f2": (90.0, 104.9), "lo": (90.0, 112.6)},
-                                       svgplot.STACK_PX)
-        self.assertEqual(sorted(near), ["f1", "f2"])
+        self.assertEqual(svgplot.jitter([["a", "b", "c"], ["d"]]), {"a": -6.0, "b": 0.0, "c": 6.0, "d": 0.0})
+
+    def test_scatter_sets_designs_at_one_point_side_by_side(self):
+        """Decided 2026-11-13 (item 8): designs at one (x, y) of a scatter are drawn a few px apart at draw time, in id
+        order (the tooltip and the table keep the exact values, and the shared tooltip names them all)."""
+        pts = [{"id": "b", "kind": "record", "x": 112, "y": 33, "tip": ["b"], "brief": "b"},
+               {"id": "a", "kind": "record", "x": 112, "y": 33, "tip": ["a"], "brief": "a"},
+               {"id": "c", "kind": "baseline", "x": 120, "y": 28, "tip": ["c"]}]
+        svg = svgplot.scatter_chart(pts, x_label="x", y_label="y", front=["a", "b", "c"], title="t")
+        hits = [float(v) for v in re.findall(r'<circle class="hit" cx="([\d.]+)"', svg)]
+        self.assertEqual(len(hits), 3)
+        self.assertEqual(svgplot.coinciding(pts), [["a", "b"], ["c"]])
+        two = sorted(h for h in hits if abs(h - min(hits)) < 3 * svgplot.JITTER_PX)
+        self.assertEqual(len(two), 2)
+        self.assertAlmostEqual(two[1] - two[0], svgplot.JITTER_PX, places=0)
+        self.assertEqual(svg.count("2 designs at this point\n"), 2)
 
     def test_log_ticks_inside_one_decade(self):
         s = svgplot.Scale(1198, 1682, 0, 1, log=True)

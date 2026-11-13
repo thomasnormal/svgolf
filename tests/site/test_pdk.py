@@ -137,16 +137,16 @@ class PdkTest(unittest.TestCase):
     # ---- the selector
 
     def test_every_page_has_the_selector_in_its_header_and_says_what_without_javascript(self):
-        """Every page but the front page and the 404 page carries the course selector, "Course", in its header
-        (2026-11-11: the front page has its own control, "The course", beside its task cards, and no second one;
-        2026-11-12: the 404 page shows no scores). Its courses (2026-11-12): sky130 and ASAP7 · placed and routed."""
+        """Every page but the 404 page carries the course selector, "Course", in its header (2026-11-12: the 404 page
+        shows no scores; 2026-11-13: the front page too, one control in one place on every page, the owner's UI
+        feedback item 5). Its courses (2026-11-12): sky130 and ASAP7 · placed and routed."""
         for path in sorted(p for p in self.files if p.endswith(".html")):
             h = self.raw(path)
             with self.subTest(page=path):
                 head = h[h.index('<header class="site-header">'):h.index("</header>")]
                 # pdk.js in the head, not deferred, before the page is drawn; the other scripts deferred
                 self.assertRegex(h[:h.index("</head>")], r'<script src="(\.\./)*pdk\.js"></script>\n<script src="(\.\./)*site\.js" defer>')
-                if path in ("index.html", "404.html"):
+                if path == "404.html":
                     self.assertNotIn("pdk-select", head)
                     continue
                 self.assertRegex(head, r'<div class="pdk-pick" data-pdk-pick hidden><label for="pdk-select">Course')
@@ -160,19 +160,21 @@ class PdkTest(unittest.TestCase):
         with open(os.path.join(SITE, "pdk.js"), "rb") as fh:
             self.assertEqual(self.files["pdk.js"], fh.read())
 
-    def test_the_home_page_has_the_dropdown_beside_the_task_cards(self):
-        """The front page's course control (2026-11-11): the kicker "The course" is the select's label, its options
-        sky130 and ASAP7 · placed and routed (2026-11-12); without JavaScript the scores are sky130's and a line says
-        so; the routed course's helper line links how it is scored."""
+    def test_the_home_page_has_one_chooser_in_its_top_bar(self):
+        """Decided 2026-11-13 (the owner's UI feedback, item 5): the front page's course chooser is the top bar's, as on
+        every other page, and the block over the task cards is the heading "Tasks" alone: no second selector, no lines
+        on the courses, no seeded-entries line and no note on par and record there (they are the rules page's, which
+        every footer links as "How it is scored")."""
         h = self.raw("index.html")
-        tasks = h[h.index('id="tasks"'):h.index('<ul class="task-cards">')]
-        self.assertIn('<label class="label label-accent" for="pdk-select-home">The course</label>', tasks)
-        self.assertIn('<select id="pdk-select-home" data-pdk-select autocomplete="off"><option value="sky130" '
-                      'selected>sky130</option><option value="asap7pnr">ASAP7 · placed and routed</option></select>',
-                      tasks)
-        self.assertIn("The scores are on sky130; the course ASAP7 · placed and routed needs JavaScript.",
-                      text_of(tasks))
-        self.assertIn(f'href="rules.html#{build.ASAP7PNR_ANCHOR}"', tasks)
+        self.assertEqual(h.count("data-pdk-select"), 1)
+        self.assertNotIn("pdk-select-home", h)
+        head = h[h.index('<header class="site-header">'):h.index("</header>")]
+        self.assertIn('<select id="pdk-select" data-pdk-select', head)
+        tasks = h[h.index('<div class="section-head" id="tasks">'):h.index('<ul class="task-cards">')]
+        self.assertEqual(text_of(tasks).strip(), "Tasks")
+        for gone in ("course-note", "pdk-what", "first-entries", ">The course</label>"):
+            self.assertFalse(gone in h, gone)
+        self.assertIn('href="rules.html#courses">How it is scored</a>', h)
 
     def test_the_rules_say_how_asap7_is_scored_and_that_sky130_is_the_default(self):
         """The cells-only ASAP7 view's section stays (it is the routed course's input and a column of its record
@@ -213,9 +215,13 @@ class PdkTest(unittest.TestCase):
                        "a predictive library at one corner, not sign-off"):
             self.assertIn(phrase, part)
         self.assertNotIn("not yet checked by a negative control", part)
-        for p in ["index.html"] + [f"tasks/{t}/index.html" for t in self.listed]:
+        for p in [f"tasks/{t}/index.html" for t in self.listed]:
             with self.subTest(page=p):
                 self.assertIn(f"rules.html#{build.ASAP7PNR_ANCHOR}", self.view(p, R))
+        # the rules page's "The courses" links it too, and every footer links "The courses" (2026-11-13)
+        courses = rules.split(f'id="{build.COURSES_ANCHOR}"', 1)[1].split("<h2", 1)[0]
+        self.assertIn(f'href="#{build.ASAP7PNR_ANCHOR}"', courses)
+        self.assertIn('href="rules.html#courses"', self.raw("index.html"))
 
     # ---- the two views
 
@@ -240,13 +246,24 @@ class PdkTest(unittest.TestCase):
             self.assertNotIn(f'class="pdk pdk-{R}"', self.raw(path))
 
     def test_the_routed_course_is_labelled_where_its_numbers_appear(self):
-        for path in ["index.html"] + [f"tasks/{t}/index.html" for t in self.listed]:
+        """Decided 2026-11-13 (the owner's UI feedback, item 2): no banner on every page. The course is named by the
+        top bar's chooser on every page with scores, the routed numbers by their own labels (the score card's
+        definition, the board's and the explorer's heads), and what the banner said is the rules page's "The courses",
+        which every page's footer links ("How it is scored")."""
+        for path in sorted(p for p in self.files if p.endswith(".html")):
             with self.subTest(page=path):
-                a7, sky = self.view(path, R), self.view(path, "sky130")
-                self.assertIn("Golf scores on ASAP7, placed and routed", text_of(a7))
-                self.assertIn("never fabricated", text_of(a7))
-                self.assertIn(f"rules.html#{build.ASAP7PNR_ANCHOR}", a7)
-                self.assertNotIn("Golf scores on ASAP7", text_of(sky))
+                self.assertNotIn("pdk-banner", self.raw(path))
+                self.assertNotIn("Golf scores on ASAP7", text_of(self.raw(path)))
+        rules = self.raw("rules.html")
+        part = " ".join(text_of(rules[rules.index(f'id="{build.COURSES_ANCHOR}"'):].split("<h2", 1)[0]).split())
+        for phrase in ("chosen with the Course menu in the top bar of every page", "?pdk=asap7pnr",
+                       "without JavaScript the scores are sky130's", "SkyWater's open 130 nm process, the default course",
+                       "Its scores count the cells only: no wires, no place and route",
+                       "a predictive 7 nm library, never fabricated; each design placed and routed by OpenROAD, wires "
+                       "included", "A design not routed yet shows a dash where its number would be, and the reason",
+                       "Each course has its own par, record and board", build.PNR_MOVED):
+            self.assertIn(phrase, part)
+        self.assertIn(f'href="#{build.ASAP7PNR_ANCHOR}"', rules.split(f'id="{build.COURSES_ANCHOR}"', 1)[1].split("<h2", 1)[0])
         for t in self.listed:
             a7 = self.view(f"tasks/{t}/index.html", R)
             with self.subTest(task=t):
@@ -255,19 +272,21 @@ class PdkTest(unittest.TestCase):
 
     def test_an_old_asap7_link_is_told_what_changed(self):
         """An old ?pdk=asap7 link or stored choice (the cells-only view the routed course replaced, 2026-11-12) shows
-        the routed course, and the banner of every page with scores carries the notice pdk.js reveals for it
-        (`html[data-pdk-moved]`, tests/site/pdkjs_check.js); hidden otherwise. The routed numbers are never shown under
-        the old name without it."""
+        the routed course, and every page with scores opens with the one line pdk.js reveals for it
+        (`html[data-pdk-moved]`, tests/site/pdkjs_check.js); hidden otherwise (decided 2026-11-13: the banner for every
+        reader is gone, this line stays). The routed numbers are never shown under the old name without it."""
         with open(os.path.join(SITE, "style.css"), encoding="utf-8") as fh:
             css = fh.read()
         self.assertIn(".pdk-moved-note { display: none; }", css)
-        self.assertIn("html[data-pdk-moved] .pdk-moved-note { display: inline; }", css)
+        self.assertIn("html[data-pdk-moved] .pdk-moved-note { display: block;", css)
         for path in ["index.html"] + [f"tasks/{t}/index.html" for t in self.listed]:
             with self.subTest(page=path):
-                banner = re.search(rf'<div class="pdk-{R} pdk-banner"><p><span class="pdk-moved-note">(.*?)</span>',
-                                   self.raw(path), re.S)
-                self.assertIsNotNone(banner)
-                self.assertEqual(text_of(banner.group(1)), build.PNR_MOVED)
+                h = self.raw(path)
+                note = re.search(r'<main id="main">\n<p class="pdk-moved-note">(.*?)</p>', h, re.S)
+                self.assertIsNotNone(note)
+                self.assertEqual(re.sub(r"\s+\.", ".", " ".join(text_of(note.group(1)).split())),
+                                 f"{build.PNR_MOVED} The courses.")
+                self.assertIn(f'rules.html#{build.COURSES_ANCHOR}"', note.group(1))
 
     def test_how_to_submit_says_its_commands_print_sky130_numbers_on_the_routed_course(self):
         """On the routed course a task's par is a routed number while How to submit's commands print sky130's
@@ -289,38 +308,27 @@ class PdkTest(unittest.TestCase):
 
     def test_each_course_says_what_it_counts(self):
         """The two courses (2026-11-11/12): sky130 counts the cells only (no wires, no place and route), the routed
-        course places and routes each design and counts the wires; each says so where it is chosen (the front page's
-        helper line and its closed note above the cards) and, on the routed course, in the banner of every page that
-        shows golf scores."""
-        h = self.raw("index.html")
-        head = h[h.index('id="tasks"'):h.index('<ul class="task-cards">')]
-        notes = re.findall(r'<details class="note course-note-fold"><summary>(.*?)</summary>\s*<p class="course-note">',
-                           head)
-        self.assertEqual(notes, ["What the score, Par, Record and Under par mean"])
+        course places and routes each design and counts the wires. Since 2026-11-13 (the owner's UI feedback, items 2
+        and 5) each says so in one place, the rules page's "The courses", not on the front page or in a banner; each
+        task page's score card says it for the course shown."""
+        rules = self.raw("rules.html")
+        courses = text_of(rules.split(f'id="{build.COURSES_ANCHOR}"', 1)[1].split("<h2", 1)[0])
+        courses = " ".join(courses.split())
+        self.assertIn("sky130 : SkyWater's open 130 nm process, the default course. Its scores count the cells only: no "
+                      "wires, no place and route", courses)
+        self.assertIn("ASAP7 · placed and routed : a predictive 7 nm library, never fabricated; each design placed and "
+                      "routed by OpenROAD, wires included", courses)
         for pdk in ("sky130", R):
             with self.subTest(view=pdk):
                 v = self.view("index.html", pdk)
-                course = text_of(v[v.index('id="tasks"'):v.index('<ul class="task-cards">')])
-                what = text_of(re.search(r'<p class="pdk-what[^"]*">(.*?)</p>', v, re.S).group(1))
-                note = text_of(re.search(r'<p class="course-note">(.*?)</p>', v, re.S).group(1))
-                self.assertIn("par while no submission beats it", note)
-                self.assertNotIn("never fabricated", note)      # said once: in the banner
-                if pdk == "sky130":
-                    self.assertIn("no wires, no place and route", what)
-                    self.assertIn("the default course", what)
-                    self.assertIn("it counts the cells only: no wires, no place and route", note)
-                else:
-                    self.assertIn("each design placed and routed by OpenROAD, wires included", what)
-                    self.assertIn("the wires count", note)
-                    self.assertNotIn("no place and route", what + note)
-                self.assertEqual("<strong>Golf scores on ASAP7, placed and routed</strong>" in v, pdk == R)
-                self.assertNotIn("Golf scores on", course)          # the old label of the control
-        for path in ["index.html"] + [f"tasks/{t}/index.html" for t in self.listed]:
-            with self.subTest(page=path):
-                banner = re.search(rf'<div class="pdk-{R} pdk-banner">(.*?)</div>', self.raw(path), re.S)
-                self.assertIsNotNone(banner)
-                self.assertIn("each design placed and routed by OpenROAD, wires included. A design not routed yet shows "
-                              "a dash.", text_of(banner.group(1)))
+                self.assertNotIn("no wires, no place and route", text_of(v))
+                self.assertNotIn("wires included", text_of(v))
+        for t in self.listed:
+            with self.subTest(task=t):
+                sky = " ".join(text_of(section(self.view(f"tasks/{t}/index.html", "sky130"), "score")).split())
+                a7 = " ".join(text_of(section(self.view(f"tasks/{t}/index.html", R), "score")).split())
+                self.assertIn("It counts the cells only: no wires, no place and route.", sky)
+                self.assertIn("with the wires extracted from the layout", a7)
 
     def test_the_routed_boards_are_leaderboards_of_the_bound_records(self):
         """Each routed board ranks exactly the records with a bound routed entry, by their routed score; every other
@@ -338,8 +346,9 @@ class PdkTest(unittest.TestCase):
                     self.assertTrue(r["reason"])
                 for pdk, board in (("sky130", sky), (R, a7)):
                     lst = section(self.view(f"tasks/{t}/index.html", pdk), "leaderboard")
-                    shown = re.findall(r'<a href="records/([0-9a-f]{64})\.html">', lst.split('<ol class="board">', 1)[1]
-                                       .split("</ol>", 1)[0])
+                    rows = re.sub(r'<li class="par">.*?</li>', "", lst.split('<ol class="board">', 1)[1]
+                                  .split("</ol>", 1)[0], flags=re.S)     # par's row links par's own page (2026-11-13)
+                    shown = re.findall(r'<a href="records/([0-9a-f]{64})\.html">', rows)
                     self.assertEqual(shown, [r["record_hash"] for r in board["ranking"]], pdk)
                     for r in board["ranking"]:
                         self.assertIn(flat(combined.fmt(r["um2ns"])), text_of(lst))
@@ -486,19 +495,20 @@ class PdkTest(unittest.TestCase):
         # test_a_design_not_routed_yet_shows_no_routed_number
         self.assertTrue(seen["bound"], seen)
 
-    def test_the_references_and_baselines_tables_mark_par_per_view(self):
+    def test_the_leaderboards_mark_par_per_view(self):
+        """Par is the leaderboard's par row in each view, with that view's par score (decided 2026-11-13: no Par card;
+        the row links par's own page)."""
         for t in self.listed:
             stem, exact = self.a7_par(t)
-            h = self.raw(f"tasks/{t}/index.html")
-            refs = section(h, "references")
             with self.subTest(task=t):
-                if stem:
-                    row = re.search(r'<tr class="([^"]*)" id="ref-' + re.escape(stem) + '"', refs)
-                    self.assertIsNotNone(row)
-                    self.assertIn("par-a7", row.group(1).split())
-                    a7 = section(self.view(f"tasks/{t}/index.html", R), "references")
-                    self.assertIn(flat(combined.fmt(combined.um2ns(exact, R))), text_of(a7))
-                self.assertEqual(len(re.findall(r'class="[^"]*\bpar-a7\b', refs)), 1 if stem else 0)
+                if not stem:
+                    continue
+                a7 = section(self.view(f"tasks/{t}/index.html", R), "leaderboard")
+                row = re.findall(r'<li class="par">(.*?)</li>', a7, re.S)
+                self.assertEqual(len(row), 1)
+                self.assertIn(f"<code>{stem}</code>", row[0])
+                self.assertIn(flat(combined.fmt(combined.um2ns(exact, R))), text_of(row[0]))
+                self.assertNotIn('id="references"', self.raw(f"tasks/{t}/index.html"))
 
     def test_the_machine_outputs_carry_both_views(self):
         summary = json.loads(self.files["data/site.json"])
@@ -606,18 +616,6 @@ class PdkTest(unittest.TestCase):
                         self.assertNotIn("It is par", head)
                         self.assertIn("par's design: not an entry", head)
         self.assertTrue(seen["par"] and seen["not"], seen)
-
-    def test_the_home_selector_may_shrink_on_a_phone(self):
-        """The home page's course control sits in the course head's flex line; the rule that keeps the heading at its
-        width must not keep it at its one-line width (2026-11-09: the front page scrolled sideways on a phone; since
-        2026-11-11 the block is `.course-pick`)."""
-        with open(os.path.join(SITE, "style.css"), encoding="utf-8") as fh:
-            css = fh.read()
-        rule = re.search(r"\.course > \.section-head > \.course-pick \{([^}]*)\}", css)
-        self.assertIsNotNone(rule)
-        self.assertIn("min-width: 0", rule.group(1))
-        self.assertRegex(rule.group(1), r"flex: 1 1 auto")
-        self.assertGreater(rule.start(), css.index(".course > .section-head > div {"))
 
     def test_the_header_label_leaves_the_line_on_a_small_phone(self):
         """The header's "Course" label is visually hidden, its name kept for a screen reader, on every width where it
@@ -767,7 +765,7 @@ class PdkTest(unittest.TestCase):
         self.assertIn("No routed result for this design: not routed yet: place and route pending.",
                       text_of(section(v, "reproduce")))
         self.assertNotIn("µm² exactly", text_of(section(v, "dashboard")))
-        figs = re.findall(r'<figure class="layout-fig[^"]*"[^>]*>(.*?)</figure>', section(h, "schematic"), re.S)
+        figs = re.findall(r'<figure class="layout-fig[^"]*"[^>]*>(.*?)</figure>', section(h, "layout"), re.S)
         self.assertEqual(len(figs), 1)
         self.assertIn("No layout yet: place and route pending.", text_of(figs[0]))
         self.assertNotIn("<img", figs[0])
@@ -851,6 +849,9 @@ class PdkTest(unittest.TestCase):
                 self.assertNotIn(flat(combined.fmt(combined.um2ns(vo["exact"], R))), shown)
                 self.assertNotIn(lb.fmt_um2_e5(vo["area_e5um2"]), shown)
                 h = site.files[f"tasks/sorter/records/{rec['record_hash']}.html"].decode("utf-8")
+                # (a writeup is its author's prose, dated by its author, and may quote the numbers of its day: the
+                # site's own numbers are checked here, the page without its writeup card)
+                h = re.sub(r'<section class="card writeup[^"]*" id="writeup">.*?</section>', "", h, flags=re.S)
                 self.assertIn(why, text_of(view_of(h, R)))
                 self.assertNotIn(flat(combined.fmt(combined.um2ns(vo["exact"], R))), text_of(view_of(h, R)))
                 if rec in mine:

@@ -145,25 +145,31 @@ class DetailTest(unittest.TestCase):
                 self.assertEqual(r["ppa"]["ppa_version"], lb.ppa_identity()["ppa_version"])
 
     def test_the_task_page_links_every_reference_to_its_page(self):
+        """Every proof of par's design is linked from its task page: par's from the leaderboard's par row, every one
+        from the explorer's table ("Compare the designs"); since 2026-11-13 there is no Par card."""
         for t in self.listed:
             with self.subTest(task=t):
                 task_html = self.page(f"tasks/{t}/index.html")
-                refs = section(task_html, "references")
+                self.assertNotIn('id="references"', task_html)
+                refs = section(task_html, "explore")
+                par_row = re.findall(r'<li class="par">(.*?)</li>', section(task_html, "leaderboard"), re.S)
                 for _, path, rec, stem in self.detail_pages():
                     if not path.startswith(f"tasks/{t}/"):
                         continue
                     href = posixpath.relpath(path, f"tasks/{t}")
                     if stem is not None or (rec and rec["player"] == self.config["reference_player"]):
                         self.assertIn(f'href="{href}"', refs, path)
+                self.assertTrue(par_row and any('href="' in r for r in par_row))
+                for r in par_row:
+                    self.assertRegex(r, r'<a href="(records|reference)/[^"]+\.html">')
                 # the charts' reference marks open the same pages
                 for m in re.finditer(r'<a href="([^"]+)" aria-label="[^"]*"><g class="mark[^"]*" data-kind="reference"',
                                      task_html):
                     self.assertTrue(m.group(1).startswith(("reference/", "records/")), m.group(1))
 
     def test_a_preview_has_no_detail_pages(self):
-        """A preview ranks nothing: no record page, no reference page; the task page's references, its charts' marks
-        and its data link each reference to its own row there (`#ref-<stem>`), and no page of the task says it is
-        ranked."""
+        """A preview ranks nothing: no record page, no reference page; its references are rows of the explorer's table
+        (no Par card since 2026-11-13), its charts' marks link nowhere, and no page of the task says it is ranked."""
         if not self.previews:                       # none since matmul and the sorter rank (2026-11-08)
             self.skipTest("config.json lists no preview")
         for t in self.previews:
@@ -173,14 +179,13 @@ class DetailTest(unittest.TestCase):
                          and p.endswith(".html")]
                 self.assertEqual(pages, [])
                 task_html = self.page(f"tasks/{t}/index.html")
-                refs = section(task_html, "references")
+                refs = section(task_html, "explore")
                 for ref in shown_refs(task):
                     stem = posixpath.splitext(posixpath.basename(ref["sv"]))[0]
-                    self.assertIn(f'id="ref-{stem}"', refs)
+                    self.assertIn(f">{stem}<", refs)
                     self.assertNotIn(f'href="reference/{stem}.html"', task_html)
-                for m in re.finditer(r'<a href="([^"]+)" aria-label="[^"]*"><g class="mark[^"]*" data-kind="reference"',
-                                     task_html):
-                    self.assertRegex(m.group(1), r"^index\.html#ref-[A-Za-z0-9_]+$")
+                self.assertFalse(re.search(r'<a href="[^"]+" aria-label="[^"]*"><g class="mark[^"]*" '
+                                           r'data-kind="reference"', task_html))
                 for path in (p for p in self.files if p.startswith(f"tasks/{t}/") and p.endswith(".html")):
                     self.assertNotIn("· ranked", text_of(self.page(path)), path)
 
@@ -189,11 +194,13 @@ class DetailTest(unittest.TestCase):
         critical path, the cells), the area-time plot below the columns; it was dashboard, plot, schematic, critical
         path, cells, ..., sources, reproduce, with the code second to last. A record's facts and proof come before
         its checker and post-synthesis check (on a phone, one column: the player, the date and the notes before the
-        checker detail; review 2026-11-09, L2)."""
+        checker detail; review 2026-11-09, L2). Since 2026-11-13 (the owner's UI feedback item 4) a clocked record's
+        post-synthesis check is the page's last card (its per-point table needs the page's width)."""
         for t, path, rec, stem in self.detail_pages():
+            clocked = bool(rec) and isinstance(rec["postsynth"].get("points"), list)
             order = ("dashboard", "sources", "schematic", "critical-path", "cells")
-            order += ("record", "proof", "checker", "postsynth") if rec else ("reference",)
-            order += ("area-time", "reproduce")
+            order += (("record", "proof", "checker") + (() if clocked else ("postsynth",))) if rec else ("reference",)
+            order += ("area-time", "reproduce") + (("postsynth",) if clocked else ())
             with self.subTest(page=path):
                 h = self.page(path)
                 if "No ranked numbers to show" in text_of(section(h, "dashboard")):
@@ -207,56 +214,72 @@ class DetailTest(unittest.TestCase):
     def test_the_code_and_the_netlist_beside_the_facts(self):
         """The sources across the page under the overview (in the main column the code box showed 81 columns at
         1280 px and cut lines it shows whole across the page: review 2026-11-09, M1), then two columns as on the task
-        page: the main one holds the netlist card and, under it, a record's checker card and a combinational record's
-        post-synthesis facts (`more`, beside the rest of the side column); the side one the record and the proof (a
-        record's page) or the reference's facts. A clocked record's post-synthesis table, the area-time plot and
-        reproduce come after the columns (they need the page's width)."""
+        page: the main one holds the netlist card; the side one the record and the proof (a record's page) or the
+        reference's facts and, since 2026-11-13 (the owner's UI feedback item 4: "move it to the right column or the
+        bottom of the page"), a record's checker card and a combinational record's post-synthesis check, folded: their
+        facts behind closed disclosures. A clocked record's post-synthesis table, the area-time plot and reproduce
+        come after the columns (they need the page's width), the post-synthesis table last."""
         for t, path, rec, stem in self.detail_pages():
             h = self.page(path)
-            main, side, more = section(h, "main-col"), section(h, "side-col"), section(h, "more-col")
+            main, side = section(h, "main-col"), section(h, "side-col")
             with self.subTest(page=path):
                 self.assertTrue(main and side, "no columns")
+                self.assertNotIn('id="more-col"', h)
                 self.assertLess(h.index('id="sources"'), h.index('id="main-col"'))
                 self.assertLess(h.index('id="main-col"'), h.index('id="side-col"'))
                 for sid in ("netlist", "schematic", "critical-path", "cells"):
                     self.assertIn(f'id="{sid}"', main, sid)
-                for sid in (("record", "proof") if rec else ("reference",)):
+                for sid in (("record", "proof", "checker") if rec else ("reference",)):
                     self.assertIn(f'id="{sid}"', side, sid)
                     self.assertNotIn(f'id="{sid}"', main, sid)
                 for sid in ("dashboard", "sources", "area-time", "reproduce"):
-                    self.assertNotIn(f'id="{sid}"', main + side + more, sid)
+                    self.assertNotIn(f'id="{sid}"', main + side, sid)
                 if rec is None:
-                    self.assertEqual(more, "")
+                    self.assertNotIn('id="checker"', h)
                     continue
-                self.assertLess(h.index('id="side-col"'), h.index('id="more-col"'))
-                self.assertIn('id="checker"', more)
                 clocked = isinstance(rec["postsynth"].get("points"), list)
-                self.assertEqual('id="postsynth"' in more, not clocked)     # a clocked table needs the page's width
+                self.assertEqual('id="postsynth"' in side, not clocked)     # a clocked table needs the page's width
+                self.assertNotIn('id="postsynth"', main)
+                if clocked:
+                    self.assertGreater(h.index('id="postsynth"'), h.index('id="reproduce"'))
+                for sid in ("checker",) + (() if clocked else ("postsynth",)):
+                    card = section(side, sid)
+                    self.assertNotIn("<details open", card)                     # folded: closed disclosures
+                    self.assertNotIn("<dl", card.split("<details", 1)[0])       # no fact list outside a fold
                 src = section(h, "sources")
                 self.assertLess(src.index("<pre"), src.index("<details"))        # the design file, then the proof
                 # the box's download link downloads, under the name the box's head shows (L8)
                 name = rec["files"]["sv"]["name"] if rec else f"{stem}.sv"
                 self.assertRegex(src, r'<a class="codebox-dl" href="[^"]+\.sv" download="' + re.escape(name) + '">')
-                if rec and rec["player"] != self.config["reference_player"]:
-                    self.assertIn('id="diff"', h)       # a diff card, or a first submission's "previous frontier: none"
+                self.assertNotIn('id="diff"', h)          # no diff against an earlier record (decided 2026-11-13)
                 self.assertIn('<span class="codebox-name">' + html.escape(
                     rec["files"]["sv"]["name"] if rec else f"{stem}.sv") + "</span>", src)
 
-    def test_the_netlist_card_has_three_tabs(self):
-        """The schematic, the critical path and the cells are the three tabs of one card (site.js; without the
-        script, three panes under their titles): each pane a section with the id the page's links use. The overview
-        links its cells and critical-path numbers to their tabs."""
+    def test_the_netlist_card_has_its_tabs(self):
+        """The schematic, the critical path and the cells are three tabs of one card (site.js; without the script,
+        panes under their titles): each pane a section with the id the page's links use. The overview links its cells
+        and critical-path numbers to their tabs. A fourth tab, Layout, is the routed course's alone (decided
+        2026-11-13, the owner's UI feedback items 1 and 10): its tab and its pane carry `pdk-asap7pnr`, so that on
+        sky130 (and without JavaScript) no ASAP7 layout is anywhere on the page."""
         tasks = {t.name: t for t in self.tasks()}
         for t, path, rec, stem in self.detail_pages():
             h = self.page(path)
-            card = section(h, "netlist")
+            card = section(self.files[path].decode("utf-8"), "netlist")      # both courses' tabs
             with self.subTest(page=path):
                 nav = re.search(r'<nav class="tabs-nav"[^>]*>(.*?)</nav>', card, re.S)
                 self.assertIsNotNone(nav)
-                self.assertEqual(re.findall(r'<a href="#([^"]+)"', nav.group(1)), ["schematic", "critical-path", "cells"])
-                self.assertEqual(text_of(nav.group(1)), "SchematicCritical pathCells")
+                self.assertEqual(re.findall(r'<a href="#([^"]+)"', nav.group(1)),
+                                 ["schematic", "critical-path", "cells", "layout"])
+                self.assertEqual(text_of(nav.group(1)), "SchematicCritical pathCellsLayout")
+                self.assertIn('<a href="#layout" class="pdk-asap7pnr">Layout</a>', nav.group(1))
                 for sid in ("schematic", "critical-path", "cells"):
                     self.assertIn(f'<section class="tabs-pane" id="{sid}">', card)
+                self.assertIn('<section class="tabs-pane pdk-asap7pnr" id="layout">', card)
+                sky = section(self.page(path, "sky130"), "netlist")
+                self.assertNotIn('href="#layout"', sky)
+                self.assertNotIn('class="layout-fig', sky)
+                self.assertNotIn("/layouts/", self.page(path, "sky130"))
+                self.assertIn('href="#layout"', section(self.page(path, "asap7pnr"), "netlist"))
                 # without the script no tab is marked as chosen: the panes all stand there (review 2026-11-09, L6)
                 self.assertNotIn('class="on"', nav.group(0))
                 dash = section(h, "dashboard")
@@ -327,21 +350,31 @@ class DetailTest(unittest.TestCase):
         self.assertGreaterEqual(shown, 15)
 
     def test_a_record_page_is_titled_by_who_made_it(self):
-        """A record page's title (decided 2026-11-11): who made the record, on which task, and when, "{player} on {task}
-        · {date}" ("{stem} on {task} · reference" for a proved reference's record), its hash a chip of the tag row; the
-        browser's <title> "{player} on {task} · record {hash, first 12}", unique per page. No score in either: the
-        score differs by course, and the title cannot switch with the view."""
+        """A record page's heading (decided 2026-11-13, the owner's UI feedback item 6): the record's title, its
+        writeup's (leaderboard/writeups/<hash>.md, line 1) or else its design file's stem; under it who made the record,
+        on which task, and when (decided 2026-11-11): "{player} on {task} · {date}" ("{stem} on {task} · reference"
+        for a proved reference's record), its hash a chip of the tag row; the browser's <title> "{title} · {player} on
+        {task} · record {hash, first 12}", unique per page. No score in either: the score differs by course, and the
+        title cannot switch with the view."""
         titles = []
         for t, path, rec, stem in self.detail_pages():
             if rec is None:
                 continue
             raw = self.files[path].decode("utf-8")
             h1 = text_of(re.search(r"<h1\b[^>]*>(.*?)</h1>", raw, re.S).group(1)).strip()
+            sub = text_of(re.search(r'<p class="head-sub">(.*?)</p>', raw, re.S).group(1)).strip()
             title = html.unescape(re.search(r"<title>(.*?)</title>", raw, re.S).group(1))
             titles.append(title)
+            wpath = os.path.join(SVGOLF, "leaderboard", "writeups", rec["record_hash"] + ".md")
+            if os.path.isfile(wpath):
+                with open(wpath, encoding="utf-8") as fh:
+                    mine_title = fh.readline()[2:].strip()
+            else:
+                mine_title = posixpath.splitext(rec["files"]["sv"]["name"])[0]
             with self.subTest(page=path):
-                self.assertNotIn("µm²·ns", h1 + title)
-                self.assertNotIn("µm", h1 + title)
+                self.assertEqual(h1, html.unescape(html.escape(mine_title)))
+                self.assertNotIn("µm²·ns", h1 + sub + title)
+                self.assertNotIn("µm", h1 + sub + title)
                 h12 = rec["record_hash"][:12]
                 on = "the tutorial" if self.config["tasks"].get(t) == "tutorial" else t       # (decided 2026-11-12)
                 if rec["player"] == self.config["reference_player"]:
@@ -352,11 +385,11 @@ class DetailTest(unittest.TestCase):
                                 lb.sha256_file(os.path.join(SVGOLF, "tasks", t, r["lean"])))
                             == (rec["files"]["sv"]["sha256"], rec["files"]["lean"]["sha256"])]
                     who = mine[0] if mine else rec["player"]
-                    self.assertEqual(h1, f"{who} on {on} · " + ("reference" if mine else rec["submitted_at"][:10]))
+                    self.assertEqual(sub, f"{who} on {on} · " + ("reference" if mine else rec["submitted_at"][:10]))
                 else:
                     who = rec["player"]
-                    self.assertEqual(h1, f"{rec['player']} on {on} · {rec['submitted_at'][:10]}")
-                self.assertEqual(title, f"{who} on {on} · record {h12} | svGolf")
+                    self.assertEqual(sub, f"{rec['player']} on {on} · {rec['submitted_at'][:10]}")
+                self.assertEqual(title, f"{mine_title} · {who} on {on} · record {h12} | svGolf")
                 tags = re.search(r'<p class="head-tags">(.*?)</p>', raw, re.S).group(1)
                 self.assertIn(f'<span class="badge badge-plain">record {h12}</span>', tags)
         self.assertEqual(len(titles), len(set(titles)))
@@ -570,26 +603,27 @@ class DetailTest(unittest.TestCase):
                                              pins=lb.asap7pnr_identity())
         return e if status == "bound" else None
 
-    def test_the_layout_picture_is_the_scored_runs_in_the_schematic_pane(self):
-        """Decided 2026-11-12 ("show the generated images in the schematic section of each submission"): every record
-        page and par's page shows, in the Schematic pane under the drawing and on both courses, the layout of its own
-        design's scored run when it has a bound routed result: the 640 px thumbnail (width and height given, lazy), the
-        full picture by srcset and linked at full size, both the committed files byte for byte and the sha256 its entry
-        records, its alt text and its caption; without one, "No layout yet: place and route pending", never another
-        design's picture."""
+    def test_the_layout_picture_is_the_scored_runs_in_the_layout_tab(self):
+        """Decided 2026-11-12 ("show the generated images in the schematic section of each submission"), and 2026-11-13
+        (the owner's UI feedback items 1 and 10: a tab of its own beside the schematic, on the routed course only):
+        every record page and par's page shows, in the netlist card's Layout tab on the routed course, the layout of
+        its own design's scored run when it has a bound routed result: the 640 px thumbnail (width and height given,
+        lazy), the full picture by srcset and linked at full size, both the committed files byte for byte and the
+        sha256 its entry records, its alt text and its caption; without one, "No layout yet: place and route pending",
+        never another design's picture. The sky130 view shows none."""
         seen = {"shown": 0, "none": 0}
         for t, path, rec, stem in self.detail_pages():
             sha = rec["files"]["sv"]["sha256"] if rec else self.ref_sha(t, stem)
             e = self.pnr_entry(t, sha)
             raw = self.files[path].decode("utf-8")
-            pane = section(raw, "schematic")
+            pane = section(self.page(path, "asap7pnr"), "layout")
             with self.subTest(page=path):
-                for pdk in ("sky130", "asap7pnr"):              # a fact of the design: the same in both courses
-                    self.assertIn('class="layout-fig', section(self.page(path, pdk), "schematic"))
+                self.assertNotIn('class="layout-fig', self.page(path, "sky130"))
+                self.assertNotIn('class="layout-fig', section(raw, "schematic"))
                 figs = re.findall(r'<figure class="layout-fig[^"]*"[^>]*>(.*?)</figure>', pane, re.S)
                 self.assertEqual(len(figs), 1)
-                self.assertIn("Layout · ASAP7 placed and routed", text_of(figs[0]))
-                self.assertLess(pane.index('class="sch-main"'), pane.index('class="layout-fig'))
+                self.assertEqual(raw.count('class="layout-fig'), 1)
+                self.assertIn("ASAP7 placed and routed", text_of(pane))
                 if e is None:
                     seen["none"] += 1
                     self.assertIn("No layout yet: place and route pending.", text_of(figs[0]))

@@ -209,6 +209,18 @@
            (d.banned && d.kind !== "baseline" ? " · banned operator" : "") + (d.measured ? " · " + MEASURED : "");
   }
 
+  var JITTER_PX = 6;                    // svgplot.JITTER_PX: marks at one point are set side by side (2026-11-13)
+
+  function jitter(pts) {                // svgplot.coinciding + svgplot.jitter: {id: offset}, each group in id order
+    var groups = {}, out = {};
+    pts.forEach(function (p) { (groups[p.x + "," + p.y] = groups[p.x + "," + p.y] || []).push(p.id); });
+    Object.keys(groups).forEach(function (k) {
+      var ids = groups[k].slice().sort(), n = ids.length;
+      ids.forEach(function (id, j) { out[id] = n > 1 ? (j - (n - 1) / 2) * JITTER_PX : 0; });
+    });
+    return out;
+  }
+
   function sharedTips(pts, on) {        // designs at one (x, y) share one tooltip (svgplot.shared_tips)
     var groups = {};
     pts.forEach(function (p) { (groups[p.x + "," + p.y] = groups[p.x + "," + p.y] || []).push(p); });
@@ -224,8 +236,9 @@
     });
   }
 
-  function tipLines(d, ms) {
-    var out = [d.name, kindText(d) + (d.date ? " · " + d.date.slice(0, 10) : "")];
+  function tipLines(d, ms) {            // build.tip_lines: the title first (a record's writeup title), then name and kind
+    var kind = kindText(d) + (d.date ? " · " + d.date.slice(0, 10) : "");
+    var out = d.title && d.title !== d.name ? [d.title, d.name + " · " + kind] : [d.name, kind];
     ms.forEach(function (m) {
       if (m && d.m[m.key] !== undefined) {
         out.push(m.label + ": " + fmtMetric(m, d.m[m.key]) + (m.unit ? " " + m.unit : ""));
@@ -244,7 +257,8 @@
       return d.m[xk] !== undefined && d.m[yk] !== undefined;
     }).map(function (d) {
       return { id: d.id, kind: d.kind, banned: d.banned, href: d.href, x: d.m[xk], y: d.m[yk], name: d.name,
-               tip: tipLines(d, [byKey.adp, mx, my]), brief: d.name + " · " + kindText(d),
+               tip: tipLines(d, [byKey.adp, mx, my]),
+               brief: (d.title && d.title !== d.name ? d.title + " · " : "") + d.name + " · " + kindText(d),
                axisTip: tipLines(d, [mx, my]).slice(2) };
     });
     if (!pts.length) { return { svg: "", n: 0 }; }
@@ -290,8 +304,9 @@
       return (!!on[a.id] - !!on[b.id]) || (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || (a.y - b.y) || (a.x - b.x) ||
              (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
     });
+    var shift = jitter(pts);
     pts.forEach(function (p) {
-      var x = xs.map(p.x), y = ys.map(p.y);
+      var x = xs.map(p.x) + shift[p.id], y = ys.map(p.y);
       var g = '<g class="mark ' + (on[p.id] ? "on-front" : "off-front") + '" data-kind="' + esc(p.kind) +
               '" data-id="' + esc(p.id) + '" data-tip="' + esc(p.tip.join("\n")) + '">' +
               '<circle class="hit" cx="' + f1(x) + '" cy="' + f1(y) + '" r="12"/>' + marker(p.kind, x, y, p.banned) + "</g>";

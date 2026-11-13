@@ -20,8 +20,10 @@ Output is deterministic: coordinates are rounded to 0.1 and nothing depends on d
 """
 
 import datetime
+import hashlib
 import html
 import math
+import re
 
 W, H = 640, 400                       # the viewBox of the scatter
 MARGIN = {"left": 72, "right": 20, "top": 16, "bottom": 52}
@@ -263,6 +265,38 @@ def _ordinal(date):
     return day
 
 
+def day_spread(key):
+    """Where in its day an entry dated by its day alone is drawn (decided 2026-11-13, the owner's UI feedback item 8:
+    entries of one day no longer sit on one vertical line): a fraction in [0.1, 0.9] taken from `key` (a record's
+    hash; any other id is hashed first), so the place is the same on every build, in both themes and on reload."""
+    h = key if re.fullmatch(r"[0-9a-f]{8,}", key or "") else hashlib.sha256(str(key).encode()).hexdigest()
+    return 0.1 + 0.8 * int(h[:8], 16) / 0xFFFFFFFF
+
+
+def entry_x(e):
+    """An entry's place on a date axis: its time of day when its date gives one (`_ordinal`), else a place in its day
+    taken from its id (`day_spread`)."""
+    date = e["date"]
+    if len(date) >= 16 and date[10] == "T":
+        return _ordinal(date)
+    return _ordinal(date) + day_spread(e["id"])
+
+
+JITTER_PX = 6       # marks drawn at one point are set this far apart, side by side (decided 2026-11-13, item 8)
+
+
+def jitter(groups):
+    """{id: horizontal offset in px} for marks that would be drawn at one point: each group (ids, in a fixed order)
+    is spread side by side, JITTER_PX apart and centred on the point; a mark alone is not moved. Deterministic: the
+    same offsets on every build, in both themes and on reload (no randomness)."""
+    out = {}
+    for ids in groups:
+        n = len(ids)
+        for k, i in enumerate(ids):
+            out[i] = (k - (n - 1) / 2) * JITTER_PX if n > 1 else 0.0
+    return out
+
+
 def date_label(ordinal, same_year=True):
     d = datetime.date.fromordinal(int(ordinal))
     return f"{d.day} {MONTHS[d.month - 1]}" if same_year else f"{MONTHS[d.month - 1]} {d.year}"
@@ -281,16 +315,18 @@ def _spread(ys, lo, hi, gap):
     return out
 
 
-STACK_PX = 6        # the score chart: dots of one day closer than this (in px) hide one another (most of a small dot,
-                    # radius 4: mul's 52 729 and 53 635 of one day, 4.9 px apart, read as one dot)
+STACK_PX = 6        # the score chart: dots closer than this (in px) on one x hide one another (most of a small dot,
+                    # radius 4: mul's 52 729 and 53 635 of one day, 4.9 px apart, read as one dot); since 2026-11-13
+                    # they are set side by side (`jitter`), and their one tooltip names them all
 
 
 def stacked_entries(dated, pos, gap, value_fmt=num):
-    """The score chart's stacks: entries drawn at one point hide one another (a tie with an entry of the same day, or
-    two nearly equal scores of one day), so each entry of a stack gets one tooltip naming every entry of it with its
-    score (its `brief`, else the first line of its tip) and the stack (a tuple of ids). `pos`: id -> (x, y) as drawn;
-    one stack is a run of entries on one x whose neighbours lie within `gap` px. Returns {id: {"tip", "label",
-    "stack"}} for the entries of stacks of two or more; a link keeps its own entry's name (`label`)."""
+    """The score chart's stacks: entries that would be drawn at one point (two entries of one time, or of one day's
+    place, with equal or nearly equal scores) would hide one another, so they are set side by side (`jitter`) and
+    each entry of a stack gets one tooltip naming every entry of it with its score (its `brief`, else the first line
+    of its tip) and the stack (a tuple of ids). `pos`: id -> (x, y) before the jitter; one stack is a run of entries
+    on one x whose neighbours lie within `gap` px. Returns {id: {"tip", "label", "stack"}} for the entries of stacks
+    of two or more; a link keeps its own entry's name (`label`)."""
     out, run = {}, []
 
     def close(run):
@@ -327,6 +363,7 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
         return ""
     fr = Frame(**(SCORE_COMPACT if compact else SCORE_FRAME))
     target = 4 if compact else 6
+    at = {e["id"]: entry_x(e) for e in dated}      # its time of day, else its place in its day (`entry_x`)
     days = [_ordinal(e["date"]) for e in dated]
     d0, d1 = min(days), max(days)
     # the axis ends at `until` (the date the page is as of) or a day after the last entry, and covers
@@ -383,40 +420,39 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
                          f'<text class="lv-name" x="{_f(lx + 11)}" y="{_f(ly + 1)}">{_esc(item["name"])}</text>'
                          f'<text class="lv-note" x="{_f(lx + 11)}" y="{_f(ly + 12)}">{_esc(value_fmt(item["value"]))}'
                          f' · {"banned op" if item.get("banned") else "baseline"}</text></g>')
-    # the best score so far
-    order = sorted(dated, key=lambda e: (e["date"], e["score"], e["id"]))
+    # the best score so far, in the order the entries are drawn along the axis
+    order = sorted(dated, key=lambda e: (at[e["id"]], e["score"], e["id"]))
     best, stair, setters = None, [], set()
     for e in order:
         if best is None or e["score"] < best["score"]:
-            x = _ordinal(e["date"])
+            x = at[e["id"]]
             if best is not None:
                 stair.append((x, best["value"]))
             best = e
             stair.append((x, e["value"]))
             setters.add(e["id"])
     coords = " ".join(f"{_f(xs(d))},{_f(ys(v))}" for d, v in stair) + f" {_f(fr.right)},{_f(ys(stair[-1][1]))}"
-    # a faint drop line from each dot to its date
+    # entries that would be drawn at one point are set side by side (`jitter`), and one tooltip names them all
+    pos = {e["id"]: (xs(at[e["id"]]), ys(e["value"])) for e in dated}
+    stacks = stacked_entries(dated, pos, STACK_PX, value_fmt)
+    shift = jitter(sorted({s["stack"] for s in stacks.values()}))
+    pos = {i: (x + shift.get(i, 0.0), y) for i, (x, y) in pos.items()}
+    # a faint drop line from each dot to the axis
     for e in sorted(dated, key=lambda e: (e["date"], e["id"])):
-        x, y = xs(_ordinal(e["date"])), ys(e["value"])
+        x, y = pos[e["id"]]
         parts.append(f'<line class="drop" x1="{_f(x)}" x2="{_f(x)}" y1="{_f(y)}" y2="{_f(fr.bottom)}"/>')
     parts.append(f'<polyline class="frontier" points="{coords}"><title>the best score so far</title></polyline>')
-    # entries drawn at one point hide one another: one tooltip names them all, and a count stands beside the dot
-    pos = {e["id"]: (xs(_ordinal(e["date"])), ys(e["value"])) for e in dated}
-    stacks = stacked_entries(dated, pos, STACK_PX, value_fmt)
     for e in sorted(dated, key=lambda e: (KIND_ORDER[e["kind"]], e["id"] in setters, e["date"], e["id"])):
         p = dict(e, cls="best" if e["id"] in setters else "", **stacks.get(e["id"], {}))
         parts.append(_mark(p, *pos[e["id"]], r=5.5 if e["id"] in setters else 4))
-    for g in sorted({s["stack"] for s in stacks.values()}):
-        x, y = min((pos[i] for i in g), key=lambda q: q[1])
-        parts.append(f'<text class="mark-count" x="{_f(x + 7)}" y="{_f(y - 6)}">×{len(g)}</text>')
     desc = (f"{len(dated)} {'entry' if len(dated) == 1 else 'entries'} by date (x) and score in {unit} (y); the line "
             "is the best score so far"
             + (", the dashed line par" if par else "")
             + (f", and {len(levels)} proved baseline{'' if len(levels) == 1 else 's'}"
                + (" with a banned operator" if all(lv.get("banned") for lv in levels) else "")
                + f" {'is' if len(levels) == 1 else 'are'} labelled on the right" if levels else "")
-            + (". A count beside a dot (×2) is how many entries are drawn there; its tooltip names them"
-               if stacks else "")
+            + ("; entries of one day stand where their time puts them, else spread across the day, and entries "
+               "at one point are set side by side, each tooltip naming them all" if stacks else "")
             + ". " + desc_tail)
     return _svg(fr, parts, title, desc, cls="chart compact" if compact else "chart")
 
@@ -424,6 +460,15 @@ def score_chart(entries, *, par=None, levels=(), log=False, title, unit, value_f
 # ---------------------------------------------------------------------------
 # the explorer's scatter
 # ---------------------------------------------------------------------------
+
+def coinciding(points):
+    """The ids of the points at each (x, y), each group in id order (the order `jitter` sets them side by side): the
+    marks of designs with equal numbers (decided 2026-11-13: drawn a few px apart, never as one dot with a count)."""
+    groups = {}
+    for p in points:
+        groups.setdefault((p["x"], p["y"]), []).append(p["id"])
+    return [sorted(g) for _, g in sorted(groups.items())]
+
 
 def shared_tips(points, on=()):
     """Designs drawn at the same (x, y) hide one another, so each of them gets one tooltip naming
@@ -471,8 +516,10 @@ def scatter_chart(points, *, x_label, y_label, x_log=None, y_log=None, x_integer
         coords = (f"{_f(xs(stair[0][0]))},{_f(fr.top)} " + " ".join(f"{_f(xs(x))},{_f(ys(y))}" for x, y in stair)
                   + f" {_f(fr.right)},{_f(ys(stair[-1][1]))}")
         parts.append(f'<polyline class="frontier" points="{coords}"><title>{_esc(front_label)}</title></polyline>')
+    shift = jitter(coinciding(points))
     for p in sorted(points, key=lambda p: (p["id"] in on, KIND_ORDER[p["kind"]], p["y"], p["x"], p["id"])):
-        parts.append(_mark(dict(p, cls="on-front" if p["id"] in on else "off-front"), xs(p["x"]), ys(p["y"])))
+        parts.append(_mark(dict(p, cls="on-front" if p["id"] in on else "off-front"), xs(p["x"]) + shift[p["id"]],
+                           ys(p["y"])))
     desc = (f"{len(points)} design{'' if len(points) == 1 else 's'} by {x_label} (x) and {y_label} (y); lower is "
             "better on both. "
             "The table under the chart lists the same numbers.")
@@ -553,9 +600,10 @@ def area_time_chart(points, *, subject, view, x_label, y_label, title, front=(),
             drawn.append((p, True))
     pts = shared_tips([p for p, _ in drawn], on)
     clamped = {p["id"] for p, c in drawn if c}
+    shift = jitter(coinciding(pts))
     order = sorted(pts, key=lambda p: (p["id"] == subject, p["id"] in on, KIND_ORDER[p["kind"]], p["y"], p["x"], p["id"]))
     for p in order:
-        x, y = _clamp(xs(p["x"]), fr.left, fr.right), _clamp(ys(p["y"]), fr.top, fr.bottom)
+        x, y = _clamp(xs(p["x"]), fr.left, fr.right) + shift[p["id"]], _clamp(ys(p["y"]), fr.top, fr.bottom)
         cls = ("subject " if p["id"] == subject else "") + ("on-front" if p["id"] in on else "off-front") \
             + (" clamped" if p["id"] in clamped else "")
         if p["id"] == subject:
@@ -569,7 +617,7 @@ def area_time_chart(points, *, subject, view, x_label, y_label, title, front=(),
         at_me = me is not None and p is not me and (p["x"], p["y"]) == (me["x"], me["y"])
         if at_me:
             continue                                   # par at this design's point: one label says both
-        x, y = _clamp(xs(p["x"]), fr.left, fr.right), _clamp(ys(p["y"]), fr.top, fr.bottom)
+        x, y = _clamp(xs(p["x"]), fr.left, fr.right) + shift[p["id"]], _clamp(ys(p["y"]), fr.top, fr.bottom)
         if p["id"] == subject:
             twin = par and par["id"] != subject and any(q["id"] == par["id"] and (q["x"], q["y"]) == (p["x"], p["y"])
                                                         for q in order)

@@ -2903,6 +2903,133 @@ def load_records(data_dir, task=None):
     return out
 
 
+# WRITEUPS (decided 2026-11-13, the owner's UI feedback items 3 and 6): a record may have a writeup, the Markdown file
+# leaderboard/writeups/<record_hash>.md, its first line `# <title>` (the submission's short title, plain text, at most
+# WRITEUP_TITLE_MAX characters), the rest a blog-post-style account of the design and its proof. It lies OUTSIDE the
+# record: no field of the record and none of its hashes name it, so adding or improving a writeup never changes a
+# record, its hash or its rank. Optional: a record without one is accepted. `verify` checks every writeup's shape
+# (`writeup_problems`); the site renders it safely (site/writeup.py) on the record's page and shows the title in the
+# submissions list and the charts' tooltips. leaderboard/writeups/TEMPLATE.md is the template, not a writeup.
+WRITEUPS_DIR = os.path.join(HERE, "writeups")
+WRITEUP_TEMPLATE = "TEMPLATE.md"
+WRITEUP_TITLE_MAX = 60                     # characters (site/writeup.py TITLE_MAX)
+WRITEUP_SIZE_MAX = 200_000                 # bytes
+WRITEUP_NAME_RE = re.compile(r"([0-9a-f]{64})\.md")
+WRITEUP_TITLE_RE = re.compile(r"# (\S(?:.*\S)?)")
+# a control character (a tab or a carriage return included: Unix newlines, spaces), DEL, a byte-order mark, or a
+# bidirectional override or isolate, which can make the text shown differ from the text checked
+_WRITEUP_BAD_CHAR = re.compile("[\x00-\x09\x0b-\x1f\x7f\u202a-\u202e\u2066-\u2069\ufeff]")
+
+
+def writeup_title(text):
+    """The title of a writeup's text (its line 1 without `# `), or None."""
+    m = WRITEUP_TITLE_RE.fullmatch(text.split("\n", 1)[0])
+    return m.group(1) if m else None
+
+
+def writeup_problems(name, data, known, deny=(), render=None):
+    """The problems of one file of leaderboard/writeups/ (pure): `name` its file name, `data` its bytes, `known` the
+    record hashes there are, `deny` the internal markers no maintainer text may carry (site/config.json's denylist:
+    a writeup is shown as the site's own text, never exempted as a player's record fields are), `render` (optional) a
+    function of the text that raises ValueError for a body the site cannot render. [] when it is a good writeup."""
+    m = WRITEUP_NAME_RE.fullmatch(name)
+    if not m:
+        return [f"not named <record_hash>.md (the record's 64 lowercase hex digits)"]
+    out = []
+    if m.group(1) not in known:
+        out.append("names no record (a writeup is named by the hash of a record in leaderboard/data/)")
+    if len(data) > WRITEUP_SIZE_MAX:
+        out.append(f"{len(data)} bytes, over the cap of {WRITEUP_SIZE_MAX}")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        return out + [f"not UTF-8 ({e.reason} at byte {e.start})"]
+    bad = _WRITEUP_BAD_CHAR.search(text)
+    if bad:
+        line = text.count("\n", 0, bad.start()) + 1
+        out.append(f"line {line}: the character U+{ord(bad.group(0)):04X} (a control character, a byte-order mark or a "
+                   "bidirectional override; tabs and carriage returns included: use spaces and Unix newlines)")
+    title = writeup_title(text)
+    if title is None:
+        out.append("line 1 is not the title line `# <title>` (one space after `#`, the title not empty)")
+    elif len(title) > WRITEUP_TITLE_MAX:
+        out.append(f"the title has {len(title)} characters, over the cap of {WRITEUP_TITLE_MAX}")
+    low = text.lower()
+    for w in deny:
+        if w and w.lower() in low:
+            out.append(f"contains the internal marker {w!r} (site/config.json's denylist)")
+    if render is not None and title is not None and not bad:
+        try:
+            render(text)
+        except ValueError as e:
+            out.append(f"the site cannot render it: {e}")
+    return out
+
+
+def site_denylist(svgolf=None):
+    """The texts of site/config.json's denylist (plain strings and internal markers): what a writeup may not carry;
+    () without the file."""
+    path = os.path.join(svgolf or SVGOLF, "site", "config.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            deny = json.load(fh).get("denylist") or []
+    except (OSError, ValueError):
+        return ()
+    return tuple(e if isinstance(e, str) else e.get("text", "") for e in deny if isinstance(e, (str, dict)))
+
+
+def writeup_renderer(svgolf=None):
+    """The site's renderer of a writeup (site/writeup.py `render`, loaded by path), as a function of the text that
+    raises ValueError for a body outside the site's Markdown subset; None without the site's files."""
+    site_dir = os.path.join(svgolf or SVGOLF, "site")
+    path = os.path.join(site_dir, "writeup.py")
+    if not os.path.isfile(path):
+        return None
+    sys.path.insert(0, site_dir)
+    try:
+        spec = importlib.util.spec_from_file_location("svgolf_writeup", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    finally:
+        sys.path.remove(site_dir)
+
+    def render(text):
+        try:
+            mod.render(text, source="writeup")
+        except mod.md.MarkdownError as e:
+            raise ValueError(str(e).split(": ", 1)[-1]) from None
+    return render
+
+
+def check_writeups(wdir, records, *, task=None, deny=(), render=None):
+    """[(file name, title or None, task or None, problems)] of every writeup in `wdir` (TEMPLATE.md and hidden files
+    left out): `records` are all the records of the data directory, {record_hash: record}; with `task`, only the
+    writeups of that task's records."""
+    out = []
+    if not os.path.isdir(wdir):
+        return out
+    for name in sorted(os.listdir(wdir)):
+        if name == WRITEUP_TEMPLATE or name.startswith("."):
+            continue
+        m = WRITEUP_NAME_RE.fullmatch(name)
+        rec = records.get(m.group(1)) if m else None
+        if task and (rec or {}).get("task") != task:
+            continue
+        path = os.path.join(wdir, name)
+        if not os.path.isfile(path) or os.path.islink(path):
+            out.append((name, None, None, ["not a plain file"]))
+            continue
+        with open(path, "rb") as fh:
+            data = fh.read(WRITEUP_SIZE_MAX + 1)
+        problems = writeup_problems(name, data, set(records), deny, render)
+        try:
+            title = writeup_title(data.decode("utf-8"))
+        except UnicodeDecodeError:
+            title = None
+        out.append((name, title, (rec or {}).get("task"), problems))
+    return out
+
+
 def intact(path, rec):
     """The cheap tamper tripwire the boards apply before trusting a record: it
     is well-formed, its record_hash is the hash of its content and the name
@@ -3750,6 +3877,20 @@ def cmd_verify(args):
         stale += bool(r.stale) and not r.fails
     level = "offline" if args.offline else ("full re-check" if args.full else "hashes + rescore")
     print(f"verify ({level}): {len(loaded)} records, {failed} failed, {stale} stale")
+    # the writeups (decided 2026-11-13): of the default data directory's records, or of `--writeups-dir`'s
+    wdir = args.writeups_dir if getattr(args, "writeups_dir", None) else (
+        WRITEUPS_DIR if os.path.abspath(args.data_dir) == os.path.abspath(DEFAULT_DATA) else None)
+    if wdir:
+        every = {rec["record_hash"]: rec for _, rec, _ in load_records(args.data_dir)
+                 if isinstance(rec, dict) and isinstance(rec.get("record_hash"), str)}
+        checked = check_writeups(wdir, every, task=args.task, deny=site_denylist(), render=writeup_renderer())
+        bad = 0
+        for name, title, task_name, problems in checked:
+            label = f"{task_name or '?'}/{name[:12]}"
+            print(f"[{'FAIL' if problems else 'ok'}] writeup {label}: " + ("; ".join(problems) if problems else title))
+            bad += bool(problems)
+        print(f"writeups: {len(checked)} checked, {bad} failed")
+        failed += bad
     return 1 if failed else 0
 
 
@@ -4229,7 +4370,7 @@ def find_record(data_dir, task_name, prefix):
     return path, rec
 
 
-def submit_text(rec, line, verified):
+def submit_text(rec, line, verified, writeup=False):
     """The title and the text (Markdown) of `rec`'s pull request: the task, the handle, `assisted_by` and the files
     (Record), `line` (`board_line`), and `verified` (`verify_line` of the offline check `submit` ran) with what the
     pull request's own check does (Checks). The headings are PR_HEADINGS. Pure."""
@@ -4241,7 +4382,8 @@ def submit_text(rec, line, verified):
     assisted = "; ".join(md_escape(a) for a in rec["assisted_by"]) if rec["assisted_by"] else "none (unassisted)"
     body = [f"## {PR_HEADINGS[0]}", "", f"- task: `{rec['task']}`", f"- handle: `{rec['player']}`",
             f"- assisted by: {assisted}", f"- files: `{files}.json`, `.sv` and `.lean`, as `leaderboard.py add` wrote "
-            "them", "",
+            "them" + (f", and its writeup `leaderboard/writeups/{rec['record_hash']}.md`" if writeup else
+                      "; no writeup yet (encouraged: leaderboard/writeups/TEMPLATE.md)"), "",
             f"## {PR_HEADINGS[1]}", "", line, "",
             f"## {PR_HEADINGS[2]}", "", "`leaderboard.py verify --offline` of this record before it was sent:", "",
             "```text", verified, "```", "", PR_CHECK_NOTE, ""]
@@ -4261,6 +4403,8 @@ def submit_steps(rec, root, files, owner, repo, title):
     git = ["git", "-C", root]
     names = [f"leaderboard/data/{task}/{h}{ext}" for ext in (".json", ".sv", ".lean")]
     blobs = ("JSON", "SV", "LEAN")
+    if len(files) == 4:                   # and the record's writeup (decided 2026-11-13), when there is one
+        names, blobs = names + [f"leaderboard/writeups/{h}.md"], blobs + ("WRITEUP",)
     step = lambda var, argv, index=False, gh=False: {"var": var, "argv": argv, "index": index, "gh": gh}  # noqa: E731
     out = [step("TMP", ["mktemp", "-d"]), step("BODY", []),
            step(None, git + ["fetch", "--no-tags", f"https://github.com/{owner}/{repo}.git", SUBMIT_BRANCH]),
@@ -4404,9 +4548,24 @@ def cmd_submit(args):
         print(f"error: the board cannot be built: {e}", file=sys.stderr)
         return 2
     line = board_line(board, par, rec["record_hash"])
-    title, body = submit_text(rec, line, verified)
+    # the record's writeup goes with it when there is one (decided 2026-11-13), checked as `verify` checks it
+    wpath = os.path.join(WRITEUPS_DIR, f"{rec['record_hash']}.md")
+    if os.path.isfile(wpath):
+        with open(wpath, "rb") as fh:
+            wproblems = writeup_problems(os.path.basename(wpath), fh.read(WRITEUP_SIZE_MAX + 1), {rec["record_hash"]},
+                                         site_denylist(), writeup_renderer())
+        if wproblems:
+            print("REFUSED: the record was not submitted: its writeup "
+                  f"{os.path.relpath(wpath, SVGOLF)} has problems (fix them, or move it away to submit without it):",
+                  file=sys.stderr)
+            for p in wproblems:
+                print(f"  - {p}", file=sys.stderr)
+            return 1
+    title, body = submit_text(rec, line, verified, writeup=os.path.isfile(wpath))
     print(f"board line: {line}")
     files = [os.path.relpath(p, SVGOLF) for p in record_paths(args.data_dir, rec["task"], rec["record_hash"])]
+    if os.path.isfile(wpath):
+        files.append(os.path.relpath(wpath, SVGOLF))
     gh = shutil.which("gh")
     if args.dry_run or not gh:
         steps = submit_steps(rec, os.path.relpath(SVGOLF), files, owner, repo, title)
@@ -4483,6 +4642,9 @@ def make_parser():
     g.add_argument("--full", action="store_true",
                    help="re-run check.py on every stored submission (hours of Lean), always "
                    "with --postsynth full")
+    v.add_argument("--writeups-dir", default=None,
+                   help="the records' writeups (default: leaderboard/writeups/ with the default data directory; none "
+                   "checked with another --data-dir)")
     v.set_defaults(fn=cmd_verify)
 
     for name, fn, h in (("pareto", cmd_pareto, "the (sky130 area, time) Pareto frontier of a task (exploration: "

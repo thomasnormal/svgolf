@@ -13,8 +13,8 @@
 //     (a stored choice, a link that named one, a choice on this page), so that a copied link shows what its reader
 //     saw. A reader who never chose keeps clean addresses; an address without ?pdk= shows each reader their own view.
 //   * takes the old value, asap7 (the cells-only view the routed course replaced), from a link or a stored choice as
-//     asap7pnr, and marks the page (<html data-pdk-moved>) so that its banner says so: a reader never sees another
-//     number under the old name without being told. The address and the stored choice then name asap7pnr.
+//     asap7pnr, and marks the page (<html data-pdk-moved>) so that its one-line notice says so: a reader never sees
+//     another number under the old name without being told. The address and the stored choice then name asap7pnr.
 // Without this script the page shows sky130 and says that the routed course needs it. No libraries, nothing fetched.
 (function () {
   "use strict";
@@ -29,7 +29,7 @@
   // the two views, compared as strings (an object lookup would also accept "constructor", "toString", ...)
   function known(v) { return v === "sky130" || v === ROUTED; }
 
-  // a value as this script takes it: the old one is the routed course, noted so that the banner says it
+  // a value as this script takes it: the old one is the routed course, noted so that the notice says it
   function taken(v) {
     if (v === OLD) { moved = true; return ROUTED; }
     return known(v) ? v : null;

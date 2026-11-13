@@ -1,5 +1,5 @@
 # The check of a pull request that adds records (leaderboard/pr_check.py; README.md, "Leaderboard"): it may change
-# nothing but added records, every record is verified offline, the records it adds get the full check again
+# nothing but added records and added or improved writeups, every record and writeup is verified offline, the records it adds get the full check again
 # (leaderboard.py verify --full: check.py on each pair), and the outcome with each record's board line goes to the job
 # summary. It informs the player and the maintainers and ranks nothing: it runs the pull request's own files, with
 # no secret and a read-only token, and the ranked number is re-made on the rating build by a maintainer when the pull
@@ -19,6 +19,7 @@ on:
   pull_request:
     paths:
       - "leaderboard/data/**"
+      - "leaderboard/writeups/**"
   push:
     branches: [main]
     paths:

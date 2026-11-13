@@ -158,7 +158,7 @@ ok(e.sel.value === "asap7pnr", "and sets the selector back to the view shown");
 // the old value (2026-11-12: the cells-only ASAP7 view, replaced by the routed course): taken as asap7pnr, said so
 e = env({ url: "http://x/tasks/add/index.html?pdk=asap7#score" });
 ok(e.attrs["data-pdk"] === "asap7pnr", "an old ?pdk=asap7 link shows the routed course");
-ok("data-pdk-moved" in e.attrs, "and marks the page, so that its banner says what changed");
+ok("data-pdk-moved" in e.attrs, "and marks the page, so that its notice says what changed");
 ok(e.store["svgolf-pdk"] === "asap7pnr", "the course is stored under its new name");
 ok(e.loc.href === "http://x/tasks/add/index.html?pdk=asap7pnr#score", "and the URL names it: " + e.loc.href);
 ok(e.sel.value === "asap7pnr", "the selector shows it");

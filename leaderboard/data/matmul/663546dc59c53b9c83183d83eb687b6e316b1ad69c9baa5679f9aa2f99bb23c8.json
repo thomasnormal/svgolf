@@ -1,0 +1,379 @@
+{
+  "assisted_by": [
+    "Claude Opus 5.5"
+  ],
+  "canonical_sha256": "f4e3e6a9db7bbab2cb2baeb4f0b82ba2da58977220ba130dcb13a67d694a890b",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "0d02004b32270261ca7f048a5f7937e6dcbac751193368e71119dd8d630c661d",
+      "check/Comparator.lean": "b7808bbe32f19297df5b04047c071861ef67bdf4384be38d65f6605aab2629ef",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "9d8053a0357c34e749f2c9278f72ac964f13432c7e7b2d6830ac92f8a3940da2",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "967b637c59121cb1ddb49fea3f4376f1670a06a5cc947ab04fb03a5a3115ee86",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "04452f98591eda86a4cea28d5c7cfd9c296247726d5460599f4fbc5c60aa371b",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "flow": "seq",
+    "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+    "lean_surfaces_revision": "f8c0ae309e9f031069bd0e91dd74e58fb6dade7f",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "SvGolf/TaskSeq.lean": "2c1fdc15996716bea71f6e28129b7092834d2fcc0ee1a524f56457c46b155a08",
+      "tasks/matmul/Spec.lean": "2e8ec32ea0608307b4eed680ac8260b565bfa05f419ca4410a53a28ce85b26ef"
+    },
+    "svgolf_revision": "f8c0ae309e9f031069bd0e91dd74e58fb6dade7f",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "spatial_pipeline.lean",
+      "sha256": "bd623942a006925c6cf17a0373b33212e4f418c3e81c234d41351b1547e95f56"
+    },
+    "sv": {
+      "name": "spatial_pipeline.sv",
+      "sha256": "308cf75fcf3041cee37886277a811731ba37dc04e7fabf345e57f152f257067d"
+    }
+  },
+  "notes": "A spatial dataflow pipeline: the program Map over (i, j) of Fold over k is laid out as wired units with no instruction loop. Two chained counters issue one (i, j) item per cycle; two scratchpad units rotate so that their fixed read ports show row i of A and column j of B; one compute unit multiplies N lanes and sums them in a registered binary tree; an output unit shifts each dot product into C, and the last one raises done. N*N dot products are in flight at once. Latency N*N + clog2(N) + 2 (20 at N = 4). The tree's register vector has 2*P*AccW bits (P = N rounded up to a power of two), more than 2^31 only at N = 1 with AccW >= 2^30.",
+  "player": "quillwren",
+  "postsynth": {
+    "mismatches": 0,
+    "mode": "full",
+    "netlist_sha256": "94c025ff1ad064f8502df251ff93fcdc14d988569cc150399c7c93aca6ee3de5",
+    "points": [
+      {
+        "latency": 7,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "04bd80bb1b56baf5aa92ac66d8b0131c9d5d80ba8e08c1ed7ee876082ec6cd3b",
+        "params": {
+          "AccW": 8,
+          "N": 2,
+          "W": 4
+        },
+        "point": "N=2,W=4,AccW=8",
+        "seeds": [
+          {
+            "cycles": 229,
+            "lssv_start": "zeros",
+            "netlist_randseed": 303973935,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "4ed5c6f8253aa2ccebcac64a7a0a386b600257f7452a5b697e54d91ed2eaf605",
+            "transactions": 24
+          },
+          {
+            "cycles": 229,
+            "lssv_start": "seed:6761245804292904090",
+            "netlist_randseed": 1195438325,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "82e6921a1035266198a8a19b7db3802de6c1774db6bc6871f38788da1c463941",
+            "transactions": 24
+          },
+          {
+            "cycles": 232,
+            "lssv_start": "seed:845291531553475423",
+            "netlist_randseed": 391528801,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "2b060ddd6dc02ac106b5c3a42b351bce94017582ddeb0ace5845776e13986d5e",
+            "transactions": 24
+          },
+          {
+            "cycles": 217,
+            "lssv_start": "seed:5147191549726746004",
+            "netlist_randseed": 1397868753,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "37b381d742d38096380bc51aa3d54fb5394c4cbd815b57e65e8b290f662a91e1",
+            "transactions": 24
+          },
+          {
+            "cycles": 216,
+            "lssv_start": "seed:3814886047666414678",
+            "netlist_randseed": 1168828466,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "93e4b866922d25bbca772983de8dd0d895c1a977637814d34608635480a42fc6",
+            "transactions": 24
+          },
+          {
+            "cycles": 222,
+            "lssv_start": "seed:3507955749274142316",
+            "netlist_randseed": 192587499,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "8c2d8181b84093b6b684d544b423cd3dd4146ac5d6764108c6e52ddb8988d303",
+            "transactions": 24
+          },
+          {
+            "cycles": 221,
+            "lssv_start": "seed:9665391063568079335",
+            "netlist_randseed": 688604025,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "7c2b8adaae809812a664e1841857896fa84b3efc270bc9a44e303f43245bb218",
+            "transactions": 24
+          },
+          {
+            "cycles": 222,
+            "lssv_start": "seed:11035912927779587285",
+            "netlist_randseed": 825733514,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "1db8b9c4c23cd0ea5671545153ca4e2bcd0132d0776a93bb06a43e970cf9d41f",
+            "transactions": 24
+          }
+        ]
+      },
+      {
+        "latency": 20,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "94c025ff1ad064f8502df251ff93fcdc14d988569cc150399c7c93aca6ee3de5",
+        "params": {
+          "AccW": 32,
+          "N": 4,
+          "W": 8
+        },
+        "point": "N=4,W=8,AccW=32",
+        "seeds": [
+          {
+            "cycles": 535,
+            "lssv_start": "zeros",
+            "netlist_randseed": 1946689348,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "e3ef9e3638b59686ddad464c18d55cc4689e1f6f645c6420927ecd11e207effe",
+            "transactions": 24
+          },
+          {
+            "cycles": 552,
+            "lssv_start": "seed:9734188592010554240",
+            "netlist_randseed": 1063280839,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "2132be692d56dbab8d92de4ff8fbad7373f28dc1b4ef1603097f813e105f4774",
+            "transactions": 24
+          },
+          {
+            "cycles": 544,
+            "lssv_start": "seed:6594409222167094000",
+            "netlist_randseed": 88936619,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "0371e783230da20b644d641cfc6a766d5fb3b725f8be6639856775379661ffe3",
+            "transactions": 24
+          },
+          {
+            "cycles": 535,
+            "lssv_start": "seed:15091031972466303227",
+            "netlist_randseed": 590535838,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "ed721e3e3e1804e90a21ed159beabb253edb477280ce72069c119ce05945edd5",
+            "transactions": 24
+          },
+          {
+            "cycles": 546,
+            "lssv_start": "seed:17087008212923660376",
+            "netlist_randseed": 707745727,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "fcdbab7c930508992e898aa3fbb76c62ada7cebea09d946db533b4d6744e4b53",
+            "transactions": 24
+          },
+          {
+            "cycles": 536,
+            "lssv_start": "seed:13568177433463839254",
+            "netlist_randseed": 834142182,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "ccccf631a1d29013c6898031e5e5c8542c6b80ebdcdbcf1e72c32d6784191a48",
+            "transactions": 24
+          },
+          {
+            "cycles": 546,
+            "lssv_start": "seed:2839497944125262158",
+            "netlist_randseed": 1252134952,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "f1dc560f77673c053e8d81e29efa08c4857f6676feb8eefc39c3d0873c27fc5a",
+            "transactions": 24
+          },
+          {
+            "cycles": 535,
+            "lssv_start": "seed:8076188500603944899",
+            "netlist_randseed": 547904091,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "831e3fb7b1cd852ac414ce5261819f6bf070d0fba0d21a5d871ab970bc999967",
+            "transactions": 24
+          }
+        ]
+      }
+    ]
+  },
+  "ppa": {
+    "area_e4um2_sky130": 466297216,
+    "area_um2_sky130": 46629.7216,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 651,
+      "buf_2": 2,
+      "buf_4": 1,
+      "buf_8": 2,
+      "dfxtp_1": 1044,
+      "inv_1": 5,
+      "mux2_1": 985,
+      "nand2_1": 861,
+      "nand2b_1": 30,
+      "nor2_1": 36,
+      "nor2b_1": 64,
+      "or2_1": 129,
+      "xnor2_1": 112,
+      "xor2_1": 543
+    },
+    "cells_sky130": 4465,
+    "constants": false,
+    "critical": {
+      "cells": 20,
+      "edge": "f",
+      "output": "D:_0561_"
+    },
+    "delay_ps_sky130": 5186,
+    "flops": 1044,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.807,
+      "worst_transition_ratio": 0.938
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "netlist_sha256": "94c025ff1ad064f8502df251ff93fcdc14d988569cc150399c7c93aca6ee3de5",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 5,
+      "cells_before": 4460,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "ef946e717b3393a44df7350fd1e15bca07c931c2f6753b69ac075c587608e7d5",
+      "nets_buffered": 4,
+      "rounds": 2,
+      "tie_cells": 0
+    },
+    "sequential": true,
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 41
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 18.79,
+    "imports": [
+      "Submission.Design",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.SeqProfile",
+      "LeanModels.Sv.SeqFamily",
+      "LeanModels.Sv.Known2",
+      "LeanModels.Sv.Lib.BitVecArith",
+      "LeanModels.Sv.CombViewArith",
+      "LeanModels.Sv.Mono2",
+      "SvGolf.SeqV2"
+    ],
+    "lines": 2016,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": true
+  },
+  "record_hash": "663546dc59c53b9c83183d83eb687b6e316b1ad69c9baa5679f9aa2f99bb23c8",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 11241.034,
+    "area_mge": 11241034,
+    "area_um2": 46629.7216,
+    "cycles": 20,
+    "depth": 41,
+    "ffs": 1044,
+    "gates": {
+      "AND": 651,
+      "ANDNOT": 64,
+      "DFF_P": 1044,
+      "MUX": 985,
+      "NAND": 861,
+      "NOR": 36,
+      "NOT": 5,
+      "OR": 129,
+      "ORNOT": 30,
+      "XNOR": 112,
+      "XOR": 543
+    },
+    "num_gates": 4460,
+    "period_ps": 5186,
+    "rtlil_sha256": "d70232acf5c6c10f994a0e92e01e20493a171db45fca3b485049be754190c3b5",
+    "scoring_point": {
+      "AccW": 32,
+      "N": 4,
+      "W": 8
+    },
+    "time_ps": 103720,
+    "top": "matmul"
+  },
+  "submitted_at": "2026-11-13",
+  "task": "matmul"
+}

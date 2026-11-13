@@ -74,6 +74,17 @@
     panel.classList.add("js-tabs");
     var list = tabs[0].parentNode;
     list.setAttribute("role", "tablist");
+    // a tab its course hides (the routed course's Layout on sky130: style.css hides `.pdk-asap7pnr`) is never the one
+    // shown; when the reader changes the course (pdk.js sets <html data-pdk>), a pane that left is replaced by the first
+    function shown(k) {
+      return window.getComputedStyle(tabs[k]).display !== "none";
+    }
+    function usable(k) {
+      if (k >= 0 && shown(k)) { return k; }
+      for (var j = 0; j < tabs.length; j++) { if (shown(j)) { return j; } }
+      return 0;
+    }
+
     tabs.forEach(function (tab, k) {
       tab.setAttribute("role", "tab");
       tab.id = tab.id || panes[k].id + "-tab";
@@ -89,7 +100,10 @@
       panes[k].style.scrollMarginTop = Math.max(0, Math.round(gap)) + "px";
     }
 
+    var current = 0;
     function select(k, focus) {
+      k = usable(k);
+      current = k;
       tabs.forEach(function (tab, j) {
         tab.setAttribute("aria-selected", j === k ? "true" : "false");
         tab.tabIndex = j === k ? 0 : -1;
@@ -104,7 +118,7 @@
     function choose(k, focus) {          // a reader's choice of tab: the URL names the pane shown, for a reload
       select(k, focus);
       if (window.history && history.replaceState) {
-        history.replaceState(history.state, "", "#" + panes[k].id);
+        history.replaceState(history.state, "", "#" + panes[current].id);
       }
     }
 
@@ -119,20 +133,28 @@
           return;
         }
         e.preventDefault();
-        choose((to + tabs.length) % tabs.length, true);
+        var step = to < k || e.key === "End" ? -1 : 1, n = (to + tabs.length) % tabs.length;
+        for (var i = 0; i < tabs.length && !shown(n); i++) { n = (n + step + tabs.length) % tabs.length; }
+        choose(n, true);
       });
     });
     select(0, false);
+    if (window.MutationObserver) {
+      new MutationObserver(function () {
+        if (!shown(current)) { select(0, false); }
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-pdk"] });
+    }
 
     // show the pane holding `el` and scroll to it (its card is open already: bring); false when `el` is in no
-    // pane of this panel. The browser cannot scroll to a hidden pane, so this does.
+    // pane of this panel. The browser cannot scroll to a hidden pane, so this does; a pane its course hides is not
+    // shown (the first tab is) and nothing is scrolled to.
     return function reveal(el) {
       var k = panes.findIndex(function (p) { return p === el || p.contains(el); });
       if (k < 0) {
         return false;
       }
       select(k, false);
-      el.scrollIntoView();
+      if (current === k) { el.scrollIntoView(); }
       return true;
     };
   }

@@ -224,14 +224,21 @@ def seg(options, on=0, *, label_text):
 
 
 def tabs(panes, *, label_text):
-    """Tabs in a card (a detail page's netlist: Schematic, Critical path, Cells). `panes`: (id, tab label, body
-    HTML); each pane is a `<section>` with that id, so a link to the id lands on it. Without JavaScript the tab
-    links jump to the panes, which stand one under the other, each under its own title, and no tab is marked as
-    chosen; site.js makes them tabs (the first one shown) and shows the pane a link or the URL's fragment names (or
-    holds), and a tab chosen names its pane in the URL."""
-    links = "".join(f'<a href="#{esc(pid)}">{esc(label)}</a>' for pid, label, _ in panes)
-    body = "".join(f'<section class="tabs-pane" id="{esc(pid)}"><h3 class="tabs-pane-title">{esc(label)}</h3>'
-                   f"{html_}</section>" for pid, label, html_ in panes)
+    """Tabs in a card (a detail page's netlist: Schematic, Critical path, Cells and, on the routed course, Layout).
+    `panes`: (id, tab label, body HTML) or (id, tab label, body HTML, class): each pane is a `<section>` with that id,
+    so a link to the id lands on it; a class goes on both the tab and its pane (`pdk-asap7pnr`: a tab of the routed
+    course only, which style.css hides on sky130 and without JavaScript). Without JavaScript the tab links jump to the
+    panes, which stand one under the other, each under its own title, and no tab is marked as chosen; site.js makes
+    them tabs (the first one shown) and shows the pane a link or the URL's fragment names (or holds), and a tab chosen
+    names its pane in the URL; a tab its course hides is never the one shown."""
+    panes = [p if len(p) == 4 else (*p, None) for p in panes]
+
+    def cls(c, base=""):
+        names = " ".join(x for x in (base, c) if x)
+        return f' class="{esc(names)}"' if names else ""
+    links = "".join(f'<a href="#{esc(pid)}"{cls(c)}>{esc(label)}</a>' for pid, label, _, c in panes)
+    body = "".join(f'<section{cls(c, "tabs-pane")} id="{esc(pid)}"><h3 class="tabs-pane-title">{esc(label)}</h3>'
+                   f"{html_}</section>" for pid, label, html_, c in panes)
     return f'<div class="tabs" data-tabs><nav class="tabs-nav" aria-label="{esc(label_text)}">{links}</nav>{body}</div>'
 
 
@@ -345,7 +352,7 @@ PDK_OPTIONS = (("sky130", "sky130"), ("asap7pnr", "ASAP7 · placed and routed"))
 def pdk_select(id_, label_html, *, cls="pdk-pick"):
     """The library selector, "the course" (decided 2026-11-09: a reader chooses the library the golf scores are shown
     on): a `<select>` of PDK_OPTIONS, sky130 chosen, hidden until pdk.js shows it (without JavaScript it could do
-    nothing: `pdk_nojs` says so instead). `label_html` None: no label of its own (the front page's kicker labels it).
+    nothing: `pdk_nojs` says so instead). `label_html` None: no label of its own.
     `autocomplete="off"`: a browser restores no earlier value of it on Back, after pdk.js has set it to the view shown."""
     opts = "".join(f'<option value="{v}"{" selected" if v == "sky130" else ""}>{esc(t)}</option>' for v, t in PDK_OPTIONS)
     label = f'<label for="{esc(id_)}">{label_html}</label>' if label_html is not None else ""
@@ -366,13 +373,14 @@ def layout(*, title, body_html, root, active=None, description="", revision=None
     root ("" for a top-level page, "../../" for tasks/<t>/index.html). `scripts`: the site's own
     script files the page loads after site.js (a task page: charts.js). The header carries the library
     selector, "Course" (`pdk_select`; pdk.js, loaded first and not deferred, sets <html data-pdk> before the page is
-    drawn), unless `header_pdk` is false (the front page, whose course control is beside its task cards: one control
-    on a page); `banner_html` (a page that shows scores) opens the main column in the ASAP7 view. `tagline`: the
-    footer's line beside the name (the front page's headline). The footer's links, one row (decided 2026-11-11): the
+    drawn), unless `header_pdk` is false (the 404 page, which shows no scores; since 2026-11-13 the front page has the
+    header's selector too, one control in one place on every page); `banner_html` (a page that shows scores: the old link's notice, build.py `moved_note`) opens the main
+    column. `tagline`: the footer's line beside the name (the front page's headline). The footer's links, one row (decided 2026-11-11): the
     licence, then `foot_repo` ([(label, url)]: the public repository's Source, Issues and Contributing; empty
     without one), `library` ({name, url}: the Lean library the proofs are written with), the roadmap, how to
-    reproduce a score, llms.txt, the data and the revision. `foot_repo` may hold ("Apache-2.0", url) first: the
-    licence's link. A `title` that starts with the site's name ("svGolf: ...", the front page's) is the whole title;
+    reproduce a score, llms.txt, the data and the revision; since 2026-11-13 also "How it is scored" (the rules
+    page's "The courses", which holds what the routed course's banner and the front page's course lines said).
+    `foot_repo` may hold ("Apache-2.0", url) first: the licence's link. A `title` that starts with the site's name ("svGolf: ...", the front page's) is the whole title;
     any other gets " | svGolf". The link preview: the page's `url` (its published address, absolute) is its canonical
     address and og:url; og:title and og:description repeat the title and the description; no image (decided
     2026-11-12). `base_href` (the 404 page, which the host serves at any depth): every relative address resolves from
@@ -391,6 +399,7 @@ def layout(*, title, body_html, root, active=None, description="", revision=None
              + "".join(f'<li><a href="{esc(url)}">{esc(label)}</a></li>' for label, url in foot_repo
                        if label != "Apache-2.0")
              + (f'<li>Lean library: <a href="{esc(library["url"])}">{esc(library["name"])}</a></li>' if library else "")
+             + f'<li><a href="{root}rules.html#courses">How it is scored</a></li>'          # build.py COURSES_ANCHOR
              + f'<li><a href="{root}roadmap.html">Roadmap</a></li>'
              + f'<li><a href="{root}reproduce.html">Reproduce a score</a></li>'
              + f'<li><a href="{root}llms.txt">llms.txt</a></li><li><a href="{root}data/site.json">data</a></li>' + rev)

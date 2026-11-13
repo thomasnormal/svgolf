@@ -1,0 +1,380 @@
+{
+  "assisted_by": [
+    "Claude Opus 5.5"
+  ],
+  "canonical_sha256": "8e938925310f8b46dc36ff90659d0f831761047c2071f8b71bcfd9feed347dff",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "4930696021c588c75dc890034c534c95560ad9a28a4955b87d1f8d68b5edbc0c",
+    "files": {
+      "check.py": "0d02004b32270261ca7f048a5f7937e6dcbac751193368e71119dd8d630c661d",
+      "check/Comparator.lean": "b7808bbe32f19297df5b04047c071861ef67bdf4384be38d65f6605aab2629ef",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "9d8053a0357c34e749f2c9278f72ac964f13432c7e7b2d6830ac92f8a3940da2",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "62c2d9c0fc1ec4c67e151c11eff41ca004ef38e179cf9476c230406e6defedef",
+      "score/banlist.py": "967b637c59121cb1ddb49fea3f4376f1670a06a5cc947ab04fb03a5a3115ee86",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "04452f98591eda86a4cea28d5c7cfd9c296247726d5460599f4fbc5c60aa371b",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "4b8688ba3f4d67681658e5944afe878592adf588cd416a8b47597ebe06deb045",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "71d2e3b82f8813ec64a58f0a46909ca23dfab377db44eda6f294b713f45ae781",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2"
+    },
+    "flow": "seq",
+    "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+    "lean_surfaces_revision": "f8c0ae309e9f031069bd0e91dd74e58fb6dade7f",
+    "lean_toolchain": "leanprover/lean4:v4.33.0-rc1",
+    "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "SvGolf/TaskSeq.lean": "2c1fdc15996716bea71f6e28129b7092834d2fcc0ee1a524f56457c46b155a08",
+      "tasks/matmul/Spec.lean": "2e8ec32ea0608307b4eed680ac8260b565bfa05f419ca4410a53a28ce85b26ef"
+    },
+    "svgolf_revision": "f8c0ae309e9f031069bd0e91dd74e58fb6dade7f",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  },
+  "files": {
+    "lean": {
+      "name": "ws_fifo_array_clear.lean",
+      "sha256": "fdc8eae11a9b390116d8cf21a1ca780461d6306d125aa787a73d6f36775abcbe"
+    },
+    "sv": {
+      "name": "ws_fifo_array_clear.sv",
+      "sha256": "88ab937c8c08bff9214b94ea226a66f9a269ee6b4c2499e28bc00ea3ffaab9b2"
+    }
+  },
+  "notes": "A weight-stationary systolic array fed by a weight FIFO: B shifts down through shadow weight registers for N steps and is then swapped into the active weights; a setup triangle delays row k of A by k steps, so the data enter as a diagonal wavefront; data move east and partial sums south, and below each column a rotating file of N accumulator words shares one adder. The start clears the data rows, the shadow and active weights, the partial sums and the accumulators. Latency 4N (16 at N = 4). The data-row vector has N(3N-1)/2*W bits, more than 2^31 near the top of the parameter range.",
+  "player": "diagonal-heron",
+  "postsynth": {
+    "mismatches": 0,
+    "mode": "full",
+    "netlist_sha256": "33c04f57f0a50a5d7fc39f14c159e01773a3f2027c2d5a5f8486658d048ea389",
+    "points": [
+      {
+        "latency": 8,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "e6d6464a5791371a118b2ddab1e07d0a9faeb280d713c461829d7975a6be9d99",
+        "params": {
+          "AccW": 8,
+          "N": 2,
+          "W": 4
+        },
+        "point": "N=2,W=4,AccW=8",
+        "seeds": [
+          {
+            "cycles": 253,
+            "lssv_start": "zeros",
+            "netlist_randseed": 303973935,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "4ed5c6f8253aa2ccebcac64a7a0a386b600257f7452a5b697e54d91ed2eaf605",
+            "transactions": 24
+          },
+          {
+            "cycles": 253,
+            "lssv_start": "seed:6761245804292904090",
+            "netlist_randseed": 1195438325,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "82e6921a1035266198a8a19b7db3802de6c1774db6bc6871f38788da1c463941",
+            "transactions": 24
+          },
+          {
+            "cycles": 256,
+            "lssv_start": "seed:845291531553475423",
+            "netlist_randseed": 391528801,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "2b060ddd6dc02ac106b5c3a42b351bce94017582ddeb0ace5845776e13986d5e",
+            "transactions": 24
+          },
+          {
+            "cycles": 241,
+            "lssv_start": "seed:5147191549726746004",
+            "netlist_randseed": 1397868753,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "37b381d742d38096380bc51aa3d54fb5394c4cbd815b57e65e8b290f662a91e1",
+            "transactions": 24
+          },
+          {
+            "cycles": 240,
+            "lssv_start": "seed:3814886047666414678",
+            "netlist_randseed": 1168828466,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "93e4b866922d25bbca772983de8dd0d895c1a977637814d34608635480a42fc6",
+            "transactions": 24
+          },
+          {
+            "cycles": 246,
+            "lssv_start": "seed:3507955749274142316",
+            "netlist_randseed": 192587499,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "8c2d8181b84093b6b684d544b423cd3dd4146ac5d6764108c6e52ddb8988d303",
+            "transactions": 24
+          },
+          {
+            "cycles": 245,
+            "lssv_start": "seed:9665391063568079335",
+            "netlist_randseed": 688604025,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "7c2b8adaae809812a664e1841857896fa84b3efc270bc9a44e303f43245bb218",
+            "transactions": 24
+          },
+          {
+            "cycles": 246,
+            "lssv_start": "seed:11035912927779587285",
+            "netlist_randseed": 825733514,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "1db8b9c4c23cd0ea5671545153ca4e2bcd0132d0776a93bb06a43e970cf9d41f",
+            "transactions": 24
+          }
+        ]
+      },
+      {
+        "latency": 16,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "33c04f57f0a50a5d7fc39f14c159e01773a3f2027c2d5a5f8486658d048ea389",
+        "params": {
+          "AccW": 32,
+          "N": 4,
+          "W": 8
+        },
+        "point": "N=4,W=8,AccW=32",
+        "seeds": [
+          {
+            "cycles": 439,
+            "lssv_start": "zeros",
+            "netlist_randseed": 1946689348,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "e3ef9e3638b59686ddad464c18d55cc4689e1f6f645c6420927ecd11e207effe",
+            "transactions": 24
+          },
+          {
+            "cycles": 456,
+            "lssv_start": "seed:9734188592010554240",
+            "netlist_randseed": 1063280839,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "2132be692d56dbab8d92de4ff8fbad7373f28dc1b4ef1603097f813e105f4774",
+            "transactions": 24
+          },
+          {
+            "cycles": 448,
+            "lssv_start": "seed:6594409222167094000",
+            "netlist_randseed": 88936619,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "0371e783230da20b644d641cfc6a766d5fb3b725f8be6639856775379661ffe3",
+            "transactions": 24
+          },
+          {
+            "cycles": 439,
+            "lssv_start": "seed:15091031972466303227",
+            "netlist_randseed": 590535838,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "ed721e3e3e1804e90a21ed159beabb253edb477280ce72069c119ce05945edd5",
+            "transactions": 24
+          },
+          {
+            "cycles": 450,
+            "lssv_start": "seed:17087008212923660376",
+            "netlist_randseed": 707745727,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "fcdbab7c930508992e898aa3fbb76c62ada7cebea09d946db533b4d6744e4b53",
+            "transactions": 24
+          },
+          {
+            "cycles": 440,
+            "lssv_start": "seed:13568177433463839254",
+            "netlist_randseed": 834142182,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "ccccf631a1d29013c6898031e5e5c8542c6b80ebdcdbcf1e72c32d6784191a48",
+            "transactions": 24
+          },
+          {
+            "cycles": 450,
+            "lssv_start": "seed:2839497944125262158",
+            "netlist_randseed": 1252134952,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "f1dc560f77673c053e8d81e29efa08c4857f6676feb8eefc39c3d0873c27fc5a",
+            "transactions": 24
+          },
+          {
+            "cycles": 439,
+            "lssv_start": "seed:8076188500603944899",
+            "netlist_randseed": 547904091,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "831e3fb7b1cd852ac414ce5261819f6bf070d0fba0d21a5d871ab970bc999967",
+            "transactions": 24
+          }
+        ]
+      }
+    ]
+  },
+  "ppa": {
+    "area_e4um2_sky130": 1104209024,
+    "area_um2_sky130": 110420.9024,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 3082,
+      "buf_12": 1,
+      "buf_4": 10,
+      "buf_6": 1,
+      "dfxtp_1": 1650,
+      "inv_1": 22,
+      "mux2_1": 1034,
+      "nand2_1": 4349,
+      "nand2b_1": 111,
+      "nor2_1": 31,
+      "nor2b_1": 414,
+      "or2_1": 688,
+      "xnor2_1": 718,
+      "xor2_1": 1822
+    },
+    "cells_sky130": 13933,
+    "constants": false,
+    "critical": {
+      "cells": 58,
+      "edge": "f",
+      "output": "D:_01145_"
+    },
+    "delay_ps_sky130": 10402,
+    "flops": 1650,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.934,
+      "worst_transition_ratio": 0.94
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "netlist_sha256": "33c04f57f0a50a5d7fc39f14c159e01773a3f2027c2d5a5f8486658d048ea389",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 12,
+      "cells_before": 13921,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "0f070fb0e557264a8ca1065aa94afca6893e03240382db31f92d53dc842fb3c8",
+      "nets_buffered": 10,
+      "rounds": 2,
+      "tie_cells": 0
+    },
+    "sequential": true,
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 65
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 27.17,
+    "imports": [
+      "Submission.Design",
+      "LeanModels.Sv.Gen2",
+      "LeanModels.Sv.Hier2Gen",
+      "LeanModels.Sv.SeqProfile",
+      "LeanModels.Sv.SeqFamily",
+      "LeanModels.Sv.NbaCommit",
+      "LeanModels.Sv.Known2",
+      "LeanModels.Sv.Lib.BitVecArith",
+      "LeanModels.Sv.CombViewArith",
+      "LeanModels.Sv.Mono2",
+      "SvGolf.SeqV2"
+    ],
+    "lines": 2317,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": true
+  },
+  "record_hash": "f6a5edc854d66a7d20aad88e8a2d9c04c324345a98624c6f441569e274cd4893",
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 26411.681,
+    "area_mge": 26411681,
+    "area_um2": 110420.9024,
+    "cycles": 16,
+    "depth": 65,
+    "ffs": 1650,
+    "gates": {
+      "AND": 3082,
+      "ANDNOT": 414,
+      "DFF_P": 1650,
+      "MUX": 1034,
+      "NAND": 4349,
+      "NOR": 31,
+      "NOT": 22,
+      "OR": 688,
+      "ORNOT": 111,
+      "XNOR": 718,
+      "XOR": 1822
+    },
+    "num_gates": 13921,
+    "period_ps": 10402,
+    "rtlil_sha256": "ef4490582ff0bed8e78a6d31259453e4148e3190939d2e9c1e2789e62619b9c2",
+    "scoring_point": {
+      "AccW": 32,
+      "N": 4,
+      "W": 8
+    },
+    "time_ps": 166432,
+    "top": "matmul"
+  },
+  "submitted_at": "2026-11-13",
+  "task": "matmul"
+}
