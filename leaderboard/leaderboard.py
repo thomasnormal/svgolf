@@ -84,10 +84,17 @@ PPA_MAPPED_SCRIPT = os.path.join(SVGOLF, "score", "ppa_mapped.ys")
 # --rescore`. Not in the records: adding a column after the fact would change every record's hash (its identity and its
 # page's address) and need every record re-checked, a player's included, for numbers that are a pure function of
 # the scored netlist the record already pins. See "The ASAP7 view" below and leaderboard/README.md.
-PDKS = ("sky130", "asap7")
+# THE ROUTED COURSE (decided 2026-11-11/12: the front page's course is sky130 or ASAP7 placed and routed): `asap7pnr`
+# ranks on each design's ASAP7 netlist placed and routed by OpenROAD-flow-scripts (leaderboard/asap7pnr/<task>.json,
+# bound to the ASAP7 view's entries above; see "the routed course" below). `asap7` stays a CLI view and the routed
+# course's input and cells-only column.
+PDKS = ("sky130", "asap7", "asap7pnr")
 DEFAULT_PDK = "sky130"
+A7_UNIT_PDKS = ("asap7", "asap7pnr")                 # rows whose area is in 1e-5 um^2, the ASAP7 unit
 PPA_PINS_ASAP7 = os.path.join(SVGOLF, "score", "ppa_pins_asap7.json")
 ASAP7_DIR = os.path.join(HERE, "asap7")
+ASAP7PNR_DIR = os.path.join(HERE, "asap7pnr")
+PNR_PINS = os.path.join(SVGOLF, "score", "pnr", "pins.json")
 EXPECTED_JSON = os.path.join(SVGOLF, "tests", "expected.json")
 
 SCHEMA = "svgolf-leaderboard-record/1"
@@ -1267,14 +1274,18 @@ RANKED_AXES = ("area_um2_sky130", "time_ps")
 RANKED_BY = "area_x_time"
 
 
-def ranked_columns(rec, pdk=DEFAULT_PDK, asap7=None):
+def ranked_columns(rec, pdk=DEFAULT_PDK, asap7=None, asap7pnr=None, pnr_identity=None, task=None):
     """{area_e4um2, time_ps, cycles, period_ps} of a record's ranked score, or None if it has no numeric
     `ppa` block (a record made before the columns, or of a design the pinned flow could not weigh).
     `cycles` and `period_ps` are None for a combinational record. With `pdk` "asap7": {area_e5um2, time_ps, cycles,
     period_ps} from the record's entry in `asap7` (the task's leaderboard/asap7/<task>.json, `load_asap7`), or None
-    without one (`asap7_columns`)."""
+    without one (`asap7_columns`). With `pdk` "asap7pnr" (the routed course): the same keys from the record's BOUND
+    entry in `asap7pnr` (leaderboard/asap7pnr/<task>.json, `load_asap7pnr`; `asap7pnr_columns`, under `task`), else
+    None."""
     if pdk == "asap7":
         return asap7_columns(rec, asap7)
+    if pdk == "asap7pnr":
+        return asap7pnr_columns(rec, asap7, asap7pnr, pins=pnr_identity, task=task)
     b = rec.get(PPA_KEY)
     if not (isinstance(b, dict) and b.get("available") is True):
         return None
@@ -1286,18 +1297,22 @@ def ranked_columns(rec, pdk=DEFAULT_PDK, asap7=None):
             "period_ps": None}
 
 
-def row_of(rec, pdk=DEFAULT_PDK, asap7=None):
+def row_of(rec, pdk=DEFAULT_PDK, asap7=None, asap7pnr=None, pnr_identity=None, task=None):
     """The flat row the ranking works on: the ranked number (`exact`, area x time in 1e-4 um^2 x ps, and
     `um2ns`, the same in the display unit um^2 x ns; `combined.of_record`), its two factors (`area_e4um2`,
     `time_ps`), all None without sky130 columns, and the extra columns (`area_mge`, `depth`, ...). With `pdk` "asap7"
     (the ASAP7 view; `asap7` the task's table, `load_asap7`): the ASAP7 factors instead, `area_e5um2` (1e-5 um^2, the
-    library's own unit) in place of `area_e4um2`, `exact` in 1e-5 um^2 x ps, and `pdk: "asap7"` (`row_area`)."""
-    if pdk == "asap7":
-        ranked = asap7_columns(rec, asap7)
+    library's own unit) in place of `area_e4um2`, `exact` in 1e-5 um^2 x ps, and `pdk: "asap7"` (`row_area`). With
+    `pdk` "asap7pnr" (the routed course; `asap7pnr` the task's routed table, `pnr_identity` the course pins, `task` the
+    task): the same on the routed columns of an entry BOUND under the full rule (`asap7pnr_columns`), all None
+    otherwise (and without `task`), and `pdk: "asap7pnr"`."""
+    if pdk in A7_UNIT_PDKS:
+        ranked = (asap7_columns(rec, asap7) if pdk == "asap7"
+                  else asap7pnr_columns(rec, asap7, asap7pnr, pins=pnr_identity, task=task))
         cols = ranked or {"area_e5um2": None, "time_ps": None, "cycles": None, "period_ps": None}
         exact = combined.exact(cols["area_e5um2"], cols["time_ps"]) if ranked else None
-        um2ns = combined.um2ns(exact, "asap7")
-        cols = dict(cols, pdk="asap7")
+        um2ns = combined.um2ns(exact, pdk)
+        cols = dict(cols, pdk=pdk)
     else:
         ranked = ranked_columns(rec)
         cols = ranked or {"area_e4um2": None, "time_ps": None, "cycles": None, "period_ps": None}
@@ -1311,13 +1326,14 @@ def row_of(rec, pdk=DEFAULT_PDK, asap7=None):
 
 
 def row_pdk(r):
-    """The library a row's ranked columns are of: "asap7" for a row of the ASAP7 view, else sky130."""
+    """The library a row's ranked columns are of: "asap7" for a row of the ASAP7 view, "asap7pnr" for one of the
+    routed course, else sky130."""
     return r.get("pdk") or DEFAULT_PDK
 
 
 def row_area(r):
-    """A row's area in its library's integer unit: `area_e4um2` (sky130) or `area_e5um2` (asap7)."""
-    return r.get("area_e5um2") if row_pdk(r) == "asap7" else r.get("area_e4um2")
+    """A row's area in its library's integer unit: `area_e4um2` (sky130) or `area_e5um2` (asap7, asap7pnr)."""
+    return r.get("area_e5um2") if row_pdk(r) in A7_UNIT_PDKS else r.get("area_e4um2")
 
 
 def has_ranked_columns(r):
@@ -1409,7 +1425,7 @@ def _competition_ranks(rows):
 
 
 def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, statement=None, pdk=DEFAULT_PDK,
-                    asap7=None, asap7_identity=None):
+                    asap7=None, asap7_identity=None, asap7pnr=None, pnr_identity=None):
     """Why `rec` is not ranked on `task`'s board, or None if it is. Pure. In order: scored at another
     point; a LIGHT post-synthesis check (incomplete: never ranked); scored under another flow than the one of the
     task's kind (`kind_flow_mismatch`); checked under another flow than `flow` (given: the current flow of the task's
@@ -1419,7 +1435,9 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, st
     the task's `input_drive` (given); checked under another trusted statement than `statement` (given: the task's
     `current_statement`), or before records named theirs (`statement_mismatch`). The ASAP7 view (`pdk` "asap7"): the
     same up to the flow, then the ASAP7 columns instead of the sky130 ones (`asap7_mismatch` against `asap7`, the
-    task's table, and `asap7_identity`, `asap7_identity()`; `identity` and `input_drive` are not used)."""
+    task's table, and `asap7_identity`, `asap7_identity()`; `identity` and `input_drive` are not used). The routed
+    course (`pdk` "asap7pnr"): the same up to the flow, then the record's routed entry must be bound
+    (`asap7pnr_mismatch` against `asap7`, `asap7pnr` and the course pins `pnr_identity`, `asap7pnr_identity()`)."""
     point = scoring_point(task)
     if rec["score"]["scoring_point"] != point:
         return f"scored at {rec['score']['scoring_point']}, not at {point}"
@@ -1434,6 +1452,8 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, st
         return "checked under another flow (" + ", ".join(flow_mismatch(flow_of(rec), flow)) + " differ)"
     if pdk == "asap7":
         return asap7_mismatch(rec, task, asap7, identity=asap7_identity, flow=flow)
+    if pdk == "asap7pnr":
+        return asap7pnr_mismatch(rec, task, asap7, asap7pnr, a7_identity=asap7_identity, pins=pnr_identity, flow=flow)
     b = rec.get(PPA_KEY)
     if b is None:
         return ("no sky130 columns (a record made before them): not ranked until it is backfilled "
@@ -1450,11 +1470,14 @@ def unranked_reason(rec, task, *, flow=None, identity=None, input_drive=None, st
 
 
 def build_board(task, records, *, flow=None, unassisted=False, identity=None, input_drive=None, statement=None,
-                pdk=DEFAULT_PDK, asap7=None, asap7_identity=None):
+                pdk=DEFAULT_PDK, asap7=None, asap7_identity=None, asap7pnr=None, pnr_identity=None):
     """The board of one task, ranked by area x time (decided 2026-11-05: the one ranked number,
     `combined.py`; the product of RANKED_AXES, the sky130 A0' area and time). With `pdk` "asap7" (the ASAP7 view,
     decided 2026-11-09): the same board on the ASAP7 columns (`asap7`, the task's table, `load_asap7`; `asap7_identity`,
-    `asap7_identity()`), its rows carrying `area_e5um2` (`row_of`), its `ranked_axes` ASAP7_RANKED_AXES. `records` are
+    `asap7_identity()`), its rows carrying `area_e5um2` (`row_of`), its `ranked_axes` ASAP7_RANKED_AXES. With `pdk`
+    "asap7pnr" (the routed course): the same on the routed columns (`asap7pnr`, the task's routed table,
+    `load_asap7pnr`, bound through `asap7`; `pnr_identity`, `asap7pnr_identity()`), its `ranked_axes`
+    ASAP7PNR_RANKED_AXES; a record without a bound routed entry is unranked with the reason. `records` are
     its records (others are ignored); `flow`, if given, is the current pinned flow OF THE TASK'S KIND
     (`current_flow(svgolf, task_flow(task))`: {flow, yosys, canon_script_sha256, script_sha256,
     ge_table_sha256}; a key it lacks is not compared); `identity` (`ppa_identity()`) and
@@ -1472,12 +1495,13 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
     budget = effective_depth_budget(task)
     ranked, unranked = [], []
     for rec in sorted((r for r in records if r["task"] == task["name"]),
-                      key=lambda r: score_key(row_of(r, pdk, asap7))):
+                      key=lambda r: score_key(row_of(r, pdk, asap7, asap7pnr, pnr_identity, task=task))):
         if unassisted and rec["assisted_by"]:
             continue
-        row = row_of(rec, pdk, asap7)
+        row = row_of(rec, pdk, asap7, asap7pnr, pnr_identity, task=task)
         why = unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement,
-                              pdk=pdk, asap7=asap7, asap7_identity=asap7_identity)
+                              pdk=pdk, asap7=asap7, asap7_identity=asap7_identity, asap7pnr=asap7pnr,
+                              pnr_identity=pnr_identity)
         if why:
             unranked.append(dict(row, reason=why))
         else:
@@ -1490,14 +1514,17 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
     for r, k in zip(ranking, _competition_ranks(ranking)):
         r["rank"] = k
         r["over_budget"] = budget is not None and r["depth"] > budget
-    a7 = pdk == "asap7"
+    a7 = pdk in A7_UNIT_PDKS
     board = {"task": task["name"], "title": task.get("title", ""), "scoring_point": point, "pdk": pdk,
-             "ranked_by": RANKED_BY, "ranked_axes": list(ASAP7_RANKED_AXES if a7 else RANKED_AXES),
+             "ranked_by": RANKED_BY,
+             "ranked_axes": list(ASAP7PNR_RANKED_AXES if pdk == "asap7pnr" else ASAP7_RANKED_AXES if a7
+                                 else RANKED_AXES),
              "unit": combined.UNIT_ASCII,
              "depth_budget": budget, "flow_checked": flow is not None,
              "ppa_identity": asap7_identity if a7 else identity,
              "input_drive": ((asap7 or {}).get("identity") or {}).get("input_drive") if a7 else input_drive,
              "statement_checked": statement is not None,
+             **({"pnr_identity": pnr_identity} if pdk == "asap7pnr" else {}),
              "ranking": [dict(r) for r in ranking],
              "frontier": [dict(r) for r in (layers[0] if layers else [])],
              "dominated": [dict(r) for layer in layers[1:] for r in layer],
@@ -1513,14 +1540,16 @@ def build_board(task, records, *, flow=None, unassisted=False, identity=None, in
 
 
 def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=None,
-           reference_player=REFERENCE_PLAYER, statement=None, pdk=DEFAULT_PDK, asap7=None, asap7_identity=None):
+           reference_player=REFERENCE_PLAYER, statement=None, pdk=DEFAULT_PDK, asap7=None, asap7_identity=None,
+           asap7pnr=None, pnr_identity=None):
     """PAR of `task`, the bar to beat: the reference player's record of par's design (`names`: design sha256 ->
     (index, stem), `par_names`: the one design leaderboard/par.json names, decided 2026-11-12) that ranks under `flow`,
     `identity` and `input_drive` (`unranked_reason`, as on the board), with its area x time (leaderboard/combined.py:
     the ONE ranked number); None when there is none. Pure. Two records of that design (two proofs of it) have the same
     product; a tie goes to the index `names` gives, then to `row_key`. Returns the record's row plus `name` (the
     stem `names` gives), `exact` (in 1e-4 um^2 x ps) and `um2ns` (the display unit). With `pdk` "asap7": par of the
-    ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule). Only a design in
+    ASAP7 view, by the ASAP7 product (`exact` in 1e-5 um^2 x ps; `unranked_reason`'s ASAP7 rule); with "asap7pnr", par of
+    the routed course: the same design's routed product, None while it has no bound routed entry. Only a design in
     `names` counts: a record of the reference player of any other design is never par, and without `names` there is
     none."""
     names = names or {}
@@ -1531,9 +1560,10 @@ def par_of(task, records, *, flow=None, identity=None, input_drive=None, names=N
         if _get(rec, "files", "sv", "sha256") not in names:
             continue
         if unranked_reason(rec, task, flow=flow, identity=identity, input_drive=input_drive, statement=statement,
-                           pdk=pdk, asap7=asap7, asap7_identity=asap7_identity):
+                           pdk=pdk, asap7=asap7, asap7_identity=asap7_identity, asap7pnr=asap7pnr,
+                           pnr_identity=pnr_identity):
             continue
-        row = row_of(rec, pdk, asap7)
+        row = row_of(rec, pdk, asap7, asap7pnr, pnr_identity, task=task)
         exact = row["exact"]
         if exact is None:
             continue
@@ -1609,7 +1639,7 @@ def fmt_um2_e5(e5):
 
 def fmt_area(r):
     """A row's area as exact decimal um^2 text, in its library's unit (`row_area`); '-' without it."""
-    return fmt_um2_e5(r.get("area_e5um2")) if row_pdk(r) == "asap7" else fmt_um2(r.get("area_e4um2"))
+    return fmt_um2_e5(r.get("area_e5um2")) if row_pdk(r) in A7_UNIT_PDKS else fmt_um2(r.get("area_e4um2"))
 
 
 def fmt_time(r):
@@ -1628,7 +1658,7 @@ def fmt_adp(r):
     if r.get("exact") is None:
         return "-"
     v = combined.um2ns(r["exact"], row_pdk(r))
-    return f"{v:.2f}" if row_pdk(r) != "asap7" else f"{v:.4f}"     # ASAP7 scores are ~250x smaller: 4 decimals
+    return f"{v:.2f}" if row_pdk(r) not in A7_UNIT_PDKS else f"{v:.4f}"   # ASAP7 scores are ~250x smaller: 4 decimals
 
 
 ADP_HEAD = f"area x time ({combined.UNIT_ASCII})"
@@ -1651,6 +1681,8 @@ def render_markdown(board, level=2):
     lines.append("")
     if board.get("pdk") == "asap7":
         lines += [ASAP7_BOARD_NOTE, ""]
+    if board.get("pdk") == "asap7pnr":
+        lines += [ASAP7PNR_BOARD_NOTE, ""]
     if "par" in board:          # (`_boards` sets it; a board built by `build_board` alone has no par line)
         lines += [par_line(board["par"]), ""]
     if not board["ranking"]:
@@ -1708,6 +1740,12 @@ def render_export(boards, pdk=DEFAULT_PDK):
                  "`leaderboard/data/` and their ASAP7 columns under `leaderboard/asap7/`. The same boards ranked by "
                  "area x time on the ASAP7 library instead of sky130 (a view a reader may choose; sky130 is the "
                  "default and the records' own columns).", ""]
+    if pdk == "asap7pnr":
+        parts = ["# svGolf leaderboard: the routed course, ASAP7 placed and routed", "",
+                 "Generated by `leaderboard/leaderboard.py export --pdk asap7pnr` from the records under "
+                 "`leaderboard/data/` and their routed results under `leaderboard/asap7pnr/`. The boards of the second "
+                 "course, ranked by area x time of each design's ASAP7 netlist placed and routed; a record without a "
+                 "bound routed result is not ranked here until its run is made.", ""]
     parts += [render_markdown(b, 2) for b in boards]
     return "\n".join(parts).rstrip("\n") + "\n"
 
@@ -1728,7 +1766,7 @@ ADP_TEXT_HEAD = f"area x time {combined.UNIT_ASCII}"
 def render_pareto_text(board):
     lines = []
     point = ", ".join(f"{k}={v}" for k, v in board["scoring_point"].items()) or "fixed size"
-    lib = "ASAP7" if board.get("pdk") == "asap7" else "sky130"
+    lib = {"asap7": "ASAP7", "asap7pnr": "ASAP7 placed and routed"}.get(board.get("pdk"), "sky130")
     lines.append(f"{board['task']}: Pareto frontier of ({lib} area, time) at {point} "
                  f"({len(board['frontier'])} of {len(board['ranking'])} ranked records), {PARETO_EXPLORATION}")
     if "par" in board:
@@ -2269,6 +2307,459 @@ def asap7_check(task, table, designs, *, identity=None, flow=None, rescore=None)
                      if e.get(k) != got.get(k)]
             fails += diffs
     return fails, notes
+
+
+# ---------------------------------------------------------------------------
+# the routed course: ASAP7 placed and routed (decided 2026-11-11/12)
+# ---------------------------------------------------------------------------
+#
+# The front page's second course (2026-11-11: "a dropdown on the front page, to choose your 'The course' between sky130
+# and asap7 with pnr"; 2026-11-12: "with Asap7 we should be using PNR ... show the generated images in the schematic
+# section of each submission"). Each design's ASAP7 netlist (the ASAP7 view's repaired netlist above, `repaired_sha256`)
+# is placed and routed by OpenROAD-flow-scripts from one pinned image (score/pnr/pins.json: the image digests, the flow
+# `min_v1` and its variables, threads, memory cap, the renderers' sha256), ONE run per design at the seed its request
+# names (2026-11-11: "one random seed, unless a fixed seed is supplied"; every design measured so far: seed 1). The
+# score is that run's area (the routed netlist's cells by the liberty, exact in 1e-5 um^2) times its time (the clock
+# period minus the worst setup slack with the wires extracted, half-even to ps; cycles x that on a clocked task).
+#
+# The results live in leaderboard/asap7pnr/<task>.json (ASAP7PNR_SCHEMA), one entry per design file, derived data
+# outside every record hash like leaderboard/asap7/ (written by `asap7pnr --import`; the run itself happens on a course
+# host and is not part of this file). An entry is shown only when BOUND (`asap7pnr_status`): its design file's sha256 is
+# the design's, its placed netlist is the ASAP7 view entry's repaired netlist (and that entry is bound to the record,
+# `asap7_binding_problems`), the file's `asap7_view` is the current ASAP7 view's identity and ppa.py hash, its course
+# block equals the pins, and its scoring run is valid. Otherwise the design is "pending" (no run yet), "failed",
+# "stale" or "unbound", with the reason, and NO routed number is shown for it: never a stale one, never a cell-level one
+# in its place. Its layout picture (site/layouts/<task>/<sv16>.webp, a 640 px thumbnail beside it) is the scoring run's.
+
+ASAP7PNR_SCHEMA = "svgolf-asap7pnr/2"
+ASAP7PNR_RANKED_AXES = ("area_um2_asap7pnr", "time_ps")
+PNR_LAYOUTS = "site/layouts"                     # the pictures, relative to svgolf/: site/layouts/<task>/<sv16>.webp
+PNR_TOP_KEYS = {"schema", "task", "scoring_point", "asap7_view", "course", "designs"}
+# what makes a routed result comparable with one made now (score/pnr/pins.json `course`); the other course keys
+# (`scoring_host`, `ranked`, `variants`, `pictures`) describe it
+PNR_PINNED = ("area_rule", "cpu_affinity", "flow", "image", "memory_cap_gb", "orfs_variables", "platform", "renderers",
+              "threads", "time_rule", "validity_rule")
+PNR_COURSE_KEYS = set(PNR_PINNED) | {"scoring_host", "ranked", "variants", "pictures"}
+PNR_ENTRY_KEYS = {"sv_sha256", "of", "record", "netlist_sha256", "scored_netlist_sha256", "cycles", "a0_asap7",
+                  "request", "runs", "scores", "status", "layout"}
+PNR_REQUEST_KEYS = {"source", "seed", "settings", "settings_sha256"}
+PNR_REQUEST_SOURCES = ("default", "record", "drawn")     # seed 1 for the designs measured before seeds were named
+PNR_RUN_KEYS = {"seed", "role", "status", "settings_sha256", "config_mk_sha256", "sdc_sha256", "io_tcl_sha256", "host",
+                "measured_at", "seconds", "peak_mb"}
+PNR_RUN_OK_KEYS = PNR_RUN_KEYS | {"orfs", "area_e5um2", "delay_ps", "time_ps", "exact", "drc", "lec", "drv",
+                                  "hold_violations", "artifacts", "cells_in", "cells_out", "wire_um"}
+PNR_ROLES = {"scoring": 0, "spread": 1, "verification": 2}
+PNR_ARTIFACTS = {"1_2_yosys.v", "6_final.def", "6_final.v", "6_final.spef(normalized)", "6_final.odb",
+                 "2_floorplan.odb", "3_place.odb", "4_cts.odb", "5_route.odb"}
+PNR_LAYOUT_KEYS = {"image", "image_sha256", "image_px", "image_bytes", "webp_quality", "thumb", "thumb_sha256",
+                   "thumb_px", "thumb_bytes", "render_png_sha256", "render_png_px", "run_seed", "odb_sha256", "die_um",
+                   "core_um", "view", "caption"}
+PNR_LEC_OK = "6_final:IDENTICAL"                 # the flow's equivalence check, its positive line (never its absence)
+PNR_SEED_MAX = 2 ** 31 - 1
+PNR_PICTURE_MAX_BYTES = 300_000
+PNR_PICTURE_MAX_SIDE = 1600
+PNR_THUMB_SIDE = 640
+# the words a design without a bound routed result shows, by its status (public text: the site shows them)
+PNR_PENDING = "not routed yet: place and route pending"
+ASAP7PNR_BOARD_NOTE = ("Course: ASAP7 placed and routed (decided 2026-11-11/12): each design's ASAP7 netlist placed and "
+                       "routed by OpenROAD-flow-scripts from one pinned image (score/pnr/pins.json), one run at the "
+                       "seed its request names; area = the routed netlist's cells, time = the clock period minus the "
+                       "worst setup slack with the wires extracted (x cycles on a clocked task). The results are "
+                       "`leaderboard/asap7pnr/<task>.json`; a record without a bound result is not ranked here.")
+
+
+def asap7pnr_identity(pins_path=PNR_PINS):
+    """The routed course's pins (score/pnr/pins.json `course`: exactly PNR_PINNED), or None if they cannot be read."""
+    try:
+        with open(pins_path, encoding="utf-8") as fh:
+            course = json.load(fh)["course"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return course if isinstance(course, dict) and set(course) == set(PNR_PINNED) else None
+
+
+def asap7pnr_path(task_name, pnr_dir=ASAP7PNR_DIR):
+    return os.path.join(pnr_dir, f"{task_name}.json")
+
+
+def pnr_settings_sha256(settings):
+    """The sha256 of a request's settings as the course records it (sorted keys, no spaces)."""
+    return sha256_bytes(json.dumps(settings, sort_keys=True, separators=(",", ":")).encode())
+
+
+def _half_even(x):
+    from decimal import ROUND_HALF_EVEN, Decimal
+    return int(Decimal(x).quantize(Decimal(1), rounding=ROUND_HALF_EVEN))
+
+
+def webp_size(data):
+    """(width, height) of a WebP picture from its header (VP8, VP8L or VP8X), or None for anything else."""
+    if len(data) < 30 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        return None
+    kind = data[12:16]
+    if kind == b"VP8X":
+        return (1 + int.from_bytes(data[24:27], "little"), 1 + int.from_bytes(data[27:30], "little"))
+    if kind == b"VP8 " and data[23:26] == b"\x9d\x01\x2a":
+        return (int.from_bytes(data[26:28], "little") & 0x3FFF, int.from_bytes(data[28:30], "little") & 0x3FFF)
+    if kind == b"VP8L" and data[20] == 0x2F:
+        b = int.from_bytes(data[21:25], "little")
+        return (1 + (b & 0x3FFF), 1 + ((b >> 14) & 0x3FFF))
+    return None
+
+
+def _pnr_run_problems(r, e):
+    """What is wrong with one run of an entry (`asap7pnr_file_problems`). Pure."""
+    from decimal import Decimal, InvalidOperation
+    want = PNR_RUN_OK_KEYS if r.get("status") == "ok" else PNR_RUN_KEYS | {"error"}
+    if set(r) != want:
+        return [f"keys {sorted(set(r) ^ want)} unexpected or missing"]
+    p = []
+    if r["role"] not in PNR_ROLES:
+        p.append(f"role {r['role']!r} is not scoring, spread or verification")
+    if not (_nat(r["seed"]) and 1 <= r["seed"] <= PNR_SEED_MAX):
+        p.append("seed is not an integer in 1..2^31-1")
+    for h in ("settings_sha256", "config_mk_sha256", "sdc_sha256"):
+        if not (isinstance(r[h], str) and SHA_RE.fullmatch(r[h])):
+            p.append(f"{h} is not a sha256")
+    if r["settings_sha256"] != (e.get("request") or {}).get("settings_sha256"):
+        p.append("settings_sha256 is not the request's")
+    if r["status"] != "ok":
+        return p
+    if r["drc"] != 0 or r["lec"] != [PNR_LEC_OK]:
+        p.append(f"a valid run has detailed-route DRC 0 and the equivalence check's {PNR_LEC_OK}")
+    if not all(_nat(r[k]) for k in ("area_e5um2", "delay_ps", "time_ps", "exact")):
+        return p + ["area_e5um2, delay_ps, time_ps and exact must be non-negative integers"]
+    o, a0 = r["orfs"], e.get("a0_asap7") or {}
+    try:
+        period, ws, pmin = Decimal(o["sdc_period"]), Decimal(o["setup_ws"]), Decimal(o["period_min"])
+        std, tap = Decimal(o["area_stdcell"]), Decimal(o["area_tap_cell"] or "0")
+    except (KeyError, TypeError, InvalidOperation):
+        return p + ["orfs must carry sdc_period, setup_ws, period_min, area_stdcell and area_tap_cell as decimal text"]
+    if period != Decimal(a0.get("delay_ps", -1)):
+        p.append("the SDC period is not the ASAP7 view's delay (a0_asap7.delay_ps)")
+    if _half_even(period - ws) != r["delay_ps"] or abs(period - ws - pmin) > Decimal("0.01"):
+        p.append("delay_ps is not half-even(sdc_period - setup_ws), or that is not ORFS's period_min")
+    half = Decimal(1).scaleb(std.as_tuple().exponent) / 2
+    if abs(Decimal(r["area_e5um2"]) / 100000 - (std - tap)) > half + Decimal("0.000005"):
+        p.append("area_e5um2 is beyond ORFS's printed precision of area_stdcell - area_tap_cell")
+    if r["time_ps"] != r["delay_ps"] * (e.get("cycles") or 1) or r["exact"] != r["area_e5um2"] * r["time_ps"]:
+        p.append("time_ps is not cycles x delay_ps, or exact is not area_e5um2 x time_ps")
+    arts = r["artifacts"]
+    if not (isinstance(arts, dict) and set(arts) == PNR_ARTIFACTS
+            and all(isinstance(v, str) and SHA_RE.fullmatch(v) for v in arts.values())):
+        p.append("artifacts must be the nine files' sha256")
+    elif arts["1_2_yosys.v"] != e.get("netlist_sha256"):
+        p.append("the placed netlist (1_2_yosys.v) is not the entry's netlist_sha256")
+    return p
+
+
+def _pnr_scores(e):
+    """An entry's scores as its runs give them: {v_owner: the run at the request's seed (THE score), v_median: the
+    middle of seeds 1-3 by (exact, seed) where three valid runs exist (an unranked extra)}, and its status."""
+    from decimal import ROUND_HALF_EVEN, Decimal
+    runs = [r for r in e.get("runs") or [] if isinstance(r, dict)]
+    scoring = next((r for r in runs if r.get("role") == "scoring"), None)
+    status = "pending" if scoring is None else ("measured" if scoring.get("status") == "ok" else "failed")
+    vo = None
+    if status == "measured":
+        vo = {"seed": scoring["seed"], "area_e5um2": scoring["area_e5um2"], "time_ps": scoring["time_ps"],
+              "exact": scoring["exact"], "um2ns": scoring["exact"] / 1e8}
+    ok = [r for r in runs if r.get("role") in ("scoring", "spread") and r.get("status") == "ok"]
+    vm = None
+    if len(ok) == 3:
+        o3 = sorted(ok, key=lambda r: (r["exact"], r["seed"]))
+        spread = (Decimal(o3[2]["exact"] - o3[0]["exact"]) * 100 / o3[1]["exact"]).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+        vm = {"seeds": sorted(r["seed"] for r in ok), "median_seed": o3[1]["seed"],
+              "area_e5um2": o3[1]["area_e5um2"], "time_ps": o3[1]["time_ps"], "exact": o3[1]["exact"],
+              "um2ns": o3[1]["exact"] / 1e8, "spread_pct": f"{spread:.2f}"}
+    return {"v_owner": vo, "v_median": vm}, status
+
+
+def _pnr_entry_problems(e, task):
+    """What is wrong with one entry of a routed table (`asap7pnr_file_problems`). Pure."""
+    p = []
+    for h in ("sv_sha256", "netlist_sha256", "scored_netlist_sha256"):
+        if not (isinstance(e[h], str) and SHA_RE.fullmatch(e[h])):
+            p.append(f"{h} is not a sha256")
+    of = e["of"]
+    if not (isinstance(of, list) and of and all(isinstance(x, str) and ASAP7_OF_RE.fullmatch(x) for x in of)
+            and of == sorted(set(of))):
+        p.append("`of` must be a sorted, non-empty list of record:<hash>, reference:<stem>, baseline:<stem>")
+    else:
+        recs = [x[len("record:"):] for x in of if x.startswith("record:")]
+        if e["record"] != (recs[0] if recs else None):
+            p.append("`record` is not the record `of` names")
+    cycles = e["cycles"]
+    if cycles is not None and not (_nat(cycles) and cycles >= 1):
+        p.append("cycles is neither null nor a positive integer")
+    a0 = e["a0_asap7"]
+    if not (isinstance(a0, dict) and set(a0) == {"area_e5um2", "delay_ps", "time_ps"} and all(_nat(v) for v in a0.values())):
+        p.append("a0_asap7 must be {area_e5um2, delay_ps, time_ps}, non-negative integers")
+    elif a0["time_ps"] != a0["delay_ps"] * (cycles or 1):
+        p.append("a0_asap7.time_ps is not cycles x delay_ps")
+    rq, seed = e["request"], None
+    if not (isinstance(rq, dict) and set(rq) == PNR_REQUEST_KEYS):
+        p.append("request must be exactly {source, seed, settings, settings_sha256}")
+    else:
+        seed = rq["seed"] if _nat(rq["seed"]) and 1 <= rq["seed"] <= PNR_SEED_MAX else None
+        if seed is None:
+            p.append("the request's seed is not an integer in 1..2^31-1")
+        if rq["source"] not in PNR_REQUEST_SOURCES or (rq["source"] == "default" and rq["seed"] != 1):
+            p.append("the request's source is not default (seed 1), record or drawn")
+        if not isinstance(rq["settings"], dict) or rq["settings_sha256"] != pnr_settings_sha256(rq["settings"]):
+            p.append("the request's settings_sha256 is not its settings' sha256")
+    runs = e["runs"]
+    if not (isinstance(runs, list) and all(isinstance(r, dict) for r in runs)):
+        return p + ["runs is not a list of objects"]
+    roles = [(r.get("role"), r.get("seed")) for r in runs]
+    if any(role not in PNR_ROLES or not _nat(s) for role, s in roles) or roles != sorted(
+            roles, key=lambda x: (PNR_ROLES[x[0]], x[1])):
+        p.append("runs are not in order: the scoring run, the spread runs by seed, then the verification runs")
+    if sum(1 for role, _ in roles if role == "scoring") > 1:
+        p.append("more than one scoring run")
+    for i, r in enumerate(runs):
+        p += [f"runs[{i}]: {x}" for x in _pnr_run_problems(r, e)]
+        if r.get("role") == "spread" and seed is not None and r.get("seed") == seed:
+            p.append(f"runs[{i}]: a spread run at the request's seed")
+        if r.get("role") == "scoring" and seed is not None and r.get("seed") != seed:
+            p.append(f"runs[{i}]: the scoring run is not at the request's seed")
+    if p:
+        return p
+    scores, status = _pnr_scores(e)
+    if e["status"] != status:
+        p.append(f"status is {e['status']!r}, its runs make it {status!r}")
+    if e["scores"] != scores:
+        p.append("scores are not the ones its runs give (v_owner: the run at the request's seed; v_median: the middle "
+                 "of three seeds)")
+    L = e["layout"]
+    if L is None:
+        if status == "measured":
+            p.append("a measured design without its layout picture")
+        return p
+    if not (isinstance(L, dict) and set(L) == PNR_LAYOUT_KEYS):
+        return p + [f"layout keys must be exactly {', '.join(sorted(PNR_LAYOUT_KEYS))}"]
+    scoring = next(r for r in runs if r["role"] == "scoring")
+    if status != "measured" or L["run_seed"] != scoring["seed"] or L["odb_sha256"] != scoring["artifacts"]["6_final.odb"]:
+        p.append("the picture is not of the scoring run (its seed, its 6_final.odb)")
+    if f"seed {scoring['seed']}" not in str(L["caption"]) or "scored" not in str(L["caption"]):
+        p.append("the caption does not name the scored run and its seed")
+    sv16 = e["sv_sha256"][:16]
+    for key, want in (("image", f"{PNR_LAYOUTS}/{task}/{sv16}.webp"), ("thumb", f"{PNR_LAYOUTS}/{task}/{sv16}.thumb.webp")):
+        if L[key] != want:
+            p.append(f"layout.{key} is {L[key]!r}, not {want!r}")
+        px, size = L[f"{key}_px"], L[f"{key}_bytes"]
+        if not (isinstance(L[f"{key}_sha256"], str) and SHA_RE.fullmatch(L[f"{key}_sha256"])):
+            p.append(f"layout.{key}_sha256 is not a sha256")
+        if not (isinstance(px, list) and len(px) == 2 and all(_nat(v) and v > 0 for v in px)):
+            p.append(f"layout.{key}_px is not [width, height]")
+        elif max(px) > (PNR_THUMB_SIDE if key == "thumb" else PNR_PICTURE_MAX_SIDE) or (key == "thumb" and max(px) != PNR_THUMB_SIDE):
+            p.append(f"layout.{key}_px {px}: the long side must be {PNR_THUMB_SIDE} for a thumbnail, at most "
+                     f"{PNR_PICTURE_MAX_SIDE} for the picture")
+        if not (_nat(size) and 0 < size <= PNR_PICTURE_MAX_BYTES):
+            p.append(f"layout.{key}_bytes is not 1..{PNR_PICTURE_MAX_BYTES:,}")
+    return p
+
+
+def asap7pnr_file_problems(data, task_name=None):
+    """What is wrong with the contents of a leaderboard/asap7pnr/<task>.json (a list of strings; [] for a good file).
+    Pure: the shape, the order, and every number that the file itself determines (the delay from ORFS's raw texts,
+    half-even; the area within ORFS's printed precision; time, exact; the scores from the runs; the picture of the
+    scoring run, its in-tree path and sizes; one picture per netlist). Whether the entries are bound to the task's designs
+    is `asap7pnr_status`'s, the picture files' bytes `asap7pnr_picture_problems`'s."""
+    if not isinstance(data, dict):
+        return ["not a JSON object"]
+    p = []
+    keys = {k for k in data if not k.startswith("_")}
+    if keys != PNR_TOP_KEYS:
+        p.append(f"keys {sorted(keys ^ PNR_TOP_KEYS)} unexpected or missing")
+    if data.get("schema") != ASAP7PNR_SCHEMA:
+        p.append(f"schema is {data.get('schema')!r}, not {ASAP7PNR_SCHEMA!r}")
+    if task_name is not None and data.get("task") != task_name:
+        p.append(f"task is {data.get('task')!r}, not {task_name!r}")
+    if not isinstance(data.get("scoring_point"), dict):
+        p.append("scoring_point must be an object")
+    av = data.get("asap7_view")
+    if not (isinstance(av, dict) and set(av) == {"identity", "ppa_script_sha256"} and isinstance(av["identity"], dict)
+            and set(av["identity"]) == set(ASAP7_IDENTITY) and all(isinstance(v, str) for v in av["identity"].values())
+            and isinstance(av["ppa_script_sha256"], str) and SHA_RE.fullmatch(av["ppa_script_sha256"])):
+        p.append("asap7_view must be {identity: the ASAP7 view's identity, ppa_script_sha256}")
+    course = data.get("course")
+    if not (isinstance(course, dict) and set(course) == PNR_COURSE_KEYS and course.get("ranked") == "v_owner"):
+        p.append(f"course must name exactly {', '.join(sorted(PNR_COURSE_KEYS))}, ranked v_owner")
+    designs = data.get("designs")
+    if not isinstance(designs, list):
+        return p + ["designs is not a list"]
+    shas = [e.get("sv_sha256") for e in designs if isinstance(e, dict)]
+    if shas != sorted(x for x in shas if isinstance(x, str)) or len(set(shas)) != len(shas):
+        p.append("designs are not in sv_sha256 order, or a design file is listed twice")
+    picture = {}
+    for k, e in enumerate(designs):
+        if not isinstance(e, dict) or set(e) != PNR_ENTRY_KEYS:
+            p.append(f"designs[{k}]: keys must be exactly {', '.join(sorted(PNR_ENTRY_KEYS))}")
+            continue
+        where = f"designs[{k}] ({str(e['sv_sha256'])[:12]})"
+        p += [f"{where}: {x}" for x in _pnr_entry_problems(e, data.get("task"))]
+        if isinstance(e["layout"], dict) and isinstance(e["netlist_sha256"], str):
+            if picture.setdefault(e["netlist_sha256"], e["layout"].get("render_png_sha256")) \
+                    != e["layout"].get("render_png_sha256"):
+                p.append(f"{where}: two pictures for one netlist")
+    return p
+
+
+def read_asap7pnr(task_name, pnr_dir=ASAP7PNR_DIR):
+    """(the task's routed table, None), (None, why) for a file that cannot be read, is not in its deterministic form
+    (`json.dumps(indent=1, sort_keys=True)` + newline, as written) or is malformed, or (None, None) when the task has
+    none."""
+    path = asap7pnr_path(task_name, pnr_dir)
+    if not os.path.isfile(path):
+        return None, None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        data = json.loads(text)
+    except (OSError, ValueError) as e:
+        return None, f"{os.path.relpath(path, SVGOLF)}: not JSON: {e}"
+    bad = asap7pnr_file_problems(data, task_name)
+    if text != json.dumps(data, indent=1, sort_keys=True) + "\n":
+        bad = ["not in its written form (json.dumps(indent=1, sort_keys=True) and a newline)"] + bad
+    if bad:
+        return None, f"{os.path.relpath(path, SVGOLF)}: " + "; ".join(bad[:5])
+    return data, None
+
+
+def load_asap7pnr(task_name, pnr_dir=ASAP7PNR_DIR, warn=None):
+    """The task's routed table (`read_asap7pnr`), or None (`warn` is told why, for a file that is there but bad)."""
+    data, why = read_asap7pnr(task_name, pnr_dir)
+    if why and warn:
+        warn(f"{why}: its routed results are not used")
+    return data
+
+
+def asap7pnr_entry(table, sv_sha256):
+    """The entry of a routed table for the design file with this sha256, or None."""
+    if not isinstance(table, dict):
+        return None
+    return next((e for e in table.get("designs") or [] if e.get("sv_sha256") == sv_sha256), None)
+
+
+def asap7pnr_table_mismatch(table, a7_table, *, task=None, pins=None):
+    """Why a routed table as a whole is STALE (another scoring point than `task`'s, another ASAP7 view than `a7_table`'s
+    identity and ppa.py hash, another course than the pins `pins`), or None. Pure."""
+    if task is not None and table.get("scoring_point") != scoring_point(task):
+        return f"stale: routed at {table.get('scoring_point')}, the task's scoring point is {scoring_point(task)}"
+    view = {"identity": (a7_table or {}).get("identity"), "ppa_script_sha256": (a7_table or {}).get("ppa_script_sha256")}
+    if a7_table is not None and table.get("asap7_view") != view:
+        return "stale: routed from another ASAP7 view (identity or ppa.py) than the current one"
+    if pins is not None:
+        diff = sorted(k for k in PNR_PINNED if (table.get("course") or {}).get(k) != pins.get(k))
+        if diff:
+            return "stale: routed under another image, flow or settings than the pinned ones (" + ", ".join(diff) + ")"
+    return None
+
+
+def asap7pnr_status(table, a7_table, sv_sha256, *, task=None, pins=None):
+    """(status, reason, entry) of one design file on the routed course. "bound" (reason None): its entry is shown.
+    Else no routed number is shown: "pending" (no routed table or no entry for the file: PNR_PENDING; or an entry whose
+    scoring run is not made yet), "failed" (its scoring run did not pass), "stale" (`asap7pnr_table_mismatch`, or a
+    request with settings the course does not take yet) or "unbound" (the ASAP7 view has no entry for the file, or the
+    entry's placed or scored netlist or cycles are not that entry's). Pure."""
+    if table is None:
+        return "pending", PNR_PENDING, None
+    e = asap7pnr_entry(table, sv_sha256)
+    if e is None:
+        return "pending", PNR_PENDING, None
+    stale = asap7pnr_table_mismatch(table, a7_table, task=task, pins=pins)
+    if stale:
+        return "stale", stale, e
+    a7 = asap7_entry(a7_table, sv_sha256)
+    if a7 is None:
+        return "unbound", "unbound: the ASAP7 view has no netlist of this design to bind its routed result to", e
+    if (e.get("netlist_sha256"), e.get("scored_netlist_sha256"), e.get("cycles")) != (
+            a7.get("repaired_sha256"), a7.get("netlist_sha256"), a7.get("cycles")):
+        return "unbound", "unbound: its routed netlist is not this design's ASAP7 netlist", e
+    if (e.get("request") or {}).get("settings") != {}:
+        return "stale", "stale: routed with layout settings the course does not take yet", e
+    if e.get("status") == "pending":
+        return "pending", PNR_PENDING, e
+    vo = (e.get("scores") or {}).get("v_owner")
+    if e.get("status") != "measured" or vo is None:
+        return "failed", "place and route failed: its run did not finish with DRC 0 and an identical netlist", e
+    return "bound", None, e
+
+
+def asap7pnr_columns(rec, a7_table, table, pins=None, task=None):
+    """{area_e5um2, time_ps, cycles, period_ps} of a record on the routed course (`cycles`, `period_ps` None for a
+    combinational record, as `ranked_columns`): its scoring run's, from its entry in `table` when the record's ASAP7
+    view entry is bound to it (`asap7_binding_problems`) and its routed entry is BOUND under the full rule
+    (`asap7pnr_status` with `task`, the table's scoring point included, as `unranked_reason` applies it); else None.
+    Without `task` the rule cannot be applied in full, so there is no routed number."""
+    if task is None:
+        return None
+    sha = ((rec.get("files") or {}).get("sv") or {}).get("sha256")
+    a7 = asap7_entry(a7_table, sha)
+    if a7 is None or asap7_binding_problems(a7, rec):
+        return None
+    status, _why, e = asap7pnr_status(table, a7_table, sha, task=task, pins=pins)
+    if status != "bound":
+        return None
+    vo = e["scores"]["v_owner"]
+    run = next(r for r in e["runs"] if r["role"] == "scoring")
+    clocked = e["cycles"] is not None
+    return {"area_e5um2": vo["area_e5um2"], "time_ps": vo["time_ps"], "cycles": e["cycles"] if clocked else None,
+            "period_ps": run["delay_ps"] if clocked else None}
+
+
+def asap7pnr_mismatch(rec, task, a7_table, table, *, a7_identity=None, pins=None, flow=None):
+    """Why `rec` has no routed score on the routed course (the course's half of `unranked_reason`), or None. Pure."""
+    why = asap7_mismatch(rec, task, a7_table, identity=a7_identity, flow=flow)
+    if why:
+        return f"not routed: no ASAP7 netlist bound to it ({why})"
+    status, reason, _e = asap7pnr_status(table, a7_table, rec["files"]["sv"]["sha256"], task=task, pins=pins)
+    return None if status == "bound" else reason
+
+
+def asap7pnr_picture_problems(entry, root=SVGOLF):
+    """Where an entry's layout picture and thumbnail (site/layouts/<task>/) are not the files it records: missing, or
+    another sha256, size or pixel size (from the WebP header). [] for an entry without a picture."""
+    L, p = entry.get("layout"), []
+    if not isinstance(L, dict):
+        return p
+    for key in ("image", "thumb"):
+        path = os.path.join(root, *str(L.get(key, "")).split("/"))
+        try:
+            with open(path, "rb") as fh:
+                data = fh.read()
+        except OSError:
+            p.append(f"{L.get(key)}: missing")
+            continue
+        if sha256_bytes(data) != L.get(f"{key}_sha256") or len(data) != L.get(f"{key}_bytes") \
+                or list(webp_size(data) or ()) != L.get(f"{key}_px"):
+            p.append(f"{L.get(key)}: not the picture the entry records (sha256, bytes or pixel size)")
+    return p
+
+
+def asap7pnr_check(task, a7_table, table, designs, *, pins=None, root=SVGOLF):
+    """Check a task's routed table against the designs the course shows (`asap7_designs`, the ASAP7 view's set):
+    (fails, notes, {status: [design tags]}). FAIL: a design that is "failed", "stale" or "unbound", or a picture that is
+    not its file. Notes (not failures): a design not routed yet ("pending": the course is filled after the record), an
+    entry for no design of the task now (never shown)."""
+    fails, notes, by = [], [], {}
+    for sha in sorted(designs):
+        who = ", ".join(designs[sha]["of"])
+        status, why, e = asap7pnr_status(table, a7_table, sha, task=task, pins=pins)
+        by.setdefault(status, []).append(who)
+        if status == "pending":
+            notes.append(f"{who}: {why}")
+        elif status != "bound":
+            fails.append(f"{who}: {why}")
+        if status == "bound":
+            fails += [f"{who}: {x}" for x in asap7pnr_picture_problems(e, root)]
+    for e in (table or {}).get("designs") or []:
+        if e["sv_sha256"] not in designs:
+            notes.append(f"an entry for no design of the task now ({', '.join(e['of'])}, {e['sv_sha256'][:12]}): "
+                         "never shown")
+    return fails, notes, by
 
 
 def build_axes_view(task, records, axes, *, flow=None, identity=None, mapped_identity=None, unassisted=False,
@@ -3265,11 +3756,13 @@ def cmd_verify(args):
 def _boards(args, names, unassisted=False):
     """The boards of `names`, ranked under the current flow and sky130 identity and each task's input drive
     (`--all-flows`: none of them checked; a record without sky130 columns is never ranked). `--pdk asap7`: the boards
-    of the ASAP7 view (leaderboard/asap7/<task>.json, under the current ASAP7 identity unless `--all-flows`)."""
+    of the ASAP7 view (leaderboard/asap7/<task>.json, under the current ASAP7 identity unless `--all-flows`); `--pdk
+    asap7pnr`: the routed course's (leaderboard/asap7pnr/<task>.json, under the course pins unless `--all-flows`)."""
     pdk = getattr(args, "pdk", DEFAULT_PDK)
     flows = None if args.all_flows else current_flows()
     identity = None if args.all_flows else ppa_identity()
     a7_identity = None if args.all_flows else asap7_identity()
+    pins = None if args.all_flows else asap7pnr_identity()
     records = good_records(load_records(args.data_dir), warn=lambda m: print(m, file=sys.stderr))
     out = []
     for n in names:
@@ -3279,14 +3772,17 @@ def _boards(args, names, unassisted=False):
         drive = None if args.all_flows else ppa_setup_now(task).get("input_drive")
         statement = None if args.all_flows else current_statement_or_none(task)
         a7 = (load_asap7(n, getattr(args, "asap7_dir", ASAP7_DIR), warn=lambda m: print(m, file=sys.stderr))
-              if pdk == "asap7" else None)
+              if pdk in A7_UNIT_PDKS else None)
+        pnr = (load_asap7pnr(n, getattr(args, "asap7pnr_dir", ASAP7PNR_DIR), warn=lambda m: print(m, file=sys.stderr))
+               if pdk == "asap7pnr" else None)
         board = build_board(task, mine, flow=flow, unassisted=unassisted, identity=identity, input_drive=drive,
-                            statement=statement, pdk=pdk, asap7=a7, asap7_identity=a7_identity)
+                            statement=statement, pdk=pdk, asap7=a7, asap7_identity=a7_identity, asap7pnr=pnr,
+                            pnr_identity=pins)
         # par: the reference player's record of par's design, if it ranks here (whatever `unassisted` says: par is
         # the bar, not an entry)
         board["par"] = par_of(task, mine, flow=flow, identity=identity, input_drive=drive,
                               names=par_names(args.tasks_dir, task), statement=statement, pdk=pdk, asap7=a7,
-                              asap7_identity=a7_identity)
+                              asap7_identity=a7_identity, asap7pnr=pnr, pnr_identity=pins)
         out.append(board)
     return out
 
@@ -3504,6 +4000,139 @@ def cmd_asap7(args):
         what = "re-weighed, every column reproduced" if args.rescore and not fails else "bound to every design"
         print(f"[{tag}] {name}: {len(table['designs'])} designs: " + ("; ".join(fails + notes) or what))
         status = status or (1 if fails else 0)
+    return status
+
+
+PNR_IMPORT_COMMENT = ("GENERATED by `leaderboard.py asap7pnr --import DIR --write`; do not edit (import or run again "
+                      "instead). The routed course (decided 2026-11-11/12): each design's ASAP7 netlist placed and "
+                      "routed by OpenROAD-flow-scripts from the pinned image (score/pnr/pins.json), one run per design "
+                      "at its request's seed, measured and collected on a course host. This file keeps the results of "
+                      "the design files the task's pages show now (`of` and `record` as the ASAP7 view names them), "
+                      "each with its layout picture under site/layouts/<task>/. Areas in 1e-5 um^2, times in ps. "
+                      "Derived data, outside every record hash; `leaderboard.py asap7pnr` checks it. See "
+                      "leaderboard/README.md, \"The routed course\".")
+
+
+def asap7pnr_import(src_dir, task, designs, *, layouts_root=SVGOLF):
+    """The routed table of `task` from a course host's collected site data (DIR/sitedata/<task>.json, schema 2, its
+    pictures under DIR/images/), as the tree keeps it: only the entries of design files the task's pages show now
+    (`designs`, `asap7_designs`; the others are returned as dropped), `of` and `record` as the ASAP7 view names them now,
+    each picture moved to site/layouts/<task>/<sv16>.webp (and .thumb.webp). Returns (data, pictures {tree path: bytes},
+    dropped entries, problems); nothing is written. A picture whose bytes are not the ones its entry records is a
+    problem, as is anything `asap7pnr_file_problems` finds in the result."""
+    path = os.path.join(src_dir, "sitedata", f"{task}.json")
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    src = json.loads(text)
+    problems = [] if text == json.dumps(src, indent=1, sort_keys=True) + "\n" else [
+        f"{path}: not in its written form"]
+    keep, dropped, pictures = [], [], {}
+    for e in src.get("designs") or []:
+        d = designs.get(e.get("sv_sha256"))
+        if d is None:
+            dropped.append(e)
+            continue
+        e = copy.deepcopy(e)
+        recs = [x[len("record:"):] for x in d["of"] if x.startswith("record:")]
+        e["of"], e["record"] = list(d["of"]), recs[0] if recs else None
+        L = e.get("layout")
+        if isinstance(L, dict):
+            sv16 = e["sv_sha256"][:16]
+            for key, name in (("image", f"{sv16}.webp"), ("thumb", f"{sv16}.thumb.webp")):
+                with open(os.path.join(src_dir, *str(L[key]).split("/")), "rb") as fh:
+                    data = fh.read()
+                if sha256_bytes(data) != L[f"{key}_sha256"] or len(data) != L[f"{key}_bytes"]:
+                    problems.append(f"{L[key]}: not the picture its entry records")
+                L[key] = f"{PNR_LAYOUTS}/{task}/{name}"
+                pictures[L[key]] = data
+        keep.append(e)
+    out = dict(src, designs=keep, _comment=PNR_IMPORT_COMMENT)
+    problems += asap7pnr_file_problems(out, task)
+    for e in keep:
+        L = e.get("layout")
+        if isinstance(L, dict):
+            for key in ("image", "thumb"):
+                if list(webp_size(pictures[L[key]]) or ()) != L[f"{key}_px"]:
+                    problems.append(f"{L[key]}: its pixel size is not the recorded one")
+    return out, pictures, dropped, problems
+
+
+def cmd_asap7pnr(args):
+    """`asap7pnr`: the routed course's results (see "the routed course"). Without --import: check every task's file
+    offline (shape and arithmetic, the binding of every design the course shows, the pictures) and list what is not
+    routed yet. --import DIR [--write]: take a course host's collected site data into the tree. Exit 0 all good, 1 a
+    check failed, 2 usage or infrastructure."""
+    names = [args.task] if args.task else all_task_names(args.tasks_dir)
+    if args.write and not args.import_dir:
+        print("error: --write writes what --import DIR reads", file=sys.stderr)
+        return 2
+    try:
+        with open(EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        tasks = {n: load_task(args.tasks_dir, n) for n in names}
+    except (OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    pins = asap7pnr_identity()
+    if pins is None:
+        print(f"error: {os.path.relpath(PNR_PINS, SVGOLF)} cannot be read", file=sys.stderr)
+        return 2
+    records = good_records(load_records(args.data_dir), warn=lambda m: print(m, file=sys.stderr))
+    status, totals = 0, {}
+    for name in names:
+        task = tasks[name]
+        designs = asap7_designs(task, records, expected, tasks_dir=args.tasks_dir, data_dir=args.data_dir)
+        if not designs:
+            continue
+        a7, why = read_asap7(name, args.asap7_dir)
+        if why:
+            print(f"[FAIL] {name}: {why}")
+            status = 1
+            continue
+        if args.import_dir:
+            if not os.path.isfile(os.path.join(args.import_dir, "sitedata", f"{name}.json")):
+                print(f"[skip] {name}: no {name}.json in {args.import_dir}/sitedata")
+                continue
+            data, pictures, dropped, bad = asap7pnr_import(args.import_dir, name, designs)
+            bound = [e for e in data["designs"]
+                     if asap7pnr_status(data, a7, e["sv_sha256"], task=task, pins=pins)[0] == "bound"]
+            if bad:
+                print(f"[FAIL] {name}: not imported: " + "; ".join(bad[:8]))
+                status = 1
+                continue
+            print(f"[ok] {name}: {len(data['designs'])} entries ({len(bound)} bound), {len(pictures)} picture files; "
+                  f"{len(dropped)} entries of design files the task no longer shows left out"
+                  + "".join(f"\n       left out: {', '.join(e['of'])} ({e['sv_sha256'][:12]})" for e in dropped))
+            if args.write:
+                out = asap7pnr_path(name, args.asap7pnr_dir)
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                with open(out, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+                pdir = os.path.join(SVGOLF, PNR_LAYOUTS, name)
+                os.makedirs(pdir, exist_ok=True)
+                for rel, blob in sorted(pictures.items()):
+                    with open(os.path.join(SVGOLF, *rel.split("/")), "wb") as fh:
+                        fh.write(blob)
+                for f in sorted(os.listdir(pdir)):          # a picture no entry names any more
+                    if f"{PNR_LAYOUTS}/{name}/{f}" not in pictures:
+                        os.remove(os.path.join(pdir, f))
+                print(f"       wrote {os.path.relpath(out)} and {len(pictures)} files under {PNR_LAYOUTS}/{name}/")
+            continue
+        table, why = read_asap7pnr(name, args.asap7pnr_dir)
+        if why:
+            print(f"[FAIL] {name}: {why}")
+            status = 1
+            continue
+        fails, notes, by = asap7pnr_check(task, a7, table, designs, pins=pins)
+        for k, v in by.items():
+            totals[k] = totals.get(k, 0) + len(v)
+        tag = "FAIL" if fails else "ok"
+        counts = ", ".join(f"{len(by[k])} {k}" for k in ("bound", "pending", "failed", "stale", "unbound") if by.get(k))
+        print(f"[{tag}] {name}: {len(designs)} designs: {counts}" + "".join(f"\n       {x}" for x in fails + notes))
+        status = status or (1 if fails else 0)
+    if totals:
+        print("total: " + ", ".join(f"{totals[k]} {k}" for k in ("bound", "pending", "failed", "stale", "unbound")
+                                     if totals.get(k)))
     return status
 
 
@@ -3805,6 +4434,7 @@ def make_parser():
     common.add_argument("--score-py", default=SCORE_PY, help=argparse.SUPPRESS)
     common.add_argument("--ppa-py", default=PPA_PY, help=argparse.SUPPRESS)
     common.add_argument("--asap7-dir", default=ASAP7_DIR, help=argparse.SUPPRESS)
+    common.add_argument("--asap7pnr-dir", default=ASAP7PNR_DIR, help=argparse.SUPPRESS)
     common.add_argument("--sandbox", choices=("off", "auto", "require"), default=OFFICIAL_SANDBOX_MODE,
                         help="check.py's --sandbox for the checks `add` and `verify --full` run (default "
                         "`require`: an official record is made with the OS sandbox or not at all; `off` is refused "
@@ -3867,8 +4497,9 @@ def make_parser():
         b.add_argument("--all-flows", action="store_true",
                        help="rank records checked under another flow too")
         b.add_argument("--pdk", choices=PDKS, default=DEFAULT_PDK,
-                       help="the library the board ranks on: sky130 (the default, the records' own columns) or asap7 "
-                       "(the ASAP7 view: leaderboard/asap7/<task>.json)")
+                       help="the library the board ranks on: sky130 (the default, the records' own columns), asap7 "
+                       "(the ASAP7 view: leaderboard/asap7/<task>.json) or asap7pnr (the routed course: "
+                       "leaderboard/asap7pnr/<task>.json)")
         if name == "pareto":
             b.add_argument("--axes", metavar="A,B,...",
                            help="opt-in: the n-dimensional Pareto frontier over these axes, for the "
@@ -3880,7 +4511,8 @@ def make_parser():
     e = sub.add_parser("export", parents=[common], help="all tasks' boards as one Markdown file")
     e.add_argument("--out", required=True)
     e.add_argument("--all-flows", action="store_true")
-    e.add_argument("--pdk", choices=PDKS, default=DEFAULT_PDK, help="sky130 (default) or asap7 (the ASAP7 view)")
+    e.add_argument("--pdk", choices=PDKS, default=DEFAULT_PDK,
+                   help="sky130 (default), asap7 (the ASAP7 view) or asap7pnr (the routed course)")
     e.set_defaults(fn=cmd_export)
 
     x = sub.add_parser("asap7", parents=[common],
@@ -3895,6 +4527,18 @@ def make_parser():
                    help="measure every design of the task(s) and write the file(s) (refused when an entry would not "
                    "be bound to its design's sources)")
     x.set_defaults(fn=cmd_asap7)
+
+    y = sub.add_parser("asap7pnr", parents=[common],
+                       help="the routed course's results (leaderboard/asap7pnr/<task>.json): check them offline "
+                       "(default: every design's binding, the pictures, what is not routed yet) or take a course "
+                       "host's collected site data into the tree (--import DIR, with --write)")
+    y.add_argument("--task")
+    y.add_argument("--import", dest="import_dir", metavar="DIR",
+                   help="a course host's collected site data: DIR/sitedata/<task>.json (schema svgolf-asap7pnr/2) and "
+                   "the pictures under DIR/images/; only the design files the task's pages show now are kept")
+    y.add_argument("--write", action="store_true",
+                   help="with --import: write leaderboard/asap7pnr/<task>.json and site/layouts/<task>/")
+    y.set_defaults(fn=cmd_asap7pnr)
 
     u = sub.add_parser("submit", parents=[common],
                        help="hand a record in: open the pull request that adds its three files (with git and gh)")

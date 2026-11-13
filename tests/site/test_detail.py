@@ -563,6 +563,74 @@ class DetailTest(unittest.TestCase):
                 with open(os.path.join(SITE, "schematics", t, sha[:16] + ".svg"), "rb") as fh:
                     self.assertEqual(self.files[out], fh.read())
 
+    def pnr_entry(self, t, sha):
+        """The BOUND routed entry of a design file (leaderboard.py's rule, from the files), or None."""
+        status, _why, e = lb.asap7pnr_status(lb.load_asap7pnr(t), lb.load_asap7(t), sha,
+                                             task=lb.load_task(os.path.join(SVGOLF, "tasks"), t),
+                                             pins=lb.asap7pnr_identity())
+        return e if status == "bound" else None
+
+    def test_the_layout_picture_is_the_scored_runs_in_the_schematic_pane(self):
+        """Decided 2026-11-12 ("show the generated images in the schematic section of each submission"): every record
+        page and par's page shows, in the Schematic pane under the drawing and on both courses, the layout of its own
+        design's scored run when it has a bound routed result: the 640 px thumbnail (width and height given, lazy), the
+        full picture by srcset and linked at full size, both the committed files byte for byte and the sha256 its entry
+        records, its alt text and its caption; without one, "No layout yet: place and route pending", never another
+        design's picture."""
+        seen = {"shown": 0, "none": 0}
+        for t, path, rec, stem in self.detail_pages():
+            sha = rec["files"]["sv"]["sha256"] if rec else self.ref_sha(t, stem)
+            e = self.pnr_entry(t, sha)
+            raw = self.files[path].decode("utf-8")
+            pane = section(raw, "schematic")
+            with self.subTest(page=path):
+                for pdk in ("sky130", "asap7pnr"):              # a fact of the design: the same in both courses
+                    self.assertIn('class="layout-fig', section(self.page(path, pdk), "schematic"))
+                figs = re.findall(r'<figure class="layout-fig[^"]*"[^>]*>(.*?)</figure>', pane, re.S)
+                self.assertEqual(len(figs), 1)
+                self.assertIn("Layout · ASAP7 placed and routed", text_of(figs[0]))
+                self.assertLess(pane.index('class="sch-main"'), pane.index('class="layout-fig'))
+                if e is None:
+                    seen["none"] += 1
+                    self.assertIn("No layout yet: place and route pending.", text_of(figs[0]))
+                    self.assertNotIn("<img", figs[0])
+                    continue
+                seen["shown"] += 1
+                L = e["layout"]
+                full, thumb = f"tasks/{t}/layouts/{sha[:16]}.webp", f"tasks/{t}/layouts/{sha[:16]}.thumb.webp"
+                rf, rt = (posixpath.relpath(x, posixpath.dirname(path)) for x in (full, thumb))
+                img = re.search(r"<img ([^>]*)>", figs[0]).group(1)
+                self.assertIn(f'src="{rt}"', img)
+                self.assertIn(f'srcset="{rt} {L["thumb_px"][0]}w, {rf} {L["image_px"][0]}w"', img)
+                self.assertIn(f'width="{L["thumb_px"][0]}" height="{L["thumb_px"][1]}"', img)
+                self.assertIn('loading="lazy"', img)
+                name = f"record {rec['record_hash'][:12]}" if rec and rec["player"] != self.config["reference_player"] \
+                    else None
+                self.assertRegex(img, r'alt="Placed and routed layout of [^"]+ on ASAP7"')
+                if name:
+                    self.assertIn(f'alt="Placed and routed layout of {name} on ASAP7"', img)
+                self.assertIn(f'<a class="layout-link" href="{rf}">', figs[0])
+                self.assertIn(html.escape(L["caption"], quote=False), figs[0])
+                self.assertIn(f"Full size ({L['image_px'][0]} × {L['image_px'][1]} px", text_of(figs[0]))
+                for out, key in ((full, "image"), (thumb, "thumb")):
+                    with open(os.path.join(SVGOLF, *L[key].split("/")), "rb") as fh:
+                        blob = fh.read()
+                    self.assertEqual(self.files[out], blob)
+                    self.assertEqual(hashlib.sha256(blob).hexdigest(), L[f"{key}_sha256"])
+                    self.assertEqual(list(lb.webp_size(blob)), L[f"{key}_px"])
+        # every design is routed since 2026-11-13: a page without a bound entry ("No layout yet") is planted in
+        # test_pdk.PdkTest.test_a_design_not_routed_yet_shows_no_routed_number
+        self.assertTrue(seen["shown"], seen)
+        # every picture the site offers is one a page shows (no stray file), and each is a design's own
+        offered = sorted(p for p in self.files if "/layouts/" in p)
+        self.assertTrue(offered)
+        for p in offered:
+            t, name = p.split("/")[1], p.rsplit("/", 1)[1]
+            self.assertTrue(any(name.split(".")[0] == (r["files"]["sv"]["sha256"][:16]) for r in self.recs
+                                if r["task"] == t) or any(name.split(".")[0] == self.ref_sha(t, st)[:16]
+                                                          for tt, _, rr, st in self.detail_pages() if tt == t and st),
+                            p)
+
     def test_a_drawing_comes_with_netlistsvgs_notice(self):
         """The drawings are derived from netlistsvg's default skin (MIT, NOTICE): every page that shows one names the
         licence and links the notice, site/schematics/LICENSE-netlistsvg.txt byte for byte, beside the drawings."""

@@ -88,6 +88,10 @@ STEPS, in order:
               tests/checker/test_postsynth_unknown.py (Yosys: an unknown-valued
               constant in the netlist is refused where Yosys's own reader shows
               something reading it, and accepted where nothing does),
+              tests/checker/test_postsynth_loops.py (Yosys and Verilator: a
+              combinational loop in the netlist is refused bit by bit, and the
+              bit aliases of merged flip-flops, which Verilator's UNOPTFLAT
+              called a loop, pass and simulate),
               score/test_ppa.py (the sky130 PPA columns, stage 1),
               score/test_ppa_opensta.py (ppa.py's STA against OpenSTA's recorded
               arrivals, cell arcs to clocked periods, the input-drive convention),
@@ -936,6 +940,8 @@ def step_unit():
                        ("tests/checker/test_clocked_post.py", [PY, "tests/checker/test_clocked_post.py"]),
                        # the unknown-constant rule on hand-written netlists, as Yosys's own reader shows them
                        ("tests/checker/test_postsynth_unknown.py", [PY, "tests/checker/test_postsynth_unknown.py"]),
+                       # the loop rule bit by bit, and merged flip-flops' bit aliases (UNOPTFLAT waived)
+                       ("tests/checker/test_postsynth_loops.py", [PY, "tests/checker/test_postsynth_loops.py"]),
                        ("score/time_limits.py --selftest",
                         [PY, "score/time_limits.py", "--selftest"]),
                        # the sky130 PPA columns: the real-library tests skip when the pinned liberty

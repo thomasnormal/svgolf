@@ -1,12 +1,13 @@
-"""A page as the reader of one library's view sees it (the library selector, decided 2026-11-09): site/build.py puts
-every golf score on a page twice, in an element of class `pdk-sky130` and one of class `pdk-asap7`, and style.css shows
-the one <html data-pdk> names (sky130 without JavaScript). `view_of(html, "sky130")` is the page without the
-`pdk-asap7` elements, `view_of(html, "asap7")` without the `pdk-sky130` ones: what each reader has on screen. Written
-for the tests, independently of the generator (no code of site/build.py is used)."""
+"""A page as the reader of one course sees it (the course selector, decided 2026-11-09; its second course since
+2026-11-12 is ASAP7 placed and routed, `asap7pnr`): site/build.py puts every golf score on a page twice, in an element of
+class `pdk-sky130` and one of class `pdk-asap7pnr`, and style.css shows the one <html data-pdk> names (sky130 without
+JavaScript). `view_of(html, "sky130")` is the page without the `pdk-asap7pnr` elements, `view_of(html, "asap7pnr")`
+without the `pdk-sky130` ones: what each reader has on screen. Written for the tests, independently of the generator
+(no code of site/build.py is used)."""
 
 import re
 
-OTHER = {"sky130": "pdk-asap7", "asap7": "pdk-sky130"}
+OTHER = {"sky130": "pdk-asap7pnr", "asap7pnr": "pdk-sky130"}
 _OPEN = re.compile(r'<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*\bclass="([^"]*)"[^>]*>')
 
 

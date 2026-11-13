@@ -359,12 +359,16 @@ code {
 }
 .site-nav a:focus-visible { outline-offset: 4px; z-index: 1; }
 
-/* THE LIBRARY SELECTOR (decided 2026-11-09). Every golf score is on the page twice, in `.pdk.pdk-sky130` and in
-   `.pdk.pdk-asap7` (site/build.py `dual`); <html data-pdk>, which pdk.js sets before the page is drawn, picks the one
-   shown, sky130 without it. The wrappers draw no box (display: contents), so the cards, rows and grids around them lay
-   out as before; a lone `.pdk-asap7` element (a note, the banner) is shown in the ASAP7 view only. */
+/* THE COURSE SELECTOR (decided 2026-11-09; 2026-11-11/12: sky130 or ASAP7 placed and routed). Every golf score is on
+   the page twice, in `.pdk.pdk-sky130` and in `.pdk.pdk-asap7pnr` (site/build.py `dual`); <html data-pdk>, which pdk.js
+   sets before the page is drawn, picks the one shown, sky130 without it. The wrappers draw no box (display: contents),
+   so the cards, rows and grids around them lay out as before; a lone `.pdk-asap7pnr` element (a note, the banner) is
+   shown on the routed course only. */
 .pdk { display: contents; }
-html:not([data-pdk="asap7"]) .pdk-asap7, html[data-pdk="asap7"] .pdk-sky130 { display: none !important; }
+html:not([data-pdk="asap7pnr"]) .pdk-asap7pnr, html[data-pdk="asap7pnr"] .pdk-sky130 { display: none !important; }
+/* a reader who came by an old ?pdk=asap7 link or choice (pdk.js sets data-pdk-moved): the banner says what changed */
+.pdk-moved-note { display: none; }
+html[data-pdk-moved] .pdk-moved-note { display: inline; }
 .pdk-pick { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .pdk-pick[hidden] { display: none; }
 .site-header .pdk-pick, .site-header noscript { margin-left: auto; }
@@ -380,10 +384,21 @@ html:not([data-pdk="asap7"]) .pdk-asap7, html[data-pdk="asap7"] .pdk-sky130 { di
 .pdk-banner p { margin: 0; padding: var(--sp-3) var(--sp-4); background: var(--accent-soft); color: var(--text);
   border-left: 4px solid var(--accent); font-size: var(--fs-sm); }
 .pdk-note { color: var(--text-2); margin: 0 0 var(--sp-3); }
-html[data-pdk="asap7"] tr.par-row:not(.par-a7) td { background: none; }
-html[data-pdk="asap7"] tr.par-row:not(.par-a7) td:first-child { box-shadow: none; }
-html[data-pdk="asap7"] tr.par-a7 td { background: var(--surface-2); }
-html[data-pdk="asap7"] tr.par-a7 td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+html[data-pdk="asap7pnr"] tr.par-row:not(.par-a7) td { background: none; }
+html[data-pdk="asap7pnr"] tr.par-row:not(.par-a7) td:first-child { box-shadow: none; }
+html[data-pdk="asap7pnr"] tr.par-a7 td { background: var(--surface-2); }
+html[data-pdk="asap7pnr"] tr.par-a7 td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+/* the layout picture of the routed course's scored run, under the schematic in its pane (the netlist card is the
+   main column's: side by side, the schematic's notes ran in a third of it) */
+.sch-pair { display: grid; gap: var(--sp-5); grid-template-columns: minmax(0, 1fr); }
+.sch-main { min-width: 0; }
+.layout-fig { margin: 0; min-width: 0; max-width: 40rem; padding-top: var(--sp-4); border-top: 1px solid var(--border); }
+.layout-fig .layout-label { margin: 0 0 var(--sp-2); }
+.layout-link { display: block; line-height: 0; border: 2px solid var(--border-strong); background: #fff; }
+.layout-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.layout-fig img { display: block; width: 100%; max-width: 640px; height: auto; }
+.layout-fig figcaption { margin-top: var(--sp-2); }
+.layout-none .empty { margin: 0; }
 
 main { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: var(--sp-5) var(--gutter) var(--sp-7); }
 
@@ -1435,8 +1450,8 @@ ol.chain .muted { font-family: var(--mono); font-size: 0.78rem; }
 @media (max-width: 24rem) {
   .site-nav a { padding-left: 0.2rem; padding-right: 0.2rem; }
 }
-/* the header's course selector keeps its name for a screen reader, not its line: beside "ASAP7 · cells only" the
-   label wraps the header (96 -> 133 px) at every width from 320 to 351 px (measured 2026-11-11) */
+/* the header's course selector keeps its name for a screen reader, not its line: beside the course's name the label
+   wraps the header at the smallest widths (measured 2026-11-11 with "ASAP7 · cells only": 320 to 351 px) */
 @media (max-width: 22rem) {
   .site-header .pdk-pick label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
     overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }

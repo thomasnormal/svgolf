@@ -103,22 +103,36 @@ def metric_table(clocked, drive=None, latency=True, pdk="sky130"):
     cell = drive[len(CELL_PREFIX):] if isinstance(drive, str) and drive.startswith(CELL_PREFIX) else drive
     if isinstance(cell, str) and cell.endswith(ASAP7_SUFFIX):
         cell = cell[:-len(ASAP7_SUFFIX)]
-    lib = "ASAP7" if pdk == "asap7" else "sky130"
-    liberty = "the pinned ASAP7 liberty" if pdk == "asap7" else "the pinned liberty"
-    time = (Metric("time_ps", "Time", "ps", f"Cycles × the register-to-register period from {liberty}.")
-            if clocked and latency else
-            Metric("time_ps", "Time", "ps", f"The register-to-register period from {liberty}, one decision "
-                   "per cycle.")
-            if clocked else
-            Metric("time_ps", "Delay", "ps", f"The critical-path delay of the {lib} netlist (static timing"
-                   + (f", inputs driven by a {cell}" if cell else "") + ")."))
+    a7 = pdk in ("asap7", "asap7pnr")
+    lib = "ASAP7" if a7 else "sky130"
+    liberty = "the pinned ASAP7 liberty" if a7 else "the pinned liberty"
+    if pdk == "asap7pnr":      # the routed course (decided 2026-11-11/12): the wires extracted from the layout count
+        time = (Metric("time_ps", "Time", "ps", "Cycles × the clock period of the placed and routed netlist, wires "
+                       "included (the period minus the worst setup slack).")
+                if clocked and latency else
+                Metric("time_ps", "Time", "ps", "The clock period of the placed and routed netlist, wires included, one "
+                       "decision per cycle.")
+                if clocked else
+                Metric("time_ps", "Delay", "ps", "The critical-path delay of the placed and routed netlist, with the "
+                       "wires extracted from the layout."))
+    else:
+        time = (Metric("time_ps", "Time", "ps", f"Cycles × the register-to-register period from {liberty}.")
+                if clocked and latency else
+                Metric("time_ps", "Time", "ps", f"The register-to-register period from {liberty}, one decision "
+                       "per cycle.")
+                if clocked else
+                Metric("time_ps", "Delay", "ps", f"The critical-path delay of the {lib} netlist (static timing"
+                       + (f", inputs driven by a {cell}" if cell else "") + ")."))
+    area_what = ("The ASAP7 cell area of the placed and routed netlist (the cells the flow added included; tap and "
+                 "fill cells not)." if pdk == "asap7pnr" else
+                 f"The {lib} cell area of the scored netlist" + (", flip-flops included." if clocked
+                                                                 else ", repaired by buffering."))
     per_cycle = [Metric("period_ps", "Clock period", "ps", "The register-to-register period."),
                  Metric("cycles", "Latency", "cycles", "The declared latency at the scoring point.")]
     return [
         Metric("adp", "Score", combined.UNIT, "Area × time, the ranked score: lower is better." if pdk != "asap7" else
                "Area × time, the score this view orders by: lower is better.", 0),
-        Metric("area_um2", "Area", "µm²", f"The {lib} cell area of the scored netlist"
-               + (", flip-flops included." if clocked else ", repaired by buffering."), 3 if pdk == "asap7" else 1),
+        Metric("area_um2", "Area", "µm²", area_what, 3 if a7 else 1),
         time,
         *(per_cycle if latency else []),
         Metric("ffs", "Flip-flops", "", "Flip-flops in the scored netlist."),

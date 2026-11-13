@@ -40,6 +40,8 @@ python3.12 leaderboard/leaderboard.py pareto --task T --axes area_um2_sky130_map
 python3.12 leaderboard/leaderboard.py seed-references [--task T [--ref STEM ...]]   # par's design (leaderboard/par.json)
 python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7     # the ASAP7 view (also pareto, export): below
 python3.12 leaderboard/leaderboard.py asap7 [--task T] [--rescore | --write]   # the ASAP7 view's columns
+python3.12 leaderboard/leaderboard.py board  --task T --pdk asap7pnr  # the routed course (also pareto, export): below
+python3.12 leaderboard/leaderboard.py asap7pnr [--task T]             # the routed course's results, checked offline
 python3.12 leaderboard/leaderboard.py submit --task T --record HASH [--dry-run]   # hand a record in: below
 ```
 
@@ -323,6 +325,43 @@ needs `asap7 --write` too: until then the ASAP7 view lists it as not ranked, and
 
 A new record has no ASAP7 entry until `asap7 --write` runs: until then it ranks on sky130 and is listed as not ranked in
 the ASAP7 view, with that reason.
+
+## The routed course (decided 2026-11-11 and 2026-11-12)
+
+The site's second course, "ASAP7 · placed and routed" (`?pdk=asap7pnr`), ranks each design's ASAP7 netlist (the ASAP7
+view's repaired netlist, above) placed and routed by OpenROAD-flow-scripts from one pinned image: area = the routed
+netlist's cells, time = the clock period minus the worst setup slack with the wires extracted (cycles x that on a
+clocked task), one run per design at the seed its request names (seed 1 for every design measured so far). `board`,
+`pareto` and `export` take `--pdk asap7pnr`: the same rules (area x time in 1e-5 um^2 x ps, ties, par, Pareto layers),
+the board `pdk: "asap7pnr"`, `ranked_axes` `["area_um2_asap7pnr", "time_ps"]` and `pnr_identity` (the pins). Par is the
+par design's routed score (leaderboard/par.json), none while that design is not routed. README.md, "How the routed
+course is scored", is the rule; score/PPA.md, "ASAP7 placed and routed", the flow and its measurements.
+
+**Where the results live: `leaderboard/asap7pnr/<task>.json`, not the records** (schema `svgolf-asap7pnr/2`), for the
+reason the ASAP7 columns are not in them, and because a run is made after the record, on a course host. One entry per
+design file: the placed and scored netlists' sha256, the request (`source`, `seed`, `settings`), every run (the scoring
+run at the request's seed; on the 2026-11-11 records two more seeds, `spread`, never ranked; re-runs, `verification`)
+with ORFS's raw texts, the sha256 of the files it wrote and the config.mk and SDC it ran, the scores (`v_owner`, THE
+score: the request's run; `v_median`, an unranked extra) and the layout picture (`site/layouts/<task>/<sv16>.webp` and a
+640 px `.thumb.webp`, their sha256, sizes and caption). The file names the ASAP7 view it was routed from
+(`asap7_view`: identity and ppa.py hash) and its course (`course`: the pinned part must equal `score/pnr/pins.json`).
+
+**An entry is shown only when bound** (`asap7pnr_status`): its design file is the design's, its placed and scored
+netlists and cycles are its ASAP7 view entry's (and that entry is the record's, `asap7_binding_problems`), the file's
+scoring point is the task's, its view and pins are the current ones, its settings are none, and its scoring run passed
+(exit 0, DRC 0, the equivalence check's IDENTICAL). Otherwise the design is `pending` (no run yet: "not routed yet:
+place and route pending"), `failed`, `stale` or `unbound`, with the reason, and carries no routed number anywhere (the
+board rows take theirs from `asap7pnr_columns`, which applies the same rule with the task): never a stale one, never a
+cells-only one in its place. The site's build notes a pending design (the page says so) and warns, fatally under
+`--strict`, about a failed, stale or unbound one (`asap7pnr_gaps`).
+
+| command | what | cost |
+|---|---|---|
+| `asap7pnr [--task T]` | the files against the repository, offline: the shape and every number the file determines (the delay from ORFS's raw texts, half-even; the area within ORFS's printed precision; time, exact, the scores from the runs; the picture of the scoring run), the binding of every design the task's pages show (pending ones listed: the work list of the next run), every picture's sha256, size and pixel size | milliseconds; no tools |
+| `asap7pnr --import DIR [--task T] --write` | a course host's collected site data (`DIR/sitedata/<task>.json`, pictures under `DIR/images/`) into the tree: only the design files the task shows now, `of` as the ASAP7 view names it, the pictures moved under `site/layouts/<task>/` and checked against their sha256; refused on any problem | seconds |
+
+The run itself (place and route, the picture, the collection) happens on an x86-64 Linux host with the pinned image
+and is not part of this tree yet: a design added since the last run is pending until the next one.
 
 ## Policy
 

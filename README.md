@@ -449,9 +449,16 @@ proof.
     then that keeps the design's names, the bits in your own words; one nothing reads is in the fan-in of no
     observed output, so every value it could take gives the same rows) or from an undriven or
     unconnected net or pin (Verilator's lint runs with `-Wall` and every
-    warning fatal except `DECLFILENAME` and `UNUSEDSIGNAL`: UNDRIVEN,
-    PINMISSING, PINCONNECTEMPTY, MULTIDRIVEN, UNOPTFLAT and the WIDTH family
-    reject). The x/z defences stay where they are: the source gate, the
+    warning fatal except `DECLFILENAME`, `UNUSEDSIGNAL` and `UNOPTFLAT`:
+    UNDRIVEN, PINMISSING, PINCONNECTEMPTY, MULTIDRIVEN and the WIDTH family
+    reject). A combinational loop in the netlist is refused bit by bit before
+    Verilator runs (2026-11-13): Verilator's own UNOPTFLAT looks at whole
+    vectors, so it also called circular the assigns by which Yosys writes
+    flip-flops it merged, one bit of a vector from another
+    (`assign { q[2], q[0] } = { q[3], q[1] };`), and refused correct designs
+    (two equal registers, a narrow result sign-extended into a wider
+    register); with every real loop refused first, that false loop is
+    simulated, which Verilator does correctly. The x/z defences stay where they are: the source gate, the
     `fourstate` stage, and ls-sv's own 4-state outputs on the other side of
     the comparison. What is lost against the 4-state Icarus run it replaced is
     only a witness for an unknown that the netlist invents from known inputs
@@ -1714,7 +1721,8 @@ and "under par" use it, and the site's leaderboard orders by it. The Pareto fron
 in NAND2 gate equivalents (`area_mge`), depth (`ltp -noff`) and flow A1' are EXTRA columns for exploring: shown beside
 the score, ranked by nothing. "Reproduce a score" (the end of this section, and
 [score/PPA.md](score/PPA.md)'s section of that name) gives every ranked number again, bit for bit. sky130 is the
-default; a reader may see the same golf scores on ASAP7 instead ("The ASAP7 view", at the end of this section).
+default course; the second course is ASAP7 placed and routed ("How the routed course is scored", at the end of this
+section), whose input is the cells-only ASAP7 view ("The ASAP7 view").
 
 **The build ratings use** (decided 2026-11-05). Every ranked number, on the boards and on the site, is made, or
 reproduced bit for bit, by one build of the tools, and it is not a slower portable one:
@@ -1957,18 +1965,12 @@ literally in a scratch copy on the `add` and `aes_sbox` references, bit for bit 
 
 ### The ASAP7 view
 
-**sky130 is the default; a reader may see the golf scores on ASAP7 instead** (decided 2026-11-09). The site's library
-selector, on the home page and in the header of every other page, switches every golf score on the site between the two
-libraries: the boards and their order, par and the record, the ranks, the score and Pareto charts, each task's score
-card and each record's overview. The browser remembers the choice (where it allows it) and the address carries it:
-`?pdk=asap7`, and `?pdk=sky130` once a reader has chosen a library, so a copied link shows its recipient what its
-sender saw; an address without `?pdk=` shows each reader their own choice (sky130 until they choose one), and Back and
-Forward show the reader's latest choice. Without JavaScript the site shows sky130. Both rankings are computed when the
-site is built, by `leaderboard.py`'s own functions (`board --pdk asap7`), under the same rules (area x time, par, ties);
-a score of one library is never compared with one of the other. The records keep their sky130 columns, and nothing else
-changes with the view: the netlist cards, the scaling view and the task texts stay sky130's, each labelled so in the
-ASAP7 view; the energy figures are measured on sky130 alone, so the ASAP7 view shows none; GE and depth do not depend
-on the library.
+**sky130 is the default; ASAP7 cells only is the routed course's input** (decided 2026-11-09; 2026-11-12). From
+2026-11-09 the site's selector showed every golf score on sky130 or on these cells-only ASAP7 numbers; since 2026-11-12
+its second course is ASAP7 placed and routed ("How the routed course is scored", below), which places and routes the
+netlist this view weighs. The cells-only numbers stay: they are the netlist the routed course places, the period of its
+clock, and a column of each record page ("cells only (A0′)", with the wire cost against it); `leaderboard.py board --pdk
+asap7` prints their boards. The records keep their sky130 columns; GE and depth do not depend on the library.
 
 **How ASAP7 is scored.** The same scored netlist as sky130's score (the pinned flow does not depend on the library),
 weighed by `score/ppa.py --pdk asap7` (flow A0', `asap7_a0_v1`): each gate its least-area ASAP7 build, repaired by
@@ -2009,6 +2011,84 @@ library", has every choice and measurement).
 python3.12 score/ppa.py --pdk asap7 --fetch-liberty                                 # once: the five pinned files
 python3.12 score/ppa.py SOLUTION.sv --task tasks/<name> --pdk asap7 --no-mapped     # a design's ASAP7 numbers
 python3.12 leaderboard/leaderboard.py board --task <name> --pdk asap7               # the ASAP7 board
+```
+
+### How the routed course is scored
+
+**The second course is ASAP7 placed and routed** (decided 2026-11-11 and 2026-11-12). The front page's course
+selector, "The course", offers sky130 (the default) and ASAP7 · placed and routed; every other page has it in its header.
+On the routed course every golf score of the site is the routed one: the boards and their order, par, the record and
+under par, the score chart, the area-time plots and each record's overview. The browser remembers the choice (where it
+allows it) and the address carries it: `?pdk=asap7pnr`, and `?pdk=sky130` once a reader has chosen a course. An old
+address with `?pdk=asap7`, the cells-only view this course replaced, shows the routed course and says so. Without
+JavaScript the site shows sky130. Both courses are ranked when the site is built, by `leaderboard.py`'s own functions
+(`board --pdk asap7pnr`), under the same rules (area x time, par, ties); a score on one course is never compared with a
+score on the other. The netlist cards, the scaling view and the task texts stay sky130's, each labelled so on the routed
+course.
+
+**The flow.** Each design's ASAP7 netlist (the repaired netlist of "The ASAP7 view", above) is placed and routed by
+OpenROAD-flow-scripts from one pinned image (`openroad/orfs`, used by digest, x86-64 only) in its minimal flow `min_v1`:
+a floorplan at 40% core utilisation, placement, a clocked task's clock tree, routing, then the flow's own equivalence
+check. Nothing optimises the design for speed (no timing-driven placement, no timing repair): the flow adds only what a
+working layout needs, buffers on slow or overloaded wires and a clocked task's clock tree. Each job runs with two threads
+on two CPUs, an 8 GB memory cap and no network. `score/pnr/pins.json` pins the image's digests, the flow and its
+variables, the job's shape, the sha256 of the scripts that write each job's `config.mk` and SDC, and the rules below; a
+result made under other pins is stale and shows no number.
+
+**The score.** Area: the cells of the routed netlist by the ASAP7 liberty (the buffers and clock tree the flow adds
+included; tap and fill cells and the die not), exact in 1e-5 um^2. Time: the clock period minus the worst setup slack,
+with the wires extracted from the layout, at the typical corner, rounded half-even to whole ps; on a clocked task, times
+the cycles. **Score = area x time** in um^2 x ns, lower is better; ties, par, the record and under par work as on sky130.
+Par is the routed score of the task's par design (`leaderboard/par.json`); while that design is not routed, the routed
+course has no par for the task.
+
+**One run, one seed.** Placement starts from a number, the seed. The rule (decided 2026-11-11): each design is placed and
+routed once, at one seed, and that run is its score: the seed its submission names, else a seed drawn at random once and
+kept with it, so that it is not chosen after the boards are seen. Every design routed so far (2026-11-11 to 2026-11-13)
+ran at seed 1, and `leaderboard.py add` does not take a seed yet. A player who thinks another seed helps may name one
+once it does; another seed moves a score by about one per cent (measured on the first records: 0 to 2.8% between seeds
+1, 2 and 3).
+
+**What a run must pass.** The flow finishes; the router reports no design-rule violation; and the flow's equivalence
+check prints that the routed netlist is identical to the one it read (the course requires that line, not merely the
+absence of an error). Recorded, not scored: hold violations (no hold repair is run, and clocked designs end with some)
+and slow-signal (max-slew) warnings, whose count a record page names.
+
+**What the equivalence check shows.** The flow's equivalence check compares the routed netlist with the netlist the run
+was given: it shows that place and route preserved the run's input, not that the input was the design's netlist (the
+runs of the two changed netlists below both passed it). That the input is the design's ASAP7 netlist is checked by
+sha256: the placed netlist's hash must be the entry's and the ASAP7 view's, and a run of a changed netlist is refused
+there (the design shows "unbound", the file check "not the entry's netlist_sha256"). A negative control was run on
+2026-11-13: in add's and in sorter's par design one gate was changed, and the same equivalence tool, with the flow's own
+configuration, reported "Circuits are DIFFERENT" for the routed changed netlist against the unchanged one (4 of 4 cases:
+both designs, each against the netlist file the course binds and against the flow's own copy of it) and "Circuits are
+IDENTICAL" for the routed unchanged netlists (4 of 4). The tool exits 0 either way; its verdict is read from its log, as
+the flow does. This control is not a pinned step of every run.
+
+**What is not checked.** Hold timing, other corners, and power are not scored: this is a predictive library at one
+corner, not sign-off. Every routed number comes from one host type (x86-64 Linux, Intel Xeon, the image unpacked into a
+rootless chroot); docker, other x86-64 hosts and Apple silicon are not measured. The scripts that write each job's
+`config.mk` and SDC, and the course host's commands that run a job and draw its picture, are not in this repository
+yet, so a run can be checked against its recorded hashes but not yet made again from the repository alone.
+
+**Not routed yet.** A record is placed and routed after it is recorded, on a course host. Until its run is in
+`leaderboard/asap7pnr/<task>.json`, bound to its design file (its sha256), to its ASAP7 netlist, to the task's scoring
+point and to the current pins, the routed course lists it under "Not ranked" with the reason ("not routed yet: place
+and route pending" while it has no run) and shows a dash: never a cells-only number or an older one in its place.
+Since 2026-11-13 every design the tasks show (39 design files: records, references and baselines) has a routed score.
+
+**The layout picture.** Each routed design's record page, and par's, shows the layout of its scored run under the
+schematic, on both courses: drawn by OpenROAD's own renderer from the run's final database, power and ground wires not
+drawn, at most 1600 px (a 640 px thumbnail on the page); its caption names the seed and the die size.
+
+**Where it lives.** `leaderboard/asap7pnr/<task>.json` (one entry per design file: every run's numbers and the hashes
+of the files it wrote) and the pictures under `site/layouts/<task>/`, outside every record hash. `leaderboard.py
+asap7pnr` checks them offline ([leaderboard/README.md](leaderboard/README.md), "The routed course";
+[score/PPA.md](score/PPA.md), "ASAP7 placed and routed", has every pin and where the ASAP7 files come from).
+
+```bash
+python3.12 leaderboard/leaderboard.py asap7pnr                                     # check the routed results offline
+python3.12 leaderboard/leaderboard.py board --task <name> --pdk asap7pnr            # the routed board
 ```
 
 ## The banlist

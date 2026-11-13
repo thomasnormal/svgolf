@@ -336,9 +336,10 @@ def doc(body_html, toc_entries=(), *, wide=False):
     return f'<div class="{cls}">{side}<article class="card doc-body">{body_html}</article></div>'
 
 
-# the courses (2026-11-11: "ASAP7 · cells only" until a placed-and-routed ASAP7 course replaces it); the `?pdk=` key of
-# each stays as it is, so that a copied link never changes its meaning
-PDK_OPTIONS = (("sky130", "sky130"), ("asap7", "ASAP7 · cells only"))
+# the courses (decided 2026-11-11/12: sky130, and ASAP7 placed and routed in place of "ASAP7 · cells only"); the routed
+# course has a `?pdk=` key of its own, asap7pnr, so that a copied link never changes its meaning: an old ?pdk=asap7 is
+# taken as asap7pnr by pdk.js, which tells the reader so
+PDK_OPTIONS = (("sky130", "sky130"), ("asap7pnr", "ASAP7 · placed and routed"))
 
 
 def pdk_select(id_, label_html, *, cls="pdk-pick"):
@@ -353,7 +354,7 @@ def pdk_select(id_, label_html, *, cls="pdk-pick"):
 
 
 def pdk_nojs(text_html, cls="pdk-nojs"):
-    """What a reader without JavaScript sees in the selector's place: the scores are sky130's, and the ASAP7 course
+    """What a reader without JavaScript sees in the selector's place: the scores are sky130's, and the routed course
     needs the selector."""
     return f'<noscript><p class="{cls}">{text_html}</p></noscript>'
 
@@ -394,7 +395,7 @@ def layout(*, title, body_html, root, active=None, description="", revision=None
              + f'<li><a href="{root}reproduce.html">Reproduce a score</a></li>'
              + f'<li><a href="{root}llms.txt">llms.txt</a></li><li><a href="{root}data/site.json">data</a></li>' + rev)
     full_title = title if title == site_name or title.startswith(f"{site_name}: ") else f"{title} | {site_name}"
-    pick = (pdk_select("pdk-select", "Course") + pdk_nojs("Course: sky130 · the ASAP7 course needs JavaScript")
+    pick = (pdk_select("pdk-select", "Course") + pdk_nojs("Course: sky130 · the routed ASAP7 course needs JavaScript")
             if header_pdk else "")
     base = f'\n<base href="{esc(base_href)}">' if base_href else ""
     meta = (f'\n<meta name="robots" content="{esc(robots)}">' if robots else "")

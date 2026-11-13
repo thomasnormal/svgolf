@@ -34,6 +34,7 @@ import io
 import json
 import os
 import random
+import re
 import shlex
 import shutil
 import subprocess
@@ -3489,6 +3490,376 @@ class CommittedAsap7Test(unittest.TestCase):
                 a7 = lb.build_board(task, mine, flow=flow, statement=lb.current_statement_or_none(task), pdk="asap7",
                                     asap7=table, asap7_identity=ident)
                 self.assertEqual({r["record_hash"] for r in a7["ranking"]}, {r["record_hash"] for r in sky["ranking"]})
+
+
+class Asap7PnrTest(Tmp):
+    """The routed course (decided 2026-11-11/12: the front page's second course is ASAP7 placed and routed): its
+    results kept beside the records (leaderboard/asap7pnr/<task>.json, fixtures: the committed files, the course host's
+    collected site data as `asap7pnr --import` took it), checked for shape and arithmetic, shown only when BOUND (the
+    design file, its ASAP7 view netlist, the current view and pins, a valid scoring run), ranked by the same rules, par
+    the par design's routed score. The negative control of the round that made the data, ported: six planted faults,
+    each refused (or, for a dropped design, shown as not routed yet, never with a number)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            cls.expected = json.load(fh)
+        cls.recs = lb.good_records(lb.load_records(lb.DEFAULT_DATA))
+        cls.pins = lb.asap7pnr_identity()
+
+    def task(self, name):
+        return lb.load_task(lb.DEFAULT_TASKS, name)
+
+    def tables(self, name):
+        return lb.load_asap7(name), lb.load_asap7pnr(name)
+
+    def rec_of(self, name, player, h=None):
+        return next(r for r in self.recs if r["task"] == name and r["player"] == player
+                    and (h is None or r["record_hash"].startswith(h)))
+
+    def test_the_committed_files_pass_the_file_check(self):
+        for name in lb.all_task_names(lb.DEFAULT_TASKS):
+            data, why = lb.read_asap7pnr(name)
+            with self.subTest(task=name):
+                self.assertIsNone(why)
+                if data is not None:
+                    self.assertEqual(lb.asap7pnr_file_problems(data, name), [])
+                    self.assertEqual(data["course"]["ranked"], "v_owner")
+
+    def test_the_six_planted_faults_of_the_negative_control(self):
+        """The data round's validator caught six planted faults on copies; the same six against the tree's checks
+        (`asap7pnr_file_problems`, `asap7pnr_picture_problems` through `asap7pnr_check`, `asap7pnr_status`). (1) An area
+        changed with a consistent exact and v_owner: caught when beyond ORFS's printed precision of the run's own raw
+        area texts (here one unit of its four-decimal print, 10 in 1e-5 um^2); a smaller change needs the run's cell
+        histogram, which stays on the course host. (4) A dropped design is not routed yet: no number."""
+        def check(name, data):
+            designs = lb.asap7_designs(self.task(name), self.recs, self.expected)
+            a7 = lb.load_asap7(name)
+            fails, notes, by = lb.asap7pnr_check(self.task(name), a7, data, designs, pins=self.pins)
+            return lb.asap7pnr_file_problems(data, name), fails, notes, by
+
+        def planted(name, fn):
+            data = copy.deepcopy(lb.load_asap7pnr(name))
+            fn(data)
+            return check(name, data)
+        for name in ("add", "mul", "fdivp", "clmul", "sorter", "arbiter"):
+            probs, fails, _notes, _by = check(name, lb.load_asap7pnr(name))
+            self.assertEqual((probs, fails), ([], []), name)
+
+        def area(d):                 # (1)
+            e = d["designs"][0]
+            run = e["runs"][0]
+            run["area_e5um2"] += 10
+            run["exact"] = run["area_e5um2"] * run["time_ps"]
+            e["scores"]["v_owner"].update(area_e5um2=run["area_e5um2"], exact=run["exact"], um2ns=run["exact"] / 1e8)
+        probs, _, _, _ = planted("add", area)
+        self.assertTrue(any("beyond ORFS's printed precision" in p for p in probs), probs)
+
+        def zero_sha(d):             # (2)
+            d["designs"][1]["layout"]["image_sha256"] = "0" * 64
+        probs, fails, _, _ = planted("mul", zero_sha)
+        self.assertEqual(probs, [])
+        self.assertTrue(any("not the picture the entry records" in f for f in fails), fails)
+
+        def swap(d):                 # (3) the seed-2 run made the scoring run
+            e = next(x for x in d["designs"] if len(x["runs"]) >= 2)
+            e["runs"][0]["role"], e["runs"][1]["role"] = "spread", "scoring"
+            e["runs"][0], e["runs"][1] = e["runs"][1], e["runs"][0]
+        probs, _, _, _ = planted("fdivp", swap)
+        self.assertTrue(any("the scoring run is not at the request's seed" in p for p in probs), probs)
+        self.assertTrue(any("a spread run at the request's seed" in p for p in probs), probs)
+
+        dropped = lb.load_asap7pnr("clmul")["designs"][0]["sv_sha256"]
+        probs, fails, notes, by = planted("clmul", lambda d: d["designs"].pop(0))     # (4)
+        self.assertEqual((probs, fails), ([], []))
+        self.assertTrue(any(lb.PNR_PENDING in n for n in notes), notes)
+        self.assertEqual(lb.asap7pnr_status({**lb.load_asap7pnr("clmul"), "designs": []}, lb.load_asap7("clmul"),
+                                            dropped)[0], "pending")
+
+        def caption(d):              # (5)
+            L = d["designs"][0]["layout"]
+            L["caption"] = L["caption"].replace("placement seed 1", "placement seed 7")
+        probs, _, _, _ = planted("sorter", caption)
+        self.assertTrue(any("caption" in p for p in probs), probs)
+
+        def missing(d):              # (6)
+            d["designs"][0]["layout"]["image"] = "site/layouts/arbiter/missing.webp"
+        probs, fails, _, _ = planted("arbiter", missing)
+        self.assertTrue(any("layout.image is 'site/layouts/arbiter/missing.webp'" in p for p in probs), probs)
+        self.assertTrue(any("missing.webp: missing" in f for f in fails), fails)
+
+    def test_the_numbers_are_checked_against_the_runs_own_texts(self):
+        """The delay is half-even(sdc_period - setup_ws) of the scoring run's raw ORFS texts, the time cycles x delay,
+        exact area x time, the SDC period the ASAP7 view's delay, the scores the runs': each drift is refused."""
+        base = lb.load_asap7pnr("sorter")
+        self.assertEqual(lb._half_even("491.5"), 492)
+        self.assertEqual(lb._half_even("490.5"), 490)
+        for mutate, frag in ((lambda e: e["runs"][0].update(delay_ps=e["runs"][0]["delay_ps"] + 1), "half-even"),
+                             (lambda e: e["runs"][0]["orfs"].update(sdc_period="1.0"), "SDC period"),
+                             (lambda e: e["runs"][0].update(exact=e["runs"][0]["exact"] + 1), "exact"),
+                             (lambda e: e["runs"][0].update(lec=["6_final:DIFFERENT"]), "IDENTICAL"),
+                             (lambda e: e["runs"][0].update(drc=1), "DRC 0"),
+                             (lambda e: e["scores"]["v_owner"].update(seed=2), "scores are not"),
+                             (lambda e: e.update(status="pending"), "status"),
+                             (lambda e: e["runs"][0]["artifacts"].update({"1_2_yosys.v": "0" * 64}), "placed netlist"),
+                             (lambda e: e["request"].update(seed=0), "seed"),
+                             (lambda e: e["request"].update(settings={"x": 1}), "settings_sha256"),
+                             (lambda e: e.update(layout=None), "without its layout picture"),
+                             (lambda e: e["layout"].update(thumb_px=[600, 600]), "thumbnail")):
+            bad = copy.deepcopy(base)
+            mutate(bad["designs"][0])
+            with self.subTest(frag):
+                self.assertTrue(any(frag in p for p in lb.asap7pnr_file_problems(bad, "sorter")),
+                                lb.asap7pnr_file_problems(bad, "sorter"))
+        for mutate, frag in ((lambda t: t.update(schema="x"), "schema"), (lambda t: t["designs"].reverse(), "order"),
+                             (lambda t: t["course"].pop("flow"), "course must name"),
+                             (lambda t: t["asap7_view"].pop("ppa_script_sha256"), "asap7_view"),
+                             (lambda t: t.update(extra=1), "unexpected")):
+            bad = copy.deepcopy(base)
+            mutate(bad)
+            self.assertTrue(any(frag in p for p in lb.asap7pnr_file_problems(bad, "sorter")), frag)
+        self.assertTrue(lb.asap7pnr_file_problems(base, "add"))          # another task's file
+
+    def test_a_stale_or_unbound_entry_is_never_shown(self):
+        """The binding rule: a routed number is a record's only when its entry is BOUND. A file of another ASAP7 view,
+        another image, flow or settings than the pins (stale), an entry whose placed or scored netlist is not the ASAP7
+        view entry's (unbound), a failed run, or a record whose ASAP7 view entry is not its own: no columns, not ranked,
+        the reason said."""
+        task = self.task("sorter")
+        a7, pnr = self.tables("sorter")
+        rec = self.rec_of("sorter", "kestrel-golf")
+        sha = rec["files"]["sv"]["sha256"]
+        self.assertIsNotNone(lb.asap7pnr_columns(rec, a7, pnr, pins=self.pins, task=task))
+        self.assertIsNone(lb.asap7pnr_mismatch(rec, task, a7, pnr, a7_identity=lb.asap7_identity(), pins=self.pins))
+        bound_row = lb.row_of(rec, "asap7pnr", a7, pnr, self.pins, task=task)
+        self.assertIsNotNone(bound_row["exact"])
+        # without the task the full rule (its scoring point) cannot be applied: no routed number
+        self.assertIsNone(lb.asap7pnr_columns(rec, a7, pnr, pins=self.pins))
+
+        def mutated(fn):
+            t = copy.deepcopy(pnr)
+            fn(t)
+            return t
+        cases = [
+            ("another scoring point", mutated(lambda t: t["scoring_point"].update(N=16)),
+             "stale: routed at {'N': 16, 'W': 8}, the task's scoring point is {'N': 8, 'W': 8}"),
+            ("another ASAP7 view", mutated(lambda t: t["asap7_view"].update(ppa_script_sha256="0" * 64)),
+             "stale: routed from another ASAP7 view"),
+            ("another image", mutated(lambda t: t["course"]["image"].update(tag="x")),
+             "stale: routed under another image, flow or settings than the pinned ones (image)"),
+            ("another flow variable", mutated(lambda t: t["course"]["orfs_variables"].update(CORE_UTILIZATION="50")),
+             "(orfs_variables)"),
+            ("settings", mutated(lambda t: lb.asap7pnr_entry(t, sha)["request"].update(
+                settings={"PLACE_DENSITY": "0.7"}, settings_sha256=lb.pnr_settings_sha256({"PLACE_DENSITY": "0.7"}))),
+             "stale: routed with layout settings"),
+            ("another placed netlist", mutated(lambda t: lb.asap7pnr_entry(t, sha).update(netlist_sha256="0" * 64)),
+             "unbound: its routed netlist is not this design's ASAP7 netlist"),
+            ("another scored netlist", mutated(lambda t: lb.asap7pnr_entry(t, sha).update(
+                scored_netlist_sha256="0" * 64)), "unbound"),
+            ("a failed run", mutated(lambda t: lb.asap7pnr_entry(t, sha).update(status="failed")),
+             "place and route failed"),
+            ("no entry", mutated(lambda t: t.update(designs=[e for e in t["designs"] if e["sv_sha256"] != sha])),
+             lb.PNR_PENDING),
+            ("no file", None, lb.PNR_PENDING)]
+        for what, tab, frag in cases:
+            with self.subTest(what):
+                self.assertIsNone(lb.asap7pnr_columns(rec, a7, tab, pins=self.pins, task=task))
+                self.assertIsNone(lb.row_of(rec, "asap7pnr", a7, tab, self.pins, task=task)["exact"])
+                why = lb.unranked_reason(rec, task, pdk="asap7pnr", asap7=a7, asap7_identity=lb.asap7_identity(),
+                                         asap7pnr=tab, pnr_identity=self.pins)
+                self.assertIn(frag, why or "")
+                board = lb.build_board(task, [rec], pdk="asap7pnr", asap7=a7, asap7_identity=lb.asap7_identity(),
+                                       asap7pnr=tab, pnr_identity=self.pins)
+                self.assertEqual(board["ranking"], [])
+                (row,) = board["unranked"]
+                self.assertEqual((row["exact"], row["um2ns"], row["area_e5um2"], row["time_ps"], row["cycles"],
+                                  row["period_ps"]), (None,) * 6)
+                self.assertIn(frag, row["reason"])
+                md = lb.render_markdown(board)          # the markdown board: the reason, never the routed numbers
+                self.assertIn(lb.md_escape(frag), md)
+                for shown in (lb.fmt_area(bound_row), lb.fmt_time(bound_row), str(bound_row["time_ps"])):
+                    self.assertNotIn(shown, md)
+                self.assertIsNone(lb.par_of(task, [dict(rec, player=lb.REFERENCE_PLAYER)], names={sha: (0, "x")},
+                                            pdk="asap7pnr", asap7=a7, asap7_identity=lb.asap7_identity(),
+                                            asap7pnr=tab, pnr_identity=self.pins))
+        # the record's ASAP7 view entry not its own (its GE columns differ): no routed number either
+        a7b = copy.deepcopy(a7)
+        lb.asap7_entry(a7b, sha)["area_mge"] += 1
+        self.assertIsNone(lb.asap7pnr_columns(rec, a7b, pnr, pins=self.pins, task=task))
+        self.assertIn("not routed: no ASAP7 netlist bound to it",
+                      lb.asap7pnr_mismatch(rec, task, a7b, pnr, a7_identity=lb.asap7_identity(), pins=self.pins))
+
+    def test_the_score_is_the_requests_run(self):
+        """v_owner, the score, is the run at the request's seed (seed 1 for every design measured so far); the other
+        seeds of the 2026-11-11 campaign are an unranked extra (v_median) and never rank."""
+        a7, pnr = self.tables("sorter")
+        rec = self.rec_of("sorter", "kestrel-golf")
+        e = lb.asap7pnr_entry(pnr, rec["files"]["sv"]["sha256"])
+        self.assertEqual(e["request"], {"source": "default", "seed": 1, "settings": {},
+                                        "settings_sha256": lb.pnr_settings_sha256({})})
+        run = next(r for r in e["runs"] if r["role"] == "scoring")
+        self.assertEqual(run["seed"], 1)
+        cols = lb.asap7pnr_columns(rec, a7, pnr, pins=self.pins, task=self.task("sorter"))
+        self.assertEqual(cols, {"area_e5um2": run["area_e5um2"], "time_ps": run["time_ps"], "cycles": e["cycles"],
+                                "period_ps": run["delay_ps"]})
+        self.assertNotEqual(e["scores"]["v_median"]["median_seed"], 1)          # the median run is another seed
+        self.assertNotEqual(cols["time_ps"], e["scores"]["v_median"]["time_ps"])
+
+    def test_the_routed_board_and_par(self):
+        """The routed board ranks the bound records by their routed product (1e-5 um^2 x ps), the rest unranked with
+        the reason; par is the par design's routed score (leaderboard/par.json: one design per task), and there is no
+        par while that design is not routed."""
+        task = self.task("add")
+        a7, pnr = self.tables("add")
+        mine = [r for r in self.recs if r["task"] == "add"]
+        kw = dict(pdk="asap7pnr", asap7=a7, asap7_identity=lb.asap7_identity(), asap7pnr=pnr, pnr_identity=self.pins)
+        board = lb.build_board(task, mine, **kw)
+        self.assertEqual((board["pdk"], board["ranked_axes"]), ("asap7pnr", ["area_um2_asap7pnr", "time_ps"]))
+        self.assertEqual(board["pnr_identity"], self.pins)
+        for r in board["ranking"]:
+            e = lb.asap7pnr_entry(pnr, next(x for x in mine if x["record_hash"] == r["record_hash"])["files"]["sv"]["sha256"])
+            self.assertEqual(r["exact"], e["scores"]["v_owner"]["exact"])
+            self.assertEqual(r["um2ns"], r["exact"] / 1e8)
+        self.assertEqual([r["exact"] for r in board["ranking"]], sorted(r["exact"] for r in board["ranking"]))
+        self.assertTrue(all(r["reason"] == lb.PNR_PENDING for r in board["unranked"]))
+        # a record not routed yet (a copy of the table without its entry; every add design is routed since
+        # 2026-11-13): unranked with the reason, no routed number, the others ranked as before
+        last = board["ranking"][-1]
+        last_sha = next(x for x in mine if x["record_hash"] == last["record_hash"])["files"]["sv"]["sha256"]
+        short = dict(pnr, designs=[e for e in pnr["designs"] if e["sv_sha256"] != last_sha])
+        pending = lb.build_board(task, mine, **dict(kw, asap7pnr=short))
+        self.assertEqual([r["record_hash"] for r in pending["ranking"]],
+                         [r["record_hash"] for r in board["ranking"][:-1]])
+        (row,) = [r for r in pending["unranked"] if r["record_hash"] == last["record_hash"]]
+        self.assertEqual(row["reason"], lb.PNR_PENDING)
+        self.assertEqual((row["exact"], row["area_e5um2"], row["time_ps"]), (None, None, None))
+        names = lb.par_names(lb.DEFAULT_TASKS, task)
+        par = lb.par_of(task, mine, names=names, **kw)
+        par_sha = next(iter(names))
+        self.assertEqual(par["name"], "add_n")
+        self.assertEqual(par["exact"], lb.asap7pnr_entry(pnr, par_sha)["scores"]["v_owner"]["exact"])
+        self.assertIn("6.99840 um^2 x 560 ps = 3.9191 um2*ns", lb.fmt_par(par))
+        # par's design not routed: no par on the routed course (never another reference's score in its place)
+        gone = dict(pnr, designs=[e for e in pnr["designs"] if e["sv_sha256"] != par_sha])
+        self.assertIsNone(lb.par_of(task, mine, names=names, **dict(kw, asap7pnr=gone)))
+        md = lb.render_markdown(dict(board, par=par))
+        self.assertIn(lb.ASAP7PNR_BOARD_NOTE, md)
+        md = lb.render_markdown(dict(pending, par=par))
+        self.assertIn(lb.ASAP7PNR_BOARD_NOTE, md)
+        self.assertIn(lb.PNR_PENDING, md)
+
+    def test_the_import_reproduces_the_committed_file(self):
+        """`asap7pnr --import`: a course host's site data (schema 2, pictures under images/) taken into the tree; on
+        the committed file put back in the host's form it gives the committed file and pictures again, byte for byte,
+        and leaves out an entry of a design file the task does not show any more; a picture that is not its entry's is
+        refused."""
+        name = "sorter"
+        with open(lb.asap7pnr_path(name), encoding="utf-8") as fh:
+            committed = fh.read()
+        data = json.loads(committed)
+        src = copy.deepcopy(data)
+        os.makedirs(os.path.join(self.tmp, "sitedata"))
+        os.makedirs(os.path.join(self.tmp, "images", name))
+        for e in src["designs"]:
+            for key in ("image", "thumb"):
+                shutil.copy(os.path.join(lb.SVGOLF, *e["layout"][key].split("/")),
+                            os.path.join(self.tmp, "images", name, f"{e['sv_sha256'][:8]}-{key}.webp"))
+                e["layout"][key] = f"images/{name}/{e['sv_sha256'][:8]}-{key}.webp"
+        ghost = copy.deepcopy(src["designs"][0])
+        ghost["sv_sha256"] = "f" * 64
+        src["designs"].append(ghost)
+        src["_comment"] = "the host's"
+        with open(os.path.join(self.tmp, "sitedata", f"{name}.json"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(src, indent=1, sort_keys=True) + "\n")
+        designs = lb.asap7_designs(self.task(name), self.recs, self.expected)
+        out, pictures, dropped, bad = lb.asap7pnr_import(self.tmp, name, designs)
+        self.assertEqual(bad, [])
+        self.assertEqual(json.dumps(out, indent=1, sort_keys=True) + "\n", committed)
+        self.assertEqual([e["sv_sha256"] for e in dropped], ["f" * 64])
+        for rel, blob in pictures.items():
+            with open(os.path.join(lb.SVGOLF, *rel.split("/")), "rb") as fh:
+                self.assertEqual(fh.read(), blob)
+        with open(os.path.join(self.tmp, "images", name, f"{src['designs'][0]['sv_sha256'][:8]}-thumb.webp"), "ab") as fh:
+            fh.write(b"x")
+        _, _, _, bad = lb.asap7pnr_import(self.tmp, name, designs)
+        self.assertTrue(any("not the picture its entry records" in b for b in bad), bad)
+
+    def test_the_pins_and_the_webp_reader(self):
+        pins = lb.asap7pnr_identity()
+        self.assertEqual(set(pins), set(lb.PNR_PINNED))
+        self.assertEqual(pins["image"]["manifest_digest"],
+                         "sha256:df7ba49c0bc2bcdfc353b9fc75a17dac489200c239967564bc25d6bd40462c21")
+        self.assertEqual(pins["flow"], "min_v1")
+        self.assertIsNone(lb.asap7pnr_identity(os.path.join(self.tmp, "none.json")))
+        e = lb.load_asap7pnr("add")["designs"][0]
+        with open(os.path.join(lb.SVGOLF, *e["layout"]["thumb"].split("/")), "rb") as fh:
+            self.assertEqual(list(lb.webp_size(fh.read())), e["layout"]["thumb_px"])
+        self.assertIsNone(lb.webp_size(b"RIFF\0\0\0\0WEBPXXXX" + b"\0" * 20))
+        self.assertIsNone(lb.webp_size(b"\x89PNG"))
+
+    def test_the_cli_checks_and_ranks_the_routed_course(self):
+        rc, out, err = quiet(lb.main, ["asap7pnr"])
+        self.assertEqual(rc, 0, out + err)
+        bound = int(re.search(r"^total: (\d+) bound$", out, re.M).group(1))      # every design routed (2026-11-13)
+        # a design not routed yet (a copy of the tables, sorter's first entry removed): a note, not a failure
+        tdir = os.path.join(self.tmp, "asap7pnr")
+        shutil.copytree(lb.ASAP7PNR_DIR, tdir)
+        with open(os.path.join(tdir, "sorter.json"), encoding="utf-8") as fh:
+            short = json.load(fh)
+        gone = short["designs"].pop(0)
+        with open(os.path.join(tdir, "sorter.json"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(short, indent=1, sort_keys=True) + "\n")
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--asap7pnr-dir", tdir])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("[ok] sorter: 2 designs: 1 bound, 1 pending", out)
+        self.assertIn(f"{', '.join(gone['of'])}: {lb.PNR_PENDING}", out)
+        self.assertRegex(out, rf"(?m)^total: {bound - 1} bound, 1 pending$")
+        rc, out, err = quiet(lb.main, ["board", "--task", "sorter", "--pdk", "asap7pnr", "--format", "json"])
+        self.assertEqual(rc, 0, err)
+        board = json.loads(out)
+        self.assertEqual(board["pdk"], "asap7pnr")
+        self.assertEqual(board["ranking"][0]["player"], "kestrel-golf")
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--write"])
+        self.assertEqual(rc, 2)
+
+
+class CommittedAsap7PnrTest(unittest.TestCase):
+    """The committed routed results (leaderboard/asap7pnr/): every file well-formed and bound to the committed ASAP7
+    view (its identity and ppa.py hash) and the pins; no entry failed, stale or unbound; every picture its file; and
+    the routed boards rank exactly the records with a bound entry, the others listed as not routed yet."""
+
+    def test_every_file_binds_and_every_other_design_is_pending(self):
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        recs = lb.good_records(lb.load_records(lb.DEFAULT_DATA))
+        pins = lb.asap7pnr_identity()
+        totals = {}
+        for name in lb.all_task_names(lb.DEFAULT_TASKS):
+            task = lb.load_task(lb.DEFAULT_TASKS, name)
+            designs = lb.asap7_designs(task, recs, expected)
+            if not designs:
+                continue
+            with self.subTest(task=name):
+                a7 = lb.load_asap7(name)
+                pnr, why = lb.read_asap7pnr(name)
+                self.assertIsNone(why)
+                fails, notes, by = lb.asap7pnr_check(task, a7, pnr, designs, pins=pins)
+                self.assertEqual(fails, [])
+                self.assertEqual(set(by) - {"bound", "pending"}, set())
+                for k, v in by.items():
+                    totals[k] = totals.get(k, 0) + len(v)
+                if pnr is not None:
+                    self.assertEqual(pnr["asap7_view"], {"identity": a7["identity"],
+                                                         "ppa_script_sha256": a7["ppa_script_sha256"]})
+                    self.assertEqual({k: pnr["course"][k] for k in lb.PNR_PINNED}, pins)
+                    self.assertTrue(all(e["sv_sha256"] in designs for e in pnr["designs"]))
+                mine = [r for r in recs if r["task"] == name]
+                board = lb.build_board(task, mine, pdk="asap7pnr", asap7=a7, asap7_identity=lb.asap7_identity(),
+                                       asap7pnr=pnr, pnr_identity=pins)
+                bound = {r["record_hash"] for r in mine
+                         if lb.asap7pnr_status(pnr, a7, r["files"]["sv"]["sha256"], task=task, pins=pins)[0] == "bound"}
+                self.assertEqual({r["record_hash"] for r in board["ranking"]}, bound)
+        self.assertEqual(totals, {"bound": 39})        # 2026-11-13, campaign 3: every design the tasks show is routed
 
 
 def git(cwd, *args):

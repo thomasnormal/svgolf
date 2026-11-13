@@ -6,8 +6,8 @@
 //     one's data-tip; designs drawn at one point share one tooltip that names them all);
 //   * the explorer: the point selector (the scored point's ranked numbers, or another point's
 //     measured ones: score/measured/<task>.json), two axis menus and their log switches, and a redraw
-//     of the scatter from the page's data (the inert JSON in #task-data; the ASAP7 view's explorer, a
-//     second copy on the page, from #task-data-asap7: site/build.py `dual`), with the Pareto front of
+//     of the scatter from the page's data (the inert JSON in #task-data; the routed course's explorer, a
+//     second copy on the page, from #task-data-asap7pnr: site/build.py `dual`), with the Pareto front of
 //     the entries for the chosen pair. The drawing mirrors svgplot.scatter_chart: same frame,
 //     scales, ticks, marks and CSS classes.
 //   * the scaling view: a metric menu, the "÷ par" and log switches, and a redraw of the lines
@@ -806,7 +806,7 @@
     Array.prototype.forEach.call(document.querySelectorAll("[data-scale-toggle]"), wireScale);
     Array.prototype.forEach.call(document.querySelectorAll("[data-view-toggle]"), wireViewToggle);
     Array.prototype.forEach.call(document.querySelectorAll("[data-schematic]"), wireSchematic);
-    // the page's data: #task-data (sky130, with the scaling view's) and #task-data-asap7 (the ASAP7 view's explorer),
+    // the page's data: #task-data (sky130, with the scaling view's) and #task-data-asap7pnr (the routed course's explorer),
     // each beside the explorer it feeds
     Array.prototype.forEach.call(document.querySelectorAll('script[type="application/json"][id^="task-data"]'), function (el) {
       var data = null;

@@ -64,11 +64,24 @@ something can read them:
     the rule cannot look inside either. A netlist the pinned flow writes has
     neither (`write_verilog -noattr -noexpr`: gate instances and assigns of
     single drivers);
-  * Verilator's lint runs with `-Wall`, every warning FATAL but the two in
+  * a combinational loop is refused BIT BY BIT before anything is simulated
+    (`comb_loops`, 2026-11-13): in the `insbuf` view every assign is a
+    buffer cell, every cell but the flip-flop `$_DFF_P_` leads from each of
+    its input pins to each of its output pins, and a cycle of net bits is a
+    loop, wherever it is;
+  * Verilator's lint runs with `-Wall`, every warning FATAL but the three in
     `NETLIST_WNO`: an undriven net (UNDRIVEN), a gate pin left open
-    (PINMISSING, PINCONNECTEMPTY), a doubly driven net (MULTIDRIVEN), a
-    combinational loop (UNOPTFLAT), a width mismatch and an unknown cell all
-    reject;
+    (PINMISSING, PINCONNECTEMPTY), a doubly driven net (MULTIDRIVEN), a width
+    mismatch and an unknown cell all reject. The third waived warning is
+    UNOPTFLAT, Verilator's loop warning, which works at the granularity of a
+    whole VECTOR: Yosys writes flip-flops it merged as assigns between bits of
+    one vector (`assign { q[2], q[0] } = { q[3], q[1] };`), which it calls
+    circular although no bit depends on itself. With the bit-level rule
+    above refusing every real loop first, what is left of UNOPTFLAT is that
+    false one, which Verilator simulates correctly, only more slowly (its
+    manual on the warning: "Ignoring this warning will only slow
+    simulations; it will simulate correctly"); a model whose logic does not
+    settle stops with an error (DIDNOTCONVERGE) and is rejected;
   * the defences upstream stay what they were: the source gate refuses every
     x/z literal source, the `fourstate` stage refuses undriven or conflicting
     nets, loops and out-of-range selects, and ls-sv's side of this stage stays
@@ -521,6 +534,88 @@ def conflicting_drivers(drivers):
     return out
 
 
+# The cells through which no combinational path runs: the one flip-flop the pinned clocked flow writes
+# (`dfflegalize -cell $_DFF_P_ x`, score/svgolf_seq.ys). Every other cell, of any type (a gate, a buffer `insbuf`
+# made of an assign, a cell of a type nothing defines), counts as combinational from each input pin to each output
+# pin, and a pin of unknown direction or an inout as both: that can only find more loops, never fewer.
+LOOP_BREAKERS = ("$_DFF_P_",)
+
+
+def _cycles(succ):
+    """The strongly connected components of the graph `succ` (node -> set of nodes) that hold a cycle: more than one
+    node, or one node with an edge to itself, each as a sorted list. Tarjan's algorithm, iterative (a netlist has
+    10^5 bits), visiting the nodes in sorted order so that the result does not depend on dictionary order."""
+    index, low, on, stack, out, n = {}, {}, set(), [], [], 0
+    for root in sorted(succ):
+        if root in index:
+            continue
+        index[root] = low[root] = n
+        n += 1
+        stack.append(root)
+        on.add(root)
+        work = [(root, iter(sorted(succ.get(root, ()))))]
+        while work:
+            v, it = work[-1]
+            for w in it:
+                if w not in index:
+                    index[w] = low[w] = n
+                    n += 1
+                    stack.append(w)
+                    on.add(w)
+                    work.append((w, iter(sorted(succ.get(w, ())))))
+                    break
+                if w in on:
+                    low[v] = min(low[v], index[w])
+            else:
+                work.pop()
+                if work:
+                    low[work[-1][0]] = min(low[work[-1][0]], low[v])
+                if low[v] == index[v]:
+                    comp = []
+                    while True:
+                        w = stack.pop()
+                        on.discard(w)
+                        comp.append(w)
+                        if w == v:
+                            break
+                    if len(comp) > 1 or v in succ.get(v, ()):
+                        out.append(sorted(comp))
+    return out
+
+
+def comb_loops(drivers):
+    """Refusal phrases for the combinational loops of the `insbuf` view (`reread_netlist`), found BIT BY BIT: a node
+    per net bit, an edge from each bit on an input pin of a cell to each bit on its output pins (LOOP_BREAKERS aside;
+    in this view every assign is a buffer cell, so an assign is an edge too), and a cycle of bits is a loop. Two bits
+    of one vector, one assigned from the other, make no loop here; Verilator's UNOPTFLAT, which looks at whole
+    vectors, calls them one (NETLIST_WNO). Every module that is not a library model is read."""
+    out = []
+    for mname, mod in sorted(drivers.get("modules", {}).items()):
+        attrs = mod.get("attributes") or {}
+        if attrs.get("blackbox") is not None:
+            continue
+        succ = {}
+        for c in (mod.get("cells") or {}).values():
+            if str(c.get("type", "")).lstrip("\\") in LOOP_BREAKERS:
+                continue
+            dirs = c.get("port_directions") or {}
+            ins, outs = set(), set()
+            for pin, conn in (c.get("connections") or {}).items():
+                bits = {b for b in conn if not isinstance(b, str)}
+                if dirs.get(pin) != "output":
+                    ins |= bits
+                if dirs.get(pin) != "input":
+                    outs |= bits
+            for a in ins:
+                succ.setdefault(a, set()).update(outs)
+        where = "" if attrs.get("top") else f" of module `{mname.lstrip(chr(92))}`"
+        for comp in _cycles(succ):
+            names, lines = _names_of(mod, set(comp))
+            at = f" (declared at netlist line{'s' if len(lines) > 1 else ''} {_and(map(str, lines))})" if lines else ""
+            out.append(f"it has a combinational loop through {_and(names or ['net bits with no name'])}{where}{at}")
+    return out
+
+
 def read_unknown(drivers, top=None):
     """{(module, net, declared bit)} of the nets of the `insbuf` view that hold an unknown value through assigns AND
     reach something that reads them: a cell pin that is not an output (other than an assign's own), or a port that
@@ -562,14 +657,15 @@ def reread_check(netlist, top, sres, work):
     (one gate instance per scored cell) with the cell models as a library and
     must count exactly the scored gates by type, and the scored depth; before
     that, the netlist must have no part the unknown-constant rule cannot look
-    into (`opaque_parts`) and no bit driven twice with an unknown value
-    (`conflicting_drivers`). Returns Yosys's JSON view of the netlist and the
-    `insbuf` view (`reread_netlist`)."""
+    into (`opaque_parts`), no bit driven twice with an unknown value
+    (`conflicting_drivers`) and no combinational loop, bit by bit
+    (`comb_loops`). Returns Yosys's JSON view of the netlist and the `insbuf`
+    view (`reread_netlist`)."""
     try:
         cells, depth, design, own, drivers = reread_netlist(netlist, top, work)
     except (score.ScoreError, OSError, ValueError) as e:
         raise Reject(f"the scored netlist does not re-read: {e}")
-    why = opaque_parts(own, design) + conflicting_drivers(drivers)
+    why = opaque_parts(own, design) + conflicting_drivers(drivers) + comb_loops(drivers)
     if why:
         raise Reject("the netlist is refused before it is simulated: " + _and(why) + ". check.py --keep keeps the "
                      "netlist (the result's `postsynth_dir`)")
@@ -1018,11 +1114,11 @@ def lssv_eval(envl, point_s, ins, vecs, fuel, work, deadline, trace=False, start
         timing, el
 
 
-# Verilator's lint is run with -Wall and every warning FATAL, minus these two,
+# Verilator's lint is run with -Wall and every warning FATAL, minus these three,
 # each of which cannot change a value the harness reads. Everything else
 # rejects (measured on mutated netlists, 2026-10-29: UNDRIVEN, PINMISSING,
-# PINCONNECTEMPTY, MULTIDRIVEN, UNOPTFLAT, WIDTHTRUNC, an unknown cell): a net
-# or a pin nothing drives would be a silent 0 in a 2-state simulator.
+# PINCONNECTEMPTY, MULTIDRIVEN, WIDTHTRUNC, an unknown cell): a net or a pin
+# nothing drives would be a silent 0 in a 2-state simulator.
 NETLIST_WNO = (
     # the netlist is `netlist.v` and the cell library `simcells.v`: neither
     # file is named after its modules, and `\$_AND_ ` could not be a file name
@@ -1031,6 +1127,13 @@ NETLIST_WNO = (
     # depends on it (a mutated netlist that drops all uses of `a[15]` is
     # otherwise rejected)
     "UNUSEDSIGNAL",
+    # a loop at the granularity of a whole vector (2026-11-13). `reread_check`
+    # has already refused every real combinational loop bit by bit
+    # (`comb_loops`), so what Verilator still calls circular is a vector one of
+    # whose bits is assigned from another (Yosys's merged flip-flops), which it
+    # simulates correctly, only more slowly; logic that does not settle stops
+    # the model (DIDNOTCONVERGE), and the run is rejected
+    "UNOPTFLAT",
 )
 # The RTL third opinion is the PLAYER'S source; any construct Verilator
 # accepts at all (with warnings) is simulated, because it never decides the

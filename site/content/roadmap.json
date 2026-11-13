@@ -40,7 +40,7 @@
     {
       "status": "in-progress",
       "title": "This website",
-      "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Every record and the par design of a ranked task have a page: the area, time and score cards, the design among the task's designs, the schematic of a small display instance, the critical path, the cells, the sources and the proof. Next: the placed and routed layout on those pages."
+      "text": "Generated from the repository by `site/build.py` and published from its main branch by the `pages` workflow. Every record and the par design of a ranked task have a page: the area, time and score cards, the design among the task's designs, the schematic of a small display instance, the critical path, the cells, the sources and the proof, and its placed and routed layout: every design the boards show is routed (since 2026-11-13), and a new record is routed after it is recorded ([how the routed course is scored](site:rules.html#how-the-routed-course-is-scored))."
     },
     {
       "status": "handoff",

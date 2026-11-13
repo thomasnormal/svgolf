@@ -235,8 +235,8 @@ obligation `LoopFunctional` quantifying over every boolean start of the loop sig
 
 The flow accepts and prices loops: `abc -g ...`, `opt_clean`, `stat -json` and `ltp -noff` all complete. The checker does not
 get that far: `fourstate` refuses every logic loop by design, because a retained loop is a latch to the proof, and the table
-shows that this refusal is load-bearing, not conservative. `postsynth` would refuse a netlist with a loop a second time: it lints
-with `-Wall` and every warning fatal except two (`NETLIST_WNO`), and `UNOPTFLAT` is not one of them. Relaxing it would need
+shows that this refusal is load-bearing, not conservative. `postsynth` would refuse a netlist with a loop a second time: its
+bit-level loop rule (`comb_loops`, since 2026-11-13; before that Verilator's `UNOPTFLAT`) refuses it before anything runs. Relaxing it would need
 `postsynth` to simulate a retained loop AND to see state (a random initial state per vector, not 0). That is a checker change
 as large as the proof-side obligation.
 

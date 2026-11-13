@@ -1,7 +1,7 @@
-// svGolf site: the library selector (decided 2026-11-09: a dropdown on the front page lets the reader see the golf
-// scores on sky130 or on ASAP7). Every page carries its golf scores twice, on sky130 (the default) and on
-// ASAP7, each in an element of class `pdk-sky130` or `pdk-asap7` (site/build.py `dual`; both views computed when the
-// site is built); style.css shows the one named by <html data-pdk>. This script:
+// svGolf site: the course selector (decided 2026-11-09: a dropdown on the front page; 2026-11-11/12: its courses are
+// sky130 and ASAP7 placed and routed). Every page carries its golf scores twice, on sky130 (the default) and on the
+// routed course, each in an element of class `pdk-sky130` or `pdk-asap7pnr` (site/build.py `dual`; both views computed
+// when the site is built); style.css shows the one named by <html data-pdk>. This script:
 //   * sets data-pdk before the page is drawn (it is loaded in <head>, not deferred): from the URL's ?pdk= first (a
 //     link), else the reader's stored choice, else sky130. A page reached by Back or Forward takes the stored choice
 //     first, since it is the reader's latest, and so does a page the browser restores from its back-forward cache;
@@ -9,10 +9,13 @@
 //     its task cards), which change the view,
 //     store the choice (localStorage, if the browser allows it: everything works without it) and put it in the URL;
 //   * names the view in the URL of the page and in every link to the site's own pages (the charts' dots too, so a
-//     link opened in a new tab or copied keeps it): ?pdk=asap7, and ?pdk=sky130 once the reader has chosen a library
+//     link opened in a new tab or copied keeps it): ?pdk=asap7pnr, and ?pdk=sky130 once the reader has chosen a course
 //     (a stored choice, a link that named one, a choice on this page), so that a copied link shows what its reader
 //     saw. A reader who never chose keeps clean addresses; an address without ?pdk= shows each reader their own view.
-// Without this script the page shows sky130 and says that the ASAP7 view needs it. No libraries, nothing fetched.
+//   * takes the old value, asap7 (the cells-only view the routed course replaced), from a link or a stored choice as
+//     asap7pnr, and marks the page (<html data-pdk-moved>) so that its banner says so: a reader never sees another
+//     number under the old name without being told. The address and the stored choice then name asap7pnr.
+// Without this script the page shows sky130 and says that the routed course needs it. No libraries, nothing fetched.
 (function () {
   "use strict";
 
@@ -20,19 +23,26 @@
   var DEFAULT = "sky130";
   var root = document.documentElement;
 
+  var OLD = "asap7", ROUTED = "asap7pnr";   // the old value (ASAP7 cells only) and the course that replaced it
+  var moved = false;                   // the view came from the old value (a link or a stored choice)
+
   // the two views, compared as strings (an object lookup would also accept "constructor", "toString", ...)
-  function known(v) { return v === "sky130" || v === "asap7"; }
+  function known(v) { return v === "sky130" || v === ROUTED; }
+
+  // a value as this script takes it: the old one is the routed course, noted so that the banner says it
+  function taken(v) {
+    if (v === OLD) { moved = true; return ROUTED; }
+    return known(v) ? v : null;
+  }
 
   function fromUrl() {
     var m = /[?&]pdk=([^&#]*)/.exec(window.location.search || "");
-    var v = m ? m[1].toLowerCase() : null;           // ?pdk=ASAP7 is ASAP7
-    return known(v) ? v : null;
+    return taken(m ? m[1].toLowerCase() : null);     // ?pdk=ASAP7PNR is asap7pnr
   }
 
   function stored() {
     try {
-      var v = window.localStorage.getItem(KEY);
-      return known(v) ? v : null;
+      return taken(window.localStorage.getItem(KEY));
     } catch (e) {
       return null;                     // storage refused (a private window, file://, a policy): not remembered
     }
@@ -57,7 +67,9 @@
   var current = (cameBack() ? kept || linked : linked || kept) || DEFAULT;
   var named = !!(linked || kept);      // the reader has chosen a library: the URL names it, sky130 included
   root.setAttribute("data-pdk", current);
+  if (moved && current === ROUTED) { root.setAttribute("data-pdk-moved", ""); }
   if (linked && current === linked) { store(current); }   // a link's view goes on as its reader moves through the site
+  else if (moved && kept === current) { store(current); }  // an old stored choice is kept under its new name
 
   // what ?pdk= says: the view, or nothing for a reader who never chose (the default, sky130)
   function param() { return named || current !== DEFAULT ? current : null; }
@@ -107,6 +119,7 @@
     current = v;
     named = true;
     root.setAttribute("data-pdk", v);
+    root.removeAttribute("data-pdk-moved");      // the reader chose: nothing to tell any more
     store(v);
     reflect();
     Array.prototype.forEach.call(selects(), function (s) { s.value = v; });

@@ -88,11 +88,16 @@ class RatingBuild(unittest.TestCase):
         for w in ("Yosys 0.53", self.rb["yosys"]["git_sha1"][:8], "ABC 1.01 of 6 May 2025", "deterministic",
                   f"{self.rb['determinism']['designs']} designs", f'id="{build.RATING_BUILD_ANCHOR}"'):
             self.assertIn(w, section_html)
-        for pdk in ("sky130", "asap7"):            # score_line reads the page's path and the view's library
-            line = build.score_line(types.SimpleNamespace(page="tasks/add/index.html", pdk=pdk))
-            self.assertIn("Rated with " + build.page.link("../../rules.html#" + build.RATING_BUILD_ANCHOR,
-                                                          "Yosys " + self.rb["yosys"]["version"]), line)
-            self.assertIn("Yosys 0.53", line)
+        # score_line reads the page's path and the view's library: sky130's names the build; the routed course's
+        # (2026-11-12) names its own rules instead, since that build does not make its numbers
+        line = build.score_line(types.SimpleNamespace(page="tasks/add/index.html", pdk="sky130"))
+        self.assertIn("Rated with " + build.page.link("../../rules.html#" + build.RATING_BUILD_ANCHOR,
+                                                      "Yosys " + self.rb["yosys"]["version"]), line)
+        self.assertIn("Yosys 0.53", line)
+        line = build.score_line(types.SimpleNamespace(page="tasks/add/index.html", pdk=build.COURSE2))
+        self.assertNotIn("Rated with", line)
+        self.assertIn(build.page.link("../../rules.html#" + build.ASAP7PNR_ANCHOR, "How the routed course is scored"),
+                      line)
 
 
 if __name__ == "__main__":

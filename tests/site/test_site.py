@@ -248,7 +248,7 @@ class SiteTest(unittest.TestCase):
         cls.pages = {p: parse(d) for p, d in cls.files.items() if p.endswith(".html")}
         # what the reader of each library's view sees (the library selector; sky130 is also the page without JavaScript)
         cls.views = {pdk: {p: view_of(d.decode("utf-8"), pdk) for p, d in cls.files.items() if p.endswith(".html")}
-                     for pdk in ("sky130", "asap7")}
+                     for pdk in ("sky130", "asap7pnr")}
         cls.view_pages = {pdk: {p: parse(h.encode("utf-8")) for p, h in v.items()} for pdk, v in cls.views.items()}
         cls.config = build.load_config()
         cls.listed = [t for t, how in cls.config["tasks"].items() if how != "hidden"]
@@ -686,7 +686,8 @@ class SiteTest(unittest.TestCase):
         rules = self.files["rules.html"].decode("utf-8")
         for id_ in ("task-page-numbers", "par-record-under-par", "clock-period", "score-chart"):
             self.assertIn(id_, self.pages["rules.html"].ids)
-        at = [rules.index(f'id="{i}"') for i in ("scoring", "the-asap7-view", "task-page-numbers", "rating-build")]
+        at = [rules.index(f'id="{i}"') for i in ("scoring", "the-asap7-view", build.ASAP7PNR_ANCHOR, "task-page-numbers",
+                                                 "rating-build")]
         self.assertEqual(at, sorted(at))
         self.assertIn('href="#task-page-numbers"', rules.split('<article', 1)[0])          # the contents
         part = rules.split('id="task-page-numbers"', 1)[1].split('id="rating-build"', 1)[0]
@@ -767,7 +768,7 @@ class SiteTest(unittest.TestCase):
         dates = json.loads(read_text_file("site/content/reference_dates.json"))
         for t in self.listed:
             task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
-            for pdk in ("sky130", "asap7"):
+            for pdk in ("sky130", "asap7pnr"):
                 with self.subTest(task=t, view=pdk):
                     rows = table_rows(section(self.html(f"tasks/{t}/index.html", pdk), "references"))
                     self.assertEqual([c.lower() for c in rows[0][:2]], ["design", "joined"])
@@ -781,15 +782,16 @@ class SiteTest(unittest.TestCase):
                         self.assertRegex(row[0][1], r"^\d{4}-\d\d-\d\d$")
 
     def test_the_score_card_says_little_under_the_plot(self):
-        """Decided 2026-11-11: under the plot, the Score card shows the legend, one line of links (the
-        rating build, how the score is measured or how ASAP7 is scored, Reproduce a score) and a closed note, "What the
+        """Decided 2026-11-11: under the plot, the Score card shows the legend, one line of links (on sky130 the rating
+        build and how the score is measured; on the routed course, since 2026-11-12, what that course is and how it is
+        scored, never the rating build, which does not make its numbers; Reproduce a score) and a closed note, "What the
         score, Par, Record and Under par mean", that defines them and links the rules page's "The numbers on a task
         page"; no long caption and no table "every entry by date"."""
         for t in self.listed:
             raw = self.files[f"tasks/{t}/index.html"].decode("utf-8")
             self.assertNotIn("<figcaption", section(raw, "score"))
             self.assertNotIn("every entry by date", text_of(raw))
-            for pdk, note_id in (("sky130", "score-terms"), ("asap7", "score-terms-asap7")):
+            for pdk, note_id in (("sky130", "score-terms"), ("asap7pnr", "score-terms-asap7pnr")):
                 with self.subTest(task=t, view=pdk):
                     score = section(self.html(f"tasks/{t}/index.html", pdk), "score")
                     notes = re.findall(r'<details class="note" id="([^"]+)"><summary>(.*?)</summary>(.*?)</details>',
@@ -801,14 +803,18 @@ class SiteTest(unittest.TestCase):
                     line = re.findall(r'<p class="small score-links">(.*?)</p>', score, re.S)
                     self.assertEqual(len(line), 1)
                     text = norm(text_of(line[0]))
-                    self.assertIn("Rated with Yosys ", text)
                     self.assertIn("Reproduce a score", text)
                     self.assertIn('href="../../reproduce.html"', line[0])
-                    self.assertIn(f'href="../../rules.html#{build.RATING_BUILD_ANCHOR}"', line[0])
-                    if pdk == "asap7":
-                        self.assertTrue(text.startswith("ASAP7, cells only: no wires, no place and route · "), text)
-                        self.assertIn(f'href="../../rules.html#{build.ASAP7_ANCHOR}">How ASAP7 is scored</a>', line[0])
+                    if pdk == "asap7pnr":
+                        self.assertTrue(text.startswith("ASAP7 placed and routed: wires included, one run per design · "),
+                                        text)
+                        self.assertIn(f'href="../../rules.html#{build.ASAP7PNR_ANCHOR}">How the routed course is '
+                                      'scored</a>', line[0])
+                        self.assertNotIn("Rated with", text)
+                        self.assertNotIn(f'rules.html#{build.RATING_BUILD_ANCHOR}"', line[0])
                     else:
+                        self.assertIn("Rated with Yosys ", text)
+                        self.assertIn(f'href="../../rules.html#{build.RATING_BUILD_ANCHOR}"', line[0])
                         self.assertIn('href="../../rules.html#scoring">How the score is measured</a>', line[0])
                     if "data-score-chart>" not in score:                  # a card without a chart (a preview)
                         continue
@@ -833,15 +839,15 @@ class SiteTest(unittest.TestCase):
     def test_the_head_labels_open_the_score_note(self):
         """The page head's Par, Record and Under par (2026-11-11): each label is a plain link to the score card's closed
         note that defines it (no hover, no title), in each view that view's copy of the note, Par and Record naming
-        ASAP7 in its view; Under par without a minus sign. The link names the note's paragraph, so that the browser
+        the routed course in its view; Under par without a minus sign. The link names the note's paragraph, so that the browser
         opens the note without JavaScript too (it does for a fragment inside a closed <details>, not for the <details>
         itself: measured in Chrome, 2026-11-11); site.js opens it either way. The front page's cards, links as a
         whole, keep plain labels."""
         for t in self.ranked:
             for pdk, note_id, text_id, labels in (
                     ("sky130", "score-terms", "score-terms-text", ["Par", "Record", "Under par"]),
-                    ("asap7", "score-terms-asap7", "score-terms-text-asap7", ["Par · ASAP7", "Record · ASAP7",
-                                                                             "Under par"])):
+                    ("asap7pnr", "score-terms-asap7pnr", "score-terms-text-asap7pnr",
+                     ["Par · ASAP7 routed", "Record · ASAP7 routed", "Under par"])):
                 with self.subTest(task=t, view=pdk):
                     view = self.html(f"tasks/{t}/index.html", pdk)
                     head = section(view, "numbers")
@@ -851,10 +857,11 @@ class SiteTest(unittest.TestCase):
                                                              f'</summary>\\s*<p id="{text_id}">')
                     self.assertNotIn("title=", head)
                     self.assertNotRegex(text_of(head), r"Under par\s*[−-]")
-        for pdk in ("sky130", "asap7"):
+        for pdk in ("sky130", "asap7pnr"):
             cards = self.html("index.html", pdk)
             self.assertNotIn("score-terms", cards)
             self.assertNotIn("· ASAP7</dt>", cards)
+            self.assertNotIn("· ASAP7 routed</dt>", cards)
 
     def test_charts_read_without_javascript(self):
         """The server draws every chart: the explorer's controls and the score chart's switch are
@@ -1792,20 +1799,20 @@ class SiteTest(unittest.TestCase):
         mm = json.loads(self.files["data/tasks/matmul.json"])["submissions_board"]
         self.assertGreater(len(mm["frontier"]), 1)                # the case that told the two apart
         self.assertNotEqual(mm["frontier"][0]["record_hash"], summary["matmul"]["best"]["record_hash"])
-        # the ASAP7 block of data/site.json follows the same rule on the ASAP7 board
+        # the routed course's block of data/site.json follows the same rule on its board
         for t in self.ranked:
-            with self.subTest(task=t, pdk="asap7"):
-                board = json.loads(self.files[f"data/tasks/{t}.json"])["asap7"]["submissions_board"]
-                best = summary[t]["asap7"]["best"]
+            with self.subTest(task=t, pdk="asap7pnr"):
+                board = json.loads(self.files[f"data/tasks/{t}.json"])["asap7pnr"]["submissions_board"]
+                best = summary[t]["asap7pnr"]["best"]
                 if not board["ranking"]:
                     self.assertIsNone(best)
                     continue
                 top = board["ranking"][0]
                 self.assertEqual((best["record_hash"], best["time_ps"], best["best_time_ps"]),
                                  (top["record_hash"], top["time_ps"], min(r["time_ps"] for r in board["ranking"])))
-        a7 = json.loads(self.files["data/tasks/matmul.json"])["asap7"]["submissions_board"]
+        a7 = json.loads(self.files["data/tasks/matmul.json"])["asap7pnr"]["submissions_board"]
         self.assertGreater(len(a7["frontier"]), 1)
-        self.assertNotEqual(a7["frontier"][0]["record_hash"], summary["matmul"]["asap7"]["best"]["record_hash"])
+        self.assertNotEqual(a7["frontier"][0]["record_hash"], summary["matmul"]["asap7pnr"]["best"]["record_hash"])
 
     def test_same_day_records_are_not_ordered_by_hash(self):
         """A record stores the day it was submitted (a time only if it gives one): two records of one day are not
@@ -2101,20 +2108,21 @@ class SiteTest(unittest.TestCase):
                               "submission beats it), Under par (how far the record is below par, as a share of par's "
                               "score) and the leaderboard use it. The Pareto front, area in GE (NAND2 gate equivalents),",
                               caption)
-                # one definition: the note, once per library view; How to submit and the card do not define it.
-                # The ranked score is sky130's: the ASAP7 view's caption says that view orders by its own score
-                # (review 2026-11-11), so "the one ranked number" is in the sky130 view only.
-                a7 = 'class="pdk-asap7' in html_
+                # one definition: the note, once per course; How to submit and the card do not define it. Each course
+                # ranks on its own score (2026-11-12: the routed course ranks), so "the one ranked number" is the
+                # sky130 note's words and "this course's ranked number" the routed one's.
+                a7 = 'class="pdk-asap7pnr' in html_
                 self.assertEqual(text_of(html_).count("It is the one ranked number"), 1)
-                self.assertEqual(text_of(html_).count("In this view Par (the score of the task's par design"),
-                                 1 if a7 else 0)
+                self.assertEqual(text_of(html_).count("It is this course's ranked number: Par (the score of the task's "
+                                                      "par design"), 1 if a7 else 0)
                 if a7:
-                    self.assertIn("as a share of par's score) and the leaderboard use it; the records' ranked score is "
-                                  "sky130's, the default view.", norm(text_of(html_)))
+                    self.assertIn("Score = area × time on ASAP7 placed and routed: the ASAP7 cell area of the design's "
+                                  "netlist after place and route", norm(text_of(html_)))
+                    self.assertIn("with the wires extracted from the layout", norm(text_of(html_)))
                 for sid in ("submit", "new-design"):
                     if f'id="{sid}"' in html_:
                         part = norm(text_of(section(html_, sid)))
-                        for again in ("Score = area", "the one ranked number", "In this view Par",
+                        for again in ("Score = area", "the one ranked number", "this course's ranked number",
                                       "the bar to beat", "gate equivalents"):
                             self.assertNotIn(again, part)
                 text = norm(text_of(section(html_, "statement")))
@@ -2175,14 +2183,18 @@ class SiteTest(unittest.TestCase):
 
     def test_llms_txt_points_to_the_numbers_of_a_task_page(self):
         """llms.txt (2026-11-11) names where par, record and under par, the clock period and the score chart are
-        defined (the rules page's section, which exists), and says that neither library's score counts wires or place
-        and route, ASAP7 being never fabricated."""
+        defined (the rules page's section, which exists), and says that the sky130 score counts no wires and no place
+        and route while the second course, ASAP7 placed and routed, does (2026-11-12), with where its rules are."""
         llms = self.files["llms.txt"].decode("utf-8")
         self.assertIn("\nPar, record and under par, the clock period and the score chart: "
                       "rules.html#task-page-numbers.\n", llms)
         self.assertIn('id="task-page-numbers"', self.files["rules.html"].decode("utf-8"))
-        self.assertIn("a predictive 7 nm library, never fabricated (the same netlists weighed by", llms)
-        self.assertIn("Both libraries' scores count the cells only: no wires, no place and route.", llms)
+        self.assertIn("sky130 is the default course, and its score counts the cells only: no wires, no place and route.",
+                      llms)
+        self.assertIn("The second course is ASAP7 placed and routed: each design's ASAP7 netlist placed and routed by "
+                      "OpenROAD-flow-scripts, one run per design, the wires extracted from the layout", llms)
+        self.assertIn(f"rules.html#{build.ASAP7PNR_ANCHOR}", llms)
+        self.assertIn(f'id="{build.ASAP7PNR_ANCHOR}"', self.files["rules.html"].decode("utf-8"))
 
     def test_the_general_pages_know_a_clocked_task(self):
         """Once a clocked task is listed (the arbiter, 2026-11-07), no general page says every task is

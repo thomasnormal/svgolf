@@ -859,6 +859,97 @@ used: the five liberty files of OpenROAD-flow-scripts at commit `a1a6c3ff9333911
 vendored. Nothing comes from the ASU download page, whose academic, non-commercial, no-redistribution terms cover other
 material (the gated Calibre decks).
 
+## ASAP7 placed and routed (the routed course; decided 2026-11-11 and 2026-11-12)
+
+The site's second course (README.md, "How the routed course is scored"; leaderboard/README.md, "The routed course").
+Every number in this section is MEASURED by the 2026-11-11, 2026-11-12 and 2026-11-13 campaigns on one host type
+(x86-64 Linux, Intel Xeon Platinum 8488C, Rocky Linux 9.8, the image unpacked into a rootless user namespace and
+chroot). Since 2026-11-13 every design file the tasks show (39) has a routed score; "the scored runs" below are those
+39 runs.
+
+**What is placed.** The design's ASAP7 netlist as the ASAP7 view above writes it: `ppa.py --pdk asap7`'s repaired
+netlist (`--repaired-netlist`; its sha256 is the view entry's `repaired_sha256`), cells only. Nothing is synthesized
+again: the placed netlist (ORFS's `1_2_yosys.v`) is that file, checked by sha256 on every run.
+
+**The flow.** OpenROAD-flow-scripts from the image `openroad/orfs`, tag `26Q4-262-g3ff0197f0`, used by digest only
+(amd64 manifest `sha256:df7ba49c0bc2bcdfc353b9fc75a17dac489200c239967564bc25d6bd40462c21`), platform `asap7`, the
+minimal flow `min_v1`: core utilisation 40%, aspect ratio 1, placement density 0.60, no timing-driven placement, no
+timing repair at floorplan, placement or clock-tree time, no power recovery, no flop clustering, ports not buffered,
+the typical corner, the flow's equivalence check on (`LEC_CHECK=1`). Two threads, two CPUs, an 8 GB memory cap without
+swap, no network, inputs read-only. `score/pnr/pins.json` pins all of it (and the sha256 of the scripts that render a
+job's config.mk and SDC); a result made under other pins is stale. **The SDC** sets one clock whose period is the ASAP7
+view's delay of the design (its `delay_ps`); on a combinational design a virtual clock constrains input to output.
+In the minimal flow nothing optimises against the period, so it is only the reference the slack is measured from
+(that the layout does not depend on it is NOT MEASURED).
+
+**The score.** Area: the routed netlist's cells (`6_final.v`) by the pinned ASAP7 liberty, summed exactly in 1e-5 um^2
+(the buffers and clock tree the flow adds included; tap, fill and the die not), checked against ORFS's printed stdcell
+area less its tap cells. Time: the clock period minus ORFS's worst setup slack after routing, with the parasitics
+extracted from the layout, rounded half-even to whole ps (checked within 0.01 ps of ORFS's own `period_min`); on a
+clocked task, times the cycles. Score = area x time (`combined.py`, `AREA_SCALE["asap7pnr"]`, 1e-5 um^2 x ps).
+**Valid**: ORFS exit 0, detailed-route DRC 0, and every equivalence log printing "Circuits are IDENTICAL" (the
+positive line is required; the flow itself passes a run on the absence of a "Found difference" line). Recorded, not
+scored: hold violations (no hold repair: every clocked run ends with some, 13 to 288 on the 8 clocked scored runs) and
+slow-signal (max-slew) warnings (4 of the 39 scored runs; the record page names the count).
+
+**One run per design.** The seed (`GPL_RANDOM_SEED`, global placement) is the request's: the seed a submission names,
+else one drawn at random once and kept with the record (decided 2026-11-11); `leaderboard.py add` does not take a seed
+yet, and every design so far (2026-11-11 to 2026-11-13) ran at seed 1. Detailed placement's own seed is 1 in every
+job. On the 23 records of 2026-11-11, seeds 1, 2 and 3 differ by 0 to 2.8% of the median area x time; their median
+(`v_median`) is kept as an unranked extra (on the 21 entries still shown that were measured then) and never ranks; the
+later campaigns ran seed 1 only.
+
+**Measured.** Repeatable on the same host type: 3 of 3 re-runs of a seed (2026-11-11), 4 of 4 netlists placed earlier
+under other job names (2026-11-12) and 13 of 13 (2026-11-13) gave the same `6_final.def`, `6_final.v`, `6_final.odb`
+and stage databases, byte for byte. Cost per scored run, two threads: 65 to 109 s and 0.7 to 0.9 GB up to 2,476 cells;
+152 s and 1.2 GB at 6,045 cells; 4 to 7 min and 1.7 to 2.5 GB at 12,889 to 22,872 cells; 698 s and 4.1 GB for the
+41,035-cell matmul record. The wire cost, routed area x time against the cells-only A0' of the same netlist, ranges
+from -55.4% (`_example`) to +35.0% (the table S-box); neither end is analysed yet. The flow added cells (clock-tree and
+repair buffers) in 14 of the 39 scored runs: at most 2.2% of a design's cells (3 on the 138-cell arbiter), 509 on the
+41,035-cell matmul record.
+
+**The pictures.** OpenROAD's own renderer, off-screen inside the pinned image, draws the scoring run's
+`6_final.odb` in the flow's routing view (every layer, net and instance; power and ground nets hidden) at 1600 px; the
+PNG is then encoded as WebP (Pillow 11.1.0, libwebp 1.5.0, method 6) at the largest long side of 1600 to 1000 px whose
+quality 80 to 50 (in steps of 5) fits in 300,000 bytes, with a 640 px thumbnail at quality 80. Six of the 39
+pictures were encoded again from the same render at the same size one quality step away (79, 74, 71, 69, 54), so that
+their bytes pass the publication scan; each entry records its picture's quality. Two renders of one database gave the
+same PNG bytes (2 of 2 on 2026-11-12, 2 of 2 on 2026-11-13), and two encodings of all 45 pictures of 2026-11-12 the
+same files.
+
+**The ASAP7 files** (as decided 2026-11-11 by the maintainers: only files of a public BSD-3 repository). The routed
+course uses the `asap7` platform of OpenROAD-flow-scripts as the pinned image ships it (repository
+The-OpenROAD-Project/OpenROAD-flow-scripts, the image's revision `3ff0197f0` per its tag; `flow/platforms/asap7`, whose
+ASAP7 files come from The-OpenROAD-Project/asap7, BSD 3-Clause). Its five liberty files are byte-identical to the ones
+`score/ppa_pins_asap7.json` pins (commit `a1a6c3ff`, each with its BSD 3-Clause header), so routed timing reads the
+tables the ASAP7 view reads. None of the platform's files is in this repository (only the layout pictures drawn from the
+routed databases are), and nothing comes from the ASU download page. The full commit hash of the image's
+OpenROAD-flow-scripts is not recorded beyond its tag (an open item).
+
+**What the equivalence check shows, and the negative control.** The flow's own check (step `6_report`, with
+`LEC_CHECK=1`: kepler-formal on `1_synth_lec.v` and `6_final_lec.v`) compares the routed netlist with the flow's
+rendering of the netlist the run was given (`1_synth_lec.v` is written from `1_synth.odb`, which is `1_2_yosys.v`, the
+job's input, loaded): it shows
+that place and route preserved the input, not that the input was the design's netlist. The runs of the two changed
+netlists below both passed it. That the input is the design's ASAP7 netlist is checked by sha256: `1_2_yosys.v`'s
+hash must be the entry's `netlist_sha256` and the ASAP7 view's `repaired_sha256`, and a run of a changed netlist is
+refused there (`asap7pnr`: "the placed netlist (1_2_yosys.v) is not the entry's netlist_sha256"; the binding:
+"unbound: its routed netlist is not this design's ASAP7 netlist"). The negative control (2026-11-13, MEASURED): one gate
+changed in each of two par designs, keeping its pins and area (add_n: an XOR2 driving `s[4]` made an XNOR2; sorter_ins:
+an AND2 feeding a register made an OR2), each changed netlist placed and routed under the course's pins; then the same
+kepler-formal with the flow's own configuration of each case, its inputs set to the unchanged netlist and the case's
+routed netlist, reported "Found difference ... Circuits are DIFFERENT" for both changed netlists against both forms
+of the unchanged one (the file the course binds, and the flow's `1_synth_lec.v` of a run of it): 4 of 4; and "Circuits
+are IDENTICAL" for the two unchanged runs against the same references: 4 of 4. kepler-formal exits 0 in both cases;
+its verdict is read from its log, as the flow does. This comparison is not a pinned step of a run: the results carry
+the flow's own verdict only.
+
+**Not claimed.** One corner, setup only, no hold repair, no power: not sign-off, on a predictive library that was
+never fabricated. Docker, other x86-64 hosts, a GitHub-hosted runner and Apple silicon are not measured (the image is
+amd64 only). The renderers of the job files and the course host's commands that run a job and draw its picture are
+not in this repository yet: a run can be checked against its recorded hashes, not made again from the repository
+alone. A player cannot name a seed yet (`leaderboard.py add` takes none).
+
 ## What is NOT claimed
 
 * **(Superseded 2026-11-03 and 2026-11-04.)** A0' is the ranked sky130 score, and an electrically illegal repaired A0' netlist is a
@@ -993,7 +1084,8 @@ UNOPTFLAT. The same false loop meets a CORRECT idiom: two registers each sign-ex
 widened to the port, as a `matmul` golfer may write) passes the lint with plain `opt_clean` and is refused with `-purge` (MEASURED on a
 probe outside the tree; a one-register sign extension passes both). Which bit Yosys keeps as the driver of an aliased group decides it, so
 the UNOPTFLAT over-rejection exists under both scripts (`xsafe/d1_ashr_signed.sv` was refused by it before); it is recorded here, not
-changed: the netlist lint's policy is a separate decision. Of the pinned hashes, only the script hash of the clocked flow changed (the
+changed: the netlist lint's policy is a separate decision (changed 2026-11-13: loops are refused bit by bit and UNOPTFLAT is waived,
+`check/postsynth.py` `comb_loops` and `NETLIST_WNO`). Of the pinned hashes, only the script hash of the clocked flow changed (the
 table above, `tests/expected.json` `flow_seq`, `score/measured/`); `svgolf.ys` and every combinational hash are unchanged.
 
 **Fields of `ppa`** (`available: true`): the A0' columns of the table above (`ppa.py`'s `columns`), `available`, `mapped` (flow A1', above), and four more:

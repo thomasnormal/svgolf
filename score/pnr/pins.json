@@ -1,0 +1,46 @@
+{
+ "_comment": [
+  "THE ROUTED COURSE'S PINS (decided 2026-11-11/12: the front page's second course, ASAP7 placed and routed). What a routed result must have been made under to be comparable with one made now: the image (OpenROAD-flow-scripts, used by digest, x86-64 only), the flow `min_v1` and its variables, the threads, CPU affinity and memory cap of a job, the sha256 of the scripts that render each job's config.mk and SDC, and the rules that turn a run into a score (area, time, validity). Every leaderboard/asap7pnr/<task>.json copies them in its `course` block; a file whose block differs is stale (leaderboard.py `asap7pnr_identity`, `asap7pnr_table_mismatch`), and its designs show no routed number. Changing a pin means routing every design again.",
+  "The image's ASAP7 platform: its five liberty files are byte-identical to the BSD 3-Clause files score/ppa_pins_asap7.json pins (OpenROAD-flow-scripts a1a6c3ff); the platform's other files are those of the image's OpenROAD-flow-scripts (score/PPA.md, \"ASAP7 placed and routed\"). None of them is in this repository."
+ ],
+ "course": {
+  "area_rule": "liberty_sum_e5um2",
+  "cpu_affinity": 2,
+  "flow": "min_v1",
+  "image": {
+   "arch": "amd64",
+   "config_digest": "sha256:42c36c95fd5aeadde69b3fd553c95651b014e9cd23a25d007b973e10b9f811ea",
+   "index_digest": "sha256:a55409e4a23ca206afb575b07134a01ac2ad6f8035ede0b9dd2ae6307ac7fcac",
+   "manifest_digest": "sha256:df7ba49c0bc2bcdfc353b9fc75a17dac489200c239967564bc25d6bd40462c21",
+   "repo": "openroad/orfs",
+   "tag": "26Q4-262-g3ff0197f0"
+  },
+  "memory_cap_gb": 8,
+  "orfs_variables": {
+   "CLUSTER_FLOPS": "0",
+   "CORE_ASPECT_RATIO": "1.0",
+   "CORE_UTILIZATION": "40",
+   "CORNER": "TC",
+   "DONT_BUFFER_PORTS": "1",
+   "ENABLE_PLACE_REPAIR_TIMING": "0",
+   "GPL_TIMING_DRIVEN": "0",
+   "LEC_CHECK": "1",
+   "NUM_CORES": "2",
+   "PLACE_DENSITY": "0.60",
+   "RECOVER_POWER": "0",
+   "SKIP_CTS_REPAIR_TIMING": "1",
+   "SKIP_FLOORPLAN_REPAIR_TIMING": "1",
+   "SKIP_INCREMENTAL_REPAIR": "1",
+   "SKIP_LAST_GASP": "1",
+   "SKIP_REPAIR_TIE_FANOUT": "1"
+  },
+  "platform": "asap7",
+  "renderers": {
+   "gen_course.py": "ff6c1f425c96aed5448052bb7e403d3e5919d13cdc3eef448991e86d20521bc9",
+   "gen_course2.py": "e7f47f97137fb11557ceb1ea0d873782ea49cfd8fee7a274e81ff029dc81c68e"
+  },
+  "threads": 2,
+  "time_rule": "P_minus_WS_half_even_ps",
+  "validity_rule": "ORFS exit 0, detailed-route DRC 0, every LEC log 'Circuits are IDENTICAL' (DRV counts recorded, not part of validity)"
+ }
+}

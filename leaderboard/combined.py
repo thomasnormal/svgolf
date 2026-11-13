@@ -17,13 +17,17 @@ The ASAP7 view (decided 2026-11-09: a viewer may choose the library the site's g
 sky130 stays the default): the same product on the ASAP7 columns (score/ppa.py --pdk asap7), whose area is
 recorded in 1e-5 um^2 (`area_e5um2_asap7`), so its exact value is an integer in 1e-5 um^2 x ps and `um2ns`
 takes the library (`AREA_SCALE`). Scores of the two libraries are never compared with each other.
+
+The routed course (`asap7pnr`, decided 2026-11-11/12: the front page's second course, ASAP7 placed and routed): the same
+product on the area and time of each design's ASAP7 netlist placed and routed (leaderboard/asap7pnr/<task>.json), in the
+same 1e-5 um^2 x ps; never compared with either view's cell-level score.
 """
 
 UNIT = "µm²·ns"                 # the display unit (um^2 x ns)
 UNIT_ASCII = "um2*ns"
 NAME = "area × time"
 # the integer area unit of each library's columns, per um^2: 1e-4 um^2 (sky130), 1e-5 um^2 (asap7)
-AREA_SCALE = {"sky130": 10_000, "asap7": 100_000}
+AREA_SCALE = {"sky130": 10_000, "asap7": 100_000, "asap7pnr": 100_000}   # asap7pnr: the routed course, ASAP7's unit
 
 
 def time_ps(*, delay_ps=None, cycles=None, period_ps=None):
