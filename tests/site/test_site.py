@@ -1822,8 +1822,9 @@ class SiteTest(unittest.TestCase):
         """Decided 2026-11-11: the public repository is svGolf's own tree, so a path of it is shown as that repository
         shows it, without this tree's `svgolf/` (page.shown_path): the property cards' paths, the statement's path and
         its trusted text on a task page, the "file" of a properties page and of a trusted page (and their boxes' names),
-        the shared trusted base's table, the rules' and the reproduce page's sources, and the refusals page's reading
-        list, where each path names its repository. The library's own paths are unchanged. No footer shows a path."""
+        the shared trusted base's table, the rules' and the reproduce page's sources. The library's own paths are
+        unchanged. No footer shows a path. The refusals page's reading list names no path at all (2026-11-13): it says
+        what each document holds and links it where the build has an address."""
         self.assertEqual(build.shown_path("svgolf/tasks/add/Spec.lean"), "tasks/add/Spec.lean")
         self.assertEqual(build.shown_path("LeanModels/Sv/Ast.lean"), "LeanModels/Sv/Ast.lean")
         seen = {"prop-path": 0, "file": 0}
@@ -1858,13 +1859,93 @@ class SiteTest(unittest.TestCase):
         refusals = self.files["refusals.html"].decode("utf-8")
         more = refusals[refusals.index('<h2 id="more">'):]
         more = more[:more.index("</ul>")]
-        self.assertNotIn("Paths in the proglib repository", refusals)
-        self.assertIn("<li>svGolf's <code>README.md</code>: ", more)
-        lib = self.config["library"]["name"]
-        self.assertIn(f"<li>{lib}'s <code>docs/sv-refusals.md</code>: ", more)
-        self.assertNotIn("<code>svgolf/", more)
+        self.assertNotIn("<code>", more)
+        self.assertNotIn("svgolf/", text_of(more))
+        lib = self.config["library"]
+        self.assertIn(f'href="{lib["url"]}/blob/HEAD/docs/sv-refusals.md"', more)
+        self.assertIn('href="rules.html#checker-stages"', more)
+        if web:                             # the full register's rendering, in the public repository
+            self.assertIn(f'href="{web}/blob/HEAD/REFUSALS.md"', more)
         sub = text_of(re.search(r'<p class="head-sub">(.*?)</p>', refusals, re.S).group(1))
-        self.assertIn(f"of {lib} (its own text still calls the repository lean-surfaces, its former name).", sub)
+        self.assertIn(f"checked against the refusal register of {lib['name']} at the revision svGolf uses", sub)
+        self.assertNotIn("lean-surfaces", sub)
+
+    def refusals_visible(self):
+        """The Refusals page's main text outside its folds (`<details>`), and the whole main text."""
+        h = self.files["refusals.html"].decode("utf-8")
+        main = h[h.index("<main"):h.index("</main>")]
+        visible = main
+        while "<details" in visible:
+            visible = re.sub(r"<details\b(?:(?!<details\b).)*?</details>", "", visible, flags=re.S)
+        return text_of(visible), text_of(main)
+
+    def test_the_refusals_page_reads_in_plain_words(self):
+        """Decided 2026-11-13 (the Refusals page's round): outside its folds the page has no internal code (a refusal
+        register row id, a principle id, a language-tier node kind, a work-package code), no file path and no plan
+        word; the codes are behind each card's fold. Anywhere on the page, the folds included: no plan file, no
+        work-package code, no internal statement name (people's names are the private denylist's, which the strict
+        build and the export's scan apply; this tree never spells them)."""
+        visible, whole = self.refusals_visible()
+        reg = json.loads(build.read_text(self.config["refusals_json"]))
+        codes = {e["id"] for e in reg["entries"] + reg["svgolf"]["entries"]} | {p["id"] for p in reg["principles"]}
+        content = json.loads(read_text_file("site/content/refusals.json"))
+        ls_rows = {e["id"]: e for e in reg["entries"]}
+        on_page = {i for g in content["groups"] for c in g["cards"] for i in c["rows"]}
+        codes |= {ls_rows[i]["tag"] for i in on_page if i in ls_rows}          # node kinds: ConversionExpression:width
+        for c in sorted(codes):
+            with self.subTest(code=c):
+                self.assertIsNone(re.search(rf"(?<![\w-]){re.escape(c)}(?![\w-])", visible), c)
+        self.assertIsNone(re.search(r"\b[A-Z][A-Za-z]*(?:Expression|Statement|Symbol)(?::\w+)?\b", visible))
+        self.assertIsNone(re.search(r"(?:[\w.-]+/)+[\w.-]+\.[A-Za-z]{1,5}\b", visible), "a file path")
+        self.assertIsNone(re.search(r"\b[\w-]+\.(?:py|lean|json|md|ys|sv|txt)\b", visible), "a file name")
+        for word in ("WP-", "WP5", "PLAN", "plan item", "work package", "work-package", "txtask", "organizer",
+                     "run2", "lean-surfaces", "awaiting", "to confirm", "v0", "ls-sv", "register row"):
+            with self.subTest(word=word):
+                self.assertNotIn(word, visible)
+        for word in ("WP-", "PLAN.md", "txtask-v", "organizer", "run2"):
+            with self.subTest(anywhere=word):
+                self.assertNotIn(word, whole)
+
+    def test_every_refusal_card_shows_a_refused_line_and_what_to_write_instead(self):
+        """Every card of the Refusals page (content/refusals.json) shows its construct's name, one refused example and
+        what to write instead (code, or a sentence), and names the refusal register's rows behind its fold; every
+        svGolf row of the register but the aggregates is on the page exactly once, on a card or in a group's fold, and
+        a card's state line says only what all its rows say."""
+        content = json.loads(read_text_file("site/content/refusals.json"))
+        h = self.files["refusals.html"].decode("utf-8")
+        found = re.findall(r'<article class="refusal">(.*?)</article>', h, re.S)
+        cards = [c for g in content["groups"] for c in g["cards"]]
+        self.assertEqual(len(found), len(cards))
+        self.assertGreaterEqual(len(cards), 20)
+        reg = json.loads(build.read_text(self.config["refusals_json"]))
+        rows = {e["id"]: e for e in reg["entries"] + reg["svgolf"]["entries"]}
+        for c, card in zip(cards, found):
+            with self.subTest(card=c["title"]):
+                self.assertTrue(c["title"].strip())
+                self.assertIn(norm(c["title"]), norm(text_of(re.search(r"<h3[^>]*>(.*?)</h3>", card, re.S).group(1))))
+                shown, fold = card.split("<details", 1)
+                self.assertIn('<p class="refusal-label refusal-no">Refused</p>', shown)
+                self.assertIn('<p class="refusal-label refusal-yes">Write instead</p>', shown)
+                blocks = [text_of(b) for b in re.findall(r"<pre\b[^>]*>(.*?)</pre>", shown, re.S)]
+                self.assertEqual(blocks[0], c["refused"].rstrip())
+                if c.get("instead"):
+                    self.assertEqual(blocks[1:], [c["instead"].rstrip()])
+                else:
+                    self.assertEqual(len(blocks), 1)
+                    self.assertTrue(c["instead_text"].strip())
+                    self.assertIn(norm(c["instead_text"]), norm(text_of(shown)))
+                self.assertTrue(c["rows"])
+                for i in c["rows"]:
+                    self.assertIn(f"<code>{i}</code>", fold)
+                cats = {rows[i]["category"] for i in c["rows"]}
+                state = re.search(r'<p class="refusal-state">(.*?)</p>', shown, re.S)
+                if len(cats) == 1 and cats <= {"later", "never"}:
+                    self.assertEqual(text_of(state.group(1)), build.REFUSAL_CARD_STATE[cats.pop()])
+                else:
+                    self.assertIsNone(state)
+        for e in reg["svgolf"]["entries"]:
+            with self.subTest(row=e["id"]):
+                self.assertEqual(h.count(f"<code>{e['id']}</code>"), 0 if e.get("aggregate") else 1)
 
     def test_the_footer_is_for_visitors(self):
         """Decided 2026-11-11: every page's footer is one row of links for a visitor: the licence (Apache-2.0), the
@@ -2277,7 +2358,9 @@ class SiteTest(unittest.TestCase):
             text = text_of(self.files[p])
             self.assertIn(f"{name} revision", text, p)
             self.assertNotIn("lean-surfaces revision", text, p)
-        self.assertIn(f"calls {name} by its former name, lean-surfaces.", text_of(self.files["rules.html"]))
+        rules = text_of(self.files["rules.html"])          # the stage table names the library by its name (2026-11-13)
+        self.assertIn(f"The table is the text of the refusal register of {name}.", rules)
+        self.assertNotIn("by its former name", rules)
         self.assertIn(f"the pinned extractor of {link} (formerly lean-surfaces)", self.files["index.html"].decode("utf-8"))
 
     def test_the_hand_off_is_said_in_the_same_words(self):
@@ -2450,8 +2533,9 @@ class SiteTest(unittest.TestCase):
     def test_the_public_markers_and_the_docs_without_them(self):
         """Decided 2026-11-11: config.json's denylist holds the public markers of what is internal (work-package
         codes, the clocked statements' internal name, the plan files, a development path, process words, a status
-        note), each with its reason, allowed only where the site shows text it may not change (the refusal register,
-        verbatim Lean text, README's one quote of the old name); and the documents a player reads carry no
+        note), each with its reason, allowed only where the site shows text it may not change (verbatim Lean text,
+        README's one quote of the old name; since 2026-11-13 no longer the Refusals page, which shows the refusal
+        register's rows only behind folds and in plain words); and the documents a player reads carry no
         work-package code and write dates in one format."""
         markers = {e["text"]: e for e in self.config["denylist"] if isinstance(e, dict)}
         self.assertEqual(sorted(markers), sorted(["WP-", "txtask-v", "PLAN.md", "PLAN2.md", "PLAN4.md",
@@ -2459,11 +2543,10 @@ class SiteTest(unittest.TestCase):
         for text, m in markers.items():
             self.assertEqual(m["scope"], "site-text", text)
             self.assertTrue(m["why"], text)
-        self.assertEqual(sorted(markers["WP-"]["allow"]), ["refusals.html"])
-        self.assertEqual(sorted(markers["PLAN.md"]["allow"]), ["refusals.html"])
         self.assertEqual(sorted(markers["txtask-v"]["allow"]),
-                         sorted(["refusals.html", "rules.html", "tasks/matmul/index.html", "tasks/sorter/index.html"]))
-        for text in ("PLAN2.md", "PLAN4.md", "svgolf/site/build.py", "newcomer study", "awaiting confirmation"):
+                         sorted(["rules.html", "tasks/matmul/index.html", "tasks/sorter/index.html"]))
+        for text in ("WP-", "PLAN.md", "PLAN2.md", "PLAN4.md", "svgolf/site/build.py", "newcomer study",
+                     "awaiting confirmation"):
             self.assertNotIn("allow", markers[text])
         docs = ["README.md", "PROVING.md", "CONTRIBUTING.md", "score/PPA.md", "leaderboard/README.md"]
         docs += sorted(posixpath.relpath(p, SVGOLF).replace(os.sep, "/")
@@ -2488,6 +2571,33 @@ class GuardTest(unittest.TestCase):
     def test_strict_build_passes(self):
         site = self.build(strict=True)
         self.assertEqual(site.warnings, [])
+
+    def test_the_refusals_cards_follow_the_register(self):
+        """content/refusals.json against the refusal register (`refusal_cards`): a row the register does not have (a
+        lifted refusal), an svGolf row on no card, a row named twice and a card without what to write instead each
+        fail the build."""
+        config = build.load_config()
+        reg = json.loads(build.read_text(config["refusals_json"]))
+        content = json.loads(build.read_text(build.REFUSALS_CONTENT))
+        build.refusal_cards(reg, content)
+        lifted = json.loads(json.dumps(reg))
+        lifted["svgolf"]["entries"] = [e for e in lifted["svgolf"]["entries"] if e["id"] != "sg-ban-cmp"]
+        with self.assertRaisesRegex(build.BuildError, "does not have.*sg-ban-cmp"):
+            build.refusal_cards(lifted, content)
+        added = json.loads(json.dumps(reg))
+        added["svgolf"]["entries"].append(dict(added["svgolf"]["entries"][0], id="sg-new-row"))
+        with self.assertRaisesRegex(build.BuildError, "sg-new-row.*on no card"):
+            build.refusal_cards(added, content)
+        twice = json.loads(json.dumps(content))
+        twice["groups"][0]["more"].append(twice["groups"][0]["cards"][0]["rows"][0])
+        with self.assertRaisesRegex(build.BuildError, "twice"):
+            build.refusal_cards(reg, twice)
+        bare = json.loads(json.dumps(content))
+        card = bare["groups"][0]["cards"][0]
+        card.pop("instead", None)
+        card.pop("instead_text", None)
+        with self.assertRaisesRegex(build.BuildError, "what to write instead"):
+            build.refusal_cards(reg, bare)
 
     def test_placeholders_fill_from_the_data_and_refuse_the_rest(self):
         site = build.Site(build.load_config())

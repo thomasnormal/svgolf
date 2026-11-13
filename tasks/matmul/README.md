@@ -245,10 +245,9 @@ amendments of 2026-11-09 (`done` = 0 before the first start, rule 1 with nothing
 `REVIEW.md`) were made in place before any record of the task was published. A later statement change is a version
 bump that re-issues the records, never an edit.
 
-The refusal register ([`REFUSALS.md`](../../REFUSALS.md), rendered from the register at the pinned revision) still
-names the superseded `TxTask.Statement` (the first statement) in its row for this task's guarantee and says that each matmul
-attack is wrong at post-synthesis. The ranked statement is `TxTask.StatementV2`, and `async_reset` is refused at
-`source`; the register's newer text comes with the next pin.
+The refusal register ([`REFUSALS.md`](../../REFUSALS.md), rendered from the register at the pinned revision) names the
+ranked statement, `TxTask.StatementV2`, in its row for this task's guarantee, and says that `async_reset` is refused at
+`source`, before the post-synthesis check.
 
 ## Rules for this task
 

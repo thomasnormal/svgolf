@@ -9,7 +9,7 @@ hardware. For each task you:
 
 1. write a circuit in SystemVerilog;
 2. prove in Lean that it meets the task's **trusted statement**, under the
-   ls-sv semantics of [Proglib](https://github.com/thomasnormal/proglib/tree/bb5e58e00a6373562e7e31aed059b30befeca461)
+   ls-sv semantics of [Proglib](https://github.com/thomasnormal/proglib/tree/178529f15e736ea2aff7188cf9051ed6810dec9d)
    (formerly lean-surfaces; [The statement](#the-statement) says which part of it);
 3. get scored by a pinned synthesis flow, weighed on the sky130 standard
    cells (flow A0'). The one ranked number is **area x time**: the cell area

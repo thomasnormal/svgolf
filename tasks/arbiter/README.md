@@ -641,12 +641,11 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
   the never-loaded and `clocked_rules` refusals of every clocked kind; `tools/gen_sv_refusals.py --check` (a
   nightly repository check) passes (MEASURED 2026-11-07: 210 ls-sv entries, 78 svGolf entries; it failed with
   19 errors on 2026-11-06).
-* NOT YET IN THIS REPOSITORY'S `REFUSALS.md`: the six register rows below, which this task's refusals rest on.
-  `REFUSALS.md` is what the refusal register of the pinned Proglib revision renders (`bb5e58e0`, the
-  revision `lakefile.toml` and `lake-manifest.json` require), and that revision predates them. They reach
-  `REFUSALS.md` with the round that moves svGolf to a later Proglib revision (one with ls-sv's `int32`
-  change, against which this task's reference proof and the tactic references must be re-checked first). Until
-  then the checker refuses these designs with its own messages; the rows are:
+* DONE since 2026-11-13: the six register rows below, which this task's refusals rest on, are in this repository's
+  `REFUSALS.md`. `REFUSALS.md` is what the refusal register of the pinned Proglib revision renders (the revision
+  `lakefile.toml` and `lake-manifest.json` require); the pin moved from `bb5e58e0` to `178529f1`, which is
+  `bb5e58e0` with the refusal register's newer rows and no other change (no Lean file, no extractor file), so no
+  proof is checked against anything new. The rows are:
 
   | register row | what is refused | where |
   |---|---|---|
@@ -657,7 +656,7 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
   | `sg-never-loaded-mem` | (clocked tasks) a never-loaded memory lane: a bit lane of an unpacked array that no write loads, read | the `score` stage |
   | `sg-fsm-backstop` | (clocked tasks, a backstop) a state register re-implemented by Yosys's fsm pass, which the clocked flow does not run (`synth -nofsm`) | the `score` stage |
 
-  The same round brings the register's stage `clocked_rules` and group `g-clocked`, the newer text of eleven
+  The same pin brought the register's stage `clocked_rules` and group `g-clocked`, the newer text of eleven
   existing rows, and four rows that are not this task's own: `sg-ban-div-any` (a run-time `/ % **` in any
   task), `sg-ban-cmp` (a run-time ordering comparison in a task that bans `+` or `-`) and `sg-loopfree` (a
   combinational loop or a latch, the statement's `LoopFree`), which the svGolf README's Rules and The banlist

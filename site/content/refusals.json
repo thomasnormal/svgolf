@@ -1,0 +1,281 @@
+{
+  "_comment": "The Refusals page (site/build.py `refusals_page`): what the checker refuses, in plain words, grouped by what a player writes. Each card names a construct (`title`), shows a refused line (`refused`, SystemVerilog unless `lang` says `lean`) and what to write instead (`instead`, code in the same language, or `instead_text`, Markdown inline), and lists the refusal register's rows it stands for (`rows`: ids of docs/sv-refusals.json at the pinned library revision, svGolf's and the language tier's). The rows are shown behind the card's fold, with the register's own reason, state and codes. `more`: the register's svGolf rows a group covers without a card, shown in the group's fold. The build fails when a row named here is not in the register, when an svGolf row of the register (not an aggregate) is on no card and in no group's `more`, or on two, so the page cannot drift from the register: a lifted refusal leaves the register and the page with it. Visible text is plain words: no codes, paths or plan words outside a fold (tests/site).",
+  "lead": "The checker refuses a design or a proof when the proof and the score could be about different circuits, or when the evidence could be forged. Beyond these refusals and the task's banned operators, write any SystemVerilog the language tier loads. Each card shows a refused line and what to write instead; its details give the full reason.",
+  "groups": [
+    {
+      "id": "one-text",
+      "title": "One text for the proof and the score",
+      "lead": "The proof reads your design through slang, the score through Yosys. Whatever the two would read differently is refused before either runs. Comments are fine: the checker strips them.",
+      "cards": [
+        {
+          "title": "Macros and conditional compilation",
+          "refused": "`ifdef SYNTHESIS\n  assign y = a & b;\n`endif",
+          "instead": "localparam int W = 4;\nif (W > 2) begin : wide\n  ...   // a generate if\nend",
+          "rows": ["sg-ifdef", "sg-macro", "sg-include", "sg-pragma-dir", "sg-other-directives"]
+        },
+        {
+          "title": "Attributes and synthesis comments",
+          "refused": "(* keep *) wire t = a & b;\n// synopsys translate_off",
+          "instead": "wire t = a & b;   // a comment",
+          "note": "A comment that merely names `full_case` or `translate_off` is refused too.",
+          "rows": ["sg-attributes", "sg-pragma-comment", "sg-comment-shape"]
+        },
+        {
+          "title": "unique and priority",
+          "refused": "unique case (sel) ... endcase",
+          "instead": "case (sel)\n  ...\n  default: y = '0;\nendcase",
+          "note": "Yosys reads the qualifier as a don't-care; the proof runs the first matching arm.",
+          "rows": ["sg-qualifiers", "st-cond-qual"]
+        },
+        {
+          "title": "Characters outside ASCII",
+          "refused": "string s = \"héllo\";",
+          "instead_text": "Plain ASCII outside comments; anything inside a comment is fine.",
+          "rows": ["sg-characters"]
+        },
+        {
+          "title": "Anything that reaches the checker's machine",
+          "refused": "initial $readmemh(\"table.hex\", mem);\ninitial $system(\"id\");",
+          "instead": "always_comb case (a)\n  8'h00: y = 8'h63;\n  ...\nendcase",
+          "note": "Files, programs, the environment, wave dumps and DPI are all refused: the checker runs your text on its own machine.",
+          "rows": ["sg-host-memfile", "sg-host-fileio", "sg-host-process", "sg-host-dump", "sg-host-dpi", "sg-host-other-files", "sg-escaped-dollar"]
+        }
+      ],
+      "more": ["sg-selfcheck"]
+    },
+    {
+      "id": "known-values",
+      "title": "No unknown values",
+      "lead": "The proof computes with x and z as a simulator does; Yosys treats them as don't-cares. So every way an unknown value can arise is refused, at every parameter value the checker tries.",
+      "cards": [
+        {
+          "title": "x and z in literals",
+          "refused": "assign y = sel ? a : 'x;",
+          "instead": "assign y = sel ? a : '0;",
+          "note": "A `casez` item may use `?` and `z` as wildcards.",
+          "rows": ["sg-xz-literal", "sg-casez-x"]
+        },
+        {
+          "title": "A constant with unknown bits",
+          "refused": "localparam logic [3:0] K = 4'd1 / 4'd0;",
+          "instead_text": "A constant every bit of which is known, and constant selects inside the declared range.",
+          "rows": ["sg-fs-const", "sg-fs-shape"]
+        },
+        {
+          "title": "An index that can leave the range",
+          "refused": "logic [W-1:0] m [4];\nassign y = m[i];   // i: 3 bits, 0 to 7",
+          "instead": "assign y = m[i[1:0]];   // 0 to 3",
+          "rows": ["sg-fs-index"]
+        },
+        {
+          "title": "A net nothing drives",
+          "refused": "logic u;\nassign y = u ? a : b;",
+          "instead_text": "Drive every net, and every output on every path.",
+          "rows": ["sg-fs-undriven"]
+        },
+        {
+          "title": "Two drivers, loops and latches",
+          "refused": "assign y = a & b;\nassign y = a | b;\nalways_comb if (en) q = d;",
+          "instead": "assign y = a & b;\nalways_comb begin\n  q = '0;\n  if (en) q = d;\nend",
+          "note": "One driver per net, and no combinational loop, even one that settles.",
+          "rows": ["sg-fs-conflict", "sg-fs-latch", "sg-slang-analysis", "sg-loopfree", "sg-terminates"]
+        }
+      ],
+      "more": []
+    },
+    {
+      "id": "operators",
+      "title": "Banned operators",
+      "lead": "A task bans the run-time operator that is the task, with whatever Yosys builds into the same cells. Arithmetic on parameters and generate indices stays allowed. Each task page lists its banned operators.",
+      "cards": [
+        {
+          "title": "The operator that is the task",
+          "refused": "assign {cout, s} = a + b + cin;   // in add",
+          "instead": "for (genvar i = 0; i < N; i++) begin : g\n  assign s[i] = a[i] ^ b[i] ^ c[i];\n  assign c[i+1] = (a[i] & b[i])\n                | (c[i] & (a[i] ^ b[i]));\nend",
+          "note": "add, mul, clmul and the tutorial ban run-time `+ - *`, also in disguise: `+=`, `-a`, `$countones`, a run-time index `a[j + 1]`.",
+          "rows": ["sg-ban-ops", "sg-ban-forms", "sg-ban-hidden"]
+        },
+        {
+          "title": "Division, remainder and power, in every task",
+          "refused": "assign q = a / b;",
+          "instead_text": "Build the quotient from steps of subtraction and comparison, as the fdivp reference does. A zero divisor would make an unknown value from known inputs.",
+          "rows": ["sg-ban-div-any"]
+        },
+        {
+          "title": "Ordering comparisons where + and - are banned",
+          "refused": "assign cout = a > ~b;",
+          "instead_text": "`==` and `!=` stay allowed; build `<` from gates. Yosys builds a run-time `a < b` as its own adder.",
+          "rows": ["sg-ban-cmp"]
+        }
+      ],
+      "more": []
+    },
+    {
+      "id": "language",
+      "title": "What the language tier cannot load yet",
+      "lead": "Your proof is about the design as Proglib's extractor and loader read it, and the score about what the pinned Yosys reads. These common constructs fail at one of the two for now.",
+      "cards": [
+        {
+          "title": "Procedural for loops",
+          "refused": "always_comb\n  for (int k = 0; k < N; k++)\n    y[k] = a[k] & b[k];",
+          "instead": "for (genvar k = 0; k < N; k++) begin : g\n  assign y[k] = a[k] & b[k];\nend",
+          "note": "The loop counter as an index is refused, because the index check does not know loop bounds; only one simple loop header is accepted at all.",
+          "rows": ["sg-fs-loop-index", "sg-loop-header", "st-for"]
+        },
+        {
+          "title": "What the pinned Yosys cannot read",
+          "refused": "function automatic logic f(input logic x);\n  return x;\nendfunction",
+          "instead": "function automatic logic f(input logic x);\n  f = x;\nendfunction",
+          "note": "Yosys 0.53 also cannot read `inside` or an unpacked constant array.",
+          "rows": ["sg-fs-unreadable", "sg-ban-yosys", "ex-inside"]
+        },
+        {
+          "title": "Constant tables as arrays",
+          "refused": "localparam logic [7:0] T [4] =\n  '{8'h01, 8'h02, 8'h04, 8'h08};",
+          "instead": "always_comb case (i)\n  2'd0: t = 8'h01;\n  2'd1: t = 8'h02;\n  2'd2: t = 8'h04;\n  default: t = 8'h08;\nendcase",
+          "rows": ["ex-assign-pattern"]
+        },
+        {
+          "title": "Casts to a parameter width, and $signed into a wider value",
+          "refused": "assign y = N'(a & b);\nassign w = $signed(a);  // w wider than a",
+          "instead": "assign w = {a[N-1], a};  // sign-extend\nassign t = 8'(a);        // fixed width",
+          "rows": ["cv-explicit", "cv-width"]
+        },
+        {
+          "title": "Gate primitives",
+          "refused": "and g1(y, a, b);",
+          "instead": "assign y = a & b;",
+          "rows": ["hi-primitive"]
+        },
+        {
+          "title": "Extra parameters on the top module",
+          "refused": "module band #(parameter int N = 4,\n              parameter int M = 2) (...);",
+          "instead": "module band #(parameter int N = 4) (...);\n  localparam int M = 2;",
+          "note": "The scoring flow sets the task's parameters by name, so the top declares exactly those, none narrower than `int`.",
+          "rows": ["sg-params", "sg-design-load"]
+        }
+      ],
+      "more": ["sg-extractor", "sg-design-unsupported"]
+    },
+    {
+      "id": "statement",
+      "title": "The statement: ports, clocks and every size",
+      "lead": "The trusted statement fixes the ports and what the design computes, at every parameter value in the task's range. A design that breaks it has no proof.",
+      "cards": [
+        {
+          "title": "Ports other than the task's",
+          "refused": "input logic ci,   // the task's is cin\ninput logic en,   // an extra input",
+          "instead_text": "The task page's ports, exactly: names, order and widths.",
+          "rows": ["sg-interface"]
+        },
+        {
+          "title": "A clocked process in a combinational task",
+          "refused": "always_ff @(posedge clk)   // in add\n  s <= a ^ b;",
+          "instead": "assign s = a ^ b;",
+          "note": "Registers belong to the clocked tasks.",
+          "rows": ["sg-unclocked", "sg-unpriced"]
+        },
+        {
+          "title": "A proof for one size only",
+          "lang": "lean",
+          "refused": "-- a proof that holds at N = 16 only",
+          "instead": "-- a proof for every N in the task's range,\n-- for example by induction on the bit index",
+          "rows": ["sg-range", "sg-computes"]
+        }
+      ],
+      "more": ["sg-tx-guar", "sg-stream-guar", "sg-react-guar"]
+    },
+    {
+      "id": "clocked",
+      "title": "Clocked tasks",
+      "lead": "matmul, sorter and the arbiter are clocked. A clocked design runs on one clock edge and must be right from any power-up state, so these are refused there.",
+      "cards": [
+        {
+          "title": "An asynchronous reset or a second clock",
+          "refused": "always_ff @(posedge clk or posedge rst)",
+          "instead": "always_ff @(posedge clk)\n  if (rst) q <= '0;\n  else     q <= d;",
+          "rows": ["sg-clocked-edge"]
+        },
+        {
+          "title": "Initial values, blocking writes and delays",
+          "refused": "logic [3:0] cnt = '0;\nalways_ff @(posedge clk) q = d;",
+          "instead": "logic [3:0] cnt;   // reset it instead\nalways_ff @(posedge clk) q <= d;",
+          "rows": ["sg-clocked-profile"]
+        },
+        {
+          "title": "A register nothing loads",
+          "refused": "always_ff @(posedge clk) u <= u;\nassign sel = !u;",
+          "instead": "always_ff @(posedge clk)\n  if (rst) u <= 1'b0;\n  else     u <= next_u;",
+          "note": "The pinned flow removes such a register and reads an arbitrary value at each use.",
+          "rows": ["sg-never-loaded", "sg-never-loaded-mem"]
+        },
+        {
+          "title": "An index that can leave the vector",
+          "refused": "always_ff @(posedge clk)\n  q <= v[i];       // v: 8 bits, i: 4",
+          "instead": "always_ff @(posedge clk)\n  q <= v[i[2:0]];",
+          "rows": ["sg-clocked-rules"]
+        },
+        {
+          "title": "An output that reads an input directly",
+          "refused": "assign out_valid = ov_q & ~rst;",
+          "instead": "assign out_valid = ov_q;   // a register",
+          "note": "In the transaction and stream tasks no output may read an input combinationally, the reset included; clear the register in the reset branch instead.",
+          "rows": ["sg-txstream-moore"]
+        }
+      ],
+      "more": ["sg-fsm-backstop"]
+    },
+    {
+      "id": "proof",
+      "title": "The proof file",
+      "lead": "The kernel must accept your theorem from the task's allowed axioms alone, in one file that imports only what the checker builds.",
+      "cards": [
+        {
+          "title": "Anything the kernel does not check",
+          "lang": "lean",
+          "refused": "theorem solution : Submission.Goal := by\n  native_decide     -- or sorry\naxiom cheat : Submission.Goal",
+          "instead": "theorem solution : Submission.Goal := by\n  -- tactics the kernel checks:\n  -- decide +kernel, omega, simp, ...",
+          "note": "`bv_decide` is not supported: it runs an external solver.",
+          "rows": ["sg-sorry", "sg-axiom", "sg-native-decide", "sg-bv-decide", "sg-extern", "sg-kernel-replay", "sg-wrong-goal", "sg-no-theorem"]
+        },
+        {
+          "title": "Imports the checker does not build",
+          "lang": "lean",
+          "refused": "import MyHelpers\nimport Lake",
+          "instead": "import Submission.Design\nimport SvGolf.Comb\nimport Mathlib.Tactic.Ring",
+          "note": "One file. Mathlib and its packages are allowed.",
+          "rows": ["sg-imports", "sg-multifile", "sg-design-import", "sg-headers"]
+        },
+        {
+          "title": "The latency line",
+          "lang": "lean",
+          "refused": "-- svgolf-latency: 3\n-- svgolf-latency: 4",
+          "instead": "-- svgolf-latency: 3",
+          "note": "Transaction and stream tasks only: exactly one such line, the number of cycles.",
+          "rows": ["sg-latency"]
+        }
+      ],
+      "more": ["sg-integrity", "sg-timeouts"]
+    },
+    {
+      "id": "netlist",
+      "title": "After synthesis",
+      "lead": "The checker synthesizes the design with the pinned flow, simulates the proof's semantics against the netlist and weighs the netlist on the sky130 cells. A refusal here means the tools disagree: report it, it is a bug in one of them.",
+      "cards": [],
+      "more": ["sg-score-misc", "sg-ps-differ", "sg-ps-latent", "sg-ps-failclosed", "sg-ppa-illegal"]
+    },
+    {
+      "id": "task-authors",
+      "title": "For task authors",
+      "lead": "Mistakes in a task definition fail loudly, so that a typo cannot change the tests or the banned operators.",
+      "cards": [],
+      "more": ["sg-task-ban-op", "sg-task-keys"]
+    }
+  ],
+  "more_reading": [
+    {"repo": "svgolf/REFUSALS.md", "text": "Every refusal, with its full reason and whether it may be allowed later"},
+    {"site": "rules.html#checker-stages", "text": "The checker's stages, in the order they run"},
+    {"site": "trusted/index.html", "text": "The trusted statements, as the checker reads them"},
+    {"library": "docs/sv-refusals.md", "text": "Every construct Proglib's language tier refuses"}
+  ]
+}

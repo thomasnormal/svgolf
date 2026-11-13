@@ -228,10 +228,9 @@ replaced its run from ls-sv's `x` start by every power-up and added rules 1 and 
 `REVIEW.md`) were made in place before any record of the task was published. A later statement change is a version
 bump that re-issues the records, never an edit.
 
-The refusal register ([`REFUSALS.md`](../../REFUSALS.md), rendered from the register at the pinned revision) still
-names the superseded `StreamTask.Statement` (the first statement) in its row for this task's guarantee and says that each
-sorter attack is wrong at post-synthesis. The ranked statement is `StreamTask.StatementV2`, and `rst_gate` passes
-the post-synthesis check (rule 1 refuses it); the register's newer text comes with the next pin.
+The refusal register ([`REFUSALS.md`](../../REFUSALS.md), rendered from the register at the pinned revision) names the
+ranked statement, `StreamTask.StatementV2`, in its row for this task's guarantee, and says that `rst_gate` passes the
+post-synthesis check (rule 1 refuses it).
 
 ## Rules for this task
 

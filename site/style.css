@@ -768,6 +768,31 @@ ol.steps > li::before {
 .doc-body > h2:first-child, .doc-body > section:first-child > h2:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .doc-wide .doc-body { max-width: none; }
 
+/* the Refusals page: a card per refused construct, a refused line and what to write instead; the reasons in a fold */
+.refusal-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); margin: var(--sp-4) 0; }
+.refusal { display: flex; flex-direction: column; min-width: 0; border: 2px solid var(--border); background: var(--surface); padding: var(--sp-4); }
+.refusal > :first-child { margin-top: 0; }
+.refusal-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-4); }
+.refusal .refusal-title { font-size: var(--fs-md); margin: 0; }   /* not .card h3's top margin */
+/* the refused line and what to write instead side by side, stacked where the card is narrow */
+.refusal-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 0 var(--sp-4); }
+.refusal-side { min-width: 0; }
+.refusal-label { margin: var(--sp-3) 0 0; font: 600 var(--fs-xs)/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.refusal-no { color: var(--bad-ink); }
+.refusal-yes { color: var(--good-ink); }
+.refusal pre.code { margin: var(--sp-2) 0 0; padding: var(--sp-3); font-size: 0.8rem; }
+.refusal-instead { margin: var(--sp-2) 0 0; }
+.refusal-note { margin: var(--sp-3) 0 0; color: var(--text-2); }
+.refusal-state { margin: 0; }
+.refusal details.refusal-more > summary { padding: 0.35rem var(--sp-3); }
+.refusal > details.refusal-more { margin: auto 0 0; }    /* the fold sits at the card's foot ... */
+.refusal > :nth-last-child(2) { margin-bottom: var(--sp-4); }   /* ... at least this far below the rest */
+.refusal-row { margin: var(--sp-3) var(--sp-4); font-size: var(--fs-sm); }
+.refusal-row + .refusal-row { border-top: 1px solid var(--border); padding-top: var(--sp-3); }
+.refusal-row > p { margin: 0 0 var(--sp-2); overflow-wrap: anywhere; }
+.refusal-row > p:last-child { margin-bottom: 0; }
+@media (max-width: 42rem) { .refusal { padding: var(--sp-3); } .refusal pre.code { padding: var(--sp-2) var(--sp-3); } }
+
 ul.rejects { list-style: none; padding: 0; }
 ul.rejects > li { border-top: 1px solid var(--border); padding: var(--sp-3) 0; margin: 0; }
 .reject-head { margin: 0; }

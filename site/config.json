@@ -65,17 +65,13 @@
     {
       "text": "WP-",
       "scope": "site-text",
-      "why": "a work-package code of the development",
-      "allow": {
-        "refusals.html": "the refusal register's own text (rendered as it is; it changes with the register and the pin)"
-      }
+      "why": "a work-package code of the development"
     },
     {
       "text": "txtask-v",
       "scope": "site-text",
       "why": "the internal name of the clocked statements",
       "allow": {
-        "refusals.html": "the refusal register's own text (rendered as it is; it changes with the register and the pin)",
         "tasks/matmul/index.html": "verbatim Lean text of Properties.lean and SvGolf/TaskSeq.lean in the property cards (trusted or checked text, changed only with a re-seed)",
         "tasks/sorter/index.html": "verbatim Lean text of Properties.lean and SvGolf/TaskSeq.lean in the property cards (trusted or checked text, changed only with a re-seed)",
         "rules.html": "README's one quote of the old name, which explains the trusted comments that use it"
@@ -84,10 +80,7 @@
     {
       "text": "PLAN.md",
       "scope": "site-text",
-      "why": "a working plan, history and not the rules",
-      "allow": {
-        "refusals.html": "the refusal register's own text (rendered as it is; it changes with the register and the pin)"
-      }
+      "why": "a working plan, history and not the rules"
     },
     {
       "text": "PLAN2.md",

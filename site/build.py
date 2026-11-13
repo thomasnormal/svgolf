@@ -5384,8 +5384,8 @@ def rules_page(site, refusals, tasks=()):
             parts.append('<section><h2 id="checker-stages">The checker\'s stages <a class="anchor" '
                          'href="#checker-stages" aria-label="link to this section">#</a></h2>'
                          "<p><code>check.py</code> runs the stages in this order and stops at the first that "
-                         "refuses; the stage is what a rejection names. The table is the refusal register's text, which "
-                         f"calls {esc(site.config['library']['name'])} by its former name, lean-surfaces.</p>"
+                         "refuses; the stage is what a rejection names. The table is the text of the refusal register "
+                         f"of {esc(site.config['library']['name'])}.</p>"
                          + stages_table(refusals) + "</section>")
             toc.append(("checker-stages", "The checker's stages"))
     body = (page.page_head(title_html="Rules", sub_html=(
@@ -5492,84 +5492,138 @@ def roadmap_page(site):
     site.page(here, "Roadmap", body, active=here, description="What svGolf has, and what comes next.")
 
 
-def refusal_state(e):
+REFUSALS_CONTENT = f"{CONTENT}/refusals.json"    # the Refusals page's cards (its `_comment` says what they hold)
+
+# a register row's state, in words (the register's categories: docs/sv-refusals.json `categories`)
+REFUSAL_STATE = {"refused-now": "Refused; no change is planned.",
+                 "later": "May be allowed later. What has to exist first:",
+                 "never": "Will not be allowed",
+                 "refused-pending": "Refused; a decided change is on its way."}
+# what a card says when all its rows share a state that a player would plan around (none for `refused-now`)
+REFUSAL_CARD_STATE = {"later": "May be allowed later", "never": "Will not be allowed"}
+
+
+def refusal_cards(refusals, content):
+    """content/refusals.json checked against the register: {row id: register row} of every row the page names.
+    A BuildError when a card lacks its title, its refused line or what to write instead, when a card or a group
+    names a row the register does not have, or when a row of the register's svGolf half (an aggregate row aside)
+    is on no card and in no group's `more`, or named twice: the page stays one view of the register."""
+    rows = {e["id"]: e for e in refusals["entries"] + refusals["svgolf"]["entries"]}
+    named = []
+    for g in content["groups"]:
+        for c in g["cards"]:
+            if not (c.get("title") and c.get("refused") and (c.get("instead") or c.get("instead_text"))):
+                raise BuildError(f"{REFUSALS_CONTENT}: card {c.get('title')!r} needs a title, a refused line "
+                                 "and what to write instead (`instead` or `instead_text`)")
+            if c.get("lang", "sv") not in ("sv", "lean"):
+                raise BuildError(f"{REFUSALS_CONTENT}: card {c['title']!r}: unknown lang {c['lang']!r}")
+            if not c.get("rows"):
+                raise BuildError(f"{REFUSALS_CONTENT}: card {c['title']!r} names no register row")
+            named += c["rows"]
+        named += g.get("more", [])
+    missing = sorted(set(named) - set(rows))
+    if missing:
+        raise BuildError(f"{REFUSALS_CONTENT} names rows the refusal register does not have (lifted, or renamed): "
+                         f"{missing}")
+    twice = sorted({i for i in named if named.count(i) > 1})
+    if twice:
+        raise BuildError(f"{REFUSALS_CONTENT} names a register row twice: {twice}")
+    shown = set(named)
+    left = [e["id"] for e in refusals["svgolf"]["entries"] if not e.get("aggregate") and e["id"] not in shown]
+    if left:
+        raise BuildError(f"the refusal register's svGolf rows {left} are on no card of {REFUSALS_CONTENT} and in no "
+                         "group's `more`: add them where a player would look for them")
+    return {i: rows[i] for i in shown}
+
+
+def refusal_row_html(e, svgolf_ids):
+    """One register row behind a fold: what is refused, the register's reason, its state in words, its id."""
+    ls = e["id"] not in svgolf_ids            # a row of the language tier names its construct by its node kind
     cat = e["category"]
-    out = page.badge(cat, f"cat-{cat}")
-    if cat == "later" and e.get("prerequisite"):
-        out += " " + md_inline(e["prerequisite"])
-    elif cat == "never" and e.get("principle"):
-        out += " " + code(e["principle"])
+    state = REFUSAL_STATE[cat]
+    if cat == "later":
+        state += f" {md_inline(e['prerequisite'].rstrip('.'))}."
+    elif cat == "never":
+        state += f" (principle {code(e['principle'])})." if e.get("principle") else "."
     if e.get("proposed") is True:
-        out += ' <span class="muted" title="the classification is a proposal, not yet confirmed">(proposed)</span>'
-    sv = e.get("svgolf")
-    if sv:
-        out += "<br>svGolf: " + page.badge(sv["category"], f"cat-{sv['category']}")
-        detail = sv.get("principle") or sv.get("prerequisite")
-        if detail:
-            out += " " + md_inline(detail)
-    return out
+        state += " This state is proposed, not yet confirmed."
+    tag = code(e["tag"]) if ls else md_inline(e["tag"])
+    where = "Language tier row" if ls else "Register row"
+    return (f'<div class="refusal-row"><p><strong>{tag}</strong></p><p>{md_inline(e["why"])}</p>'
+            f'<p class="small muted">{state} {where} {code(e["id"])}.</p></div>')
+
+
+def refusal_card_html(c, rows, svgolf_ids, ids):
+    lang = c.get("lang", "sv")
+    slug = "r-" + (re.sub(r"[^a-z0-9]+", "-", c["title"].lower()).strip("-"))
+    while slug in ids:
+        slug += "-2"
+    ids.add(slug)
+    instead = (page.code_block(c["instead"].rstrip(), lang) if c.get("instead")
+               else f'<p class="refusal-instead">{md_inline(c["instead_text"])}</p>')
+    cats = {rows[i]["category"] for i in c["rows"]}
+    state = ""
+    if len(cats) == 1 and next(iter(cats)) in REFUSAL_CARD_STATE:
+        cat = next(iter(cats))
+        state = f'<p class="refusal-state">{page.badge(REFUSAL_CARD_STATE[cat], f"cat-{cat}")}</p>'
+    parts = [f'<div class="refusal-head"><h3 class="refusal-title" id="{esc(slug)}">{md_inline(c["title"])}</h3>'
+             f'{state}</div>',
+             '<div class="refusal-pair"><div class="refusal-side"><p class="refusal-label refusal-no">Refused</p>'
+             + page.code_block(c["refused"].rstrip(), lang) + "</div>"
+             '<div class="refusal-side"><p class="refusal-label refusal-yes">Write instead</p>' + instead + "</div></div>"]
+    if c.get("note"):
+        parts.append(f'<p class="refusal-note small">{md_inline(c["note"])}</p>')
+    parts.append(page.details("Why, in full", "".join(refusal_row_html(rows[i], svgolf_ids) for i in c["rows"]),
+                              cls="refusal-more"))
+    return f'<article class="refusal">{"".join(parts)}</article>'
 
 
 def refusals_page(site, refusals):
+    """refusals.html: what the checker refuses, as cards (content/refusals.json) that each show a refused line and
+    what to write instead, with the refusal register's rows (`refusal_cards`) behind each card's fold. The register
+    is the library's docs/sv-refusals.json at the pinned revision; REFUSALS.md is its full rendering."""
     here = "refusals.html"
-    d, sg = refusals, refusals["svgolf"]
-    src = site.config["refusals_json"]
-
-    def render(text):
-        return site.render_md(text, source=src, here=here).html
-    parts = [render(sg["intro"])]
-    toc = [("how-to-read", "How to read this page"), ("pipeline", "The pipeline"), ("policies", "Policies")]
-    parts.append('<h2 id="how-to-read">How to read this page</h2><p>Every restriction has one of four states; '
-                 "a row marked <em>proposed</em> carries a classification that is not yet confirmed.</p>")
-    parts.append(page.table(["state", "meaning"], [[page.badge(k, f"cat-{k}"), md_inline(v)]
-                                                   for k, v in d["categories"].items()]))
-    parts.append("<p>The <code>never</code> rows rest on these principles:</p>")
-    parts.append(page.table(["principle", "statement"], [page.Row([code(p["id"]), md_inline(p["text"])],
-                                                                  id_=f"principle-{p['id']}") for p in d["principles"]]))
-    parts.append('<h2 id="pipeline">The pipeline: where a refusal can happen</h2>'
-                 "<p><code>check.py</code> runs the stages in this order and stops at the first that refuses.</p>"
-                 + page.table(["stage", "what it does", "refuses"],
-                              [[code(s["id"]), md_inline(s["what"]), md_inline(s["refuses"])] for s in sg["stages"]]))
-    parts.append('<h2 id="policies">Policies</h2><ul>' + "".join(f"<li>{md_inline(p)}</li>" for p in sg["policies"]) + "</ul>")
-    for g in sg["groups"]:
-        rows = [e for e in sg["entries"] if e["group"] == g["id"] and not e.get("aggregate")]
+    content = json.loads(read_text(REFUSALS_CONTENT))
+    rows = refusal_cards(refusals, content)
+    svgolf_ids = {e["id"] for e in refusals["svgolf"]["entries"]}
+    resolve = site.resolver(REFUSALS_CONTENT, here)
+    parts, toc, ids = [f'<p class="lead">{md_inline(content["lead"], resolve)}</p>'], [], set()
+    for g in content["groups"]:
         gid = f"group-{g['id']}"
         toc.append((gid, md_inline(g["title"])))
-        parts.append(f'<h2 id="{esc(gid)}">{md_inline(g["title"])}</h2>' + render(g["intro"]))
-        if rows:
-            parts.append(page.table(["refused", "why", "state"], [
-                [f"<strong>{md_inline(e['tag'])}</strong><div class=\"muted small\">e.g. {code(e['trigger'])}</div>",
-                 md_inline(e["why"]), refusal_state(e)] for e in rows]))
-        if g.get("write_ok"):
-            parts.append("<p>What you can write:</p>" + page.code_block(g["write_ok"].rstrip(), "sv"))
-        if g.get("refused_example"):
-            parts.append("<p>What is refused:</p>" + page.code_block(g["refused_example"].rstrip(), "sv"))
-    ranked = sorted((e for e in d["entries"] + sg["entries"] if e["category"] == "later" and e.get("value_rank")),
-                    key=lambda e: (e["value_rank"], e["id"]))
-    parts.append('<h2 id="ls-sv">Constructs the ls-sv tier refuses, as seen from svGolf</h2>'
-                 "<p>The <code>extract</code> and <code>design</code> stages pass on the refusals of the language "
-                 "tier (ls-sv). The ones a task is most likely to run into, with what has to exist first:</p>"
-                 + page.table(["construct", "why you might want it", "prerequisite"],
-                              [[code(e["tag"]), md_inline(e.get("value_note", "")), md_inline(e["prerequisite"])] for e in ranked])
-                 + "<p>And what will not be accepted for as long as the tools disagree or the construct is not hardware:</p>"
-                 + "<ul>" + "".join(f"<li>{md_inline(x)}</li>" for x in sg["never_summary"]) + "</ul>")
-    parts.append('<h2 id="lifting">How a refusal becomes allowed</h2><ul>'
-                 + "".join(f"<li>{md_inline(x)}</li>" for x in sg["lifting"]) + "</ul>")
-    parts.append('<h2 id="limits">Known limits (not refusals)</h2><ul>'
-                 + "".join(f"<li>{md_inline(x)}</li>" for x in sg["limits"]) + "</ul>")
-    # each path under its repository's name, as that repository shows it (svGolf's without svgolf/, 2026-11-11)
-    lib = site.config["library"]["name"]
-    parts.append('<h2 id="more">Where to read more</h2><ul>'
-                 + "".join(f"<li>{'svGolf' if x['path'].startswith('svgolf/') else esc(lib)}'s "
-                           f"{code(shown_path(x['path']))}: {md_inline(x['what'])}</li>" for x in sg["links"])
-                 + "</ul>")
-    toc += [("ls-sv", "The language tier"), ("lifting", "Lifting a refusal"), ("limits", "Known limits")]
+        sec = [f'<h2 id="{esc(gid)}">{md_inline(g["title"])} <a class="anchor" href="#{esc(gid)}" '
+               f'aria-label="link to this section">#</a></h2>', f'<p>{md_inline(g["lead"], resolve)}</p>']
+        if g["cards"]:
+            sec.append('<div class="refusal-grid">'
+                       + "".join(refusal_card_html(c, rows, svgolf_ids, ids) for c in g["cards"]) + "</div>")
+        if g.get("more"):
+            what = "Also refused here" if g["cards"] else "What is refused here"
+            sec.append(page.details(f"{what} ({len(g['more'])})",
+                                    "".join(refusal_row_html(rows[i], svgolf_ids) for i in g["more"]),
+                                    cls="refusal-more refusal-group-more"))
+        parts.append(f'<section class="refusal-group">{"".join(sec)}</section>')
+    lib = site.config["library"]
+    items = []
+    for x in content["more_reading"]:
+        text = esc(x["text"])
+        if "site" in x:
+            href = rel_link(here, x["site"])
+        elif "library" in x:
+            href = f"{lib['url'].rstrip('/')}/blob/HEAD/{x['library']}"
+        else:
+            href = repo_link(site.config.get("repo_url"), x["repo"])
+            if href is None:
+                site.unlinked.add(x["repo"])
+        items.append(f"<li>{page.link(href, text) if href else text}</li>")
+    parts.append('<h2 id="more">Where to read more</h2><ul>' + "".join(items) + "</ul>")
+    toc.append(("more", "Where to read more"))
     body = (page.page_head(title_html="What the checker refuses, and what you can write",
-                           sub_html=f"Rendered from the refusal register {code(src)} (version {esc(d.get('version'))}) of "
-                                    f"{md_inline(library_md(site.config))} (its own text still calls the repository "
-                                    "lean-surfaces, its former name).")
+                           sub_html=f"Each card is checked against the refusal register of "
+                                    f"{md_inline(library_md(site.config))} at the revision svGolf uses: a refusal that "
+                                    "is lifted there leaves this page too.")
             + page.doc("\n".join(parts), toc, wide=True))
-    site.page(here, "Refusals", body, active=here, description="Every refusal the svGolf checker makes, and why.")
+    site.page(here, "Refusals", body, active=here,
+              description="What the svGolf checker refuses, and what to write instead.")
 
 
 # ---------------------------------------------------------------------------
