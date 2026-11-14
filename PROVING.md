@@ -2572,16 +2572,54 @@ The side conditions of the instantiation (a part select inside its vector, a dec
 proved by `sv_disch`: positivity of the parameters, `omega`, and `sv_window`, which proves a window
 `lo + w ≤ total` of products of parameters and genvars by replacing each genvar by its bound
 (`Nat.mul_le_mul_right`) before `omega`. A window it cannot place stops the command with the condition printed;
-give a tactic for it with `sv_mirror … (window := by tac)`. `set_option sv_cycle.verbose true` prints every
-normal form; each stage of the generation has its own heartbeat budget (`sv_cycle.stageHeartbeats`, 1000000 by
-default), so the commands need no `maxHeartbeats`.
+give a tactic for it before `:=`, `sv_mirror mm (window := by tac) := design …` (after the binders it would read as
+one more binder); it runs on each condition left, with the genvars and their bounds (`hk : k < N`) in scope, and a
+proof containing `sorry` is refused like no proof. The fuel option goes before `using` for the same reason:
+`sv_cycle mm (fuel := 60) using mm_disj N W AccW`. `set_option sv_cycle.verbose true` prints every normal form,
+the time of each step and how many rounds each normalization took; each stage of the generation has its own
+heartbeat budget (`sv_cycle.stageHeartbeats`, 1000000 by default), so the commands need no `maxHeartbeats`.
 
-What they refuse, by name: an `always_comb` process or an `assign` (no FF-only clock step: the arbiter), a
-generate `if`, a generate loop other than `for (g = 0; g < e; g++)`, a module instance, package parameters, a
-parameter environment that does not evaluate at symbolic parameters (a `localparam` chosen by a comparison of
-parameters, as in matmul's broadcast record `4a4d9cd685ac`), and a process whose run is not a success. Nothing
-they produce is trusted: every definition and theorem goes through the kernel like a hand-written one, and
-`#print axioms mm.cycle` lists `propext`, `Classical.choice` and `Quot.sound`.
+What it costs: less than the hand-written opening blocks it replaces (the matmul reference's, 293 code lines,
+compiles in about 14.6 s of CPU; the generated one, with the disjointness, in about 6.9 s, imports included). The side
+conditions found are carried forward, never rediscovered: a round decides every condition it shows and continues
+from where it stopped, the conditions on the parameters alone serve every later normalization of the command, the
+parameter environment is normalized in two passes, and the equation lemmas of the two `simp` sets are built once, in
+the library (`SvGolf.Cycle.simpSets_ready`), not in each proof.
+
+The parameters are matched to the design's by position: give them in the design's order (a binder named after
+another parameter is refused as a swap). A command that stops adds nothing to the environment, and the names it
+would define must be free: a generate block labelled like one of them (`procs`, `St`, or `p0Q`, the updates of
+process 0) gets the next free name (`procs_1`). Signed comparisons and dynamic select reads in a process body are
+evaluated to the named values `scmpVal` and `indexVal` (`#print` them; every case of `evalExpr2` is kept).
+
+**One comb process beside the registers** (an `always_comb` or a continuous `assign`, at the module level: the
+arbiter's reference) is covered too. The cycle settles it before the edge and after the commit, and `sv_cycle`
+generates that exactly: `X.comb_<signal>` (the comb process's value of each signal it writes, on `X.St …`),
+`X.comb` (the settled state), `X.<p>_comb` (one run gives them), `X.comb_stable` (a second run gives them again,
+proved), `X.settle` (the settle ends at `X.comb` under every schedule), `X.edgeQ` and `X.commit` (the edge's
+updates and their commit, signal by signal), `X.next` (the comb values of the commit) and `X.cycle`, now
+`∃ k', cycleStep2 … = .ok (X.next …, k')` (the step counter counts the comb passes) from fuel `K + 2`. The
+arbiter's reference keeps its own `rrD` and `rrNext` and relates them once (`rr_D_eq`, `rr_next_eq`: a `simp` with
+two `by_cases`).
+
+A `localparam` chosen by a comparison of the parameters (`localparam int X = (AccW > W) ? AccW - W : 1`, matmul's
+broadcast record `4a4d9cd685ac`) makes the parameter environment a case split: `sv_mirror` refuses it with the
+comparison printed, and proceeds under the case as a hypothesis, one mirror per case:
+`sv_mirror mmA := design (N W AccW : Nat) … (h : W < AccW)` and `sv_mirror mmB := design … (h : ¬ W < AccW)`
+(`simp` decides the comparison with the hypothesis; the rest of the instantiation reads the case's value). The
+player combines the two cases in the final proof.
+
+What they refuse, by name: two comb processes, or one in a generate loop (their settle in every schedule order needs
+a lemma that every order of the passes reaches one fixpoint, not proved yet), an
+asynchronous reset (`always_ff @(posedge clk or negedge rst_n)`), a plain `always @(posedge clk)`, a blocking
+assignment in an `always_ff`, a nonblocking write to a dynamic index, two clocks, a process writing an input, an
+out-of-tier statement or expression (named with its kind), a procedural `for` loop whose iterations depend on the
+parameters, a generate `if`, a generate loop other than `for (g = 0; g < e; g++)`, a loop bound that can be negative
+under the hypotheses (`N - 1` needs `1 ≤ N`), a module instance, package parameters, a parameter environment that
+does not evaluate at symbolic parameters (a comparison of parameters without its case hypothesis, above), a
+hypothesis or a disjointness argument containing `sorry`, and a process whose
+run is not a success. Nothing they produce is trusted: every definition and theorem goes through the kernel like a
+hand-written one, and `#print axioms mm.cycle` lists `propext`, `Classical.choice` and `Quot.sound`.
 
 ## 20. A reactive task: the arbiter (`ReactTask`)
 
@@ -2611,7 +2649,8 @@ above the last grant) takes six steps; the names are that file's, the section nu
    closed form for flip-flop-only designs only (`cycleStep2_ffOnly`), so a design with an `always_comb` block
    proves its own settle: `settle_rr` shows that one pass computes the block from `req` and `mask`, which it
    does not write (it reads `mreq` only after writing it), and that a second pass changes nothing, which ends
-   the settle loop under every schedule.
+   the settle loop under every schedule. (`sv_cycle` now generates this step for one comb process: section
+   19.4.)
    Termination follows from the same lemma (`rr_terminates`, by `TerminatesPU.of_invariant` with the shape as
    the invariant).
 3. **The shape** (§3, `Shp`, `rr_init`, `rrNext_shp`): the seven signals in declaration order, the registers
