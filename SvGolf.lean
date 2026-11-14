@@ -10,6 +10,7 @@ import SvGolf.RoundRobin
 import SvGolf.LoadSv
 import SvGolf.CoreSimp
 import SvGolf.Clocked
+import SvGolf.Cycle
 -- The ls-sv proof libraries the references import (see the last paragraph below).
 import LeanModels.Sv.Comb2
 import LeanModels.Sv.CombEqTactic
@@ -73,6 +74,13 @@ import LeanModels.Sv.SeqProfile
   (`ProcDisj`, `ProcDisj.of_names`, `ProcDisj.of_units`, `pairwise_rowMajor`), generate loops one and two deep
   (`GenItem.expand2_param_map`, `GenItem.expand2_param_map₂`), the tactic `powerUp_cases`, and values
   (`LVec.shl_ofBitVec`, `LVec.sext_of_extract`, `Lib.setWidth_mul_signExtend`).
+* `SvGolf.Cycle` — untrusted, kernel-checked: the commands `sv_mirror` and `sv_cycle` (added 2026-11-14), which
+  write the opening block of a proof about an FF-only design from the loaded design at symbolic parameters (the
+  instantiated design and its agreement with `design.sem`, the profile, the positional state, each process's
+  updates, the next state and the clock step `X.cycle`, power-up and the initial state), every definition and
+  theorem through the kernel, a shape they do not cover refused by name; with the lemmas they cite
+  (`applyInputs2_eq_map`, `cycleStep2_eq_commit`, `ProcDisj.of_all`) and the dischargers `sv_disch`,
+  `sv_window` (PROVING.md, section 19.4).
 * `SvGolf.RoundRobin` — untrusted, kernel-checked word-level facts for round-robin arbiters, for
   every width: the lowest set bit `x &&& (~~~x + 1)`, the thermometer above a one-hot, the mask
   round-robin's pick and next mask with its one-step theorem in the cyclic distance.

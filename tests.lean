@@ -37,3 +37,5 @@ import tests.seq_counter.negative.Refute
 import tests.seq_counter.negative.Table
 -- the clocked lemmas of `SvGolf.Clocked`, each at two sizes
 import tests.clocked.Lemmas
+-- the opening-block generator `sv_mirror`/`sv_cycle` (`SvGolf.Cycle`): a design end to end, and its refusals
+import tests.cycle.Generate

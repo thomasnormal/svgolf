@@ -897,6 +897,8 @@ say what. A lemma that is in no library yet is named in its task's README, with 
 
 | name | module | what it says | use it when |
 |---|---|---|---|
+| `sv_mirror X := design (params) (hyps)`, `sv_cycle X using h` (commands) | SvGolf.Cycle | write steps 1 and 2 of section 19 from the loaded design at symbolic parameters: the mirror `X.D`, `X.sem_eq`, `X.profile`, the state `X.St`, each process's updates, `X.next`, `X.cycle`, `X.powerUp`, `X.init` (19.4) | an FF-only design: before writing a mirror or a run lemma by hand |
+| `ProcDisj.of_all`, `sv_window` (a tactic) | SvGolf.Cycle | two processes are disjoint when no pair of their windows overlaps, decided by `simp` on a concrete pair; a window `lo + w ≤ total` of products of parameters and genvars, each genvar replaced by its bound | `sv_cycle`'s one fact (19.4); window bounds in `Nat` |
 | `cycleStep2_profile`, `ffDisjB_of_pairwise`, `driversOk_of_ff` | SeqProfile, SeqFamily | a cycle of an FF-only design runs every `always_ff` body on the pre-edge state, then commits the queue; the disjointness and one-driver conditions from pairwise-disjoint windows | one clock cycle (section 19, step 2) |
 | `GenItem.expand2_genFor_ascending_processes`, `pairwise_flatMap_range`, `DrvWin.overlaps_some_eq_false` | Gen2, Hier2Gen | a generate loop expands to a `flatMap` over its indices; a family's windows are pairwise disjoint when each cell's are and every two cells' are; two windows are disjoint when the names differ or the ranges do not meet | the agreement (section 19, step 1) |
 | `nbaFold`, `nbaFold_append`, `nbaFold_flatMap`, `nbaFold_flatMap_eq_self`, `lookup_commitNba2_of_not_mem` | NbaCommit | the commit restricted to one register; of an append; of a family's queues; a family that never writes the register leaves it; a register no write names is unchanged | committing one register at a time |
@@ -2523,6 +2525,63 @@ steps 1 and 2 only, apart from the two new definitions' names in the `simp` list
   `induction d`, as an accepted matmul variant does. A proof may import Mathlib (README.md, "Mathlib in
   submissions", says what an import costs; in a clone of the public repository its build comes from
   `lake exe cache get`).
+
+### 19.4 Steps 1 and 2, generated: `sv_mirror` and `sv_cycle`
+
+Steps 1 and 2 are fixed by the loaded design: the mirror, its agreement with `design.sem`, the profile, the
+positional state, the queues, the run lemmas and the clock step. Two commands of `SvGolf.Cycle` write them at
+symbolic parameters, from `design.pdesign`. For a matmul design shaped like the reference (one control process,
+then the `g_row`/`g_col` loops of PEs):
+
+```lean
+import Submission.Design
+import SvGolf.Cycle
+open LeanModels.Sv SvGolf
+
+sv_mirror mm := design (N W AccW : Nat) (hN : 1 ≤ N) (hW : 1 ≤ W) (hA : 1 ≤ AccW)
+
+theorem mm_disj (N W AccW : Nat) : (mm.procs N W AccW).Pairwise ProcDisj := by
+  refine List.Pairwise.cons (fun p hp => ?_) (pairwise_rowMajor fun i j i' j' _ _ _ _ h => ?_)
+  · simp only [List.mem_flatMap, List.mem_map, List.mem_range] at hp
+    obtain ⟨i, -, j, -, rfl⟩ := hp
+    exact ProcDisj.of_all (by simp [mm.p0, mm.g_col, Process2.procWins, Stmt2.drvWins, Stmt2.drvWinsOpt,
+      Stmt2.drvWinsList, Lhs2.drvWins, DrvWin.overlaps])
+  · have := rowMajor_le (K := AccW) h
+    exact ProcDisj.of_all (by simp [mm.g_col, Process2.procWins, Stmt2.drvWins, Stmt2.drvWinsOpt,
+      Stmt2.drvWinsList, Lhs2.drvWins, DrvWin.overlaps] <;> omega)
+
+sv_cycle mm using mm_disj N W AccW
+```
+
+`sv_mirror` defines `mm.p0` (the module's first process), `mm.g_col N W AccW i j` (the process of generate
+block `g_col`, the genvars as arguments), `mm.procs` (the static processes, then each generate loop as a
+`List.range` family, never unrolled), `mm.decls`, `mm.D`, and proves `mm.instantiate`. The one fact it needs from
+you is which process writes which window, `mm_disj`: `ProcDisj.of_all` decides one pair (`simp` lists both
+processes' windows), the row-major facts of `SvGolf.Clocked` do the arithmetic. `sv_cycle` then proves
+`mm.sem_eq` (`design.sem N W AccW = mm.D N W AccW`), `mm.profile` and `mm.apply`, defines `mm.St` (one value per
+declaration, in declaration order), the updates of each process (`mm.p0Q`, `mm.g_colQ`: the nested `if`s over
+`condTrue` a reference writes by hand, known literals as `LVec.ofBitVec (v#w)`) and `mm.next` (their commit, in
+process order), and proves **`mm.cycle`**: `cycleStep2 (design.sem N W AccW) σ F e (mm.St …) k` is
+`.ok (mm.next N W AccW <the inputs applied> …, k + 3)` for every schedule, stimulus entry and `F ≥ 30` (the bound
+it prints), with `mm.powerUp` (every power-up state is `mm.St x₁ … xₙ`, each value at its declared width) and
+`mm.init`. `#print mm.g_colQ` shows what to reason with; steps 3 to 5 are unchanged. A proof that keeps its own
+queues relates them to the generated ones once, per process (`unfold` both, a `by_cases` on each condition, then
+`simp_all`).
+
+The side conditions of the instantiation (a part select inside its vector, a declared range not empty) are
+proved by `sv_disch`: positivity of the parameters, `omega`, and `sv_window`, which proves a window
+`lo + w ≤ total` of products of parameters and genvars by replacing each genvar by its bound
+(`Nat.mul_le_mul_right`) before `omega`. A window it cannot place stops the command with the condition printed;
+give a tactic for it with `sv_mirror … (window := by tac)`. `set_option sv_cycle.verbose true` prints every
+normal form; each stage of the generation has its own heartbeat budget (`sv_cycle.stageHeartbeats`, 1000000 by
+default), so the commands need no `maxHeartbeats`.
+
+What they refuse, by name: an `always_comb` process or an `assign` (no FF-only clock step: the arbiter), a
+generate `if`, a generate loop other than `for (g = 0; g < e; g++)`, a module instance, package parameters, a
+parameter environment that does not evaluate at symbolic parameters (a `localparam` chosen by a comparison of
+parameters, as in matmul's broadcast record `4a4d9cd685ac`), and a process whose run is not a success. Nothing
+they produce is trusted: every definition and theorem goes through the kernel like a hand-written one, and
+`#print axioms mm.cycle` lists `propext`, `Classical.choice` and `Quot.sound`.
 
 ## 20. A reactive task: the arbiter (`ReactTask`)
 
