@@ -35,3 +35,5 @@ import tests.seq_counter.negative.Refute
 -- txtask-v2's acceptance table (the maintainers' fixtures 0 to 11, round 1's W1 to W4, the attack on
 -- revision 2's fixtures 12 to 16, hand-built)
 import tests.seq_counter.negative.Table
+-- the clocked lemmas of `SvGolf.Clocked`, each at two sizes
+import tests.clocked.Lemmas

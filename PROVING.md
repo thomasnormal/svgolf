@@ -857,6 +857,8 @@ say what. A lemma that is in no library yet is named in its task's README, with 
 | `CombEq.inKnown_ofBitVec` | CombEqThm | an input port holding `ofBitVec x` is known at its width | the `inputsKnown_k` goals of `sv_equations` |
 | `Lib.setWidth_signExtend_of_le`, `Lib.setWidth_add_mul_signExtend` | Lib.BitVecArith | a sign extension truncated back; a multiply-accumulate at a wider width, truncated, is `x + ofInt (a.toInt * b.toInt)` | signed operands and accumulators |
 | `LVec.ofBitVec_replicate_append_eq_signExtend` | Known2 | `{{m{y[lo+W-1]}}, y[lo +: W]}` is the window sign-extended to `m + W` bits | the hand-written sign extension of an entry |
+| `LVec.sext_of_extract`, `Lib.setWidth_mul_signExtend` | SvGolf.Clocked | the evaluated `{{m{v[lo+W-1]}}, v[lo +: W]}` of a vector whose window `v[lo +: W]` is `x` is `x` sign-extended to `m + W` bits; two operands sign-extended, multiplied and truncated are `ofInt` of the product of their values | the sign extension the clock step evaluates (`LVec.concatMany` of a `replVec`), and a signed product without an accumulator |
+| `LVec.shl_ofBitVec`, `LVec.allKnown_l0`, `LVec.allKnown_l1` | SvGolf.Clocked | `<<` of known vectors is `BitVec`'s `<<<` by the amount's value (the twin of `LVec.shr_ofBitVec`); the one-bit literals `⟨#[.l0]⟩`, `⟨#[.l1]⟩` are known (both `@[simp]`) | shift registers; rule 3's `simp` over literals |
 | `RoundRobin.getLsbD_isolate`, `RoundRobin.isolate_eq_twoPow` | SvGolf.RoundRobin | `s & (~s + 1)` has exactly the lowest set bit of `s`: the one-hot `twoPow` | lowest-set-bit and priority logic |
 | `BitVec.setWidth_one`, `BitVec.extractLsb'_setWidth_of_le`, `BitVec.eq_of_getLsbD_eq` | core | truncation to one bit is `ofBool` of bit 0 (with `BitVec.setWidth_eq`: a `BitVec 1` is `ofBool` of its bit); a part select of a truncation; equality bit by bit | a 1-bit port such as a carry; part selects of truncated words |
 
@@ -901,6 +903,15 @@ say what. A lemma that is in no library yet is named in its task's README, with 
 | `extract_ofBitVec_packBV`, `bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV`, `LVec.insertEntries_ofBitVec`, `LVec.foldl_range_insertAt_last` | SeqFamily | read one entry of a packed family; write one entry; fold unit writes over entries `0 … m-1`; writing every entry gives `ofBitVec (packBV …)`; a reset that rewrites the same windows | register files and accumulators kept as one packed vector |
 | `Lib.rowMajor_window_le`, `Lib.mul_add_mem_window_iff`, `rowMajor_le` | Lib.NatArith, Hier2Gen | entry `(i, j)` of an `M×N` row-major array ends inside it; bit `r·W + j` (`j < W`) lies in window `m` exactly when `r = m`; row `i` ends before a later row begins | bounds and disjointness of row-major entries |
 | `powerUp_cons`, `powerUp_nil` | SvGolf.SeqV2 | a power-up state, one declaration at a time | rule 2: every power-up state has your register shape |
+| `powerUp_cases h with x₁ … xₙ` (a tactic) | SvGolf.Clocked | takes `h : PowerUp d st` apart one declaration at a time (`powerUp_cons`, then `powerUp_nil`): `st` becomes the literal state of `x₁ … xₙ`, and `w_xᵢ` says `xᵢ` has its declared width | rule 2, after `rw [<agreement>] at h`: then `exact ⟨x₁, …, xₙ, rfl, w_…⟩` |
+| `commitNba2_eq_map_of_names`, `commitNba2_eq_map` | SvGolf.Clocked | the commit of a queue on a state of distinct names is one `nbaFold` per name; when every write names one of `regs`, the other entries are unchanged | your `commit_MS`: `rw [commitNba2_eq_map_of_names (by simp [MS]) h]; simp [MS]` instead of one `nbaStep` lemma per register and an induction over the queue |
+| `nbaFold_nil`, `nbaFold_cons_self`, `nbaFold_cons_ne` (`@[simp]`), `nbaFold_cons`, `nbaFold_ite`, `nbaFold_of_forall_ne`, `nbaFold_of_names` | SvGolf.Clocked | `nbaFold` of a concrete queue, one write at a time (`simp` decides the names); of a queue chosen by an `if`; a queue that writes no `n` (only names in `ns`) leaves `n` | one register through a cycle's queue; the registers a process never writes |
+| `nbaNames_of_all`, `nbaNames_append`, `nbaNames_flatMap` | SvGolf.Clocked | the names a queue writes: decided on a concrete queue (`unfold q; (repeat' split) <;> simp`), then over `++` and over a family | the names hypothesis of `commitNba2_eq_map_of_names` and `nbaFold_of_names` |
+| `flatMap_range_singleton`, `flatMap_range_rowMajor`, `nbaFold_map_insertEntries` | SvGolf.Clocked | a loop, or a row-major double loop, of single writes is one `map` over `List.range`; committing the writes `(n, r·E, g r)` in order is `LVec.insertEntries E g` | a PE array that writes every entry each cycle (then `LVec.insertEntries_ofBitVec`) |
+| `LVec.eq_ofBitVec_packBV`, `LVec.extract_insertEntries`, `LVec.insertEntries_congr`, `LVec.insertEntries_extract_self` | SvGolf.Clocked | a vector known window by window is `ofBitVec (packBV …)` of its windows; window `r` of a written family is the value written there; `insertEntries` reads only the values below `n`; writing every window back changes nothing | per-register next-value lemmas stated one window at a time |
+| `ProcDisj`, `ProcDisj.of_names`, `ProcDisj.of_nameLists`, `ProcDisj.of_units`, `ProcDisj.of_lists`, `DrvWin.overlaps_of_ne`, `DrvWin.overlaps_rowMajor` | SvGolf.Clocked | two processes drive disjoint windows (the relation `driversOk_of_ff` and `ffDisjB_of_pairwise` take); processes that write different signals (or names from two lists with no name in common); processes that write different row-major units `r ≠ r'` of one signal | the pairwise disjointness of the agreement (section 19, step 1) |
+| `pairwise_map_range`, `pairwise_rowMajor`, `rowMajor_lt`, `rowMajor_ne`, `rowMajor_div` | SvGolf.Clocked | a family `map`ped over `range n`, or a row-major double family, related in index order; row-major indices are ordered by rows, distinct for distinct cells, and `(i·N + j) / N = i` (the column is core's `Nat.mul_add_mod_of_lt`) | the families a generate loop expands to |
+| `GenItem.expand2_param_map`, `GenItem.expand2_param_map₂`, `GenItem.expand2_range_map`, `GenItem.expand2_range_map₂`, `GenItem.expand2_range_flatMap` | SvGolf.Clocked | a loop `for (g = 0; g < e; g++)` over one process template expands to `(List.range M).map f`, two nested ones to the row-major `flatMap`, from the template's instantiation lemma (`_param_`: the bound is a parameter, `fun _ => rfl` proves its value) | the generate expansion: `exact expandList2_singleton_ok (GenItem.expand2_param_map₂ (fun _ => rfl) (fun _ _ => rfl) hF hF <your instantiation lemma>)` |
 
 **Parameters, `$clog2` and index arithmetic**
 
@@ -2318,13 +2329,16 @@ shortest route today.
 
 1. **Agreement** (§1, `so_sem_eq`): the loaded family `design.sem N W` equals a hand-built design `soD N W` at
    every in-range point. The generate loop is expanded with `expand2_genFor_ascending_processes`; at `N = 1` the
-   cell family is empty and the same lemma covers it. The processes' windows are pairwise disjoint
-   (`so_pairwise`), proved once, symbolically.
+   cell family is empty and the same lemma covers it (`GenItem.expand2_range_map` in `SvGolf.Clocked` takes the
+   template's instantiation lemma and gives the `map`; `GenItem.expand2_param_map₂` two nested loops). The
+   processes' windows are pairwise disjoint (`so_pairwise`), proved once, symbolically (`ProcDisj.of_units`,
+   `ProcDisj.of_names`, `pairwise_rowMajor` in `SvGolf.Clocked`).
 2. **One cycle** (§2 to §5, `so_profile`, `so_cycle`, `next_reset`, `next_run`): `soD` is in the FF-only profile
    (`so_profile`, the disjointness through `ffDisjB_of_pairwise`), so the library's clock step (`cycleStep2_profile`)
    says a cycle runs every `always_ff` body on the pre-edge state and commits the nonblocking queues. Write the
    queues per process (`topQ`, `outQ`, `cellQ`), commit them one register at a time (`nbaFold` in
-   `LeanModels.Sv.NbaCommit`; `bvInsertAt_packBV`, `foldl_range_ofBitVec_packBV` in `LeanModels.Sv.SeqFamily`),
+   `LeanModels.Sv.NbaCommit`, `commitNba2_eq_map_of_names` in `SvGolf.Clocked`; `bvInsertAt_packBV`,
+   `foldl_range_ofBitVec_packBV` in `LeanModels.Sv.SeqFamily`),
    and read each register as a function of the old one (`cell_data`, `cell_tok`). A reset that rewrites the same
    window wins because it is the later write (`LVec.foldl_range_insertAt_last`). The cycle holds from ANY state of
    the register shape (`I`: the declarations in order, the registers at their widths, any values), which is what
@@ -2345,7 +2359,8 @@ shortest route today.
    `matmul_g1.lean`. Its `ready_done` asks `done` = 0 in `Ready`: the statement asks `done` = 0 between the
    release and the first start, as `out_valid` = 0 for the sorter.)
 5. **The statement's three rules** (§9): rule 2 is `so_powerUp`, every power-up state has the shape `I`
-   (`powerUp_cons` once per declaration, then `powerUp_nil`), with termination from the same cycle
+   (`powerUp_cons` once per declaration, then `powerUp_nil`; the tactic `powerUp_cases` of `SvGolf.Clocked` does
+   both), with termination from the same cycle
    (`so_terminatesPU`, by `TerminatesPU.of_invariant` with the shape as the invariant); rule 1 is `so_moore`:
    every process is an `always_ff`, so the design has no combinational dependency at all
    (`MooreOutDep.of_noComb (combDeps_of_ffOnly (FFOnly.ofProfile so_profile))`, with a `simp` for its second

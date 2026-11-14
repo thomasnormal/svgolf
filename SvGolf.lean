@@ -9,6 +9,7 @@ import SvGolf.React
 import SvGolf.RoundRobin
 import SvGolf.LoadSv
 import SvGolf.CoreSimp
+import SvGolf.Clocked
 -- The ls-sv proof libraries the references import (see the last paragraph below).
 import LeanModels.Sv.Comb2
 import LeanModels.Sv.CombEqTactic
@@ -65,6 +66,13 @@ import LeanModels.Sv.SeqProfile
   triggered, unanswered step), the window argument `ReactTask.responds_of_rank`,
   `ReactTask.snapshots_known` (the x-free lemma on the statement's runs), and
   `mooreOut_of_combTargets`.
+* `SvGolf.Clocked` — untrusted, kernel-checked lemmas for clocked proofs, for every width and size (added
+  2026-11-13, from the helpers the clocked records each proved for themselves): the commit of a cycle register by
+  register (`commitNba2_eq_map_of_names`, the `nbaFold` rewrites, a family of window writes as
+  `LVec.insertEntries`), registers known window by window (`LVec.eq_ofBitVec_packBV`), disjoint windows
+  (`ProcDisj`, `ProcDisj.of_names`, `ProcDisj.of_units`, `pairwise_rowMajor`), generate loops one and two deep
+  (`GenItem.expand2_param_map`, `GenItem.expand2_param_map₂`), the tactic `powerUp_cases`, and values
+  (`LVec.shl_ofBitVec`, `LVec.sext_of_extract`, `Lib.setWidth_mul_signExtend`).
 * `SvGolf.RoundRobin` — untrusted, kernel-checked word-level facts for round-robin arbiters, for
   every width: the lowest set bit `x &&& (~~~x + 1)`, the thermometer above a one-hot, the mask
   round-robin's pick and next mask with its one-step theorem in the cyclic distance.
