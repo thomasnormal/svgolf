@@ -119,14 +119,13 @@ end Submission
 * `SvState.cell`, `sv_bridge` and `sv_rowmajor`; `rmN` and `Key` (`LeanModels/Sv/CombViewArith.lean`) and
   `LeanModels.Sv.Lib.RowMajor`; the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`,
   `inKnown_ofBitVec`;
-* in no library yet: the carry-save row `csa_row` and the sums `csum` (`reference/mul_wallace.lean`), and the 4:2
-  node `node_sum` (`reference/mul_tree_h.lean`): copy them from there; a library home is planned. `tape_mul`,
-  `heap_mul` and `lane_val` (a row read from the padded copy) are those designs' own mathematics, to start from when
-  a tree has the same layout.
-
-Planned, not in the library yet: the Booth multiplier's generic carry-save tape theorem (any leaf rows on a
-Wallace tape sum to the leaves modulo `2^W`) and its `bfVal` lemmas for rows built from windows and single
-bits.
+* `SvGolf.CombLemmas` (import it and `open SvGolf.CombLib`): the carry-save row `csa_row`, the 4:2 node
+  `node_sum`, the sums `csum` with `csum_front`, `csum_front3`, `csum_mod`, the generic carry-save tape `tape_sum`
+  (adder `g` reads rows `3g … 3g+2` and appends two: the two rows left sum to the leaves modulo `2^W`), the final
+  adder `ripple_mod`, and the `bfVal` lemmas `bfVal_false`, `bfVal_lt`, `bfVal_mod`, `bfVal_not`, `bfVal_window`,
+  `bfVal_or`, `bfVal_eq_val` (`bfVal` is `XF.val`); the references, written before, still carry their own copies.
+  `tape_mul`, `heap_mul` and `lane_val` (a row read from the padded copy) are those designs' own mathematics, to
+  start from when a tree has the same layout.
 
 ## The circuit
 

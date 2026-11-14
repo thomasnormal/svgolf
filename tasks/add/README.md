@@ -127,7 +127,11 @@ end Submission
   idempotent), the group generate and propagate `grpG` / `grpP` of a block of bits and how blocks combine,
   and `rippleCarry` (the carry into bit `k`, `rippleCarry_bv` its `BitVec` form);
 * the bridges between ports and bits: `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`,
-  `inKnown_ofBitVec`; `sv_bridge`; `LeanModels.Sv.Lib.RowMajor` (`rmN` at natural coordinates).
+  `inKnown_ofBitVec`; `sv_bridge`; `LeanModels.Sv.Lib.RowMajor` (`rmN` at natural coordinates);
+* `SvGolf.CombLemmas`: the adder's results as this task states them (`Lib.bv1_eq_ofBool`, `Lib.sum_eq_ofNat`,
+  `Lib.carry_eq_ofNat`), an output port read back (`SvState.lookup_eq_ofBitVec_of_bits`), and for a design the
+  tactics refuse (a prefix adder with a conditional generate), the by-hand route's comb profile and acyclicity
+  (`LeafProcs`, `LeafProcs.combDesign`, `LeafProcs.acyclic`) and its gates in `Bool` form.
 
 Planned, not in the library yet: the carry-select adder's ripple-restart lemmas (a carry chain started at
 any bit from any carry; restarting at the true carry changes nothing) and a flat form of `rmN`.

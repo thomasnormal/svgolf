@@ -830,6 +830,10 @@ but the **reduction and the arithmetic still are**:
   `tests/add/baselines/add_n_sklansky.lean` and `add_n_kogge_stone.lean` take the same route through a
   conditional generate inside an inner generate loop, and `tests/clmul/baselines/kara_lv.lean` through a
   level-by-level Karatsuba with `**` in a localparam.
+* the plumbing of that route is in svGolf's library (`SvGolf.CombLemmas`, section 6): state the instantiated
+  design's process list and the one window of each process as `LeafProcs`, and `LeafProcs.combDesign` and
+  `LeafProcs.acyclic` give `CombDesign` and `Acyclic` from facts about the list and a rank on the processes; the
+  settled state is read one gate at a time with `CombEqs.readback1` and the `Bool`-form gate lemmas.
 * the plain-Lean part is reusable as it is: `CombLib` (below) has the bit-function value
   `bfVal`, the ripple-row lemma, the full-adder identity, the bridges to `BitVec`.
 * a by-hand proof compiles about 2.3 times faster (CPU) than the tactic proof (README.md,
@@ -861,6 +865,9 @@ say what. A lemma that is in no library yet is named in its task's README, with 
 | `LVec.shl_ofBitVec`, `LVec.allKnown_l0`, `LVec.allKnown_l1` | SvGolf.Clocked | `<<` of known vectors is `BitVec`'s `<<<` by the amount's value (the twin of `LVec.shr_ofBitVec`); the one-bit literals `⟨#[.l0]⟩`, `⟨#[.l1]⟩` are known (both `@[simp]`) | shift registers; rule 3's `simp` over literals |
 | `RoundRobin.getLsbD_isolate`, `RoundRobin.isolate_eq_twoPow` | SvGolf.RoundRobin | `s & (~s + 1)` has exactly the lowest set bit of `s`: the one-hot `twoPow` | lowest-set-bit and priority logic |
 | `BitVec.setWidth_one`, `BitVec.extractLsb'_setWidth_of_le`, `BitVec.eq_of_getLsbD_eq` | core | truncation to one bit is `ofBool` of bit 0 (with `BitVec.setWidth_eq`: a `BitVec 1` is `ofBool` of its bit); a part select of a truncation; equality bit by bit | a 1-bit port such as a carry; part selects of truncated words |
+| `SvState.lookup_eq_ofBitVec_of_bits`, `SvState.lookup_eq_ofBitVec_of_bv` | SvGolf.CombLemmas | a signal bound to `v` of width `W`, all of whose bits are known and equal to the bits of `y` (or whose word `XF.bv W (st.boolAt n)` is `y`), holds `ofBitVec y` | reading an output port back in one step, instead of `rw [hv, SvState.lookup_eq_ofBitVec_bv …]; congr 2` and a bit-by-bit equality |
+| `LVec.extract_eq_ofBitVec_of_bits` | SvGolf.CombLemmas | a window known bit by bit is the `ofBitVec` of its bits | a multi-bit window in a by-hand proof |
+| `Lib.bv1_eq_ofBool`, `Lib.sum_eq_ofNat`, `Lib.carry_eq_ofNat` | SvGolf.CombLemmas | a `BitVec 1` is `ofBool` of its bit; `x + y + ci` at width `N ≥ 1` is `ofNat` of the sum; the carry out `2^N ≤ t` is `t / 2^N` on one bit | the last step of an adder proof, to the `add` task's `BitVec` statement |
 
 **Sums and XOR sums**
 
@@ -870,6 +877,10 @@ say what. A lemma that is in no library yet is named in its task's README, with 
 | `XF.val`, `XF.val_congr_lt`, `XF.val_lt`, `XF.val_split`, `XF.val_prefix`, `XF.val_window`, `XF.val_cat`, `XF.val_not`, `XF.val_all_false` | Lib.XFVal, which imports CombWord and CombKnownBits | the same sum under another name: the bound `< 2^n`, splits, prefixes, windows, concatenations, the complement, all-false bits | a word-level design (its equations print `XF.*` helpers); a `bfVal` lemma does not rewrite `XF.val`, so state your arithmetic over the one your lemmas use |
 | `XorSum.bx`, `XorSum.foldl_xor` | XorSum | `bx f n` is the XOR of `f 0, …, f (n-1)`; a `List.range` XOR fold is `bx` | GF(2) sums: carry-less products, parities, CRCs |
 | `XorSum.andBit_known`, `XorSum.xorBit_known` | XorSum | the AND of two known bits; XOR-accumulating a known bit into bit `k` flips that bit and no other | a procedural XOR-accumulate loop on known vectors |
+| `CombLib.bfVal_eq_val`, `CombLib.bfVal_false`, `CombLib.bfVal_lt`, `CombLib.bfVal_mod`, `CombLib.bfVal_not`, `CombLib.bfVal_window`, `CombLib.bfVal_or` | SvGolf.CombLemmas | `bfVal` is `XF.val`; bits all `false` have the value 0; the bound `< 2^n`; the low `n` bits are the value modulo `2^n`; the complement; a function that is `false` outside a window; an OR of two functions never both `true` | the `bfVal` forms of the `XF.val` lemmas above (`bfVal_eq_val` turns one sum into the other) |
+| `XorSum.bx_succ`, `XorSum.bx_congr`, `XorSum.bx_trunc`, `XorSum.bx_false`, `XorSum.bx_add`, `XorSum.bx_xor`, `XorSum.bx_and`, `XorSum.bx_pair` | SvGolf.CombLemmas | one term off the end; congruence; trailing `false` terms dropped; all terms `false`; a split at `m`; the sum of an XOR and of a mask; the inner sum over `j` of `[i + j = k] && x && c j` is its one term `j = k - i` | GF(2) sums; collapsing a double sum to its diagonal |
+| `XorSum.cl`, `XorSum.cl_congr`, `XorSum.cl_big`, `XorSum.cl_shift`, `XorSum.cl_trunc`, `XorSum.cl_sum`, `XorSum.karatsuba`, `XorSum.karatsuba_full`, `XorSum.karatsuba_cols` | SvGolf.CombLemmas | bit `k` of the carry-less product of two `n`-bit operands; congruence; its bits from `2n - 1` on are `false`; a shifted double sum; zero-padded operands; the product of the half sums; one Karatsuba split; a node's columns `PL + x^H (PM + PL + PH) + x^2H PH` are the `2H`-bit product | carry-less multipliers, Karatsuba trees |
+| `Tasks.Clmul.coeff_eq`, `Tasks.Clmul.getLsbD_ofBits`, `Tasks.Clmul.getLsbD_ofBits_lt` | SvGolf.SpecFacts | the `clmul` Spec's `coeff` is the nested XOR sum `bx`; bit `k` of the Spec's `ofBits n f` | the last step of a `clmul` proof, to the Spec's `BitVec` |
 | `packBV`, `packBV_eq_ofNat`, `packBV_congr` | SeqFamily | `n` entries of `W` bits packed row-major into one `BitVec`; it is `Σ_r (v r) · 2^(r·W)`; it reads only the entries below `n` | a port that carries a matrix or a list of words |
 | `List.range_succ`, `List.foldl_append` | core | `range (n + 1) = range n ++ [n]`; a fold over an append | taking the last term off a spec written as a `List.range` fold (matmul's `dot`) |
 
@@ -889,9 +900,19 @@ say what. A lemma that is in no library yet is named in its task's README, with 
 | name | module | what it says | use it when |
 |---|---|---|---|
 | `CombLib.MulNetlistView`, `CombLib.ideal_mul_view` | CombLib | an array multiplier's equations, as a structure, give `p = a * b` | an array shaped like `mul_n` |
-| `XF.val_csa` | Lib.XFVal | a carry-save row: the value of `x ^ y ^ z` plus twice the value of the majority is the sum of the three values (unshifted, over `XF.val`) | 3:2 compressor rows (the shifted `csa_row` of the tree references is in no library yet: the `mul` README) |
+| `XF.val_csa` | Lib.XFVal | a carry-save row: the value of `x ^ y ^ z` plus twice the value of the majority is the sum of the three values (unshifted, over `XF.val`) | 3:2 compressor rows over `XF.val` (the shifted row over `bfVal` is `CombLib.csa_row`, below) |
+| `CombLib.csa_row`, `CombLib.node_sum`, `CombLib.halfAdder_arith` | SvGolf.CombLemmas | a row of 3:2 counters with its carry row shifted one column keeps the column-weighted sum, up to the dropped top carry; a 4:2 node of two such rows; one half adder | tree and tape multipliers |
+| `CombLib.csum`, `CombLib.csum_front`, `CombLib.csum_front3`, `CombLib.csum_mod`, `CombLib.tape_sum`, `CombLib.ripple_mod` | SvGolf.CombLemmas | the sum of `n` consecutive rows; one or three rows off its front; rows equal modulo `M`; a carry-save tape of 3:2 adders (adder `g` reads rows `3g … 3g+2`, appends two) keeps the sum of its first `R` rows modulo `2^W`; a final ripple row with carry-in `0` is the sum of its two rows modulo `2^W` | a multiplier written as a tape (`mul_wallace`, a Booth tape): only the value of the leaf rows is left to prove |
 | `XF.val_addBits`, `XF.val_subBits`, `XF.val_mulBits` | Lib.XFVal, CombWord | the value of a word-level `+`, `-`, `*`: the operands' values combined, modulo `2^w` | a design written with `+`, `-` and `*` |
 | `CombLib.rowMajor_inj`, `CombLib.lexLt`, `CombLib.lexLt_wf` | CombLib | `i*W + j` with `j < W` fixes the row and the column; the lexicographic order on pairs is well founded | 2-D arrays of partial products; a rank for 2-D dependencies |
+
+**The statement, and the by-hand route**
+
+| name | module | what it says | use it when |
+|---|---|---|---|
+| `CombTask.statement_of_comb` | SvGolf.CombLemmas | the statement from, at each `N` in range, the triple `CombDesign ∧ Acyclic ∧ P N` (`P N` is `sv_structure`'s `SharedObl`, or `True`), the interface, and the settled-state lemma, which is given the three facts as hypotheses (`sv_equations` reads `CombDesign` and `SharedObl` from the context) | the opening of `solution`: `refine CombTask.statement_of_comb (fun N hN => X_struct N hN.1) (fun N hN hc => X_interface N hN.1 hc) ?_`, then `intro N hN hc ha hso st heqs hs v hv` |
+| `LeafProcs`, `LeafProcs.combDesign`, `LeafProcs.acyclic`, `LeafProcs.writes`, `LeafProcs.writes_pos`, `LeafProcs.getElem?_of_mem`, `LeafProcs.mem_of_getElem?` | SvGolf.CombLemmas | the processes of a design are a list of continuous assigns to one window each: the comb profile from facts about the list (windows pairwise disjoint, inside their signals, of no input; right-hand sides free of unsupported nodes and naming declared signals) and the declarations (distinct names, no initializer, no 2-state input); acyclicity from a rank on the processes; what process `j` writes; positive widths (for `PDesign.instantiateGD2_of_combDesign`) | the by-hand route (section 5): instead of writing the fields of `CombDesign` and the `Acyclic` certificate out |
+| `evalPure2_bit_of_lookup`, `evalPure2_slice_of_extract`, `evalPure2_lit_l0`, `evalPure2_and_bool`, `evalPure2_or_bool`, `evalPure2_xor_bool`, `CombEqs.readback`, `CombEqs.readback1` | SvGolf.CombLemmas | gates on known one-bit values in `Bool` form (`ofBool (p && q)`, …): a bit of a known signal, a known window, `1'b0`, AND, OR, XOR; a slice assign read back on a state solving the equations | a by-hand settled-state lemma, one gate at a time |
 
 **Clocked designs: NBA folds, register windows, power-up**
 

@@ -97,9 +97,10 @@ end Submission
 * `LeanModels.Sv.XorSum` (import it and `open LeanModels.Sv.XorSum`): `bx` (the XOR of `f 0, …, f (n-1)`) and
   `foldl_xor` (a `List.range` XOR fold is `bx`); `reference/clmul_n.lean` defines the same two again, written
   before the library had them;
-* in no library yet: `bx_congr`, `bx_trunc` and `bx_pair` (copy them from `reference/clmul_n.lean`; a library home
-  is planned), and the reference's own `coeff_eq` (the Spec's double sum as a nested `bx`), `getLsbD_ofBits`,
-  `view_row`, `view_spec`;
+* `SvGolf.CombLemmas` (`open SvGolf.XorSum`): `bx_congr`, `bx_trunc`, `bx_false`, `bx_pair`, `bx_add`, `bx_xor`,
+  `bx_and`, the carry-less product `cl` with `cl_trunc`, `cl_congr`, and one Karatsuba step (`karatsuba_full`,
+  `karatsuba_cols`); `SvGolf.SpecFacts`: `coeff_eq` (the Spec's double sum as a nested `bx`), `getLsbD_ofBits`,
+  `getLsbD_ofBits_lt`, in the Spec's namespace; the reference's `view_row`, `view_spec` are its design's own;
 * `LeanModels.Sv.CombLib`: the bit-function value `bfVal` and its lemmas, `rowMajor_inj`, `lexLt`;
 * `SvState.cell`, `sv_bridge` and `sv_rowmajor`; `rmN` and `Key` (`LeanModels/Sv/CombViewArith.lean`) and
   `LeanModels.Sv.Lib.RowMajor`; the port bridges `SvState.lookup_eq_ofBitVec_bv`, `SvState.boolAt_ofBitVec`,
