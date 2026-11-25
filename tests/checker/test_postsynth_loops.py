@@ -20,7 +20,7 @@ MUST FAIL (a real loop, refused by `reread_check` before anything is simulated, 
     submodule (every cell that is not the flip-flop counts as combinational), and a loop inside a submodule.
 Plus `_cycles` on small graphs (self-loop, two components, a DAG).
 
-Needs Yosys (`yosys`, or $SVGOLF_YOSYS, and `yosys-config`), Verilator and a C++ compiler; skipped with a message
+Needs the flow's Yosys (the rating build, or $SVGOLF_YOSYS), Verilator and a C++ compiler; skipped with a message
 where they are not on PATH.
 
     python3.12 tests/checker/test_postsynth_loops.py
@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(SVGOLF, "check"))
 import postsynth  # noqa: E402
 import score  # noqa: E402
 
-HAVE_YOSYS = bool(shutil.which(os.environ.get("SVGOLF_YOSYS") or "yosys")) and bool(shutil.which("yosys-config"))
+HAVE_YOSYS = score.yosys_missing() is None     # the rating build (score/yosys_wasm.py) unless $SVGOLF_YOSYS names another
 HAVE_VERILATOR = bool(shutil.which("verilator")) and bool(shutil.which("make"))
 
 # Two registers with equal next-state functions (both load `d`), their bits interleaved on the output: Yosys keeps
@@ -176,7 +176,7 @@ class Cycles(unittest.TestCase):
                          [list(range(20001))])           # iterative: no recursion limit at netlist size
 
 
-@unittest.skipUnless(HAVE_YOSYS, "needs Yosys (`yosys` and `yosys-config`)")
+@unittest.skipUnless(HAVE_YOSYS, "needs the flow's Yosys (score.yosys_missing)")
 class HandNetlists(unittest.TestCase):
     def setUp(self):
         self.work = tempfile.mkdtemp(prefix="svgolf-loops-")

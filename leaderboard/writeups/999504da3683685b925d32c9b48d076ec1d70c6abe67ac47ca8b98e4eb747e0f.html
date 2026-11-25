@@ -1,0 +1,25 @@
+<h1>Insertion-cell array, input test first</h1>
+
+<p>The reference insertion-cell sorter <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html"><code>sorter_ins.sv</code></a> with each cell's conditions rewritten. It has the same registers, the same latency <code>2N</code> (16 cycles at <code>N = W = 8</code>) and the same behaviour, but a smaller netlist and a faster clock.</p>
+
+<h2>The idea</h2>
+
+<p>In <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html">the reference</a>, a cell receiving input <code>x</code> first asks whether its upper neighbour is pushed out (<code>x &gt; d1</code>) and if so takes the neighbour's value; otherwise it takes <code>x</code> if <code>x</code> beats its own value (<code>x &gt; d0</code>), and otherwise holds. With no input it shifts down. This design tests the take-input case first, <code>in_valid &amp;&amp; !(d1 &lt; x) &amp;&amp; d0 &lt; x</code>, and then shifts on <code>!in_valid || d1 &lt; x</code>. The two tests cannot both hold, so swapping the order of the branches does not change the function. Every comparison is written <code>d &lt; x</code>. The top cell and the output register are unchanged.</p>
+
+<p>Since the behaviour is <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html">the reference</a>'s, so is the worked run in Figure 1.</p>
+
+<figure data-figure="sorter-insertion" data-alt="A worked run of the insertion-cell sorter at N = 4, W = 4: the inputs 5, 2, 9, 2 inserted on four edges, then the cells draining 2, 2, 5, 9 through cell 0.">
+<figcaption>The cells edge by edge. This design and <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html">the reference</a> were both simulated on these inputs and both match every value shown.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>What changes is what synthesis makes of each cell's select: the netlist has only 7 MUX2 cells among its 697 cells, 81 of which are flip-flops (64 cell bits, 8 tokens and the output register, as in <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html">the reference</a>). On sky130 the area is about 4,755 µm² against par's 5,513, and the period 2,064 ps against 2,523. Over 16 cycles that is 33,024 ps and about 157,015 µm²·ns, 0.71 × par. On ASAP7 it is about 76.9 µm² with a 491 ps period, 604.4 µm²·ns against the reference's 758.1.</p>
+
+<h2>The proof</h2>
+
+<p>The proof is <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html">the reference</a>'s, 816 lines against 774, with only the cell process and its evaluation changed. The two tests are opaque definitions (<code>cxE</code>, <code>csE</code>, marked <code>@[irreducible]</code>) with evaluation lemmas (<code>ev_cx</code>, <code>ev_cs</code>) that compute them under the 4-state <code>&amp;&amp;</code>, <code>||</code>, <code>!</code> and <code>&lt;</code> (<code>xV</code>, <code>sV</code>), so the cell's one-cycle lemma splits on the two test values rather than on the comparisons inside them. Two pairs of lemmas then reduce the tests. With <code>in_valid = 0</code> the first fails and the second holds whatever the data (<code>cX_false</code>, <code>cS_false</code>). With <code>in_valid = 1</code> and known data they are the plain comparisons (<code>cX_known</code>, <code>cS_known</code>).</p>
+
+<p>Plugged into the cell's next-state lemma, these give exactly <a href="dd6381ab315c568c55db91d5cc7cb74702b6774658dee257967e8234e57d047b.html">the reference</a>'s next state. Everything after that is reused unchanged: the sort lemmas (<code>hw_ins</code>: a load is <code>tail ∘ insertAsc x</code>; <code>ins_comm</code>: insertions commute), the invariant (<code>cv</code>, <code>tokv</code>, <code>ovb</code>) and the phase model for <code>StreamTask.satisfiedAtV2_of_phases</code>.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

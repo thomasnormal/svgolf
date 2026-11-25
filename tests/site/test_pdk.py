@@ -74,6 +74,11 @@ def pinned_flow(task):
 R = "asap7pnr"                    # the routed course's value (the selector's second course since 2026-11-12)
 
 
+
+# the tasks whose par design waits for a routed run (2026-11-24: fdivp's, whose ASAP7 netlist the new rating build
+# changed); test_site.py holds the same set and checks it against the data
+PNR_PAR_PENDING = {"fdivp"}
+
 class PdkTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -405,7 +410,12 @@ class PdkTest(unittest.TestCase):
             sky, a7 = self.boards(t)
             with self.subTest(task=t):
                 head = text_of(section(self.view(f"tasks/{t}/index.html", R), "numbers"))
-                self.assertIsNotNone(stem)             # every par design is routed today (2026-11-13)
+                # every par design was routed on 2026-11-13; since 2026-11-24 fdivp's is pending again (the new rating
+                # build changed its ASAP7 netlist, `asap7pnr --rebind`) until its run is made
+                if t in PNR_PAR_PENDING:
+                    self.assertIsNone(stem)
+                    continue
+                self.assertIsNotNone(stem)
                 self.assertIn(flat(f"{combined.fmt(combined.um2ns(exact, R))} µm²·ns {stem}"), head)
                 best = min([exact] + [r["exact"] for r in a7["ranking"]])
                 self.assertIn(flat(combined.fmt(combined.um2ns(best, R))), head)
@@ -874,7 +884,7 @@ class PdkTest(unittest.TestCase):
             e = lb.asap7pnr_entry(real("sorter"), rec["files"]["sv"]["sha256"])
             vo = e["scores"]["v_owner"]
             with self.subTest(record=rec["record_hash"][:12]):
-                if vo is not None:          # a pending entry (1c5eed8aec2a, 2026-11-24) has no routed number to hide
+                if vo is not None:          # a pending entry (e23da644c53e, 2026-11-24) has no routed number to hide
                     self.assertNotIn(flat(combined.fmt(combined.um2ns(vo["exact"], R))), shown)
                     self.assertNotIn(lb.fmt_um2_e5(vo["area_e5um2"]), shown)
                 h = site.files[f"tasks/sorter/records/{rec['record_hash']}.html"].decode("utf-8")

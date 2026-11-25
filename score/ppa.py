@@ -2529,8 +2529,15 @@ _ABC_VERSIONS = {}
 
 def abc_version(yosys):
     """The banner of the ABC built into this Yosys (`UC Berkeley, ABC 1.01 (compiled ...)`), read from the `yosys-abc` that
-    sits beside the Yosys executable (where Yosys looks for it); None when it cannot be run. Cached per executable."""
+    sits beside the Yosys executable (where Yosys looks for it); for the rating build, whose ABC is linked into the
+    WebAssembly module, the module's name and sha256 (score.abc_identity); None when it cannot be run. Cached per
+    executable."""
     score = _score_module()
+    if yosys not in _ABC_VERSIONS and score.is_rating_build(yosys):
+        try:
+            _ABC_VERSIONS[yosys] = score.abc_identity(yosys)["version"]
+        except score.ScoreError:
+            _ABC_VERSIONS[yosys] = None
     if yosys not in _ABC_VERSIONS:
         exe = os.path.realpath(shutil.which(yosys) or yosys)
         abc = os.path.join(os.path.dirname(exe), "yosys-abc")

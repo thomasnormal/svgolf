@@ -7,12 +7,12 @@
     "A1' NEVER replaces A0': the fields have their own names (area_um2_sky130_mapped_v1, mapped_delay_sky130_v1, ...), their own version and",
     "their own hashes, and neither flow is official. Study: design/ppa/sky130.md (WP-X1, variant `u`); what it claims: score/PPA.md."
   ],
-  "ppa_mapped_version": "sky130_a1_v1",
+  "ppa_mapped_version": "sky130_a1_v2",
   "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
   "tools": {
-    "_comment": "The builds the pinned numbers were measured with. ppa.py RECORDS the live versions in every mapped block and never refuses another build (the pinned flow of score.py does not either); tests/run.py and score/test_ppa.py compare the goldens against them and fail when they differ, so a different build is a loud difference, not a silent one. ABC is built into Yosys: its banner is read from the Yosys log.",
-    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
-    "abc_version": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)"
+    "_comment": "The builds the pinned numbers were measured with. ppa.py RECORDS the live versions in every mapped block and never refuses another build (the pinned flow of score.py does not either); tests/run.py and score/test_ppa.py compare the goldens against them and fail when they differ, so a different build is a loud difference, not a silent one. Since 2026-11-24 (version v2: the same script and pins, the new build, which moved three fdivp designs' mapped numbers) the builds are the rating build, the WebAssembly Yosys 0.53 of score/yosys_wasm.py, whose ABC is linked into the same module: its version names the module and its sha256 (score.abc_identity).",
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)",
+    "abc_version": "ABC linked into yowasp-yosys==0.53.0.0.post912 (yosys.wasm sha256 909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad)"
   },
   "_timeout_comment": "The mapping run of one design may take at most yosys_timeout_s (wall clock); a design whose mapping takes longer has `mapped: {available: false, reason: ...timed out...}` and nothing else changes. The pinned flow of score.py has its own limit; 900 s is far above the longest mapping measured on the 24 reference, baseline and idiom designs (a few seconds).",
   "yosys_timeout_s": 900,

@@ -72,3 +72,16 @@ THE PORTS, 2026-11-07: check.py's `extract` stage compares the top module's port
 (`port_problems`) and records the points it judged, `stages.extract.ports_checked`. The four files gained that key and nothing
 else: the two `unproved` ones rewritten by `UPDATE_GOLDEN=1` (diffed: the one key), the two `full` ones by inserting the same
 key with the same value (the same design, the same probe points: `N=1 ... N=64` for add_n, `the defaults` for sbox_bp).
+
+THE RATING BUILD, 2026-11-24: the scoring flow runs one Yosys build on every machine (score/yosys_wasm.py, the WebAssembly
+Yosys 0.53 of yowasp-yosys==0.53.0.0.post912; score/reference_build.json). Its canonical RTLIL and netlist files carry its own
+version line in their banner, so their sha256 values changed (the GE columns did not), and the `score` stage records
+`rating_build: true`. The four files changed in exactly these three
+leaves (`stages.score.rtlil_sha256`, `stages.postsynth.netlist_sha256`, `stages.score.rating_build`): the two `unproved`
+ones rewritten by `UPDATE_GOLDEN=1` (diffed: those leaves), the two `full` ones edited by hand with the same values, which
+a real run of the recipe above on this checker gave (add_n 65 s, sbox_bp 153 s, through the Lean slot). The new hashes are
+the ones tests/checker/test_yosys_wasm.py pins for add_n (RTLIL 8123089e..., netlist 93f94b5a...).
+THE PROOF'S HASH (found by the same round): since 2026-11-16 (edd81d996) check.py records `stages.solution.sha256`, the
+sha256 of the proof file it compiled, and the two `full` files never gained it, so tests/run.py's `references` comparison
+failed on that one line for add_n and sbox_bp (measured: its whole diff, after the three leaves above). The two `full` files
+gained that key, with the sha256 of tasks/<task>/reference/<stem>.lean, and nothing else.

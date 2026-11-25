@@ -22,10 +22,10 @@
       "XNOR": 3,
       "XOR": 459
      },
-     "netlist_sha256": "57ce50c4b62767ed364613bef11a6e4d8154722d0daeb6975594ece98921aadc",
+     "netlist_sha256": "0207b87c0cc4c42dbfc815422d0d4a43c1f1b527b7f8a434ed0f84677f82d054",
      "num_gates": 1408,
      "repaired_sha256": "dea76e7e7e8ea1319b86d0885ae7b02c653cec63c1b22dc42d8c7a0cb4f35eee",
-     "rtlil_sha256": "1c37f1d4fe0b4ceae577abaa09b4aef630e8c297aa0d0543b2a94911801e21e8",
+     "rtlil_sha256": "403e6dfc40e99bce005bc362e8b16f6705508137b3a1f6c42c4bb1ccb548614f",
      "time_ps": 10907,
      "unit_depth": 88
     },
@@ -48,10 +48,10 @@
       "XNOR": 3,
       "XOR": 1947
      },
-     "netlist_sha256": "7f3ae8e06d8cb382419f2f028764b209add1ec7ee144fc190788a065b3e6a897",
+     "netlist_sha256": "dfbc94e79fc0ed24daa98be88c85647d5d766a901f87ca551bdf2e5a809795dd",
      "num_gates": 5888,
      "repaired_sha256": "8d8be12f680c4ee914aa49eb284560ed63e93d45d5ba4eb93c5cb58c998826dd",
-     "rtlil_sha256": "48364cf7c314e929497d1cb9174c87322351df8191ce36f7521002b717b711f8",
+     "rtlil_sha256": "563a260f0e2c9b3444ef94a675411b2ced9be1b95c878e3c26d7279887a6b171",
      "time_ps": 22244,
      "unit_depth": 184
     },
@@ -75,10 +75,10 @@
       "XNOR": 3,
       "XOR": 15
      },
-     "netlist_sha256": "896e8ed9dc8ede337584b1f4b177f35df055f7efdcab98f9ce11d99432884c56",
+     "netlist_sha256": "5c880490c7d20f0336032b46f07a98eb863827765d781f4a27610491636a5e9f",
      "num_gates": 64,
      "repaired_sha256": "6789c15f0758cdbd2f97e521caa0eb0e3e930e9affd3675c45ad853ffb0fc482",
-     "rtlil_sha256": "f30f95c1f07eb0a8d8a2837d1065f4ae02e2826fdc8d3b2576f084ad13e1d896",
+     "rtlil_sha256": "7b0fc264dc43091dcedb6d1936529f261f6c12f51c0f0cb5c2fa15451602b5f2",
      "time_ps": 2478,
      "unit_depth": 16
     },
@@ -101,10 +101,10 @@
       "XNOR": 3,
       "XOR": 99
      },
-     "netlist_sha256": "01f464aa366a4940de050696239352c93f92eb9e21440f0146df97302676834c",
+     "netlist_sha256": "d3bcbbec1ba4900d090bdcd6d0c1eb01bbf13771c5c119a3cde74afc983d9934",
      "num_gates": 320,
      "repaired_sha256": "a3a4b1792ec1627923aa59336e05e0109d6e931fd989af2c473c25b2ff0fcbc8",
-     "rtlil_sha256": "c5a15869043637d0dcadbc5fda58433f1509670d3be32bd2a8abe1923cc94645",
+     "rtlil_sha256": "a7091f251a1b5ebc4e0ef870bb0a24e7f2c774c425277137c3e1a2ce863dd50f",
      "time_ps": 5239,
      "unit_depth": 40
     }
@@ -138,10 +138,10 @@
       "XNOR": 3,
       "XOR": 459
      },
-     "netlist_sha256": "57ce50c4b62767ed364613bef11a6e4d8154722d0daeb6975594ece98921aadc",
+     "netlist_sha256": "0207b87c0cc4c42dbfc815422d0d4a43c1f1b527b7f8a434ed0f84677f82d054",
      "num_gates": 1408,
      "repaired_sha256": "dea76e7e7e8ea1319b86d0885ae7b02c653cec63c1b22dc42d8c7a0cb4f35eee",
-     "rtlil_sha256": "1c37f1d4fe0b4ceae577abaa09b4aef630e8c297aa0d0543b2a94911801e21e8",
+     "rtlil_sha256": "403e6dfc40e99bce005bc362e8b16f6705508137b3a1f6c42c4bb1ccb548614f",
      "time_ps": 10907,
      "unit_depth": 88
     },
@@ -164,10 +164,10 @@
       "XNOR": 3,
       "XOR": 1947
      },
-     "netlist_sha256": "7f3ae8e06d8cb382419f2f028764b209add1ec7ee144fc190788a065b3e6a897",
+     "netlist_sha256": "dfbc94e79fc0ed24daa98be88c85647d5d766a901f87ca551bdf2e5a809795dd",
      "num_gates": 5888,
      "repaired_sha256": "8d8be12f680c4ee914aa49eb284560ed63e93d45d5ba4eb93c5cb58c998826dd",
-     "rtlil_sha256": "48364cf7c314e929497d1cb9174c87322351df8191ce36f7521002b717b711f8",
+     "rtlil_sha256": "563a260f0e2c9b3444ef94a675411b2ced9be1b95c878e3c26d7279887a6b171",
      "time_ps": 22244,
      "unit_depth": 184
     },
@@ -191,10 +191,10 @@
       "XNOR": 3,
       "XOR": 15
      },
-     "netlist_sha256": "896e8ed9dc8ede337584b1f4b177f35df055f7efdcab98f9ce11d99432884c56",
+     "netlist_sha256": "5c880490c7d20f0336032b46f07a98eb863827765d781f4a27610491636a5e9f",
      "num_gates": 64,
      "repaired_sha256": "6789c15f0758cdbd2f97e521caa0eb0e3e930e9affd3675c45ad853ffb0fc482",
-     "rtlil_sha256": "f30f95c1f07eb0a8d8a2837d1065f4ae02e2826fdc8d3b2576f084ad13e1d896",
+     "rtlil_sha256": "7b0fc264dc43091dcedb6d1936529f261f6c12f51c0f0cb5c2fa15451602b5f2",
      "time_ps": 2478,
      "unit_depth": 16
     },
@@ -217,10 +217,10 @@
       "XNOR": 3,
       "XOR": 99
      },
-     "netlist_sha256": "01f464aa366a4940de050696239352c93f92eb9e21440f0146df97302676834c",
+     "netlist_sha256": "d3bcbbec1ba4900d090bdcd6d0c1eb01bbf13771c5c119a3cde74afc983d9934",
      "num_gates": 320,
      "repaired_sha256": "a3a4b1792ec1627923aa59336e05e0109d6e931fd989af2c473c25b2ff0fcbc8",
-     "rtlil_sha256": "c5a15869043637d0dcadbc5fda58433f1509670d3be32bd2a8abe1923cc94645",
+     "rtlil_sha256": "a7091f251a1b5ebc4e0ef870bb0a24e7f2c774c425277137c3e1a2ce863dd50f",
      "time_ps": 5239,
      "unit_depth": 40
     }
@@ -252,10 +252,10 @@
       "XNOR": 19,
       "XOR": 464
      },
-     "netlist_sha256": "e3cd41f4226ce33d1990d9b5ec3297d9e8d4ca7b7b7c596491c02b6379678ea2",
+     "netlist_sha256": "73a0232708411ca690a65e9a05b0f00b302055454403fd7e6bfaca79fe8dc3c1",
      "num_gates": 1456,
      "repaired_sha256": "8b0ed1dbc11ad9b8301feb7d1cb4069cb46494cc00ab2e86721371a93bb7db41",
-     "rtlil_sha256": "e855545ab4b58c4e401879109fdbc9c0c09aa49525d9c781700bbd04beedbe56",
+     "rtlil_sha256": "8d1d7f29c001e936e9662a2225e560a8e68efa4b38d8ca9f3328a79e3d7d639f",
      "time_ps": 6129,
      "unit_depth": 63
     },
@@ -276,10 +276,10 @@
       "XNOR": 43,
       "XOR": 1979
      },
-     "netlist_sha256": "1cbe85434ec1105e54629546339846d4eafca6794dbacb030fcf0879725424bc",
+     "netlist_sha256": "f6356ae09a74fc3cf943de4ed138ec89bb87892389e1ee430650bfb6e88233a4",
      "num_gates": 6058,
      "repaired_sha256": "deb32ad549ec66fbe26e8841167cca54c5e7efc32ba7152fde2a2a1af5cf688c",
-     "rtlil_sha256": "902d7227d5413ade261f922273ec23b780231e0793be5521f608d8789f0fd5a4",
+     "rtlil_sha256": "86e7e74a6bc1801fe7fbe7fee9f329aafb8f16f2a7daae423a978685dd8c2b15",
      "time_ps": 10656,
      "unit_depth": 126
     },
@@ -298,10 +298,10 @@
       "XNOR": 3,
       "XOR": 16
      },
-     "netlist_sha256": "0fcc24e289ec7d81d0917db3655fc881092f94619c5d15102e2d06e32447a22d",
+     "netlist_sha256": "054970168552b49d2c086ef9845d7fbf02ec406687815faf1547fb7a326b5c73",
      "num_gates": 64,
      "repaired_sha256": "a70d73d9a220079d9e0b81987c6befb299fcb3ecd00b3229602f3b3181b89f12",
-     "rtlil_sha256": "a10e2de955767e88731818ce905d64cf992e6184ccddc3d8d867df9f67cb0814",
+     "rtlil_sha256": "f2e92a7630b7043d0f548df7c35678e82a4834ce55fcb252211bf7f4c3dddb4c",
      "time_ps": 1777,
      "unit_depth": 14
     },
@@ -321,10 +321,10 @@
       "XNOR": 9,
       "XOR": 95
      },
-     "netlist_sha256": "568e9878492a0fc14cd0628c884fe4980a9c1370faaaa5ab3579a8ea9eb1ad51",
+     "netlist_sha256": "771c07736829d24a39f56c895e6bdba46f4c16e7071363f292ca1ae97cce0227",
      "num_gates": 324,
      "repaired_sha256": "ab54bd02a56a95bd1ba3f8ad0c81d5295b56cd701f46454b164886a13446ad45",
-     "rtlil_sha256": "34a1dd6a1aba37e9c9a7e90f4530e597bd195b8653f52ba195cfdc1cde144ae8",
+     "rtlil_sha256": "ea5c080767c6813ec52d05b1be1feb6960ddd602861e4f4c6b4ecbbb64715145",
      "time_ps": 3287,
      "unit_depth": 30
     }
@@ -355,10 +355,10 @@
       "XNOR": 17,
       "XOR": 464
      },
-     "netlist_sha256": "127b7cdd2871845693bd4fab68573b2a9e0f50607dfe336196481aab29557bc5",
+     "netlist_sha256": "81191465c09191e9a973a4ce869317d81ff3d166316cf8b55c198b775da2778e",
      "num_gates": 1450,
      "repaired_sha256": "58bb983dfaa1ad4865d275f70b5d27aeb9768134e4fd4ae1f1609025c5f2c3a8",
-     "rtlil_sha256": "60ebf526fff291b303d5926cece6ff6451e3b1171acd6f8d48b0c944fa8dd6fe",
+     "rtlil_sha256": "fcfdd7a7738a726c9daac4a9ce319fce95562ccd4f904462aa1232596c65158c",
      "time_ps": 5992,
      "unit_depth": 62
     },
@@ -379,10 +379,10 @@
       "XNOR": 44,
       "XOR": 1977
      },
-     "netlist_sha256": "4b8f723b8d2a3d467511b457f4c3284a606e65e4fc46809525c01f42d78e56a2",
+     "netlist_sha256": "d98b6e6ffd890670245e0977b33cb3eae2b812a92fd8676f3fa22230f4f244e5",
      "num_gates": 6058,
      "repaired_sha256": "cbee04cdf5431563b4fa55a2e353cb92c925a19e8cd31036551463d1a3519c14",
-     "rtlil_sha256": "842c85df8224602b2474004e9294f529ac12ae5dd69abd54fe934876f7afde75",
+     "rtlil_sha256": "0dbfae05c11062cc7984cfea2110be0a421eeb656734fc870755b7f8b0f1df01",
      "time_ps": 10631,
      "unit_depth": 127
     },
@@ -401,10 +401,10 @@
       "XNOR": 3,
       "XOR": 16
      },
-     "netlist_sha256": "1592273cb8ceb7bf1d3e597161f7ace1be0bee64e385e35602d6b7d7c9a6448d",
+     "netlist_sha256": "e63cc2760c14e85fd8ffff284e9139ae18c5bc80bf9a771d5ab137a5a1947018",
      "num_gates": 64,
      "repaired_sha256": "2e1b05730680e17eda06947f3032b0e7bca439348b2f39d8cf778dd1753ec0bb",
-     "rtlil_sha256": "069c7fea3d6e139fa5e2eb316a3fbee5c217f65262f320df446322bbf429cb1b",
+     "rtlil_sha256": "cc8719316d8df9045fe6c5db10b705f6f84630a81777bd2c46138f1bc456c313",
      "time_ps": 1777,
      "unit_depth": 14
     },
@@ -423,10 +423,10 @@
       "XNOR": 8,
       "XOR": 96
      },
-     "netlist_sha256": "e6948a594002a894667b3db6acf5b46d34811a05ba002a48d58ce2b016fcb312",
+     "netlist_sha256": "3494d21631ad70b5b6918c5bb986b5dfc370072cac8f88ac881e4f4f19331896",
      "num_gates": 324,
      "repaired_sha256": "6c580c70eb3d600890621660f29b77c26d4a54fd89a00f98fa35281b5956884e",
-     "rtlil_sha256": "5c2220e89bb50abe92062691da2087219a65aa5050dc3fdfb2bdc5889e7c5fbd",
+     "rtlil_sha256": "cb64183d0c32159cc63a51954f1c7e3cf4fe9d80b00bc9bfa339fe3de7ee40f2",
      "time_ps": 3287,
      "unit_depth": 30
     }
@@ -461,10 +461,10 @@
       "XNOR": 26,
       "XOR": 478
      },
-     "netlist_sha256": "d1d74a81134a7ba2a0edb6670629e5b1733ab125d010aa41cde225d086604fd4",
+     "netlist_sha256": "568b1a184492d6a49816a7ff355ae479726be4552aa453d560c48d1d29fd229b",
      "num_gates": 1502,
      "repaired_sha256": "b52cf6114bdddf5fe9ff756cce278976543b0c2404bf013d3f65fb3854ea7a39",
-     "rtlil_sha256": "37b14ecaa743f9bc4636c89e9cd8248fec4b1ac8e9a94282710965711d26e100",
+     "rtlil_sha256": "9e26d91c8534ca04e7a77f68959fcce932eedb963c463284d1e11458eeaaac10",
      "time_ps": 5982,
      "unit_depth": 62
     },
@@ -487,10 +487,10 @@
       "XNOR": 50,
       "XOR": 2068
      },
-     "netlist_sha256": "113a1834244ea1c1474504fa00c86e17c1791d27645ae327b434748eafa6855d",
+     "netlist_sha256": "50b4cfe9c9b6056a871da4bf9adb3d1d6692b2223160c5dc3982c471d9ba3d47",
      "num_gates": 6245,
      "repaired_sha256": "603646d4f07cf1743f04c403304172713e7b2ba67a10031d384da9b23a8b0398",
-     "rtlil_sha256": "032c92abd48dd96ebbe6cac53350afaa060d4626f5fd3249c81c9ba2ae475bf9",
+     "rtlil_sha256": "de1caab9441b37a9364be5387426a6892ba3dbf5f21df3d5172b5cd1a616c39a",
      "time_ps": 10303,
      "unit_depth": 124
     },
@@ -512,10 +512,10 @@
       "XNOR": 4,
       "XOR": 15
      },
-     "netlist_sha256": "b3a67bbfc71fcb81986e2e364a098cc93311ddc29317ead123af750ccfcd279b",
+     "netlist_sha256": "8b3239a79e4e097ba78c5c1019f62d319e60f162e5f11f2e15f09ebcbfaf2e8c",
      "num_gates": 68,
      "repaired_sha256": "c3db23ad732eea22ea44bd3bfe0a4dd2d2ce91a56ea2a5e9aaef09dbd539afcb",
-     "rtlil_sha256": "d38cd7fc27f4af5b5886dadb7f20832dd7674b3617d7fb023a11d7ecff8cd73c",
+     "rtlil_sha256": "6a5bda3955c9cb44d0418fbab2bd89fc28b831dc62c60ffb1e146c47aecc5e58",
      "time_ps": 1837,
      "unit_depth": 13
     },
@@ -535,10 +535,10 @@
       "XNOR": 11,
       "XOR": 103
      },
-     "netlist_sha256": "572a272d1bfba2d6b8ab953c9e5625171243e0dd4b6675deaed3df9041cbb6d3",
+     "netlist_sha256": "81387ec635f64b5c51a164d9c0867e7380dd12dc048607a1cf0dc4dcc2f7e4fe",
      "num_gates": 343,
      "repaired_sha256": "d3fe1ed9989c10fc3df68856c40e26e035babfe50f07315d459b5abcbee30dcc",
-     "rtlil_sha256": "d5e63faf76c56d52f42dee2dd44eafc8236d05f16bf72caf11a3b2944283e124",
+     "rtlil_sha256": "bee8839ebf7cc5c66343389f3e599ee761241ce5298f215393d74856635183e5",
      "time_ps": 3410,
      "unit_depth": 30
     }
@@ -572,10 +572,10 @@
       "XNOR": 50,
       "XOR": 410
      },
-     "netlist_sha256": "e421a7d947d25216778979b0b3e9e0d6456233bbdecab0385b0f07dd486a18f4",
+     "netlist_sha256": "ea34ca6303812c3c4235888072caf8b821b6e6669e5976a3016cd2067033b666",
      "num_gates": 1408,
      "repaired_sha256": "048cfcb9dd59e27aa2cc970fd1cef28d4fb3959182253d33998d7195ee7cb40c",
-     "rtlil_sha256": "f80745b8f057b54dba46534b9cef268621a1e82643dda2d1cde97006a9cd0a1c",
+     "rtlil_sha256": "22007aaff56061e6610f316e83a706840cf31b5f3eac0e354d651a3077a93e9c",
      "time_ps": 5461,
      "unit_depth": 61
     },
@@ -598,10 +598,10 @@
       "XNOR": 158,
       "XOR": 1788
      },
-     "netlist_sha256": "0b1c1f9c593fd62e7a29e7aff57c3e9aa524250fb4de949439bc9ea9592f96f5",
+     "netlist_sha256": "ab05e390217dbe128facc7932f7b4065f1e51e48723bebe021122e39a7bbe8b0",
      "num_gates": 5888,
      "repaired_sha256": "1d0502b6f8329d6c02d4ae8f03a016ff888705313d62d28df778f19f75de2fab",
-     "rtlil_sha256": "870cee21490e1d4ca1aa77af65d245c54b2311781488138756e1dc58c914595c",
+     "rtlil_sha256": "7a0b258da9891b46b65c674cf9c374d3a257c655e741cff1dd8bdbc9382c5536",
      "time_ps": 9861,
      "unit_depth": 125
     },
@@ -621,10 +621,10 @@
       "XNOR": 3,
       "XOR": 16
      },
-     "netlist_sha256": "5d1ea4e61a3021ec26db74ad5f93947e68faefd846e3a6dd03b2d480da7fcd4f",
+     "netlist_sha256": "3c03d571e904e20bdde0283efded1f2778b8759981b3ba3315b204f0a27192ea",
      "num_gates": 63,
      "repaired_sha256": "516bd08ef42aff880f70df5194d404d6c9dc091939b0b677d9828c1b9c9396ca",
-     "rtlil_sha256": "6c1e99827e504a605d4d60deb357da91c9951b868fbe0ec897d36ed96ccea9ff",
+     "rtlil_sha256": "86364285a21c2e4977d2b8f2e19e28e77b3d7e475a194a7571a9943c4dd2880d",
      "time_ps": 1824,
      "unit_depth": 13
     },
@@ -647,10 +647,10 @@
       "XNOR": 12,
       "XOR": 90
      },
-     "netlist_sha256": "3045ea5be819f897f66dda6ac1a70c52f5431896a8cf36e0efbc6cea9430047a",
+     "netlist_sha256": "d87a82cb29e247e95b2dadf17d721647c3c3348302bff002363f9201dd7c02fe",
      "num_gates": 320,
      "repaired_sha256": "d218d1aed33a2226a7b04e0831c66b55c10ac291dd7b5315d6380b23ae9ad49e",
-     "rtlil_sha256": "44d073cd5c0b95e5706d8abf1644d1850183e27cd8e2ec03c55214623fefd255",
+     "rtlil_sha256": "1b2fd5ba4e8d7d52b726676a5f5c4d896f9915b15d447daa1d9d5e0eddda79e7",
      "time_ps": 3267,
      "unit_depth": 29
     }
@@ -688,10 +688,10 @@
       "XNOR": 29,
       "XOR": 456
      },
-     "netlist_sha256": "5df4767e53b486aee5cde8362883d77c5c2da1dab615b7c00b54d20c470c464d",
+     "netlist_sha256": "59b0122eb0d44aff16bbeb22c28289cc90d7e38e43431107fb2388bfd085754b",
      "num_gates": 1486,
      "repaired_sha256": "0b9c1ed218a5dadae620967071f6bd5e19b5c318966e48c5b0044d6b75417392",
-     "rtlil_sha256": "ebb28c54da5e28081cb037b2a2402a82bfb8288fb76172a24362b340e3a878b4",
+     "rtlil_sha256": "c6562c2e6c98a391691a5e74b44df86ba7e44374daf3e62beceab92b232f01a7",
      "time_ps": 6261,
      "unit_depth": 59
     },
@@ -715,10 +715,10 @@
       "XNOR": 73,
       "XOR": 1968
      },
-     "netlist_sha256": "82ca88c5d8c59db273a211f3fd5a72e7013350db8e06b4fe76d5815b3de4a111",
+     "netlist_sha256": "84fef1c27e39d2c90c1f76ca5b4b5065f18fe83e0aea1bbab612e4679e0b86d3",
      "num_gates": 6185,
      "repaired_sha256": "573f48f26ec131188085e078e6f6b75bf2fb7a4e85149c8ae41e6febea8553ee",
-     "rtlil_sha256": "a8debb7d7a0002a9768723d08f730dbcc0f68c7ef6881f44c6e4f0f1731d2242",
+     "rtlil_sha256": "758d0aee8da14ecd5c03a0d1829ac23030578514642f44abbb1cc59cd584a09e",
      "time_ps": 10965,
      "unit_depth": 110
     },
@@ -739,10 +739,10 @@
       "XNOR": 5,
       "XOR": 13
      },
-     "netlist_sha256": "168a07cd673f97cc6ccd2e3b004d5ee87d9c880afa4d075d389f880f9f721ce5",
+     "netlist_sha256": "5645bb38984bae52c836791fc258566488828891f6a3805677f3aa746340f019",
      "num_gates": 64,
      "repaired_sha256": "40daad38ebbd98c8443911e77603cdc97423b43973aa17c4693822e2fe3bf960",
-     "rtlil_sha256": "9b45f47d44be9f6cdd9e81d29a2d8389e405bb0f9dfa2849d5d0ca6d634d1c37",
+     "rtlil_sha256": "84803f8a384d1d63b2c5bd1e02db47c2259ed113fc635131f9134bd35c393c12",
      "time_ps": 1763,
      "unit_depth": 12
     },
@@ -765,10 +765,10 @@
       "XNOR": 15,
       "XOR": 89
      },
-     "netlist_sha256": "ea84c1c6551f1f374f79aba99f43428cd1871e8cb5725a1d3ab707fe270021e0",
+     "netlist_sha256": "8d15df40fdbc62c57fbaeb9f7e5bdb5e22552bc89377845e6275b75d080a3c76",
      "num_gates": 334,
      "repaired_sha256": "b659b330210bfde1055feb09e8e5413b96644d73c7335dd205ac25c5f25e4067",
-     "rtlil_sha256": "ca7f9a32ff8bc3ba5b10cf205d30f0b2ac0856e330afb5c86166629337d4df2c",
+     "rtlil_sha256": "b0c33a16a8d524d34f3bfe220fd159d5365257cd207eac4f1f4a4983b6b58df2",
      "time_ps": 3743,
      "unit_depth": 30
     }
@@ -788,7 +788,7 @@
   "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
   "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
   "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
-  "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
  },
  "identity": {
   "input_drive": "sky130_fd_sc_hd__buf_8",

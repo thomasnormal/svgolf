@@ -1669,8 +1669,8 @@ def _is_solution_output(stage, path):
 
 def _tool_trees():
     """Directories and files the later stages EXECUTE or LOAD: the Lean
-    toolchain (lean, lake, leanchecker, the core oleans), Yosys (its binary,
-    yosys-abc, its techmap library), and elan's settings (a toolchain
+    toolchain (lean, lake, leanchecker, the core oleans), Yosys (the rating build's
+    packages and compiled module, or a native binary, its yosys-abc and its techmap library), and elan's settings (a toolchain
     override would swap the toolchain). The simulator (Verilator, the C++
     compiler, make) is `postsynth.tool_paths()`."""
     out = []
@@ -1683,11 +1683,21 @@ def _tool_trees():
     except Exception:
         pass
     out.append(os.path.join(os.path.expanduser("~"), ".elan", "settings.toml"))
-    ys = shutil.which(os.environ.get("SVGOLF_YOSYS") or "yosys")
-    if ys:
-        ys = os.path.realpath(ys)
-        out += [ys, os.path.join(os.path.dirname(ys), "yosys-abc"),
-                os.path.join(os.path.dirname(os.path.dirname(ys)), "share", "yosys")]
+    ys = score.yosys_bin()
+    if score.is_rating_build(ys):
+        # the rating build: the launcher is a trusted file by content (CHECKER_FILES); here its packages (the module
+        # and its `share`, the runtime, wasmtime) and the module's compiled cache entry
+        try:
+            w = score.wasm()
+            out += w.package_dirs() + [w.cache_file()]
+        except score.ScoreError:
+            pass
+    else:
+        ys = shutil.which(ys)
+        if ys:
+            ys = os.path.realpath(ys)
+            out += [ys, os.path.join(os.path.dirname(ys), "yosys-abc"),
+                    os.path.join(os.path.dirname(os.path.dirname(ys)), "share", "yosys")]
     return out + postsynth.tool_paths()
 
 
@@ -2025,9 +2035,16 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
                          "output ports likewise, and no other port):\n" + "\n".join(ports_bad[0][:8]))
 
         # banlist (on the canonical text, which the gate already checked); it, fourstate, score and postsynth run Yosys
-        if not shutil.which(os.environ.get("SVGOLF_YOSYS") or "yosys"):
-            raise RuntimeError("Yosys is not on PATH (infrastructure; or SVGOLF_YOSYS names no program): the banlist, "
-                               "fourstate, score and postsynth stages run it; install Yosys 0.53, with its yosys-abc")
+        # (the rating build, score/yosys_wasm.py, unless SVGOLF_YOSYS names a native one: its pins are checked here)
+        if score.is_rating_build(score.yosys_bin()):
+            try:
+                score.wasm()
+            except score.ScoreError as e:
+                raise RuntimeError(f"the rating build of Yosys cannot run (infrastructure): {e}; the banlist, "
+                                   "fourstate, score and postsynth stages run it")
+        elif not shutil.which(score.yosys_bin()):
+            raise RuntimeError("SVGOLF_YOSYS names no program (infrastructure): the banlist, fourstate, score and "
+                               "postsynth stages run Yosys; unset it to use the rating build (score/yosys_wasm.py)")
         # `ops` is never empty: `task_banlist` adds ALWAYS_BANNED (run-time / % **) to every task's list (2026-11-06), so
         # every task runs the front check, which also reads slang's analysis errors, and the backstop. (An `else` that
         # skipped both for a task with no banned operator was removed: no task could reach it any more.)

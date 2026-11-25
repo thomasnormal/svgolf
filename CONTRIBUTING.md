@@ -22,9 +22,10 @@ repository svGolf requires as the Lake package `lean-models` (in a clone of svGo
 
 * A clone of this repository (it uses lean-surfaces' `LeanModels.Sv` library, the Lake git dependency
   `lean-models` at the revision `lakefile.toml` pins).
-* **Python 3.12** (`python3.12`; the extractor needs `pyslang`), **Yosys 0.53** (the scores are comparable only
-  when the pinned flow's hashes agree: `tests/expected.json`, key `flow`), **Verilator 5** (the post-synthesis
-  check), a C++ compiler and `make`.
+* **Python 3.12** (`python3.12`) with `pip install -r requirements.txt`: `pyslang` (the extractor) and **Yosys 0.53**
+  as the rating build, YoWASP's WebAssembly Yosys, the same program on every machine (`score/yosys_wasm.py`; the scores
+  are comparable only when the pinned flow's hashes and Yosys version line agree: `tests/expected.json`, key `flow`);
+  **Verilator 5** (the post-synthesis check), a C++ compiler and `make`.
 * **Lean** through elan, toolchain `leanprover/lean4:v4.35.0` (`lean-toolchain`). Build the trusted part
   once: `lake build SvGolf tasks svgolf-eval` (`check.py` does this itself in its `trusted` stage unless
   you pass `--no-trusted-build`). No Mathlib is built; a solution that imports it needs the Mathlib build
@@ -371,9 +372,10 @@ and rejects the run (rerun it).
 ## 11. For the maintainers: merging a record's pull request
 
 The check on a record's pull request (`leaderboard/pr_check.py`, the `records` workflow) is advisory: it runs the
-pull request's own files on a hosted machine whose Yosys is not the rating build's, so it compares no score. At
-merge a maintainer runs the full check on the rating build (README.md, "The build ratings use") and, where the
-record was made under another build, re-makes its ranked number there. For pull request `N` adding record `HASH` of
+pull request's own files on a hosted machine with no secret. Since 2026-11-24 that machine's Yosys is the rating build
+(`requirements.txt`), so it compares the scores too, but its run is the pull request's own code. At merge a maintainer
+runs the full check on the rating machine (README.md, "The build ratings use") and, where the record was made under
+another build, re-makes its ranked number there. For pull request `N` adding record `HASH` of
 task `TASK`:
 
 ```bash

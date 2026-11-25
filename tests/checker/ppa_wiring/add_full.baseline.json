@@ -197,7 +197,7 @@
       "lssv_timing": "<volatile>",
       "mismatches": 0,
       "mode": "full",
-      "netlist_sha256": "3b7da549a07e36ecd2615bea0205e996b239e7d12cb3917bc04666d5ac4b4cd3",
+      "netlist_sha256": "93f94b5aa80608d8398de72d3cc97ba6a73892a65e43db29068e4ec8a79b9c5a",
       "outputs": [
         "cout",
         "s"
@@ -234,7 +234,8 @@
       "params": {
         "N": 16
       },
-      "rtlil_sha256": "0699af350c19ae28f07e4abd195e746ea9888b6ce94feeb0a43f52c15a0a6622",
+      "rating_build": true,
+      "rtlil_sha256": "8123089e7a0b392865867c65e7e8a251ddeec8dadb199aa1abf2e7cfee1bd73a",
       "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
       "seconds": "<volatile>",
       "sources": [
@@ -252,6 +253,7 @@
       "exit": 0,
       "messages": "",
       "seconds": "<volatile>",
+      "sha256": "5d0c489f23021397d7a0e0f37890b31b86fefc1ac5d609dc48db89187ca3dcc7",
       "time_limit_counts": "cpu",
       "time_limit_s": 300,
       "wall_limit_s": 1500

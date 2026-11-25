@@ -30,13 +30,14 @@ def venv_configs(path=None):
     return out
 
 
-def tool_spec(exes, read=(), write=(), label="tool", fork=True):
+def tool_spec(exes, read=(), write=(), label="tool", fork=True, map_exec=()):
     """A build tool or a synthesis tool: it may execute inside the system and package trees (its own
     helpers: yosys-abc, perl, make, the C++ compiler, a `python3` from PATH), read those, `read` and the
-    `pyvenv.cfg` of a venv on PATH (`venv_configs`), and write `write` only."""
+    `pyvenv.cfg` of a venv on PATH (`venv_configs`), and write `write` only. `map_exec`: trees it may also map
+    executable code from (the WebAssembly Yosys's runtime library and its compiled module, score.yosys_run)."""
     trees = tool_trees(*exes)
     return Spec(exec_subpaths=trees, read=trees + list(read) + venv_configs(), write=list(write), fork=fork,
-                system="tools", label=label)
+                system="tools", label=label, map_exec=list(map_exec))
 
 
 def exec_spec(exe, read=(), write=(), label="exec"):

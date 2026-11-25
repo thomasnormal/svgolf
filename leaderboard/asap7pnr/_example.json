@@ -7,7 +7,7 @@
    "ppa_pins_sha256": "edd00a44e4f068fa31806d6d562e4f0635cb558310793b59e80dfa7cfa42a563",
    "ppa_version": "asap7_a0_v1"
   },
-  "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150"
+  "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5"
  },
  "course": {
   "area_rule": "liberty_sum_e5um2",
@@ -103,11 +103,11 @@
    },
    "netlist_sha256": "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902",
    "of": [
-    "record:63eff63ad5f0e5931a786681b40da4995d3b56c9a34ad29e0448aee42765258d",
+    "record:11e7e503f12a881ae8b3e9740925ce88f3219c1783c82267fdfd66340b26050e",
     "reference:band",
     "reference:band_tactics"
    ],
-   "record": "63eff63ad5f0e5931a786681b40da4995d3b56c9a34ad29e0448aee42765258d",
+   "record": "11e7e503f12a881ae8b3e9740925ce88f3219c1783c82267fdfd66340b26050e",
    "request": {
     "seed": 1,
     "settings": {},
@@ -296,7 +296,7 @@
      "wire_um": "66"
     }
    ],
-   "scored_netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
+   "scored_netlist_sha256": "9329d45a617656d96df7652cbc0466e511002f9808f612d720e0aa043e71346d",
    "scores": {
     "v_median": {
      "area_e5um2": 139968,
@@ -365,10 +365,10 @@
    },
    "netlist_sha256": "38596d52847c91d7e7fd70188696e9e46d40313f3f301d368705a0864dcb4902",
    "of": [
-    "record:82e7b9459530cafb33a4cd47a590b2f69bd3d694ae95208dc980fbc46005a0a4",
+    "record:89c9638eca4c8adcf62cd7a59c2daaf2b28afc4b4199e9c2bbb48548e29dff6a",
     "reference:band_lp"
    ],
-   "record": "82e7b9459530cafb33a4cd47a590b2f69bd3d694ae95208dc980fbc46005a0a4",
+   "record": "89c9638eca4c8adcf62cd7a59c2daaf2b28afc4b4199e9c2bbb48548e29dff6a",
    "request": {
     "seed": 1,
     "settings": {},
@@ -437,7 +437,7 @@
      "wire_um": "67"
     }
    ],
-   "scored_netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
+   "scored_netlist_sha256": "9329d45a617656d96df7652cbc0466e511002f9808f612d720e0aa043e71346d",
    "scores": {
     "v_median": null,
     "v_owner": {

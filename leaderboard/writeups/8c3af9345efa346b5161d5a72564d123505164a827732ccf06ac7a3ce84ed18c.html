@@ -1,0 +1,30 @@
+<h1>Boyar-Peralta depth-16 circuit, 125 gates</h1>
+
+<p>This record is the published depth-16 S-box circuit of Boyar and Peralta, translated gate for gate into <code>sbox_bp_d16.sv</code>: 125 continuous assigns over <code>^</code> and <code>&amp;</code> (34 AND, 87 XOR, 4 XNOR), 117 internal one-bit nets, no generate loop.</p>
+
+<h2>The idea</h2>
+
+<p>The netlist has four visible stages: 27 XORs that form linear combinations of the input bits, a middle section that mixes ANDs and XORs, a layer of 18 ANDs that multiplies middle results by signals of the first layer, and 35 XORs that fold everything into the eight outputs. The four XNORs, written <code>a ^ b ^ 1'b1</code>, sit on <code>y[0]</code>, <code>y[1]</code>, <code>y[5]</code> and <code>y[6]</code>: exactly the set bits of the affine constant <code>8'h63</code>.</p>
+
+<p>Against the 113-gate circuit by the same authors, this one spends 12 more gates to cut the published depth from 27 to 16 levels. On this course that trade pays.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 it measures about 952 µm² at 3.67 ns, 3494.4 µm²·ns, about 0.44 x par (the 256-entry table). After synthesis it is 131 cells, mostly <code>xnor2</code> (56), <code>and2</code> (20) and <code>nand2</code> (19), with a critical path of 18 cells to <code>y[1]</code>. The 113-gate circuit is about 7% smaller (892 µm²) but takes 4.30 ns, so the smaller, deeper circuit loses on the product. On the routed ASAP7 course it is 14.2 µm² at 642 ps, 9.15 µm²·ns.</p>
+
+<h2>The proof</h2>
+
+<p>At 125 assigns the netlist is past the budget of the one-line <code>sv_exhaustive</code> route, so the proof (209 code lines, generated from the netlist) follows the route of <a href="8fae1842019546a894c866579dcb34e5083b50887290d337f5f5443ede6267e7.html">the 113-gate reference</a>:</p>
+
+<ol>
+<li><code>bp_struct</code>: <code>sv_structure</code> with each gate's depth as the rank (<code>bpRank</code>).</li>
+<li><code>bp_interface</code>: <code>sv_interface</code>.</li>
+<li><code>solution</code>: <code>sv_equations</code> hands over the 125 gate equations; a small custom tactic, <code>gok_chain</code>, threads them in order into an inductive predicate <code>GOK</code> (every gate reads earlier nets and meets its equation).</li>
+<li>The arithmetic: the netlist as a list of <code>Gate</code> records, run by <code>runN</code> over one packed 133-bit natural. <code>bp_correct</code> checks all 256 inputs against the algebraic <code>sbox</code> with <code>decide +kernel</code>, and <code>bp_vals</code>, an induction over the gate list, shows any state meeting the equations holds the program's values.</li>
+</ol>
+
+<h2>What did not work</h2>
+
+<p>Two limits moved from the 113-gate proof: plain <code>decide</code> on <code>bpProg.length = 125</code> hits the maximum recursion depth (at 113 it fit), so it uses <code>decide +kernel</code>; and <code>solution</code> timed out at a heartbeat limit of 300,000 and passed at 400,000.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

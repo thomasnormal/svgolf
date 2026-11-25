@@ -23,10 +23,10 @@
       "XNOR": 45,
       "XOR": 15
      },
-     "netlist_sha256": "22493fba30d824a3ea9939038185b2cb797dab4f1831b98ab9a251838ea1f2cb",
+     "netlist_sha256": "aead0e28eb68de4334737d3a3118246640cd8e5d1f3d9536e537c4f11eab2be7",
      "num_gates": 123,
      "repaired_sha256": "b27773491834eb758aa0bf6f5c828d8db7ada4057055fe6e078f1dc36c154da6",
-     "rtlil_sha256": "190742e59ade0547948019ccf28945d76258503e60ce462ce4fea0bfd58c33e5",
+     "rtlil_sha256": "56539256b1fbe271ba8309a2a3adbbc50d07df64e119e9e779e180ff085a5919",
      "time_ps": 4297,
      "unit_depth": 21
     }
@@ -62,10 +62,10 @@
       "XNOR": 5,
       "XOR": 1
      },
-     "netlist_sha256": "43edd658bdb80404c7a8fb8fe61ba9d84ea9d837972450c0120494b33d2bc016",
+     "netlist_sha256": "b4ed28dd27378b158daea5de32fd1722b43464c6cca0d01958cf5f6d54733e88",
      "num_gates": 612,
      "repaired_sha256": "b4d04a31d73c656be20f7a61fdc88dc2d1dd3522aa24f815cff41c1b81168dc0",
-     "rtlil_sha256": "6c7b6677d1798bc8099cfccaed4d4c7e65d78a153d9180a6cfc4f64bc2754b4a",
+     "rtlil_sha256": "2e912aeebaa06858c16bb1372dedd5a82962c7888205c9132a3967044c6a8c14",
      "time_ps": 2288,
      "unit_depth": 11
     }
@@ -101,10 +101,10 @@
       "XNOR": 56,
       "XOR": 15
      },
-     "netlist_sha256": "be0fe4438ab7736f1b75219ec6dbe89f108a9865e0a77693c52cd0e2f2439ad8",
+     "netlist_sha256": "1e65f96a7cd4fa48babd04a1bf82796a27bcf7d7a609cb0b8069ffba8c62b4ec",
      "num_gates": 131,
      "repaired_sha256": "87b7a0dedc815ced11f1b8d33dbbf400a204eeb516a40b725d2a1e8dbafd9e00",
-     "rtlil_sha256": "1f6ff39e26be15ed71a2fb8e85fdd7a4454ebe575dc4059f3e24331d6efc9cd2",
+     "rtlil_sha256": "b7bab52d7d14d7c02aee13caa6631648b223fd02387c05291ed6f9cf4da0f7b8",
      "time_ps": 3670,
      "unit_depth": 18
     }
@@ -124,7 +124,7 @@
   "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
   "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
   "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
-  "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
  },
  "identity": {
   "input_drive": "sky130_fd_sc_hd__buf_8",

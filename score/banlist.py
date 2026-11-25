@@ -106,6 +106,14 @@ import sandbox  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+
+def _score():
+    """score.py (the Yosys launcher and its sandboxed run), imported on first use."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import score
+    return score
+
 # operator -> Yosys cell types it becomes before `alumacc`
 OP_CELLS = {
     "+": ["$add"],
@@ -556,7 +564,8 @@ def alumacc_findings(pre, post, point, earlier=()):
 def backstop_check(sources, top, ops, points=(), yosys=None):
     """Banned cells (list of str) after `proc; opt` at each point, and, in a
     task that bans `+` or `-`, the cells `alumacc` builds after it."""
-    yosys = yosys or os.environ.get("SVGOLF_YOSYS") or "yosys"
+    score = _score()
+    yosys = score.yosys_bin(yosys)      # the rating build unless $SVGOLF_YOSYS names another (score.py)
     cells = set(banned_cells(ops))
     order = bans_order_comparisons(ops)
     findings = []
@@ -569,14 +578,14 @@ def backstop_check(sources, top, ops, points=(), yosys=None):
                 reads="\n".join(f'read_verilog -sv "{os.path.abspath(s)}"' for s in sources),
                 top=top, chparam="".join(f" -chparam {k} {v}" for k, v in dict(point).items()),
                 out=out) + (BACKSTOP_ALUMACC.format(out=out2) if order else "")
-            with open(os.path.join(workdir, "b.ys"), "w") as fh:
+            path = os.path.join(workdir, "b.ys")
+            with open(path, "w") as fh:
                 fh.write(script)
-            exe = shutil.which(yosys) or yosys
-            spec = sandbox.tool_spec([exe], read=[os.path.abspath(s) for s in sources] + [workdir],
-                                     write=[workdir], label="yosys (banlist)")
-            proc = sandbox.run([yosys, "-q", "-s", "b.ys"], spec,
-                               env=sandbox.tool_env(workdir) if sandbox.policy().active else None,
-                               cwd=workdir, timeout=1800, kind="tool", label="yosys (banlist)")
+            try:
+                proc = score.yosys_run([yosys, "-q", "-s", path], yosys, workdir,
+                                       [os.path.abspath(s) for s in sources], 1800, "yosys (banlist)")
+            except score.ScoreError as e:
+                raise RuntimeError(f"the banlist backstop cannot run Yosys: {e}")
             if proc.returncode != 0:
                 findings.append(f"yosys failed at {dict(point)}: "
                                 f"{(proc.stderr or proc.stdout)[-1500:]}")

@@ -18,7 +18,7 @@ checker: react-family (check.py)   post-synthesis: react-family (segments, a 700
 reference: reference/rr_mask.sv + rr_mask.lean (own code, every N with 1 <= N, N*N < 2^31), check.py ACCEPTS it
   (--postsynth full)
 attacks: 19, all rejected (17 hand-written: 15 at postsynth, 1 at score, 1 at source; 2 mutants at extract)
-negatives: 2   site: listing decided 2026-11-07; par = the reference's record d354b82fb1ab,
+negatives: 2   site: listing decided 2026-11-07; par = the reference's record 1f8734567650,
   769.488 um^2 x 2826 ps = 2174.57 um^2*ns ((k), (n))
 ```
 
@@ -375,7 +375,7 @@ sorter; the listing `preview` (a task page that ranks nothing, with a status lin
 branch only. Decided 2026-11-07: the task is listed directly (`listed`, open for submissions, ranked by area ×
 period with `cycles = 1`, par the reference at 769.488 µm² × 2826 ps, about 2175 µm²·ns), with no preview
 round, once its statement is final and the reference's record is seeded. Both held on 2026-11-07, when the
-listing was decided (`site/config.json`; the record, now `d354b82fb1ab`, (n)). The curated texts are
+listing was decided (`site/config.json`; the record, now `1f8734567650`, (n)). The curated texts are
 `content/tasks/arbiter.md`, `.json` and `content/attacks/arbiter.json`.
 
 ### (l) The first proved reference is the own mask round-robin; the adapted OpenTitan tree is the next (decided 2026-11-05)
@@ -633,7 +633,8 @@ on a busier machine): `clocked_rules` no finding, the reactive post-synthesis ch
 * `load_sv` refutations of the SystemVerilog attacks (the Lean refutations use hand-built twins).
 * The ls-sv generate-local declarations (F5), outside this task's files. (The netlist-lint false rejection,
   F6, is closed for the clocked kinds since 2026-11-07: `opt_clean -purge` in the clocked flow.)
-* DONE since 2026-11-07: the reference's leaderboard record (`d354b82fb1ab` since its re-make on 2026-11-16; before
+* DONE since 2026-11-07: the reference's leaderboard record (`1f8734567650` since its re-make on 2026-11-24, measured again on the new rating build; `d354b82fb1ab` from the
+re-make of 2026-11-16; before
   that `84da5a4152db` from its third re-seed on 2026-11-09; par)
   and the site listing ((k),
   (n)).

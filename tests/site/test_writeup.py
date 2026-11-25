@@ -253,7 +253,7 @@ class SiteWriteupTest(unittest.TestCase):
         """The maintainers' inline SVG in the Booth record's writeup (decided 2026-11-16, the HTML writeups'
         demonstration): Figure 1, drawn by the site's rules for a writer's drawing, its caption the writer's (no
         generated line)."""
-        rec = next(r for r in self.recs if r["record_hash"].startswith("efbea7ef0e3d"))
+        rec = next(r for r in self.recs if r["record_hash"].startswith("15ca3004eb19"))
         h = self.page(rec)
         fig = h.split('<figure class="wfig" id="writeup-figure-1"><div class="wfig-box">', 1)[1].split("</figure>")[0]
         self.assertTrue(fig.startswith('<svg class="wfig-svg" viewBox="0 0 640 232" width="640.0" height="232.0" '

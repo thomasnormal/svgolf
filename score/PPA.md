@@ -39,14 +39,15 @@ compiler optimization):
 | closer to | the default score: a fixed function of the netlist the board already ranks, no new synthesis | a fabricated chip: what a technology mapper does with the circuit |
 | sensitivity | follows the expression tree you wrote (commuting operands moves area up to 11% and delay up to 32%) | follows the mapper too: `&nf` re-derives the structure (the proved array multiplier goes from 2nd to last in area); commuting operands moves area up to 15.5% and delay up to 20% |
 | fields | `area_um2_sky130`, `delay_ps_sky130`, `unit_depth`, `cells_sky130`, `cell_hist_sky130` | `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`, `mapped_cells_sky130_v1`, `mapped_cell_hist_sky130_v1`, `mapped_levels_sky130_v1` |
-| version, pins, script | `ppa_version` `sky130_a0_v3`, `ppa_pins.json` (its `timing`, `repair` and `constants` sections), `ppa.py`, the task's `input_drive` | `ppa_mapped_version` `sky130_a1_v1`, `ppa_mapped_pins.json`, `ppa_mapped.ys`, `ppa.py`, the Yosys and ABC builds |
+| version, pins, script | `ppa_version` `sky130_a0_v3`, `ppa_pins.json` (its `timing`, `repair` and `constants` sections), `ppa.py`, the task's `input_drive` | `ppa_mapped_version` `sky130_a1_v2` (since the rating build of 2026-11-24; `sky130_a1_v1` before), `ppa_mapped_pins.json`, `ppa_mapped.ys`, `ppa.py`, the Yosys and ABC builds |
 | cost | the repair is Python in `ppa.py`: 0.01 to 0.6 s per netlist, 1.3 s for matmul (two weighings) | one more Yosys process, 0.3 to 1.4 s on the references (3.6 s on the largest idiom), about the cost of the pinned flow |
 
 The fields of the two flows have different names, versions and hashes and are never swapped silently (PLAN2: "A1' never replaces
 A0' under the same name"). Both are exact deterministic functions of the design text and the tool build: bit-exact across processes, hash
 seeds, parallelism, temp and working directories, checkouts, locales and file names (measurements below; again
-2026-11-05 on 52 designs). Another build of the same Yosys version can give other numbers (2026-11-05: 3 of 52 designs,
-all fdivp, under the WebAssembly build; "Determinism (measured)" below). A1' is never a reason to reject a submission; A0' is, when the repair
+2026-11-05 on 52 designs), and since 2026-11-24, when the rating build became the WebAssembly Yosys, across machines:
+every record gave byte-identical netlists on macOS and Linux. A native build of the same Yosys version can give other
+numbers (2026-11-24: 33 of 65 records under a Linux build against the macOS one; "Determinism (measured)" below). A1' is never a reason to reject a submission; A0' is, when the repair
 cannot make its netlist electrically legal (2026-11-04).
 
 ## The repair and the legality check (`sky130_a0_v2`, 2026-11-04)
@@ -487,8 +488,8 @@ the Yosys version or a script hash differs from `tests/expected.json`'s `flow`):
 | what | version or sha256 | role |
 |---|---|---|
 | Python | 3.12 (3.12.8 on the rating machine), with `pyslang` (11.0.0 on the rating machine) | `score/*.py`; `pyslang` parses the source for the source gate |
-| Yosys | `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)`; the binary of the rating build (Homebrew's `yosys` 0.53, macOS arm64) has sha256 `011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732` | the pinned flow: two processes, below |
-| ABC | the `yosys-abc` beside that Yosys: `UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`; the binary here (Homebrew's `yosys` 0.53, macOS arm64) has sha256 `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653` (another build has another hash and can give other numbers on some designs, measured 2026-11-05; the version line a record carries names the compiler) | run only by Yosys's `synth` and `abc -g` passes; the ranked weighing and its repair are Python (`ppa.py`), no ABC |
+| Yosys | `Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)`: the rating build, YoWASP's WebAssembly Yosys 0.53 (`yowasp-yosys==0.53.0.0.post912`, run by `yowasp-runtime==1.96` and `wasmtime==47.0.1`: `requirements.txt`), its module `yosys.wasm` sha256 `909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad`, run through `score/yosys_wasm.py`, which checks that sha256 before every run | the pinned flow: two processes, below |
+| ABC | Yosys 0.53's own, linked into the same module (no separate `yosys-abc`); its identity is the module's sha256 | run only by Yosys's `synth` and `abc -g` passes; the ranked weighing and its repair are Python (`ppa.py`), no ABC |
 | liberty | `sky130_fd_sc_hd__tt_025C_1v80.lib`, 12,800,135 bytes, `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5` (OpenROAD-flow-scripts `6c6fc7e2`, URL in `ppa_pins.json`) | fetched, never vendored: `python3.12 score/ppa.py --fetch-liberty` (size and sha256 checked) or `SVGOLF_SKY130_LIB=/path/to/copy` |
 | `score/canon.ys` | `bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b` | Yosys process 1 |
 | `score/svgolf.ys` | `ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445` | Yosys process 2 (combinational) |
@@ -497,13 +498,13 @@ the Yosys version or a script hash differs from `tests/expected.json`'s `flow`):
 | `score/ge_seq.json` | `0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6` | the GE prices of a clocked task (`ge.json`'s plus the flop's; its `_derivation` names the pins file it was derived under, so it changed with `sky130_a0_v3`'s pins) |
 | `score/ppa_pins.json` | `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8` (`sky130_a0_v3`), recorded in every block as `ppa_pins_sha256` | the gate-to-cell table, the timing setup and input drives, the repair, the tie cells |
 
-**The reference build** (the build ratings use, decided 2026-11-05; README.md, "Scoring", and `score/reference_build.json`): Homebrew's Yosys 0.53 for macOS arm64, compiled by clang++ 17 with -O3, with its `yosys-abc` (both sha256 above); every published number was made with it, the flow is deterministic on it, and another build can give other numbers on some designs ("Determinism (measured)"). It is not pinned to a slower portable build.
+**The reference build** (the build ratings use, decided 2026-11-24; README.md, "Scoring", and `score/reference_build.json`): YoWASP's WebAssembly Yosys 0.53 with ABC linked in (the module's sha256 above), the same program on every machine, which `pip install -r requirements.txt` installs and `python3.12 score/yosys_wasm.py --self-check` checks; every published number was made with it, and it gives the same netlists byte for byte on macOS and Linux ("Determinism (measured)"). Until 2026-11-24 the reference build was Homebrew's native Yosys 0.53 for macOS arm64 (clang++ 17, its `yosys` sha256 `011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732` and its `yosys-abc` sha256 `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653`); a native build of the same version breaks ties in the order of its C++ and C libraries.
 
 **The pinned flow, step by step** (what `score.py` does):
 
 1. The source gate, `srcgate.py`, refuses preprocessor directives, attributes, synthesis pragmas and `unique`/`priority`,
    and writes the CANONICAL text (comments stripped). Yosys reads that text, never the submitted file.
-2. Yosys process 1, `yosys -q -l canon.log -s canon.ys`: `score/canon.ys` without its comment lines, its placeholders
+2. Yosys process 1, `yosys -q -l canon.log -s canon.ys` (the rating build: `python3.12 score/yosys_wasm.py` in place of `yosys`): `score/canon.ys` without its comment lines, its placeholders
    filled (`@SOURCES@`: one `read_verilog -sv "<canonical file>"` per source; `@TOP@`: the task's top; `@CHPARAM@`:
    ` -chparam NAME VALUE` per scoring parameter; `@RTLIL@`: the output). For the `add` reference at `N = 16`:
 
@@ -562,10 +563,10 @@ python3.12 score/ppa.py tasks/add/reference/add_n.sv --task tasks/add --no-mappe
 python3.12 score/ppa.py tasks/aes_sbox/reference/sbox_bp.sv --task tasks/aes_sbox --no-mapped --json sbox_bp.json --netlist sbox_bp.scored.v --repaired-netlist sbox_bp.repaired.v
 ```
 
-`add_n.json` then has `"area_e4um2_sky130": 4604416`, `"delay_ps_sky130": 2611`, `"netlist_sha256": "3b7da549a07e…"`,
+`add_n.json` then has `"area_e4um2_sky130": 4604416`, `"delay_ps_sky130": 2611`, `"netlist_sha256": "93f94b5aa806…"`,
 `"repair": {..., "netlist_sha256": "ac214a9f04d7…"}` and `"setup": {..., "input_drive": "sky130_fd_sc_hd__buf_8", ...}`, and
-its `score` block `"rtlil_sha256": "0699af350c19…"`: the golden `add_ripple` of `score/tests/ppa/expected_ppa.json`.
-`sbox_bp.json` has 8921056, 4297, `22493fba30d8…`, `b27773491834…`: the golden `sbox_bp`. A clocked task needs `--seq`
+its `score` block `"rtlil_sha256": "8123089e7a0b…"`: the golden `add_ripple` of `score/tests/ppa/expected_ppa.json`.
+`sbox_bp.json` has 8921056, 4297, `aead0e28eb68…`, `b27773491834…`: the golden `sbox_bp`. A clocked task needs `--seq`
 (`python3.12 score/ppa.py tasks/matmul/reference/matmul_g1.sv --task tasks/matmul --seq`: 87173.6064 um^2, period 10696 ps,
 6 buffers on 5 nets, `tests/expected.json`). A record's own numbers come from `check.py ... --ppa require`, which weighs the very netlist its
 `postsynth` stage verified, by the same function; `leaderboard.py verify` weighs it again.
@@ -577,14 +578,14 @@ mkdir hand && cd hand
 python3.12 ../score/srcgate.py ../tasks/add/reference/add_n.sv --write add_n.sv
 grep -v '^[[:space:]]*#' ../score/canon.ys | sed -e 's|@SOURCES@|read_verilog -sv "add_n.sv"|' -e 's|@TOP@|add_n|g' -e 's|@CHPARAM@| -chparam N 16|' -e 's|@RTLIL@|"canon.il"|' > canon.ys
 grep -v '^[[:space:]]*#' ../score/svgolf.ys | sed -e 's|@RTLIL@|"canon.il"|' -e 's|@TOP@|add_n|g' -e 's|@STAT@|"stat.json"|' -e 's|@LTP@|"ltp.txt"|' -e 's|@NETLIST@|"netlist.v"|' > synth.ys
-yosys -q -l canon.log -s canon.ys
-yosys -q -l synth.log -s synth.ys
+python3.12 ../score/yosys_wasm.py -q -l canon.log -s canon.ys
+python3.12 ../score/yosys_wasm.py -q -l synth.log -s synth.ys
 python3.12 ../score/ppa.py --netlist-in netlist.v --task ../tasks/add --repaired-netlist repaired.v --json hand.json
 shasum -a 256 canon.il netlist.v repaired.v
 ```
 
-The three hashes are the record's `score.rtlil_sha256`, `ppa.netlist_sha256` and `ppa.repair.netlist_sha256` (`0699af35…`,
-`3b7da549…`, `ac214a9f…`), and `hand.json`'s columns are `add_n.json`'s. For another design: its canonical file(s), its
+The three hashes are the record's `score.rtlil_sha256`, `ppa.netlist_sha256` and `ppa.repair.netlist_sha256` (`8123089e…`,
+`93f94b5a…`, `ac214a9f…`), and `hand.json`'s columns are `add_n.json`'s. For another design: its canonical file(s), its
 top and its scoring parameters in the two `sed` lines, and its task in `--task`.
 
 **With OpenSTA.** Time the REPAIRED netlist (`--repaired-netlist`) with one explicit instance of the task's input drive in
@@ -606,7 +607,7 @@ python3.12 score/ppa.py tasks/add/reference/add_n.sv --task tasks/add --pdk asap
 python3.12 leaderboard/leaderboard.py asap7 --rescore --task add
 ```
 
-`add_n_asap7.json` has `ppa.netlist_sha256` `3b7da549…` (the sky130 run's: the scored netlist does not depend on the
+`add_n_asap7.json` has `ppa.netlist_sha256` `93f94b5a…` (the sky130 run's: the scored netlist does not depend on the
 library), `area_e5um2_asap7` 699840 (6.99840 um^2) and `delay_ps_asap7` 563, so area x time is 3.940 um2*ns, cells
 only: before place and route, without wires. The routed course's number for the same design is another quantity,
 made by one place-and-route run of this netlist ("ASAP7 placed and routed" below; `score/pnr/README.md` has the
@@ -750,8 +751,19 @@ designs and other ones on `fdivp`, `fdivp_newton` and `fdivp_d2` (area -0.32% to
 on the fdivp board changes). The canonical RTLIL and the gates handed to ABC are identical in both builds, ABC's input
 files are byte-identical, and the native `yosys-abc` gives the WebAssembly result on all 52 designs once the C library's
 `qsort` is replaced by a stable merge sort: the difference is the tie order of `qsort` inside ABC's `map` (synth's
-`abc -fast`), a property of the build's C library. Linux: not measured (no Linux run of the flow exists; CI runs no
-Yosys). A Linux build is a different C library and may differ the same way.
+`abc -fast`), a property of the build's C library.
+
+2026-11-24 (scorediff1, and the re-measure of the board): a Linux build (conda-forge's Yosys 0.53: g++, libstdc++,
+glibc) gave another netlist than the macOS build for 34 of the 65 records and another score for 33 (fdivp 3, matmul 30;
+up to 7.07%, 6.8% in delay and 1.6% in area), and changed the order of the matmul board. Two causes, each measured: the
+C++ library (Yosys reuses freed name indices in an order the library sets and orders cells and connections by them,
+first visible in `opt_expr`; a libc++ build on Linux reproduces 62 of the 65 macOS netlists) and the C library's
+`qsort` in ABC's `map` (the other 3, all fdivp). So the rating build became the WebAssembly Yosys, whose C++ library, C
+library, allocator and floating point are inside the module: from the same commit, every record of the board (65
+designs) gave byte-identical canonical RTLIL, scored netlists, netlists at the clocked records' other post-synthesis
+points and A1' mapped netlists (198 files), and so the same numbers, on macOS arm64 and x86-64 Linux. Measured again on
+it, three scores moved against the native macOS build, all fdivp: its par -1.11%, tidereckon's Newton divider +1.11%
+and loamstep's D2 +3.00% (and their A1' columns); every other score and every board order stayed the same.
 
 **Structure sensitivity (deterministic; measured through the shipped code, `tests/canon/variants.py`).** Seven designs (`add_ripple`, `add_sklansky`,
 `add_kogge`, `mul_array`, `mul_tree_h`, `mul_tree`, `sbox_bp`), nine rewrites each (layout, rename, hoisted declarations, reversed and four
@@ -1063,7 +1075,7 @@ score stage already records, and the stage CHECKS that the file it maps hashes t
 stage maps that RTLIL in one more Yosys process (through the same sandbox as the pinned flow, reading only the RTLIL and the liberty),
 checks the mapped netlist against the scored one and weighs it. `stages.ppa` gains `mapped_seconds` (`seconds` is the total; measured
 0.3 to 1.4 s on the references, 3.6 s for the 760-cell `sbox_logexp`); `--ppa off` maps nothing; the stderr line is
-`ppa: mapped (A1', real abc -liberty): ... um^2, ... ps, ... cells, ... levels (sky130_a1_v1; extra column)`.
+`ppa: mapped (A1', real abc -liberty): ... um^2, ... ps, ... cells, ... levels (sky130_a1_v2; extra column)`.
 What can still be `mapped: {"available": false, "reason": ...}`, and what is an infrastructure error instead (the A0' columns and the verdict
 are never touched):
 
@@ -1135,7 +1147,8 @@ table above, `tests/expected.json` `flow_seq`, `score/measured/`); `svgolf.ys` a
 
 **The liberty.** Fetched, not vendored (licence above): `python3.12 score/ppa.py --fetch-liberty`, once per checkout, into `score/lib/`
 (git-ignored); or `SVGOLF_SKY130_LIB=/path/to/copy` (the hash is checked on every load); both flows use this one file. Flow A0' is
-`ppa_version` `sky130_a0_v3`, flow A1' is `ppa_mapped_version` `sky130_a1_v1` (a change of `ppa_pins.json`, the STA, the cell table or the
+`ppa_version` `sky130_a0_v3`, flow A1' is `ppa_mapped_version` `sky130_a1_v2` (v1 until the rating build changed on
+2026-11-24; a change of `ppa_pins.json`, the STA, the cell table or the
 repair changes the first; a change of `ppa_mapped.ys`, `ppa_mapped_pins.json` or the Yosys/ABC build changes the second).
 
 **Leaderboard.** `leaderboard.py add` runs `check.py --ppa require --postsynth full` and stores the block as the optional record key

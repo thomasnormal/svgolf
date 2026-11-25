@@ -1,5 +1,5 @@
 # The tests that need no Lean and no Yosys (the whole suite is tests/run.py, on a machine with the
-# toolchain: see README.md).
+# toolchain: see README.md), and the rating build's pinned netlists on Linux and macOS.
 name: unit
 on:
   push:
@@ -33,3 +33,27 @@ jobs:
         run: |
           python3 .lake/packages/lean-models/tools/gen_sv_refusals.py --root .lake/packages/lean-models --emit-svgolf "$RUNNER_TEMP/REFUSALS.md"
           cmp "$RUNNER_TEMP/REFUSALS.md" REFUSALS.md
+  # The rating build (score/yosys_wasm.py, README.md "The build ratings use") is one WebAssembly program for every
+  # machine: installed from requirements.txt as a player installs it, it must give the pinned netlists of five designs
+  # byte for byte here too (tests/checker/test_yosys_wasm.py), on Linux and on macOS
+  rating-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The pinned packages (requirements.txt) and the module's own check
+        run: |
+          python3 -m pip install -r requirements.txt
+          python3 score/yosys_wasm.py --self-check
+      - name: The pinned sky130 liberty, checked by its hash
+        run: python3 score/ppa.py --fetch-liberty
+      - name: The same netlists, byte for byte, as on every other machine
+        env:
+          SVGOLF_REQUIRE_RATING_BUILD: "1"
+        run: python3 tests/checker/test_yosys_wasm.py

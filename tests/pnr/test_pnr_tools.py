@@ -178,7 +178,9 @@ class GeneratorTest(TempDir):
                         self.assertEqual((rec["config_mk_sha256"], rec["sdc_sha256"]),
                                          (r["config_mk_sha256"], r["sdc_sha256"]))
                         n += 1
-        self.assertGreaterEqual(n, 97)
+        # 97 runs until 2026-11-24, when three fdivp designs' entries became pending again (the new rating build
+        # changed their ASAP7 netlists; `asap7pnr --rebind`) and their seven runs left the tables
+        self.assertGreaterEqual(n, 90)
 
     def test_the_stored_job_byte_for_byte(self):
         rec = jobmod.write_job(self.tmp, os.path.join(EXJOB_DIR, "designs", EXNICK + ".v"),

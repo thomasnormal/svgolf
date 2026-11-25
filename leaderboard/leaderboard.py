@@ -170,6 +170,8 @@ CHECKER_FILES = (
     # the clocked kinds' (2026-11-07): the clocked flow, its GE table, the clocked source rules (check.py
     # CLOCKED_TRUSTED, fingerprinted by its integrity tripwire too)
     "score/svgolf_seq.ys", "score/ge_seq.json", "check/clocked_rules.py",
+    # the rating build's launcher (2026-11-24): it checks the WebAssembly module's sha256 and runs it
+    "score/yosys_wasm.py",
 )
 # THE STATEMENT A RECORD WAS CHECKED UNDER (decided 2026-11-07, round 7b review M1). A record's `checker.statement`
 # maps each trusted statement file it was checked under to its sha256: the task's statement module
@@ -2704,6 +2706,41 @@ def asap7pnr_table_mismatch(table, a7_table, *, task=None, pins=None):
     return None
 
 
+def asap7pnr_rebind(table, a7_table):
+    """A routed table bound again to the current ASAP7 view `a7_table` (`asap7pnr --rebind`, decided 2026-11-24, when
+    the rating build changed): a run places the design's ASAP7 netlist (the entry's `netlist_sha256`, the view's
+    `repaired_sha256`, which ppa.py writes itself), so an entry whose placed netlist, cycles and ASAP7 A0' columns are
+    still the view's entry's is the same run of the same netlist, and only the scored sky130 netlist it was derived
+    from is named anew (`scored_netlist_sha256`: Yosys's file, whose first line names the build). An entry whose ASAP7
+    netlist changed is no run of the design any more: it becomes PENDING again, with its stored request (the seed is
+    never changed) and the view's new netlist, until the course host routes it again (its old run stays in the
+    repository's history). An entry of a design the view does not weigh is left as it is. The table's `asap7_view`
+    becomes the view's. Returns (the new table, the sv_sha256 of the entries named anew, the sv_sha256 of the entries
+    made pending again). Pure."""
+    new = copy.deepcopy(table)
+    new["asap7_view"] = {"identity": (a7_table or {}).get("identity"),
+                         "ppa_script_sha256": (a7_table or {}).get("ppa_script_sha256")}
+    rebound, pending = [], []
+    for i, e in enumerate(new.get("designs") or []):
+        a7 = asap7_entry(a7_table, e.get("sv_sha256"))
+        if a7 is None:
+            continue
+        a0 = {"area_e5um2": a7.get("area_e5um2"), "delay_ps": a7.get("delay_ps"), "time_ps": a7.get("time_ps")}
+        if (e.get("netlist_sha256"), e.get("cycles"), e.get("a0_asap7")) == (a7.get("repaired_sha256"),
+                                                                             a7.get("cycles"), a0):
+            if e.get("scored_netlist_sha256") != a7.get("netlist_sha256"):
+                e["scored_netlist_sha256"] = a7.get("netlist_sha256")
+                rebound.append(e.get("sv_sha256"))
+            continue
+        new["designs"][i] = {"sv_sha256": e.get("sv_sha256"), "of": e.get("of"), "record": e.get("record"),
+                             "netlist_sha256": a7.get("repaired_sha256"), "scored_netlist_sha256": a7.get("netlist_sha256"),
+                             "cycles": a7.get("cycles"), "a0_asap7": a0, "request": copy.deepcopy(e.get("request")),
+                             "runs": [], "scores": {"v_owner": None, "v_median": None}, "status": "pending",
+                             "layout": None}
+        pending.append(e.get("sv_sha256"))
+    return new, rebound, pending
+
+
 def asap7pnr_status(table, a7_table, sv_sha256, *, task=None, pins=None):
     """(status, reason, entry) of one design file on the routed course. "bound" (reason None): its entry is shown.
     Else no routed number is shown: "pending" (no routed table or no entry for the file: PNR_PENDING; or an entry whose
@@ -3602,15 +3639,13 @@ def collect_environment(svgolf=SVGOLF, task=None):
 def current_flow(svgolf=SVGOLF, flow=COMB_FLOW):
     """The pinned flow `flow` ("comb" or "seq", FLOW_FILES) as it is now: its name, the sha256 of canon.ys and of
     the flow's script and GE table (svgolf.ys and ge.json, or svgolf_seq.ys and ge_seq.json), and Yosys's version
-    line (None if Yosys cannot be run). A record is compared with the flow of its task's kind (`task_flow`)."""
+    line (None if Yosys cannot be run). A record is compared with the flow of its task's kind (`task_flow`).
+    The Yosys is the one score.py runs: the rating build (score/yosys_wasm.py, the pinned WebAssembly Yosys, through
+    `checker_python`) unless $SVGOLF_YOSYS names another; a launcher whose module is not the pinned one exits non-zero,
+    so it has no version line here. Read once per process."""
     sc = os.path.join(svgolf, "score")
     script, table = FLOW_FILES[flow]
-    yosys = os.environ.get("SVGOLF_YOSYS") or "yosys"
-    try:
-        ver = subprocess.run([yosys, "-V"], capture_output=True, text=True,
-                             check=True).stdout.strip() or None
-    except (OSError, subprocess.CalledProcessError):
-        ver = None
+    ver = yosys_version_line(svgolf)
 
     def sha(name):
         p = os.path.join(sc, name)
@@ -3618,6 +3653,23 @@ def current_flow(svgolf=SVGOLF, flow=COMB_FLOW):
 
     return {"flow": flow, "yosys": ver, "canon_script_sha256": sha("canon.ys"),
             "script_sha256": sha(script), "ge_table_sha256": sha(table)}
+
+
+_YOSYS_LINES = {}
+
+
+def yosys_version_line(svgolf=SVGOLF):
+    """`yosys -V` of the Yosys the flow runs (`current_flow`), or None when it cannot be run."""
+    yosys = os.environ.get("SVGOLF_YOSYS")
+    cmd = [yosys, "-V"] if yosys else [checker_python(), "-B", os.path.join(svgolf, "score", "yosys_wasm.py"), "-V"]
+    key = tuple(cmd)
+    if key not in _YOSYS_LINES:
+        try:
+            _YOSYS_LINES[key] = subprocess.run(cmd, capture_output=True, text=True,
+                                               check=True).stdout.strip() or None
+        except (OSError, subprocess.CalledProcessError):
+            _YOSYS_LINES[key] = None
+    return _YOSYS_LINES[key]
 
 
 def current_flows(svgolf=SVGOLF):
@@ -3894,6 +3946,10 @@ REMADE_KEY = "remade"
 REMADE_FIELDS = ("date", "from_record", "proof", "original_lean_sha256", "scores", "reason")
 REMADE_PROOFS = ("original", "maintainer port")
 REMADE_CARRIED = ("canonical_sha256", "score", "postsynth", PPA_KEY)   # what `remade.scores` "carried" means
+# `remade.scores`: "carried" (`remake`: the scoring flow is the one the record was measured under) or "measured"
+# (decided 2026-11-24, `remake --measure`: the scoring flow changed, so the re-make's own check measured them again on
+# the rating build, as `add` would; the player, `assisted_by`, the date and the notes stay the player's)
+REMADE_SCORES = ("carried", "measured")
 
 
 def remade_problems(rec):
@@ -3917,8 +3973,8 @@ def remade_problems(rec):
     elif m["proof"] != want:
         p.append(f"remade.proof is {m['proof']!r}, but the stored proof is {'' if want == 'original' else 'not '}the "
                  "player's (remade.original_lean_sha256)")
-    if m["scores"] != "carried":
-        p.append("remade.scores must be 'carried'")
+    if m["scores"] not in REMADE_SCORES:
+        p.append(f"remade.scores must be one of {list(REMADE_SCORES)}")
     if not (isinstance(m["reason"], str) and m["reason"].strip() and len(m["reason"]) <= MAX_NOTES):
         p.append(f"remade.reason must be a non-empty string of at most {MAX_NOTES} characters")
     return p
@@ -4080,6 +4136,61 @@ def build_remade_record(old, res, task, *, lean_bytes, reason, date, environment
     return rec
 
 
+def build_remeasured_record(old, res, task, *, sv_bytes, lean_bytes, reason, date, environment,
+                            lean_surfaces_revision, flow):
+    """The record that replaces `old` (an intact record of `task`) when the SCORING FLOW changed (`remake --measure`,
+    decided 2026-11-24): `res` is check.py's full result for the stored design and the proof `lean_bytes`, run under
+    the flow pinned now, and the new record is exactly what `add` would build from it (`build_record`: the score, the
+    `ppa` columns, the post-synthesis record, the proof and the checker are the new check's), with the player,
+    `assisted_by`, the submission date, the notes and the file names of `old`, plus `remade` (`scores` "measured",
+    `original_lean_sha256` carried along the chain as `remake` carries it). Refused unless the check is of the record's
+    design byte for byte with the same canonical text, compiled that proof, and ran under the pinned flow (`flow`,
+    `pinned_flow`); a clocked record's latency is the one the new check proved, whatever it was. Pure."""
+    p = []
+    st = res.get("stages") if isinstance(res, dict) else None
+    st = st if isinstance(st, dict) else {}
+    if _get(st, "source", "sha256") != old["files"]["sv"]["sha256"] or sha256_bytes(sv_bytes) != old["files"]["sv"]["sha256"]:
+        p.append("the check is not of the record's design (stages.source.sha256 is not files.sv.sha256): a re-made "
+                 "record keeps the player's design byte for byte")
+    if _get(st, "source", "canonical_sha256") != old["canonical_sha256"]:
+        p.append("the source gate's canonical text of the design is not the record's (stages.source.canonical_sha256)")
+    lean_sha = sha256_bytes(lean_bytes)
+    if _get(st, "solution", "sha256") != lean_sha:
+        p.append("the check did not compile this proof (stages.solution.sha256 is not its sha256)")
+    now = {"flow": task_flow(task), "yosys": _get(st, "score", "yosys_version"),
+           "canon_script_sha256": _get(st, "score", "canon_script_sha256"),
+           "script_sha256": _get(st, "score", "script_sha256"), "ge_table_sha256": _get(st, "score", "ge_table_sha256")}
+    mism = flow_mismatch(now, flow)
+    if mism:
+        p.append(f"the check ran under another scoring flow than the pinned one ({', '.join(mism)}): a re-measured "
+                 "record is measured on the rating build")
+    if not isinstance(environment.get("svgolf_revision"), str) or environment["svgolf_revision"].endswith("+dirty"):
+        p.append(f"the svGolf revision is unknown or dirty ({environment.get('svgolf_revision')!r}): a re-made record "
+                 "names a committed checker")
+    if not isinstance(lean_surfaces_revision, str) or lean_surfaces_revision.endswith("+dirty"):
+        p.append(f"the library revision is unknown or dirty ({lean_surfaces_revision!r})")
+    try:
+        normalize_date(date)
+    except Refused as e:
+        p += e.problems
+    if p:
+        raise Refused(p)
+    rec = build_record(task, res, player=old["player"], assisted_by=old["assisted_by"], notes=old["notes"],
+                       submitted_at=old["submitted_at"], sv_name=old["files"]["sv"]["name"], sv_bytes=sv_bytes,
+                       lean_name=old["files"]["lean"]["name"], lean_bytes=lean_bytes, environment=environment,
+                       postsynth=record_mode(old.get("postsynth") or {}))
+    rec.pop("record_hash", None)
+    original = _get(old, REMADE_KEY, "original_lean_sha256") or old["files"]["lean"]["sha256"]
+    rec[REMADE_KEY] = {"date": normalize_date(date), "from_record": old["record_hash"],
+                       "proof": "original" if lean_sha == original else "maintainer port",
+                       "original_lean_sha256": original, "scores": "measured", "reason": str(reason).strip()}
+    rec["record_hash"] = compute_record_hash(rec)
+    bad = validate_record(rec)
+    if bad:
+        raise Refused(["the re-made record is invalid: " + "; ".join(bad)])
+    return rec
+
+
 def _replace_tag(of, old_hash, new_hash):
     return sorted(new_hash if x == old_hash else x for x in of)
 
@@ -4165,11 +4276,23 @@ def cmd_remake(args):
         flow, bad = pinned_flow(task)
         if bad:
             raise Refused(bad)
-        rec = build_remade_record(old, res, task, lean_bytes=lean_bytes, reason=args.reason,
-                                  date=args.date or today_utc(), environment=collect_environment(task=task),
-                                  lean_surfaces_revision=ls_revision(), flow=flow, ppa_now=ppa_identity(),
-                                  mapped_now=ppa_mapped_identity(), input_drive=ppa_setup_now(task).get("input_drive"),
-                                  old_lean_bytes=old_lean_bytes)
+        if getattr(args, "measure", False):
+            # the scores are the check's own, so the check is held to `add`'s rules: on the board's own data
+            # directory it ran in the OS sandbox
+            if is_official_data_dir(args.data_dir) and (res.get("sandbox") or {}).get("active") is not True:
+                raise Refused(["--measure: the check did not run in the OS sandbox (`sandbox.active` is not true): "
+                               "the board's own data directory takes only a sandboxed check's numbers"])
+            rec = build_remeasured_record(old, res, task, sv_bytes=sv_bytes, lean_bytes=lean_bytes,
+                                          reason=args.reason, date=args.date or today_utc(),
+                                          environment=collect_environment(task=task),
+                                          lean_surfaces_revision=ls_revision(), flow=flow)
+        else:
+            rec = build_remade_record(old, res, task, lean_bytes=lean_bytes, reason=args.reason,
+                                      date=args.date or today_utc(), environment=collect_environment(task=task),
+                                      lean_surfaces_revision=ls_revision(), flow=flow, ppa_now=ppa_identity(),
+                                      mapped_now=ppa_mapped_identity(),
+                                      input_drive=ppa_setup_now(task).get("input_drive"),
+                                      old_lean_bytes=old_lean_bytes)
         writeups = WRITEUPS_DIR if is_official_data_dir(args.data_dir) else None
         tables = dict(asap7_dir=args.asap7_dir, pnr_dir=args.asap7pnr_dir, writeups_dir=writeups) \
             if is_official_data_dir(args.data_dir) else None
@@ -4192,7 +4315,7 @@ def cmd_remake(args):
         print(f"error: {e}", file=sys.stderr)
         return 2
     print(f"re-made {args.task}/{old['record_hash'][:12]} -> {rec['record_hash'][:12]} ({rec[REMADE_KEY]['proof']}; "
-          f"scores carried): {os.path.relpath(path)}" + (f"; re-pointed {', '.join(os.path.relpath(x) for x in moved)}"
+          f"scores {rec[REMADE_KEY]['scores']}): {os.path.relpath(path)}" + (f"; re-pointed {', '.join(os.path.relpath(x) for x in moved)}"
                                                           if moved else ""))
     return 0
 
@@ -4724,6 +4847,39 @@ def cmd_asap7pnr_request(args):
     return 0
 
 
+def cmd_asap7pnr_rebind(args, names):
+    """`asap7pnr --rebind [--task T] [--write]`: every routed table bound again to the current ASAP7 view
+    (`asap7pnr_rebind`); prints what was named anew and what stays unbound; writes with --write. Exit 0, 2 on a table
+    that cannot be read."""
+    for name in names:
+        path = asap7pnr_path(name, args.asap7pnr_dir)
+        if not os.path.isfile(path):
+            continue
+        a7, why = read_asap7(name, args.asap7_dir)
+        if why:
+            print(f"error: {name}: {why}", file=sys.stderr)
+            return 2
+        try:
+            with open(path, encoding="utf-8") as fh:
+                table = json.load(fh)
+        except (OSError, ValueError) as e:
+            print(f"error: {path}: {e}", file=sys.stderr)
+            return 2
+        new, rebound, pending = asap7pnr_rebind(table, a7)
+        print(f"[{'write' if args.write else 'dry-run'}] {name}: {len(rebound)} entries bound again to the ASAP7 view's "
+              f"scored netlists, {len(pending)} pending again (their ASAP7 netlist changed: route them again, at "
+              "their stored seed)" + "".join(f"\n       pending: {x[:12]}" for x in pending))
+        bad = asap7pnr_file_problems(new, name)
+        if bad:
+            print(f"error: {name}: the table bound again would not be well-formed: " + "; ".join(bad[:3]),
+                  file=sys.stderr)
+            return 2
+        if args.write and new != table:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(new, indent=1, sort_keys=True) + "\n")
+    return 0
+
+
 def cmd_asap7pnr(args):
     """`asap7pnr`: the routed course's results (see "the routed course"). Without --import: check every task's file
     offline (shape and arithmetic, the binding of every design the course shows, the pictures) and list what is not
@@ -4738,8 +4894,14 @@ def cmd_asap7pnr(args):
     if args.design or args.seed is not None:
         print("error: --design and --seed go with --request", file=sys.stderr)
         return 2
+    if getattr(args, "rebind", False):
+        if args.import_dir:
+            print("error: --rebind takes no --import", file=sys.stderr)
+            return 2
+        return cmd_asap7pnr_rebind(args, names)
     if args.write and not args.import_dir:
-        print("error: --write writes what --import DIR reads (or, with --request, the request)", file=sys.stderr)
+        print("error: --write writes what --import DIR reads (or, with --request, the request; with --rebind, the "
+              "tables bound again)", file=sys.stderr)
         return 2
     try:
         with open(EXPECTED_JSON, encoding="utf-8") as fh:
@@ -5262,12 +5424,16 @@ def make_parser():
                    "stored request is printed and never changed")
     y.add_argument("--design", metavar="FILE", help="with --request: the design file (.sv) the task's pages show")
     y.add_argument("--seed", type=int, metavar="N", help="with --request: the seed to name, 1..2^31-1")
+    y.add_argument("--rebind", action="store_true",
+                   help="after a change of the rating build: bind every routed entry whose placed ASAP7 netlist, "
+                   "cycles and ASAP7 columns are still the ASAP7 view's to the view's new scored netlist (and the "
+                   "table to the view); the others become pending again at their stored seed; writes with --write")
     y.set_defaults(fn=cmd_asap7pnr)
 
     r = sub.add_parser("remake", parents=[common],
                        help="the maintainers' re-make of a stored record after a checker, library or statement change: "
                        "its proof checked again (a check.py result you give), its scores carried (refused unless the "
-                       "design and the scoring flow are unchanged)")
+                       "design and the scoring flow are unchanged) or, with --measure, measured again")
     r.add_argument("--task", required=True)
     r.add_argument("--record", required=True, metavar="HASH",
                    help="the record to re-make: its hash, or its first 12 characters or more")
@@ -5280,6 +5446,10 @@ def make_parser():
                    help="why the record is re-made (the record's remade.reason), e.g. the new pin and statement")
     r.add_argument("--date", help="the date of the re-make, YYYY-MM-DD (default: today, UTC)")
     r.add_argument("--dry-run", action="store_true", help="say what would be done; write nothing")
+    r.add_argument("--measure", action="store_true",
+                   help="the scoring flow changed (another rating build): take the score, the columns and the "
+                   "post-synthesis record from the check (a full, sandboxed `check.py --ppa require --postsynth full` "
+                   "run), as `add` would, instead of carrying them (remade.scores 'measured')")
     r.set_defaults(fn=cmd_remake)
 
     u = sub.add_parser("submit", parents=[common],

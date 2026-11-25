@@ -32,7 +32,10 @@ check.py counts it. Time = cycles x the register-to-register period; combination
 
 LIMITS: every run has `limits.timeout_s` seconds of wall clock and `limits.memory_gb` GiB of memory for its whole
 process group (a watchdog: macOS enforces no memory ulimit); a run that reaches either is "not measured" (`limit`)
-and is never retried under the same pins. A size the flow refuses (an error of ppa.py, e.g. a netlist the repair
+and is never retried under the same pins. So is a run whose Yosys passes the rating build's own ceiling (since
+2026-11-24): the WebAssembly module addresses at most 4 GiB, and its C++ library aborts on a failed allocation
+(`bad_alloc ... -fno-exceptions`), a lower limit than `memory_gb` on its own process. A run whose module stops with a
+trap and no such message is `flow`, its reason the trap and the memory the watchdog saw (the cause is not guessed). A size the flow refuses (an error of ppa.py, e.g. a netlist the repair
 cannot make legal) is "not measured" (`flow`) with the flow's own reason.
 
 RESUMABLE: `--write` keeps every entry of an existing file made under the same pins (flow, sky130 and ASAP7
@@ -536,11 +539,48 @@ def _limit_reason(r, limits):
             f"(after {r['seconds']:.0f} s)")
 
 
+# the rating build's allocation failure (score/yosys_wasm.py: the module's libc++ is built without exceptions, so a
+# failed allocation aborts with this line; WebAssembly's 32-bit address space ends at 4 GiB)
+WASM_OOM = "bad_alloc was thrown in -fno-exceptions mode"
+WASM_MEMORY_GIB = 4
+
+
+# the module's abort as wasmtime reports it (an `abort()` inside the module: a failed allocation, as above, prints
+# WASM_OOM first; another abort, e.g. from C code, prints only this)
+WASM_TRAP = "wasm trap: "
+
+
+def _flow_text(r):
+    """The flow's error text and its own stderr, together."""
+    try:
+        res = json.loads(r["out"])
+    except ValueError:
+        res = {}
+    return str(res.get("error") if isinstance(res, dict) else "") + "\n" + (r["err"] or "")
+
+
+def _wasm_out_of_memory(r):
+    """True when the run's Yosys stopped at the rating build's memory ceiling (its own message in the flow's error)."""
+    return WASM_OOM in _flow_text(r)
+
+
+def _wasm_limit_reason(r):
+    return (f"Yosys passed the rating build's memory ceiling of {WASM_MEMORY_GIB} GiB (WebAssembly's address space) "
+            f"(after {r['seconds']:.0f} s)")
+
+
 def _flow_reason(r):
     try:
         res = json.loads(r["out"])
     except ValueError:
         res = {}
+    text = _flow_text(r)
+    if WASM_TRAP in text:
+        # the rating build's module stopped with a trap and no message of its own: say that, with the trap's words and
+        # what the watchdog saw, rather than the flow's first line ("yosys failed (exit 1):"), which names nothing
+        trap = text[text.index(WASM_TRAP):].splitlines()[0].strip()
+        return (f"Yosys stopped inside the rating build ({trap}) after {r['seconds']:.0f} s, its processes at "
+                f"{r.get('peak_bytes', 0) / 1e9:.1f} GB")
     first = str(res.get("error") or "").strip().splitlines() or (r["err"] or "").strip().splitlines()[-1:]
     return "the pinned flow refused it: " + (" ".join(first[0].split())[:300] if first else f"exit {r['rc']}")
 
@@ -571,6 +611,8 @@ def measure_one(task, design, size, cycles, pins, limits, env=None, log=None):
             res = None
         if r["rc"] != 0 or not isinstance(res, dict) or "error" in res or "ppa" not in res:
             if r["rc"] == 1 and isinstance(res, dict) and "error" in res:
+                if _wasm_out_of_memory(r):
+                    return {"status": "not measured", "why": "limit", "reason": _wasm_limit_reason(r), "seconds": secs}
                 return {"status": "not measured", "why": "flow", "reason": _flow_reason(r), "seconds": secs}
             raise PlanError(f"ppa.py ended without a result (exit {r['rc']}): {(r['err'] or r['out'])[-400:]}")
         p, s = res["ppa"], res["score"]

@@ -1,0 +1,21 @@
+<h1>Weight-stationary array translated from Chisel</h1>
+
+<p><code>ws_translated.sv</code> translates the weight-stationary systolic array of Gemmini, an open-source spatial-array generator from UC Berkeley, from its Chisel source into one parametric SystemVerilog module. The header keeps the generator's BSD-style licence notice, names the source commit and files, and lists every change; the translation is not endorsed by the generator's authors. The latency is 4N + 1, 17 cycles at N = 4.</p>
+
+<h2>The idea</h2>
+
+<p>The source's structure is kept: an N × N mesh of 1 × 1 tiles, each processing element (PE) with two W-bit weight registers <code>c1</code> and <code>c2</code> whose roles alternate under a propagate bit, registers at each tile's input, skew lanes that delay row lane r of A and column lane c of the weights by r and c cycles, and a reverse skew that aligns the result rows. A transaction is two passes: a preload pass shifts B into the weight registers, last row first, then a compute pass streams the rows of A. A step counter replaces the original controller. It toggles the role bit <code>in_prop</code> before each pass and writes the result rows into <code>C</code>.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>Keeping the structure costs area and cycles. With two weight registers per PE, a, b and d registers at every tile and three skew triangles, the netlist has 2,175 flip-flops and takes about 149,340 µm² on sky130. The period is 8,562 ps, but the two passes, the skews and the output register make 17 cycles: about 21.7 million µm²·ns, 5.83 × par on sky130 and 7.27 × par on ASAP7.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (2,463 code lines) follows <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s steps. Its core is <code>Inv</code>, a structure with one field per register family, each pinning its windows to the steps at which they hold a definite value. For example, the <code>m_a</code> register of tile (r, c) holds A[u][r] at t = N + u + 2 + r + c, and row u of <code>C</code> is final from t = 3N + 2 + u. <code>inv_step</code> advances the invariant one busy step. <code>inv_start</code> establishes it from <code>in_prop</code> = 0; at t = 0 every claim about the array is vacuous, which is why the data registers can stay unreset. <code>fin_of_inv</code> and <code>C_product</code> read off the product at t = 4N + 1, and triangle-number lemmas (<code>tri_succ</code>, <code>tri_mono</code>) place the packed lanes.</p>
+
+<h2>What did not work</h2>
+
+<p>The change list records two places where a literal translation failed svGolf's post-synthesis check. Registers that nothing read left undriven bits in the netlist, so the skew lanes are packed as triangles. Synthesis merged the per-column copies of valid and propagate, and the merged netlist read a vector from itself, so those bits are kept once per anti-diagonal.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

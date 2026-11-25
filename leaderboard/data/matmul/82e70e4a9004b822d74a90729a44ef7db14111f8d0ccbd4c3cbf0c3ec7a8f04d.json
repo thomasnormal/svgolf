@@ -1,0 +1,382 @@
+{
+  "assisted_by": [
+    "OpenAI Codex CLI, models gpt-6.1-sol and gpt-6.2-sol, autonomous agent (the design, the proof file's 12-line header)",
+    "the proof's other 1095 lines written by Google Antigravity CLI, model Gemini 4 Neon, autonomous agent",
+    "patterns: the finished proofs of records 2b625ce36431, f14f8e008cc0 and ddc2d1b271db",
+    "no proof lines written by the maintainers"
+  ],
+  "canonical_sha256": "0a5444255a25fca78272c3c8ec3ce7c9431681920540d5993b70860f5074ed79",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "beca26afa5b039de7eb8a9edd8f5d1f007b1b85816d2587a57bf56547d152755",
+    "files": {
+      "check.py": "4d41601ed4381c82fe105faf631a5fa44935ec632c0db45cfa0343c152ba5859",
+      "check/Comparator.lean": "b7808bbe32f19297df5b04047c071861ef67bdf4384be38d65f6605aab2629ef",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "a60d186b61c54e41cf644c2f553daf42031af09fff52468508e19ca9456cd7f1",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "score/banlist.py": "475972039bc68a026f0de7378a3d1f6b91b3e9fe92c4b39d65971627475552e6",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "cfa21985d0c194928d2de64818c9a6e6d19d69d7f49fbe0f5df7563bbdf1eb8c",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "0e9a28f40bfcb85f35e495e0530c8086af19926d216de0162c1b27aa4d451cbc",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "133e036cf1d8702334d05811df5ac33b3a0c911f2036cc1efcea54780ff33634",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+      "score/yosys_wasm.py": "3f45aa4110f5b2c344dfe9e8e0a2b81de7a92c2ea4a03b9f8f3edf84df341928"
+    },
+    "flow": "seq",
+    "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+    "lean_surfaces_revision": "5f30e54d2e2c58083308a75ed0891c360bdb3e38",
+    "lean_toolchain": "leanprover/lean4:v4.35.0",
+    "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "SvGolf/TaskSeq.lean": "fcdc1fe0b3e3e6ad5af3577815ea06cc8eb3ba96ebcd59834ed6f2b6648205ea",
+      "tasks/matmul/Spec.lean": "c99212b8291c8aa03a27b8f0d120b93bfff899ed52b00329823f5877beacbea0"
+    },
+    "svgolf_revision": "5f30e54d2e2c58083308a75ed0891c360bdb3e38",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+  },
+  "files": {
+    "lean": {
+      "name": "Solution.lean",
+      "sha256": "4795e8896fe4a608e3a8b2070a6b16575b3a9d7296e7203619c8315c569b207d"
+    },
+    "sv": {
+      "name": "solution.sv",
+      "sha256": "7fe42febfa33717d44947dc1eb9b0409959a89f74fc7e4a9e9486f093519105e"
+    }
+  },
+  "notes": "A mesh of output cells with private operand streams. For every cell (i, j) of an N x N array, generated continuous assignments gather column j of B into a window of N words; start copies row i of A and that window into the cell's own two N-word stream registers and clears a 32-bit step counter k; in each of the N busy cycles both streams of every cell shift right by one word, and the cell's accumulator (cleared on reset or start) adds the product of the first words of its two streams (both sign-extended, wrapping at AccW). After N steps the controller drops busy and raises done (latency N). No cell passes an operand to another; the design's comment calls it a Gemmini-style tiled mesh. It differs from the reference design matmul_g1 (par) in that every cell has its own copy of its row of A and its column of B, N*N*N words per operand where matmul_g1 shifts N*N. The design is parametric in N, W and AccW. The design is the player's file, byte for byte. The proof file has 1107 lines (1028 of code, the board's count). Twelve of them are the player's: the header with the latency comment, the imports and the `sv_mirror` declaration. The other 1095 were written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, with the finished proofs of the records 2b625ce36431, f14f8e008cc0 and ddc2d1b271db available as patterns (it shares the most lines with that of 2b625ce36431, the same agent's earlier proof): the generated processes' disjointness and the clock cycle, the stream packing and the accumulator arithmetic, the next state for each kind of cycle, the phase model, the interface, discipline and x-safety lemmas, termination and the `solution` theorem. The maintainers wrote none of its lines.",
+  "player": "clockwork-otter",
+  "postsynth": {
+    "mismatches": 0,
+    "mode": "full",
+    "netlist_sha256": "61223d277f27a3ec7aabd78c8a0973adbd08bf160830a363ede93a8c2a4b3476",
+    "points": [
+      {
+        "latency": 2,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "802ab2f1d6df3940b8fc4ad79f80dd269e1ad9e3a67071a75599481923e2774c",
+        "params": {
+          "AccW": 8,
+          "N": 2,
+          "W": 4
+        },
+        "point": "N=2,W=4,AccW=8",
+        "seeds": [
+          {
+            "cycles": 109,
+            "lssv_start": "zeros",
+            "netlist_randseed": 303973935,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "4ed5c6f8253aa2ccebcac64a7a0a386b600257f7452a5b697e54d91ed2eaf605",
+            "transactions": 24
+          },
+          {
+            "cycles": 109,
+            "lssv_start": "seed:6761245804292904090",
+            "netlist_randseed": 1195438325,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "82e6921a1035266198a8a19b7db3802de6c1774db6bc6871f38788da1c463941",
+            "transactions": 24
+          },
+          {
+            "cycles": 112,
+            "lssv_start": "seed:845291531553475423",
+            "netlist_randseed": 391528801,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "2b060ddd6dc02ac106b5c3a42b351bce94017582ddeb0ace5845776e13986d5e",
+            "transactions": 24
+          },
+          {
+            "cycles": 97,
+            "lssv_start": "seed:5147191549726746004",
+            "netlist_randseed": 1397868753,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "37b381d742d38096380bc51aa3d54fb5394c4cbd815b57e65e8b290f662a91e1",
+            "transactions": 24
+          },
+          {
+            "cycles": 96,
+            "lssv_start": "seed:3814886047666414678",
+            "netlist_randseed": 1168828466,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "93e4b866922d25bbca772983de8dd0d895c1a977637814d34608635480a42fc6",
+            "transactions": 24
+          },
+          {
+            "cycles": 102,
+            "lssv_start": "seed:3507955749274142316",
+            "netlist_randseed": 192587499,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "8c2d8181b84093b6b684d544b423cd3dd4146ac5d6764108c6e52ddb8988d303",
+            "transactions": 24
+          },
+          {
+            "cycles": 101,
+            "lssv_start": "seed:9665391063568079335",
+            "netlist_randseed": 688604025,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "7c2b8adaae809812a664e1841857896fa84b3efc270bc9a44e303f43245bb218",
+            "transactions": 24
+          },
+          {
+            "cycles": 102,
+            "lssv_start": "seed:11035912927779587285",
+            "netlist_randseed": 825733514,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "1db8b9c4c23cd0ea5671545153ca4e2bcd0132d0776a93bb06a43e970cf9d41f",
+            "transactions": 24
+          }
+        ]
+      },
+      {
+        "latency": 4,
+        "mismatches": 0,
+        "mode": "full",
+        "netlist_sha256": "61223d277f27a3ec7aabd78c8a0973adbd08bf160830a363ede93a8c2a4b3476",
+        "params": {
+          "AccW": 32,
+          "N": 4,
+          "W": 8
+        },
+        "point": "N=4,W=8,AccW=32",
+        "seeds": [
+          {
+            "cycles": 151,
+            "lssv_start": "zeros",
+            "netlist_randseed": 1946689348,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 0,
+            "seed_sha256": "e3ef9e3638b59686ddad464c18d55cc4689e1f6f645c6420927ecd11e207effe",
+            "transactions": 24
+          },
+          {
+            "cycles": 168,
+            "lssv_start": "seed:9734188592010554240",
+            "netlist_randseed": 1063280839,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 1,
+            "seed_sha256": "2132be692d56dbab8d92de4ff8fbad7373f28dc1b4ef1603097f813e105f4774",
+            "transactions": 24
+          },
+          {
+            "cycles": 160,
+            "lssv_start": "seed:6594409222167094000",
+            "netlist_randseed": 88936619,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 2,
+            "seed_sha256": "0371e783230da20b644d641cfc6a766d5fb3b725f8be6639856775379661ffe3",
+            "transactions": 24
+          },
+          {
+            "cycles": 151,
+            "lssv_start": "seed:15091031972466303227",
+            "netlist_randseed": 590535838,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 3,
+            "seed_sha256": "ed721e3e3e1804e90a21ed159beabb253edb477280ce72069c119ce05945edd5",
+            "transactions": 24
+          },
+          {
+            "cycles": 162,
+            "lssv_start": "seed:17087008212923660376",
+            "netlist_randseed": 707745727,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 4,
+            "seed_sha256": "fcdbab7c930508992e898aa3fbb76c62ada7cebea09d946db533b4d6744e4b53",
+            "transactions": 24
+          },
+          {
+            "cycles": 152,
+            "lssv_start": "seed:13568177433463839254",
+            "netlist_randseed": 834142182,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 5,
+            "seed_sha256": "ccccf631a1d29013c6898031e5e5c8542c6b80ebdcdbcf1e72c32d6784191a48",
+            "transactions": 24
+          },
+          {
+            "cycles": 162,
+            "lssv_start": "seed:2839497944125262158",
+            "netlist_randseed": 1252134952,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 6,
+            "seed_sha256": "f1dc560f77673c053e8d81e29efa08c4857f6676feb8eefc39c3d0873c27fc5a",
+            "transactions": 24
+          },
+          {
+            "cycles": 151,
+            "lssv_start": "seed:8076188500603944899",
+            "netlist_randseed": 547904091,
+            "reset_cycles": 1,
+            "salted": false,
+            "seed": 7,
+            "seed_sha256": "831e3fb7b1cd852ac414ce5261819f6bf070d0fba0d21a5d871ab970bc999967",
+            "transactions": 24
+          }
+        ]
+      }
+    ]
+  },
+  "ppa": {
+    "area_e4um2_sky130": 1262148000,
+    "area_um2_sky130": 126214.8,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 4741,
+      "buf_4": 19,
+      "buf_8": 1,
+      "dfxtp_1": 1570,
+      "inv_1": 9,
+      "mux2_1": 117,
+      "nand2_1": 6236,
+      "nand2b_1": 202,
+      "nor2_1": 1098,
+      "nor2b_1": 223,
+      "or2_1": 1107,
+      "xnor2_1": 1252,
+      "xor2_1": 1774
+    },
+    "cells_sky130": 18349,
+    "constants": false,
+    "critical": {
+      "cells": 58,
+      "edge": "f",
+      "output": "D:_00650_"
+    },
+    "delay_ps_sky130": 10410,
+    "flops": 1570,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.906,
+      "worst_transition_ratio": 0.912
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "netlist_sha256": "61223d277f27a3ec7aabd78c8a0973adbd08bf160830a363ede93a8c2a4b3476",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 20,
+      "cells_before": 18329,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "b3e6a4e6ee8765012b1bd8595bf9c89293753e6057bb0786b12b5f6d0086df34",
+      "nets_buffered": 5,
+      "rounds": 2,
+      "tie_cells": 0
+    },
+    "sequential": true,
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 61
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 13.4,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Cycle"
+    ],
+    "lines": 1028,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp"
+    ],
+    "uses_comb_eq": false,
+    "uses_comb_view": false
+  },
+  "record_hash": "82e70e4a9004b822d74a90729a44ef7db14111f8d0ccbd4c3cbf0c3ec7a8f04d",
+  "remade": {
+    "date": "2026-11-24",
+    "from_record": "5bff489cc2eff2ab5e9ab418e59b7e347fc62c667daf1befc3be4e776996f240",
+    "original_lean_sha256": "4795e8896fe4a608e3a8b2070a6b16575b3a9d7296e7203619c8315c569b207d",
+    "proof": "original",
+    "reason": "The rating build changed (decided 2026-11-24): every record was measured again on YoWASP's WebAssembly Yosys 0.53 (score/yosys_wasm.py), one program for every machine, which gives byte-identical netlists on macOS and Linux; the native builds of the same Yosys version broke ABC's and Yosys's ties in the order of their C and C++ libraries.",
+    "scores": "measured"
+  },
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 30399.683,
+    "area_mge": 30399683,
+    "area_um2": 126214.8,
+    "cycles": 4,
+    "depth": 61,
+    "ffs": 1570,
+    "gates": {
+      "AND": 4741,
+      "ANDNOT": 223,
+      "DFF_P": 1570,
+      "MUX": 117,
+      "NAND": 6236,
+      "NOR": 1098,
+      "NOT": 9,
+      "OR": 1107,
+      "ORNOT": 202,
+      "XNOR": 1252,
+      "XOR": 1774
+    },
+    "num_gates": 18329,
+    "period_ps": 10410,
+    "rtlil_sha256": "fc53fc0efe82c847cae45b616407a82122aa4244ee831d1811d3ac964fa987b2",
+    "scoring_point": {
+      "AccW": 32,
+      "N": 4,
+      "W": 8
+    },
+    "time_ps": 41640,
+    "top": "matmul"
+  },
+  "submitted_at": "2026-11-23",
+  "task": "matmul"
+}

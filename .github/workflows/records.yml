@@ -7,11 +7,12 @@
 # so that pull requests find the caches. Run by hand (Actions > records > Run workflow), it checks a pull request
 # by its number (its merge commit, as the pull request's own run does) or a branch, tag or commit of this
 # repository (what it adds to main since their merge base); with neither, it only builds.
-# Pinned: Yosys and Verilator by version and sha256, the Lean toolchain by lean-toolchain and its packages by
-# lake-manifest.json, the Python packages by requirements.txt, the actions by major version (as the other
-# workflows). Not pinned: the apt packages (the runner image's Ubuntu archive; they only build the tools, and Yosys's
-# version line names the compiler, which is why the full check here compares no score), elan (the installer; it
-# installs the toolchain lean-toolchain names) and Python 3.12's patch release. The Verilator archive is GitHub's
+# Pinned: Verilator by version and sha256, the Lean toolchain by lean-toolchain and its packages by lake-manifest.json,
+# the Python packages by requirements.txt (pyslang and the rating build of Yosys, whose module the launcher checks by its
+# sha256 before every run, so the full check here makes the board's numbers and compares the scores too), the actions
+# by major version (as the other workflows). Not pinned: the apt packages (the runner image's Ubuntu archive; they
+# only build Verilator), elan (the installer; it installs the toolchain lean-toolchain names) and Python 3.12's patch
+# release. The Verilator archive is GitHub's
 # archive of the tag: should GitHub ever serve it with other bytes, `sha256sum -c` fails the step, and the hash is
 # refreshed from Homebrew's verilator formula, which uses the same address.
 name: records
@@ -90,30 +91,26 @@ jobs:
         run: |
           curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      - name: A C++ compiler, make, and what the Yosys and Verilator builds need
+      - name: A C++ compiler, make, and what the Verilator build needs
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential autoconf bison flex gawk help2man \
-            libfl-dev libffi-dev libreadline-dev perl pkg-config tcl tcl-dev zlib1g-dev
-      - name: Cache Yosys and Verilator
+          sudo apt-get install -y --no-install-recommends build-essential autoconf bison flex help2man \
+            libfl-dev perl zlib1g-dev
+      - name: Cache Verilator
         id: tools
         uses: actions/cache@v4
         with:
           path: ~/tools
-          key: tools-${{ runner.os }}-yosys-0.53-126e93d82cec-verilator-5.042-bec14f17de72
-      - name: Build Yosys 0.53 and Verilator 5.042 from their release archives (the rating build's versions)
+          key: tools-${{ runner.os }}-verilator-5.042-bec14f17de72
+      - name: Build Verilator 5.042 from its release archive (the rating machine's version)
         if: steps.tools.outputs.cache-hit != 'true'
         run: |
           cd "$RUNNER_TEMP"
-          curl -sSfL -o yosys.tar.gz https://github.com/YosysHQ/yosys/releases/download/v0.53/yosys.tar.gz
           curl -sSfL -o verilator.tar.gz https://github.com/verilator/verilator/archive/refs/tags/v5.042.tar.gz
-          printf '%s  yosys.tar.gz\n%s  verilator.tar.gz\n' 126e93d82ceca9ece1cf973b395b46a1cc8105651a8ecf3de9afbe786cdeea58 bec14f17de724851b110b698f3bd25e22effaaced7265b26d2bc13075dbfb4bf | sha256sum -c -
-          mkdir yosys verilator
-          tar -xzf yosys.tar.gz -C yosys
+          printf '%s  verilator.tar.gz\n' bec14f17de724851b110b698f3bd25e22effaaced7265b26d2bc13075dbfb4bf | sha256sum -c -
+          mkdir verilator
           tar -xzf verilator.tar.gz -C verilator
-          # each archive holds its tree directly or in one directory
-          src=yosys; [ -f yosys/Makefile ] || src=$(find yosys -mindepth 1 -maxdepth 1 -type d | head -n 1)
-          make -C "$src" -j"$(nproc)" PREFIX="$HOME/tools" PRETTY=0 install
+          # the archive holds its tree directly or in one directory
           src=verilator; [ -f verilator/configure.ac ] || src=$(find verilator -mindepth 1 -maxdepth 1 -type d | head -n 1)
           cd "$src"
           autoconf
@@ -127,9 +124,10 @@ jobs:
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.toml') }}
-      - name: The extractor's frontend, the Lean build and the pinned liberty (README.md, "Quick start")
+      - name: The extractor's frontend and the rating build of Yosys, the Lean build and the pinned liberty (README.md, "Quick start")
         run: |
           python3 -m pip install -r requirements.txt
+          python3 score/yosys_wasm.py --self-check
           lake build
           python3 score/ppa.py --fetch-liberty
       # --sandbox off, and why: this runner is a fresh virtual machine for this one job, holding no secret, with a

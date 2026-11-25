@@ -11,12 +11,12 @@
    "delay_ps": 464,
    "depth": 17,
    "flops": 16,
-   "netlist_sha256": "e072fb19e91c79f0adcdfa0ef3709731d0c642bc4c38b853cbedd53cc6f85d0e",
+   "netlist_sha256": "d115d9630df1c98ed7080d042688b63718e4aeb62bdf46391c0f33013d565cb8",
    "of": [
-    "record:728250a87028361db8e1209d2ace03d512c78cc2999a149562f27553675901ad"
+    "record:767c523bfebf00c44632506d6b2bb9c298b3b6a46fc4dfa2b69bfb3b78271efb"
    ],
    "repaired_sha256": "35b5e4557491b5cd59938c64b6398742f05c14168f684945f444942c7ddd2992",
-   "rtlil_sha256": "960f7b4a5a72e6a27262c1a96475c62b4ff10aa96d0c820912917e2602444b2a",
+   "rtlil_sha256": "18475bb57d09a28868d01114db54aa92e313697e86b17d415c442dbc11d7fd10",
    "sv_sha256": "0075575da0198859ffcca258d96260334c7b4bb30bb58f106adafcc438c4cb9e",
    "table_reads_floored": 384,
    "tie_cells": 0,
@@ -32,12 +32,12 @@
    "delay_ps": 282,
    "depth": 10,
    "flops": 8,
-   "netlist_sha256": "5b4ce93f09f2e53ff3f0df5392087c892cc14ca9821d804d1164e0e971321dda",
+   "netlist_sha256": "ce6c92aecbbb27fb49cbe6e884794a791fed42a498d44e8bd75ca7ad49da8397",
    "of": [
-    "record:142a9737465b00a6a41e2255e44efde238951e4b3b5c7c00b5a2cd243b8de684"
+    "record:dab1abfecf51076af71d9ce1dc8c0eab7470004911a403a7c8c917809492d312"
    ],
    "repaired_sha256": "ec3a10f3d0af75a6154e84f9a77dfd49bf2b89bf38453c83e8169fa365fc893a",
-   "rtlil_sha256": "f4573c6c0d54e2543a53324dd755bcad8988236ad5c0567285e6584227c22646",
+   "rtlil_sha256": "e21a7a98130c18432d9f137baaf1b84364ff1e4f8fd4302ef173443d710faad7",
    "sv_sha256": "c66e248d8d06b628d52d46edbb969ddfb6e406248d9755f980da975659e91e88",
    "table_reads_floored": 272,
    "tie_cells": 0,
@@ -53,13 +53,13 @@
    "delay_ps": 464,
    "depth": 17,
    "flops": 16,
-   "netlist_sha256": "e072fb19e91c79f0adcdfa0ef3709731d0c642bc4c38b853cbedd53cc6f85d0e",
+   "netlist_sha256": "d115d9630df1c98ed7080d042688b63718e4aeb62bdf46391c0f33013d565cb8",
    "of": [
-    "record:d354b82fb1ab2c22816e8cc3b8ac0159d010735026990168626674090ce4a752",
+    "record:1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99",
     "reference:rr_mask"
    ],
    "repaired_sha256": "35b5e4557491b5cd59938c64b6398742f05c14168f684945f444942c7ddd2992",
-   "rtlil_sha256": "a60960b454b2b36f8f70de80cc69bd944808d6b5f553fb2dd66f21c1507c372a",
+   "rtlil_sha256": "7d36a15b93a631f5837799f9c6c5bc3eeedf346693c1b1771a9f129e190aa4d7",
    "sv_sha256": "f8b02272b7f264d935673b0fa5522fbfb877bdf2985b5c1ad27b861b3a5de784",
    "table_reads_floored": 384,
    "tie_cells": 0,
@@ -71,7 +71,7 @@
   "flow": "seq",
   "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
   "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
-  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
  },
  "identity": {
   "input_drive": "BUFx8_ASAP7_75t_R",
@@ -79,7 +79,7 @@
   "ppa_pins_sha256": "edd00a44e4f068fa31806d6d562e4f0635cb558310793b59e80dfa7cfa42a563",
   "ppa_version": "asap7_a0_v1"
  },
- "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+ "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
  "schema": "svgolf-asap7/1",
  "scoring_point": {
   "N": 8

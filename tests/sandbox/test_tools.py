@@ -28,7 +28,7 @@ import attacks  # noqa: E402
 import postsynth  # noqa: E402
 import score  # noqa: E402
 
-HAVE_TOOLS = all(shutil.which(t) for t in ("yosys", "verilator", "make", "c++"))
+HAVE_TOOLS = score.yosys_missing() is None and all(shutil.which(t) for t in ("verilator", "make", "c++"))
 
 
 def mechanism_works():
@@ -38,7 +38,7 @@ def mechanism_works():
     return ok
 
 
-@unittest.skipUnless(HAVE_TOOLS, "yosys, verilator, make and c++ are needed")
+@unittest.skipUnless(HAVE_TOOLS, "the flow's Yosys (score.yosys_missing), verilator, make and c++ are needed")
 class ToolAttacks(unittest.TestCase):
     def setUp(self):
         self.tmp = os.path.realpath(tempfile.mkdtemp(prefix="wps-tools-"))

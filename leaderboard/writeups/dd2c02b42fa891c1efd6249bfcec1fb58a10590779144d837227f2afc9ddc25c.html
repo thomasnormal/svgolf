@@ -1,0 +1,32 @@
+<h1>Registered product, free-running datapath</h1>
+
+<p><code>g2.sv</code> keeps <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s N² multiply-accumulate units but cuts each one in two with a product register. The clock period is then set by the slower of the multiplier and the adder, not by both in series. The design pays one extra cycle of latency for a clock almost twice as fast.</p>
+
+<h2>The idea</h2>
+
+<p>Each unit gets a register <code>P</code>. In the cycle that handles step t, <code>P</code> takes A[i][t]·B[t][j], with sign-extended operands and the product truncated to AccW bits. In the next cycle the accumulator adds that registered product. The last product therefore reaches <code>C</code> one cycle after the last step. <code>busy</code> ends when the counter reaches N, not N − 1, which gives a latency of N + 1: five cycles at N = 4.</p>
+
+<p>Figure 1 shows the schedule at the scoring point.</p>
+
+<figure data-figure="matmul-schedule-reg" data-alt="The schedule at N = 4: P holds step t - 1 after edge t, C one step behind it; done rises on edge 5.">
+<figcaption>The product register puts C one step behind the multipliers, so the last term reaches C on edge 5.</figcaption>
+</figure>
+
+<p>The design also drops every hold multiplexer. The operand shifters and the counter load on <code>start</code> and step in every other cycle. <code>P</code> and <code>C</code> are cleared on <code>start</code> and update in every other cycle. Once the N steps are over, <code>b_sh</code> has been shifted out to all zeros, so every new product is 0 and <code>C</code> holds its value with no gate. Only <code>busy</code> and <code>done</code> are under control.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>The period drops to 5,576 ps over a 32-cell critical path, against <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s 60 cells and 10,696 ps. The product registers add flip-flops, 1,058 against 802. With the hold multiplexers gone, the area is still slightly below the reference's, at about 85,260 µm² on sky130. Five cycles take 27,880 ps, for about 2.38 million µm²·ns, 0.64 × par. That is second on the sky130 board. On the routed ASAP7 course it is also second, at about 7,434 µm²·ns with a 1,085 ps period.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (786 code lines) takes the proof of <a href="4f7a0ac01c0df28853b88c327ace2c0dcf9ccaffd1938ae1903123c985926186.html">the free-running reference variant</a> and adds the product register to the state shape:</p>
+
+<ul>
+<li><code>Ep</code> and <code>patV</code> say what <code>P</code> holds t cycles after a start: the products of step t − 1, or zero at t = 0. <code>psum_Ep</code> splits the partial sum into the part already in <code>C</code> and the part still waiting in <code>P</code>.</li>
+<li><code>commit_PC</code>, <code>commit_pairs</code> and <code>rowMajor_map2</code> commit each unit's pair of writes, to <code>P</code> and to <code>C</code>, across the two packed vectors.</li>
+<li><code>BusyAt</code> covers t ≤ N, with <code>C</code> at the sum up to t − 1, and <code>next_step</code> advances it. <code>ofNat_eq_iff32</code> turns the 32-bit test <code>k == N</code> into t = N.</li>
+<li><code>next_run</code>, with <code>entry_ge</code>, <code>psum_ge</code> and <code>accC_ge</code>, shows that past the end the free-running units keep adding zero. The Fin phase, at t ≥ N + 1, therefore keeps the product in <code>C</code>.</li>
+</ul>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

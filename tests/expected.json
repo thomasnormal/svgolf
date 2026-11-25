@@ -6,13 +6,13 @@
     "`attacks` (tests/<task>/attacks/<stem>.sv; through `check.py --unproved`, or with a reference proof when `lean` says so: `reference` the task's first, `reference/<stem>.lean` that one; rejected at `stage`): optional `message_contains` (a phrase the rejection must carry, or a list of phrases of which it must carry one, with the reason in `why`; WP-C3's `design` rejections name the unsupported construct), `postsynth_alone` (`rejects` | `passes`: the postsynth check alone with the source gate and the fourstate stage bypassed), `postsynth_mode` (`light` when absent; `full` for an attack that ONLY the full post-synthesis check rejects: the mode of the check.py run and of the `postsynth_alone` run, WP-C2), `postsynth_light` (the LIGHT mode's own verdict where it is documented, `rejects` | `passes`), `functional` and `tactics` (the advisory checks). `advisory` (true): a test of the checker's own behavior that the refusal register (docs/sv-refusals.json, tools/gen_sv_refusals.py) does not need to cite; WP-C2/WP-C3 set it on `func_call`, `assign_func` and `rare_mid` until the register has entries for them."
   ],
   "flow": {
-    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)",
     "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
     "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
     "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea"
   },
   "flow_seq": {
-    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)",
     "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
     "script_sha256": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
     "ge_table_sha256": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6"
@@ -1899,21 +1899,21 @@
           "why": "the proved reference (WP-H3): D3, a word-level netlist of 34 sites for every W, P >= 2 (linear one-bit normalizer and P + 2 restoring steps as generate families, two's complement exponent, run-time shifter with a sticky bit, round to nearest even by an increment into {exponent, fraction}); validated by Verilator on all 66 formats with W + P <= 14, on all 2^32 pairs at (5, 11) and (8, 8) and on 12 larger formats; PROVED (reference/fdivp.lean) for every format with the sv_comb tactics and Glue.chain on top of OutN_fdivBits, in one self-contained file over LeanModels.Sv.Lib (the facts about the spec, the rounding certificate, the math layer and the glue are its sections); binary16 is the instance (5, 11), the scoring point",
           "scores": {
             "W=5,P=11": {
-              "area_ge": 2166.076,
-              "area_mge": 2166076,
-              "depth": 289,
-              "num_gates": 1515,
+              "area_ge": 2163.08,
+              "area_mge": 2163080,
+              "depth": 292,
+              "num_gates": 1520,
               "gates": {
-                "AND": 285,
-                "ANDNOT": 72,
-                "MUX": 194,
-                "NAND": 440,
-                "NOR": 35,
+                "AND": 282,
+                "ANDNOT": 78,
+                "MUX": 192,
+                "NAND": 457,
+                "NOR": 37,
                 "NOT": 34,
-                "OR": 131,
-                "ORNOT": 124,
-                "XNOR": 121,
-                "XOR": 79
+                "OR": 117,
+                "ORNOT": 125,
+                "XNOR": 107,
+                "XOR": 91
               }
             },
             "W=8,P=24": {
@@ -1935,21 +1935,21 @@
               }
             },
             "W=8,P=8": {
-              "area_ge": 1369.84,
-              "area_mge": 1369840,
+              "area_ge": 1369.841,
+              "area_mge": 1369841,
               "depth": 184,
               "num_gates": 973,
               "gates": {
-                "AND": 184,
-                "ANDNOT": 46,
+                "AND": 185,
+                "ANDNOT": 45,
                 "MUX": 104,
-                "NAND": 301,
+                "NAND": 299,
                 "NOR": 29,
-                "NOT": 15,
+                "NOT": 17,
                 "OR": 81,
-                "ORNOT": 80,
-                "XNOR": 64,
-                "XOR": 69
+                "ORNOT": 79,
+                "XNOR": 66,
+                "XOR": 68
               }
             },
             "W=2,P=2": {
@@ -1976,39 +1976,39 @@
           "why": "the second proved reference (PLAN4 N1): a Newton-Raphson divider, D3 with its P + 2 restoring steps replaced by an initial reciprocal, NI = $clog2((P + 9) / 8) + 1 Newton steps over word-level `*` (a generate family), a quotient estimate at most 2 below the quotient and an exact correction by the remainder; the estimate perturbed when an exponent field is all ones (`qe`, where the output stage never reads the core), without which the pinned flow does not finish at (5, 11) in 1800 s; validated by Verilator on all 66 formats with W + P <= 14, on all 2^32 pairs at (5, 11), (8, 8) and (2, 14) and on 200,000 corner-rich pairs at 14 formats up to (11, 53), (2, 62); PROVED (reference/fdivp_newton.lean) for every format, self-contained like D3 (D3's sections IEEE754Proofs..DpG4 verbatim, then the mathematics of the core in its own section NwCore, the core's glue and its own Glue.chain). Not competitive: about 3.6 times D3's area at (5, 11). Not scored at (8, 24): the pinned flow takes more than 30 min there (&fraig -x on the multipliers)",
           "scores": {
             "W=5,P=11": {
-              "area_ge": 7892.452,
-              "area_mge": 7892452,
+              "area_ge": 7888.778,
+              "area_mge": 7888778,
               "depth": 252,
-              "num_gates": 5691,
+              "num_gates": 5678,
               "gates": {
-                "AND": 1151,
-                "ANDNOT": 88,
-                "MUX": 129,
-                "NAND": 2429,
-                "NOR": 39,
-                "NOT": 27,
-                "OR": 169,
-                "ORNOT": 134,
+                "AND": 1159,
+                "ANDNOT": 95,
+                "MUX": 131,
+                "NAND": 2410,
+                "NOR": 37,
+                "NOT": 20,
+                "OR": 168,
+                "ORNOT": 133,
                 "XNOR": 287,
                 "XOR": 1238
               }
             },
             "W=8,P=8": {
-              "area_ge": 4286.665,
-              "area_mge": 4286665,
-              "depth": 211,
-              "num_gates": 3101,
+              "area_ge": 4279.334,
+              "area_mge": 4279334,
+              "depth": 210,
+              "num_gates": 3094,
               "gates": {
-                "AND": 646,
-                "ANDNOT": 92,
-                "MUX": 77,
-                "NAND": 1235,
-                "NOR": 41,
-                "NOT": 23,
-                "OR": 113,
+                "AND": 648,
+                "ANDNOT": 83,
+                "MUX": 82,
+                "NAND": 1237,
+                "NOR": 40,
+                "NOT": 24,
+                "OR": 109,
                 "ORNOT": 100,
-                "XNOR": 198,
-                "XOR": 576
+                "XNOR": 189,
+                "XOR": 582
               }
             },
             "W=2,P=2": {
@@ -2052,21 +2052,21 @@
               }
             },
             "W=8,P=24": {
-              "area_ge": 10139.803,
-              "area_mge": 10139803,
-              "depth": 387,
-              "num_gates": 7392,
+              "area_ge": 10161.1,
+              "area_mge": 10161100,
+              "depth": 390,
+              "num_gates": 7334,
               "gates": {
-                "AND": 1426,
-                "ANDNOT": 263,
-                "MUX": 1000,
-                "NAND": 2996,
-                "NOR": 93,
-                "NOT": 80,
-                "OR": 731,
-                "ORNOT": 251,
-                "XNOR": 314,
-                "XOR": 238
+                "AND": 1409,
+                "ANDNOT": 298,
+                "MUX": 1045,
+                "NAND": 2848,
+                "NOR": 94,
+                "NOT": 71,
+                "OR": 704,
+                "ORNOT": 315,
+                "XNOR": 333,
+                "XOR": 217
               }
             },
             "W=8,P=8": {
@@ -2088,19 +2088,19 @@
               }
             },
             "W=2,P=2": {
-              "area_ge": 96.652,
-              "area_mge": 96652,
-              "depth": 19,
-              "num_gates": 75,
+              "area_ge": 93.987,
+              "area_mge": 93987,
+              "depth": 18,
+              "num_gates": 73,
               "gates": {
-                "AND": 23,
-                "ANDNOT": 4,
-                "MUX": 1,
-                "NAND": 19,
+                "AND": 19,
+                "ANDNOT": 1,
+                "MUX": 2,
+                "NAND": 24,
                 "NOR": 2,
-                "NOT": 2,
-                "OR": 11,
-                "ORNOT": 7,
+                "NOT": 1,
+                "OR": 15,
+                "ORNOT": 3,
                 "XNOR": 4,
                 "XOR": 2
               }
@@ -2114,39 +2114,39 @@
           "why": "D2, the fragment-friendly parametric form (gate 0 of WP-H3): every construct the sv_comb tactics refuse replaced by an affine one, a LINEAR normalizer and denormalizer, about 90 plain sites; validated by Verilator; proved with the sv_comb tactics on all 90 sites and the reference's math layer (baselines/fdivp_d2.lean; its sv_structure/sv_equations cost grows as n^2 in the sites, so its solution stage takes 164.8 CPU s of the task's 300, measured 2026-11-12, which is why the reference folds it into 34 sites): a proved comparison design, not an entry",
           "scores": {
             "W=5,P=11": {
-              "area_ge": 2314.058,
-              "area_mge": 2314058,
-              "depth": 295,
-              "num_gates": 1618,
+              "area_ge": 2313.382,
+              "area_mge": 2313382,
+              "depth": 302,
+              "num_gates": 1616,
               "gates": {
-                "AND": 303,
-                "ANDNOT": 115,
-                "MUX": 204,
-                "NAND": 449,
+                "AND": 315,
+                "ANDNOT": 130,
+                "MUX": 197,
+                "NAND": 426,
                 "NOR": 48,
-                "NOT": 39,
-                "OR": 113,
-                "ORNOT": 130,
-                "XNOR": 135,
-                "XOR": 82
+                "NOT": 36,
+                "OR": 110,
+                "ORNOT": 138,
+                "XNOR": 129,
+                "XOR": 87
               }
             },
             "W=8,P=24": {
-              "area_ge": 9813.601,
-              "area_mge": 9813601,
-              "depth": 1279,
-              "num_gates": 6899,
+              "area_ge": 9827.267,
+              "area_mge": 9827267,
+              "depth": 1281,
+              "num_gates": 6892,
               "gates": {
-                "AND": 1274,
-                "ANDNOT": 250,
-                "MUX": 857,
-                "NAND": 2334,
-                "NOR": 125,
-                "NOT": 125,
-                "OR": 421,
-                "ORNOT": 520,
-                "XNOR": 549,
-                "XOR": 444
+                "AND": 1271,
+                "ANDNOT": 239,
+                "MUX": 863,
+                "NAND": 2294,
+                "NOR": 124,
+                "NOT": 134,
+                "OR": 418,
+                "ORNOT": 542,
+                "XNOR": 553,
+                "XOR": 454
               }
             }
           },

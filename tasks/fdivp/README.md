@@ -367,8 +367,9 @@ neighbours `c·2^j`, `(c+1)·2^j`, and those two never both have even significan
 * **Scoring** at the scoring point `W = 5, P = 11` (binary16), no depth budget. The one ranked number is area x
   time on sky130 A0' (A0' decided 2026-11-03, the product 2026-11-05; svGolf `README.md`, "Scoring"): the cell area in um^2
   times the critical-path delay of the scored netlist of the pinned two-stage Yosys + ABC flow, weighed by
-  `score/ppa.py` (`sky130_a0_v3`). Par, the proved restoring divider `fdivp`, the simplest algorithm (one design per task, `leaderboard/par.json`, decided 2026-11-12), is 9675.5296 um^2 x
-  37984 ps = 367 515.3 um2*ns (`score/tests/ppa/expected_ppa.json`; the SRT divider `fdivp_srt`, 12356.8512 um^2 x
+  `score/ppa.py` (`sky130_a0_v3`). Par, the proved restoring divider `fdivp`, the simplest algorithm (one design per task, `leaderboard/par.json`, decided 2026-11-12), is 9644.2496 um^2 x
+  37683 ps = 363 424.3 um2*ns (`score/tests/ppa/expected_ppa.json`; 367 515.3 um2*ns before the rating build became the
+  WebAssembly Yosys on 2026-11-24; the SRT divider `fdivp_srt`, 12356.8512 um^2 x
   27592 ps = 340 950.2 um2*ns, the Newton divider and D2 are entries, recorded under a handle of their own). The
   Pareto frontier of area and time, area in NAND2 gate equivalents and depth in gates are extra columns, for
   exploring; `python3.12 score/ppa.py solution.sv --task tasks/fdivp --no-mapped [--path]` measures a design in
@@ -420,10 +421,10 @@ within the time limit, the comparator and `leanchecker`, scoring and the post-sy
    the least normal and the largest finite to `inf` for free);
 9. the output by fields (sign, exponent field, top fraction bit, a generate family for the low fraction bits).
 
-**Score** in the extra GE columns (`score.py`; in `tests/expected.json`, re-measured by `tests/run.py`; the ranked A0' numbers are under "Scoring" above): **2166.076 GE, depth 289** at `(5, 11)`
-(1515 gates); 8826.016 GE, depth 1261 at `(8, 24)`; 1369.84 GE, depth 184 at `(8, 8)`; 102.985 GE, depth 18 at `(2, 2)`.
+**Score** in the extra GE columns (`score.py`; in `tests/expected.json`, re-measured by `tests/run.py`; the ranked A0' numbers are under "Scoring" above): **2163.08 GE, depth 292** at `(5, 11)`
+(1520 gates); 8826.016 GE, depth 1261 at `(8, 24)`; 1369.841 GE, depth 184 at `(8, 8)`; 102.985 GE, depth 18 at `(2, 2)`.
 The design under `tests/fdivp/baselines/` (proved; an entry since 2026-11-12, like every design but par's) is D2, the fragment-friendly
-form (about 90 plain sites, proved with the tactics: `fdivp_d2.lean`): 2314.058 GE, depth 295 and 9813.601 at
+form (about 90 plain sites, proved with the tactics: `fdivp_d2.lean`): 2313.382 GE, depth 302 and 9827.267 at
 `(8, 24)`. Measured, not proved, not on the site (test material, `tests/fdivp/unproved/`): D1, the natural
 parametric form (`$clog2`, `2**`, replication, logarithmic normalizer and shifter; validated, outside today's tactic
 fragment, ls-sv cannot load it): **1911.446 GE, depth 300** at `(5, 11)` and 7450.536 at `(8, 24)`; and the flat
@@ -474,11 +475,12 @@ bound proves (`ge2 = 0`, `rm < 2·mb`) are then false over ALL inputs; with them
 spends a SAT problem on each such near-constant node and does not finish at `(5, 11)` in 1800 s. With `qe` it finishes
 in about 60 s. The proof needs one mux lemma for it (`qe = qf` for finite operands).
 
-**Score** (`tests/expected.json`): **7892.452 GE, depth 252** at `(5, 11)` (5691 gates; D3: 2166.076, 289), 4286.665 GE,
-depth 211 at `(8, 8)`, 115.318 GE, depth 21 at `(2, 2)`. It is not scored at `(8, 24)`: the pinned flow takes more than
-30 min there. So it is 3.6 times D3's area at `(5, 11)` and 13 % shallower in gates; in the ranked sky130 columns (A0',
+**Score** (`tests/expected.json`): **7888.778 GE, depth 252** at `(5, 11)` (5678 gates; D3: 2163.08, 292), 4279.334 GE,
+depth 210 at `(8, 8)`, 115.318 GE, depth 21 at `(2, 2)`. It is not scored at `(8, 24)`: the pinned flow takes more than
+30 min there. So it is 3.6 times D3's area at `(5, 11)` and 14 % shallower in gates; in the ranked sky130 columns (A0',
 `sky130_a0_v3`, buffering only: one `buf_1` on one net; inputs driven by the default `buf_8`; every load pin read per
-edge) it is 33825 µm² and 40031 ps against D3's 9676 µm² and 37984 ps (before the per-edge loads 39692 and 37872; v2,
+edge) it is 33824 µm² and 40478 ps against D3's 9644 µm² and 37683 ps (on the rating build until 2026-11-24, 33825 and
+40031 against 9676 and 37984; before the per-edge loads 39692 and 37872; v2,
 inputs driven by `buf_1`: 39689 and 37872). The "large but shallow"
 premise does not hold at these widths:
 the multipliers of each Newton step are about as deep as the restoring chain they replace.
@@ -521,10 +523,10 @@ A stage:
 
 After the last stage `qq = rs < 0 ? UM : U` and the sticky bit is `rs != 0`, with `rs = ws + wc` the one adder of the core.
 
-**Score** (`tests/expected.json`): **2787.652 GE, depth 189** at `(5, 11)` (2012 gates; D3: 2166.076, 289), 1907.436 GE,
-depth 141 at `(8, 8)`, 96.652 GE, depth 19 at `(2, 2)`, 10139.803 GE, depth 387 at `(8, 24)`. It is the shallowest of the
+**Score** (`tests/expected.json`): **2787.652 GE, depth 189** at `(5, 11)` (2012 gates; D3: 2163.08, 292), 1907.436 GE,
+depth 141 at `(8, 8)`, 93.987 GE, depth 18 at `(2, 2)`, 10161.1 GE, depth 390 at `(8, 24)`. It is the shallowest of the
 three: 1.29 times D3's area for 65 % of its depth at `(5, 11)`. In the ranked sky130 columns (A0', `sky130_a0_v3`) it
-is 12356.9 µm² and 27592 ps against D3's 9675.5 µm² and 37984 ps (`score/tests/ppa/expected_ppa.json`): a point of the
+is 12356.9 µm² and 27592 ps against D3's 9644.2 µm² and 37683 ps (`score/tests/ppa/expected_ppa.json`): a point of the
 frontier with the lowest delay of every scored fdivp design (references and baselines).
 
 **Validation** (records in `tests/fdivp/results/srt_*`, `srt_S0.md` section 4): Verilator against `oracle.h` on every

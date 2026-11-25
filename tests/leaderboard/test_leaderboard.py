@@ -2221,6 +2221,11 @@ class PpaInputDriveTest(Tmp):
 
     def test_verify_and_pareto_cli(self):
         """`verify --offline` and `pareto --axes` read the task's drive themselves (task.json, else the pins' default)."""
+        # the test is about the drive: the machine's Yosys is held at the base record's build, else every record is
+        # stale for the flow wherever another build runs (since 2026-11-24 the rating build is installed by pip)
+        held = mock.patch.object(lb, "yosys_version_line", lambda svgolf=lb.SVGOLF: self.base["checker"]["yosys"])
+        held.start()
+        self.addCleanup(held.stop)
         ident = lb.ppa_identity()                       # the CLI compares with the CURRENT identity: give the blocks it
         tasks = os.path.join(self.tmp, "tasks")
         os.makedirs(os.path.join(tasks, "add"))
@@ -3517,6 +3522,37 @@ class Asap7PnrTest(Tmp):
         return next(r for r in self.recs if r["task"] == name and r["player"] == player
                     and (h is None or r["record_hash"].startswith(h)))
 
+    def test_rebind_names_the_new_scored_netlist_of_an_unchanged_asap7_netlist(self):
+        """`asap7pnr --rebind` (decided 2026-11-24): after a change of the rating build the ASAP7 view names another
+        scored netlist file (its first line names the build) while the placed ASAP7 netlist is the same: such an entry is
+        bound again; one whose ASAP7 netlist changed is pending again, at its stored seed, with no number."""
+        task = self.task("add")
+        a7, table = self.tables("add")
+        moved = copy.deepcopy(a7)
+        for e in moved["designs"]:
+            e["netlist_sha256"] = lb.sha256_bytes(e["netlist_sha256"].encode())       # another scored netlist file
+        sv0 = table["designs"][0]["sv_sha256"]
+        before = lb.asap7pnr_status(table, moved, sv0, task=task, pins=self.pins)
+        self.assertEqual(before[0], "unbound")
+        new, rebound, pending = lb.asap7pnr_rebind(table, moved)
+        self.assertEqual(pending, [])
+        self.assertEqual(sorted(rebound), sorted(e["sv_sha256"] for e in table["designs"]))
+        for e in table["designs"]:
+            self.assertEqual(lb.asap7pnr_status(new, moved, e["sv_sha256"], task=task, pins=self.pins)[0],
+                             lb.asap7pnr_status(table, a7, e["sv_sha256"], task=task, pins=self.pins)[0])
+        self.assertEqual(lb.asap7pnr_file_problems(new, "add"), [])
+        # an ASAP7 netlist that changed: pending again at the stored seed, never named anew, no number
+        changed = copy.deepcopy(moved)
+        changed["designs"][[e["sv_sha256"] for e in changed["designs"]].index(sv0)]["repaired_sha256"] = "0" * 64
+        new2, rebound2, pending2 = lb.asap7pnr_rebind(table, changed)
+        self.assertEqual(pending2, [sv0])
+        self.assertEqual(lb.asap7pnr_status(new2, changed, sv0, task=task, pins=self.pins)[0], "pending")
+        e2 = lb.asap7pnr_entry(new2, sv0)
+        self.assertEqual((e2["request"], e2["runs"], e2["netlist_sha256"]),
+                         (lb.asap7pnr_entry(table, sv0)["request"], [], "0" * 64))
+        self.assertEqual(lb.asap7pnr_file_problems(new2, "add"), [])
+        self.assertEqual(lb.asap7pnr_rebind(new, moved)[1], [])                  # bound again: nothing more to do
+
     def test_the_committed_files_pass_the_file_check(self):
         for name in lb.all_task_names(lb.DEFAULT_TASKS):
             data, why = lb.read_asap7pnr(name)
@@ -3880,7 +3916,7 @@ class Asap7PnrTest(Tmp):
             fh.write(json.dumps(short, indent=1, sort_keys=True) + "\n")
         rc, out, err = quiet(lb.main, ["asap7pnr", "--asap7pnr-dir", tdir])
         self.assertEqual(rc, 0, out + err)
-        self.assertIn("[ok] sorter: 3 designs: 1 bound, 2 pending", out)    # 2026-11-24: 1c5eed8aec2a pending too
+        self.assertIn("[ok] sorter: 3 designs: 1 bound, 2 pending", out)    # 2026-11-24: e23da644c53e pending too
         self.assertIn(f"{', '.join(gone['of'])}: {lb.PNR_PENDING}", out)
         self.assertRegex(out, rf"(?m)^total: {bound - 1} bound, {waiting + 1} pending$")
         rc, out, err = quiet(lb.main, ["board", "--task", "sorter", "--pdk", "asap7pnr", "--format", "json"])
@@ -3959,7 +3995,7 @@ class Asap7PnrRequestTest(Tmp):
             self.assertEqual(e[k], self.gone[k], k)
         rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "sorter", "--asap7pnr-dir", self.dir])
         self.assertEqual(rc, 0, out + err)
-        self.assertIn("[ok] sorter: 3 designs: 1 bound, 2 pending", out)    # 2026-11-24: 1c5eed8aec2a pending too
+        self.assertIn("[ok] sorter: 3 designs: 1 bound, 2 pending", out)    # 2026-11-24: e23da644c53e pending too
         self.assertIn(lb.PNR_PENDING, out)
 
     def test_a_drawn_seed(self):
@@ -4145,13 +4181,15 @@ class CommittedAsap7PnrTest(unittest.TestCase):
                          if lb.asap7pnr_status(pnr, a7, r["files"]["sv"]["sha256"], task=task, pins=pins)[0] == "bound"}
                 self.assertEqual({r["record_hash"] for r in board["ranking"]}, bound)
         # 2026-11-13, campaign 3: every design the tasks show is routed (52 since the 13 matmul architecture records);
-        # 2026-11-19: clockwork-otter's matmul record 7f5da0d09f15 waits for its run (its request is stored, pending);
-        # 2026-11-20: so does clockwork-otter's matmul record ddc2d1b271db
-        # 2026-11-23: and clockwork-otter's matmul records f14f8e008cc0, 2b625ce36431, 5bff489cc2ef, 1136031894d5,
-        # 4d9952fba7ea, c2bd6423d5ba, 5611b8c6e722, 11dcd56ed592, 80aea08acec2 and cbfca35ec4df, and its arbiter
-        # record 728250a87028; and ember-stoat's arbiter record 142a9737465b
-        # 2026-11-24: and ember-stoat's sorter record 1c5eed8aec2a, and clockwork-otter's matmul record b9bbe362d6a6
-        self.assertEqual(totals, {"bound": 52, "pending": 16})
+        # 2026-11-19: clockwork-otter's matmul record f58633cf74b9 waits for its run (its request is stored, pending);
+        # 2026-11-20: so does clockwork-otter's matmul record 0ac23825c686
+        # 2026-11-23: and clockwork-otter's matmul records 78a6d7c36fd2, e6ea15dde719, 82e70e4a9004, a06f2ff0e1f5,
+        # 2ca5fe4fe656, 6ecf6092f426, cf4f5d714101, 4f458ed4f2cb, 431ce19a4fd5 and 21069d1eec5c, and its arbiter
+        # record 767c523bfebf; and ember-stoat's arbiter record dab1abfecf51
+        # 2026-11-24: and ember-stoat's sorter record e23da644c53e, and clockwork-otter's matmul record bb4dc85a2929;
+        # and, the rating build having changed their ASAP7 netlists, three fdivp designs pending again at their seeds
+        # (par's, tidereckon's Newton divider, loamstep's D2: `asap7pnr --rebind`)
+        self.assertEqual(totals, {"bound": 49, "pending": 19})
 
 
 def git(cwd, *args):
@@ -4924,6 +4962,43 @@ class RemakeTest(Tmp):
                                                                                   svgolf_revision="def456+dirty"))))
         self.assertIn("library revision", self.refused(lambda: remade(old, lean_surfaces_revision=None)))
 
+    def test_measured_when_the_scoring_flow_changed(self):
+        """`remake --measure` (decided 2026-11-24, the rating build changed): the record `add` would build from the new
+        full check, with the player, assistance, date, notes and file names kept, the proof's provenance carried, and
+        `remade.scores` "measured"; refused when the check ran under another flow than the pinned one."""
+        old = make_record(sky=(4604416, 2487), player="carol", assisted=("Model X",), date="2026-11-13",
+                          notes="the player's words")
+        new_flow = dict(FLOW, yosys="Yosys 0.53 (git sha1 53c22ab7c, wasm)")
+        res = with_ppa(fake_result(sv_sha=lb.sha256_bytes(SV_TEXT), flow=new_flow, gates={"AND": 11}, mode="full"),
+                       area_e4=4700000, delay_ps=2400)
+        res["stages"]["solution"]["sha256"] = lb.sha256_bytes(PORT_TEXT)
+        args = dict(sv_bytes=SV_TEXT, lean_bytes=PORT_TEXT, reason="the rating build changed", date="2026-11-24",
+                    environment=REMADE_ENV, lean_surfaces_revision="def456", flow=dict(new_flow, flow=lb.COMB_FLOW))
+        new = lb.build_remeasured_record(old, res, toy_task(), **args)
+        self.assertEqual(lb.validate_record(new), [])
+        self.assertEqual(new["remade"], {"date": "2026-11-24", "from_record": old["record_hash"],
+                                         "proof": "maintainer port",
+                                         "original_lean_sha256": old["files"]["lean"]["sha256"],
+                                         "scores": "measured", "reason": "the rating build changed"})
+        for k in ("player", "assisted_by", "submitted_at", "notes", "task", "canonical_sha256"):
+            self.assertEqual(new[k], old[k], k)
+        self.assertEqual([new["files"][k]["name"] for k in ("sv", "lean")], ["toy.sv", "toy.lean"])
+        self.assertEqual(new["checker"]["yosys"], new_flow["yosys"])
+        self.assertEqual((new["ppa"]["area_e4um2_sky130"], new["ppa"]["delay_ps_sky130"]), (4700000, 2400))
+        self.assertEqual(new["score"]["gates"], {"AND": 11})
+        self.assertNotEqual(new["score"], old["score"])
+        # a carried re-make of it, under the same flow, keeps "carried" semantics apart
+        self.assertIn("measured", lb.REMADE_SCORES)
+        bad = dict(new["remade"], scores="guessed")
+        self.assertTrue(lb.remade_problems(dict(new, remade=bad)))
+        # under another flow than the pinned one, or of another design: refused
+        self.assertIn("another scoring flow", self.refused(lambda: lb.build_remeasured_record(
+            old, res, toy_task(), **dict(args, flow=dict(FLOW, flow=lb.COMB_FLOW)))))
+        self.assertIn("not of the record's design", self.refused(lambda: lb.build_remeasured_record(
+            old, res, toy_task(), **dict(args, sv_bytes=SV_TEXT + b"\n"))))
+        self.assertIn("dirty", self.refused(lambda: lb.build_remeasured_record(
+            old, res, toy_task(), **dict(args, environment=dict(REMADE_ENV, svgolf_revision="abc+dirty")))))
+
     def test_a_clocked_record_keeps_its_latency(self):
         old = make_record()
         old["score"]["cycles"] = 4              # (the shape alone: build_remade_record reads score.cycles)
@@ -4950,7 +5025,8 @@ class RemakeTest(Tmp):
             edit(r["remade"])
             return " ".join(lb.validate_record(r))
         self.assertIn("is 'maintainer port'", problems(lambda m: m.update(proof="maintainer port")))
-        self.assertIn("'carried'", problems(lambda m: m.update(scores="measured")))
+        self.assertIn("'carried', 'measured'", problems(lambda m: m.update(scores="estimated")))
+        self.assertEqual(problems(lambda m: m.update(scores="measured")), "")     # 2026-11-24: `remake --measure`'s
         self.assertIn("exactly the keys", problems(lambda m: m.update(extra=1)))
         self.assertIn("record's own hash", problems(lambda m: m.update(from_record=new["record_hash"])))
         self.assertIn("reason", problems(lambda m: m.update(reason=" ")))

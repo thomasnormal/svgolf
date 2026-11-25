@@ -240,7 +240,8 @@ def abc_map(rtlil, top, out_v, libp, constr, D, yosys, prefix):
     with open(ysf, "w") as fh:
         fh.write(ys)
     log = out_v + ".log"
-    r = subprocess.run([yosys, "-q", "-l", log, ysf], capture_output=True, text=True, timeout=1800)
+    import score
+    r = subprocess.run(score.yosys_argv(yosys) + ["-q", "-l", log, ysf], capture_output=True, text=True, timeout=1800)
     if r.returncode != 0:
         raise SystemExit(f"yosys failed: {r.stderr[-800:]}{r.stdout[-800:]}")
     with open(log) as fh:

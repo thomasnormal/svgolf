@@ -1,0 +1,29 @@
+<h1>Restoring divider in about 90 plain assigns</h1>
+
+<p>This record is the restoring IEEE 754 divider of par, written so that every construct sits inside the fragment the <code>sv_comb</code> tactics read (<code>fdivp_d2.sv</code>, the design called D2 in the task notes). It is proved for every format <code>W &gt;= 2</code>, <code>P &gt;= 2</code>, and scored at binary16.</p>
+
+<h2>The idea</h2>
+
+<p>D2 computes the same function by the same algorithm as par: <code>P - 1</code> one-bit normalizer stages per operand, <code>P + 2</code> restoring division steps, rounding to nearest even by an increment into the packed <code>{exponent, fraction}</code> word. What changes is the spelling. There is no <code>$clog2</code>, no <code>2**e</code>, no replication and no sized localparam; every count is affine in <code>P</code>. Three choices follow from that:</p>
+
+<ul>
+<li>the exponent is kept with an offset of <code>2^(W+P)</code> instead of in two's complement, and its threshold constants are built bit by bit as vectors;</li>
+<li>denormalization is a linear chain of <code>P + 1</code> one-bit right shifts that collects the sticky bit as it goes, instead of a run-time shifter;</li>
+<li>the output is a priority multiplexer over four precomputed words (NaN, infinity, zero, finite).</li>
+</ul>
+
+<p>The result is about 90 plain assigns and five generate families (<code>norm</code>, <code>div</code>, <code>den</code>, <code>efg</code>, <code>nanz</code>).</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 it is about 10,345 µm² at 38.3 ns, 396,148 µm²·ns, about 1.08 x <a href="0184d719b6192105d28011e50f9879afd27935af02c78fe114ef002f0d05c58e.html">par</a>. The 1618 cells (par: 1515) include 449 <code>nand2</code> and 204 <code>mux2</code>. The serial restoring chain sets the delay in both designs (unit depth 295 here, 289 for par, and a critical path of 292 cells to <code>q[13]</code>), so the different spelling costs about 7% in area and 1% in delay. On the routed ASAP7 course it is 157.2 µm² at 7.13 ns, slightly faster than par's 7.25 ns, and 1120.7 µm²·ns, about 1.05 x par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (4231 code lines) copies verbatim from <a href="0184d719b6192105d28011e50f9879afd27935af02c78fe114ef002f0d05c58e.html">par</a>'s proof everything that does not depend on the netlist: the facts about the trusted IEEE 754 spec, the rounding certificate <code>certF_bridge</code>, the <code>Nat</code> model <code>OutN</code> of the datapath with <code>OutN_fdivBits</code>, and a few shared glue lemmas. The new part is this netlist's glue. Section <code>D2Glue</code> has one lemma per shape of printed equation, a model <code>denIter</code> of the denormalizer with its invariant, and <code>exp_off</code> (the offset exponent is the true one plus <code>2^(W+P)</code>); <code>chain2</code> takes the 90 equations to the value <code>OutN</code> of <code>q</code>. The submission is <code>sv_structure</code> with a hand-written <code>rippleRank</code>, then <code>sv_interface</code>, <code>sv_equations</code> and <code>chain2</code>.</p>
+
+<h2>What did not work</h2>
+
+<p>Many plain sites are expensive for the tactics: the task notes call their cost quadratic in the number of sites, and the proof raises its heartbeat limits to 4,000,000; the record lists a build time of about 115 s. The natural form D1 (with <code>$clog2</code>, <code>2**</code> and logarithmic shifters) is smaller but refused at load.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

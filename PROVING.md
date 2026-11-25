@@ -2536,8 +2536,9 @@ it adds. The names are the references'; a row "on the row above" (or "against th
 against that proof. The variants' proofs are records' proofs as submitted: `61bf6f8d17f7` (the sorter's cell rule),
 `1ffe71156e90` (the k loop), `abdd0afdf025` (two steps), `9fdf50f9ae02` (the accumulators free-running) and
 `263ce18b31ab` (the product register); re-made on 2026-11-16 with the maintainers' ports of those proofs (the four
-matmul ones again on 2026-11-19, under matmul's new range), they are now
-`3b1ec4b16d7a`, `65342538360f`, `9cfd97744f0b`, `5a32b965845e` and `e2af800fb366`. The variant of the row "the operand
+matmul ones again on 2026-11-19, under matmul's new range, and all five on 2026-11-24, measured again on the new
+rating build), they are now
+`999504da3683`, `7162033b554f`, `07891f3d8f2d`, `4f7a0ac01c0d` and `dd2c02b42fa8`. The variant of the row "the operand
 registers and `k` free-running" is not on the board; against the reference, `9fdf50f9ae02` (that row's change and the
 next row's together) changes 13 of the 86
 declarations and adds 5, in 242 lines.
@@ -2733,7 +2734,7 @@ settled value of each comb-driven signal `X.comb_<signal> = nbaFold "<signal>" (
 `(nbaFold n (X.combQ …) x).extract lo v.width = v`.
 
 A `localparam` chosen by a comparison of the parameters (`localparam int X = (AccW > W) ? AccW - W : 1`, matmul's
-broadcast record `b84fa7288ffd`) is refused with the comparison printed; under the case as a hypothesis
+broadcast record `eafb183df3bb`) is refused with the comparison printed; under the case as a hypothesis
 (`(h : W < AccW)`, and a second `sv_mirror` under `(h : ¬ W < AccW)`) the parameter environment evaluates. The pinned
 ls-sv computes such a localparam on the width-exact path (`evalSized`, the constant evaluator `ctype`/`evalAt`), which
 `sv_mirror` normalizes at symbolic parameters, the comparison included.

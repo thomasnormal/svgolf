@@ -11,13 +11,13 @@
    "delay_ps": 1186,
    "depth": 62,
    "flops": null,
-   "netlist_sha256": "d1d74a81134a7ba2a0edb6670629e5b1733ab125d010aa41cde225d086604fd4",
+   "netlist_sha256": "568b1a184492d6a49816a7ff355ae479726be4552aa453d560c48d1d29fd229b",
    "of": [
-    "record:cd13c33f4de46509ee16341b9ef18600278a74d75a8fddbe68c6a2ac1ecaad63",
+    "record:855fdbeec80dee5a23c4873e008fedd421a8b31a484f3c0d4de21f546f253a30",
     "reference:mul_wallace"
    ],
    "repaired_sha256": "00792cf1155fc968d66dfdd3574e90f74ae29aee98a4f645ffe1257d376da98f",
-   "rtlil_sha256": "37b14ecaa743f9bc4636c89e9cd8248fec4b1ac8e9a94282710965711d26e100",
+   "rtlil_sha256": "9e26d91c8534ca04e7a77f68959fcce932eedb963c463284d1e11458eeaaac10",
    "sv_sha256": "1cff6478a2a02e3709085f6717a6511780509c8cee3365864873725cf8f57883",
    "table_reads_floored": 628,
    "tie_cells": 0,
@@ -33,12 +33,12 @@
    "delay_ps": 1139,
    "depth": 59,
    "flops": null,
-   "netlist_sha256": "5df4767e53b486aee5cde8362883d77c5c2da1dab615b7c00b54d20c470c464d",
+   "netlist_sha256": "59b0122eb0d44aff16bbeb22c28289cc90d7e38e43431107fb2388bfd085754b",
    "of": [
     "baseline:yosys_mul"
    ],
    "repaired_sha256": "b6f937a4e7431702adfa74a11b88ac35f8978a2c4dd63d088310794e089b9493",
-   "rtlil_sha256": "ebb28c54da5e28081cb037b2a2402a82bfb8288fb76172a24362b340e3a878b4",
+   "rtlil_sha256": "c6562c2e6c98a391691a5e74b44df86ba7e44374daf3e62beceab92b232f01a7",
    "sv_sha256": "1fa5b249500ea248c3b022ac475fb4b7d7bdc707cc6ba0ed489c65c70ba18ce9",
    "table_reads_floored": 600,
    "tie_cells": 0,
@@ -54,14 +54,14 @@
    "delay_ps": 1981,
    "depth": 88,
    "flops": null,
-   "netlist_sha256": "57ce50c4b62767ed364613bef11a6e4d8154722d0daeb6975594ece98921aadc",
+   "netlist_sha256": "0207b87c0cc4c42dbfc815422d0d4a43c1f1b527b7f8a434ed0f84677f82d054",
    "of": [
-    "record:cc95273d338d1cdf8539aa5c30fd620d89d24e69a1a0b661f62ec258c2b24f3b",
+    "record:2eceecded8d96ed8556d0e6c9184ebc14a4cea445d1db7a54e2006e987190645",
     "reference:mul_n",
     "reference:mul_n_byhand"
    ],
    "repaired_sha256": "dc39f8141d84f2ffd4fa1cc39e2c5b268fa24378c2e9cc23881d28019cffde8d",
-   "rtlil_sha256": "1c37f1d4fe0b4ceae577abaa09b4aef630e8c297aa0d0543b2a94911801e21e8",
+   "rtlil_sha256": "403e6dfc40e99bce005bc362e8b16f6705508137b3a1f6c42c4bb1ccb548614f",
    "sv_sha256": "66686a9d4c60cc9484a7fc673c5a8e2b73f30e25f9f6ddaccccbf3d51bf3bd23",
    "table_reads_floored": 92,
    "tie_cells": 0,
@@ -77,13 +77,13 @@
    "delay_ps": 1160,
    "depth": 62,
    "flops": null,
-   "netlist_sha256": "127b7cdd2871845693bd4fab68573b2a9e0f50607dfe336196481aab29557bc5",
+   "netlist_sha256": "81191465c09191e9a973a4ce869317d81ff3d166316cf8b55c198b775da2778e",
    "of": [
-    "record:ecad28fd53097c3993b67ee96369c3b990085c6ada0d7c42c1c599967880f857",
+    "record:1995ebdbe38ab6aeda453ab30f0b1a0f59527a9702b76f4af21ddba356003235",
     "reference:mul_tree_h"
    ],
    "repaired_sha256": "4ffa243bda30e7f96a2fb3dd760541b437579e6f2e7a265090b62c9bb8b15555",
-   "rtlil_sha256": "60ebf526fff291b303d5926cece6ff6451e3b1171acd6f8d48b0c944fa8dd6fe",
+   "rtlil_sha256": "fcfdd7a7738a726c9daac4a9ce319fce95562ccd4f904462aa1232596c65158c",
    "sv_sha256": "8253e553b95f7c6b71a07452cd0b0039c6b8b27ddc275bba492de643334f3d49",
    "table_reads_floored": 380,
    "tie_cells": 0,
@@ -99,12 +99,12 @@
    "delay_ps": 1307,
    "depth": 64,
    "flops": null,
-   "netlist_sha256": "46a50b3df3a6df6134d40b1e2d2cdb2065e0788bd4db0324736c4c77f2d97656",
+   "netlist_sha256": "b7b7b9d1a55cb172052a4b23fa74a64eff1c38489c3812f096bee7797be521a2",
    "of": [
-    "record:efbea7ef0e3d5d986d894e852946bfd71dc64f3a52b202c96d78f1d0f8687113"
+    "record:15ca3004eb19d8ecc38241b5f11c6a9159c329261d446b44ebfd928f91d45584"
    ],
    "repaired_sha256": "051116e429b7500bdb0a88448d40d52839bcef0c4ac8ffb7838fea31d3574886",
-   "rtlil_sha256": "0af7b7eb8a7a66ddc1d805060f6d0968880d97f36cf9e853b36f1f83e87a330a",
+   "rtlil_sha256": "6c868629f48efce4575d6ce9670298d543f0bc13d511c949d85607ff2a6df2f2",
    "sv_sha256": "90943a571f7f69892a084a2045add583e1cafaee9bf623ceb18aa108f69b0192",
    "table_reads_floored": 1816,
    "tie_cells": 0,
@@ -120,12 +120,12 @@
    "delay_ps": 1088,
    "depth": 60,
    "flops": null,
-   "netlist_sha256": "543b374acc78d6623eee062b9bb8cebcae8c0c517eed5e224ec57cb6b1042247",
+   "netlist_sha256": "181a1623c40af6cfe87f50700385ed3a95b4a0d44943b77f34ce0b70c16037f6",
    "of": [
-    "record:7d6d9bd9da7ad38590b8bb7159f1cba09c882d6eed9236f09ff41a235c0fbedb"
+    "record:10dcb2412c665a40b2516e5f1abee8042a696c926874e67cdf5b8860b5f42ec3"
    ],
    "repaired_sha256": "540f9ff763d63b371f98e7f1ee6d30ec774af971d78e9c0cb11cf91d360b1095",
-   "rtlil_sha256": "a07aff68c4817022e892973d23f7c11d90be5d164adfadf08dc04141bec0937e",
+   "rtlil_sha256": "361ae2133600ee14745148510b84641691722170801aa175257a2941234bcdea",
    "sv_sha256": "9f7eb149ac237cd89d414f5de7f9e021bae46f339b13f5db8726e6f5a635bab5",
    "table_reads_floored": 464,
    "tie_cells": 0,
@@ -141,13 +141,13 @@
    "delay_ps": 1100,
    "depth": 61,
    "flops": null,
-   "netlist_sha256": "e421a7d947d25216778979b0b3e9e0d6456233bbdecab0385b0f07dd486a18f4",
+   "netlist_sha256": "ea34ca6303812c3c4235888072caf8b821b6e6669e5976a3016cd2067033b666",
    "of": [
     "baseline:dadda_rc",
-    "record:707464b7d6cd75017deb317fa5d08350683561c9471ffae1ccc7f83d0016fae1"
+    "record:bafe3dba02872e983010173f531e8f32e0782e431347897304e9d18cff0ec3d3"
    ],
    "repaired_sha256": "64939f4383e851a18b9d35dfd1618d51eb6e93ba72383c5afb27fee1d3f0231d",
-   "rtlil_sha256": "f80745b8f057b54dba46534b9cef268621a1e82643dda2d1cde97006a9cd0a1c",
+   "rtlil_sha256": "22007aaff56061e6610f316e83a706840cf31b5f3eac0e354d651a3077a93e9c",
    "sv_sha256": "e4d405a7efe7dc72a192166bf3409d033b90a673f52ed3cf581032c38d78a4bb",
    "table_reads_floored": 492,
    "tie_cells": 0,
@@ -163,13 +163,13 @@
    "delay_ps": 1191,
    "depth": 63,
    "flops": null,
-   "netlist_sha256": "e3cd41f4226ce33d1990d9b5ec3297d9e8d4ca7b7b7c596491c02b6379678ea2",
+   "netlist_sha256": "73a0232708411ca690a65e9a05b0f00b302055454403fd7e6bfaca79fe8dc3c1",
    "of": [
-    "record:cdb6f9dc513d37fcb3499e60b0993b914d59c7e4a23399efb0d0fa66ec93ae17",
+    "record:8e466b8510dae5eef96730982a71b457ce50ea38f0d90ee9fedafd7e02d77f11",
     "reference:mul_tree"
    ],
    "repaired_sha256": "b26b9b997eca012dda81d81d65e9e2d186deedf45ce841cb4ad5892b0e9acbcb",
-   "rtlil_sha256": "e855545ab4b58c4e401879109fdbc9c0c09aa49525d9c781700bbd04beedbe56",
+   "rtlil_sha256": "8d1d7f29c001e936e9662a2225e560a8e68efa4b38d8ca9f3328a79e3d7d639f",
    "sv_sha256": "e961fdd999526406384d937f8803a44d710c3167f8c273aa8b6dcfeb5519b01d",
    "table_reads_floored": 412,
    "tie_cells": 0,
@@ -181,7 +181,7 @@
   "flow": "comb",
   "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
   "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
-  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
  },
  "identity": {
   "input_drive": "BUFx8_ASAP7_75t_R",
@@ -189,7 +189,7 @@
   "ppa_pins_sha256": "edd00a44e4f068fa31806d6d562e4f0635cb558310793b59e80dfa7cfa42a563",
   "ppa_version": "asap7_a0_v1"
  },
- "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+ "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
  "schema": "svgolf-asap7/1",
  "scoring_point": {
   "N": 16

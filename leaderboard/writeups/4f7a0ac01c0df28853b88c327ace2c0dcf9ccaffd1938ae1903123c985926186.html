@@ -1,0 +1,31 @@
+<h1>Free-running shifters and accumulators, no hold mux</h1>
+
+<p><code>f10.sv</code> is <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a> circuit with its hold logic taken out. The arithmetic, the latency of N cycles and the period are unchanged. The area falls by about 9%, which is enough to beat par.</p>
+
+<h2>The idea</h2>
+
+<p>In <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>, the operand shift registers, the step counter and the accumulators move only while <code>busy</code> is 1, which puts a multiplexer in front of each of them. Here they run free. <code>a_sh</code>, <code>b_sh</code> and <code>k</code> load on <code>start</code> and shift or count in every other cycle, reset cycles included. Each accumulator adds its product in every cycle without a <code>start</code>. No gate is needed after the N steps: by then <code>b_sh</code> has been shifted out to all zeros, so each product is zero and <code>C</code> holds without a hold multiplexer. Only <code>busy</code> and <code>done</code> are controlled, and <code>k</code> needs no reset at all.</p>
+
+<p>Figure 1 shows the schedule at the scoring point, one edge past <code>done</code>.</p>
+
+<figure data-figure="matmul-schedule-free" data-alt="The schedule at N = 4: four busy cycles as in the reference, done on edge 4, and on edge 5 the units keep adding a zero product.">
+<figcaption><a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">The reference</a>'s schedule, with the units still adding after the last step: B's shift register is all zeros by then.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>The netlist keeps <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s 802 flip-flops but has 274 multiplexer cells instead of 514. Its area is about 79,700 µm² on sky130, against 87,174 for the reference. The critical path is still one multiply-add, 58 cells long, at 10,689 ps, and four cycles take 42,756 ps. Area × time is about 3.41 million µm²·ns, 0.91 × par. On the routed ASAP7 course it scores about 7,911 µm²·ns, 0.89 × the reference.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (722 code lines) is <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s proof with the control process, the PE process and the phases changed. The agreement, the clock step and the proofs of the three rules keep their shape. The new part is the run past the N steps:</p>
+
+<ul>
+<li><code>entry_ge</code>: an entry past the end of a flat vector is zero.</li>
+<li><code>psum_ge</code>: by induction on the extra steps, the partial sum stops changing at N, because B has only N rows.</li>
+<li><code>accC_ge</code> lifts this to the packed accumulators. <code>ctrl_idle</code> and <code>next_run</code> show that an idle cycle advances <code>k</code> and the shifters and leaves <code>C</code> the same.</li>
+</ul>
+
+<p>The Fin phase is therefore not a frozen state but the busy run carried on. <code>FinAt</code> holds at every t ≥ N: the accumulators are at their value for N, the counter is at t mod 2^32 and the shifters have shifted t times. <code>next_idle</code> and <code>next_reset</code> cover the states before the first start. There <code>C</code> accumulates whatever the registers hold, and the statement claims nothing about it.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

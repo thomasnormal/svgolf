@@ -7,9 +7,9 @@
    "delay_ps": 1027,
    "depth": 3,
    "gates": 7,
-   "netlist_sha256": "c52b66cefe86fa5e47f4e1772d866cd9c64fc87cc4f849839d4bf1118f9df408",
+   "netlist_sha256": "7dadf35e377a8e21bf7890a001943937fb722db0e1fe11c33260f37fdeb8b967",
    "repaired_sha256": "56451fe8597dd4fcf172f9760372ed06b9ddc190482681e7f1798bc6ffbfb44e",
-   "rtlil_sha256": "98bc34bf0935f0356f4ff6314f995a5995fbe758f120754a4fc91426b229bce3",
+   "rtlil_sha256": "ad64ba0b15c297764ca16029291b03a0356c85f6a39f0eb28ce71c67057d5c4e",
    "unit_depth": 3
   },
   "case_mux": {
@@ -19,9 +19,9 @@
    "delay_ps": 814,
    "depth": 4,
    "gates": 40,
-   "netlist_sha256": "097e06e2a01abc712398ad5897a796ef47b6e581b2626466f3e5a40572aac985",
+   "netlist_sha256": "1edc5b6e023a30ff348aace51268de6d7cd311101b42ab6c354e4451a607fe83",
    "repaired_sha256": "9817929e8ca9e02cb598e062217ab709cdcc4d8923f0bc9cae68d8dd05f9f0fe",
-   "rtlil_sha256": "eddd85d36baa6c187965abb158dc6e7fa9093842fba34629a700261fc08feddc",
+   "rtlil_sha256": "c99a60ef728b3253ead48ea1d2240bccd55e5b097b360a5b744fb67ddbff5761",
    "unit_depth": 4
   },
   "lut_case": {
@@ -31,9 +31,9 @@
    "delay_ps": 715,
    "depth": 3,
    "gates": 8,
-   "netlist_sha256": "2d0e0309e6f6a9f48131e0ede951f55f060d5616b1bbd3deb3c8a261f74ece6b",
+   "netlist_sha256": "2f579607ffadb2940c2234069f1da15ef229fa24c09a837c7e33b3b1236a3caf",
    "repaired_sha256": "7812c299e6db93fe9b27e8f1d8d54a5a11d5efbf13c345b586c54cc65bbbb0f0",
-   "rtlil_sha256": "939fce5eb30d804765ed8419c443b239e07714ff00f8b8e85930b8bcae202493",
+   "rtlil_sha256": "63c206dbb347ad077e2aec00536e4a349eba727dd114ac7478e69a166fa1855b",
    "unit_depth": 3
   },
   "onehot_dec": {
@@ -43,9 +43,9 @@
    "delay_ps": 441,
    "depth": 2,
    "gates": 12,
-   "netlist_sha256": "f7fe7044c6e6ed7292fa62b51644d6b5eece977e2c58300b7a0ef364788735cb",
+   "netlist_sha256": "936639c845d9d9fee008216a8a7982ee1c0e8ce27795528c0f26ed9932aef764",
    "repaired_sha256": "3ed320a0b6ccb44dc57821dfbc793d6082599817262c082d37f77453499da4f0",
-   "rtlil_sha256": "2515067585ae31646e873d86ef10aff7c85b6b56b050c4e92e77878c3c929043",
+   "rtlil_sha256": "a9b32a9016b6023a90aefa0d60c7befc850161595627027ae1b3a8a36c096960",
    "unit_depth": 2
   },
   "packed2d_idx": {
@@ -55,9 +55,9 @@
    "delay_ps": 607,
    "depth": 4,
    "gates": 45,
-   "netlist_sha256": "bfee7dfc110326e023a79ad91dc2273d56f549c5b903e8f4dbf2eefeac7bf061",
+   "netlist_sha256": "0ea4ce4e1cd5ef9b2114153bf034fcbf66361f86d3c5dfbaa96e26b3154b382f",
    "repaired_sha256": "4d233587f5a4fa5ed9ceddd5e92b897ce24ce082c03dbf6932433e1366836367",
-   "rtlil_sha256": "bce0882a535c45f5b6e30249200b1a6653e09ea07a76a3db5b01cbb20b8ae787",
+   "rtlil_sha256": "a4c313f2ed58dead8ce55480c43788f3af2a247e85cb562f8d81895424248326",
    "unit_depth": 4
   },
   "sbox_logexp": {
@@ -67,9 +67,9 @@
    "delay_ps": 5259,
    "depth": 26,
    "gates": 1291,
-   "netlist_sha256": "5afc3e74fa2df9b1c0b2481654e37065ba9cc8170a5deab1cc17175c003f13bf",
+   "netlist_sha256": "245f47b1ef0fd04a833eb4cbf3b13ef90b6c7edd263912141bbedd454b849afb",
    "repaired_sha256": "8dc7a12a460a06065430b7cbcb93f21c664f05388247bcc6968cb8eca4bec4f6",
-   "rtlil_sha256": "8b8e331ca8bb1c451b4c04d2269d52b942ca9af94d43ce3c6f70b9534fa78ba2",
+   "rtlil_sha256": "92db8fe597f92adcb29288a43ddac9ea9946716fe50dbcdb71a90cff553b45dd",
    "unit_depth": 26
   },
   "shift_var": {
@@ -79,9 +79,9 @@
    "delay_ps": 1071,
    "depth": 3,
    "gates": 26,
-   "netlist_sha256": "c7720ec8251f3de258777e2b92cea8b14d8c3e23fb0e9271f1c31d6a6d9cb0dd",
+   "netlist_sha256": "7884a27b0976dcadca5c2348b3679262ac21c1fdffd00895cc669fa2b36c91c0",
    "repaired_sha256": "17a4093f2b099d1846f1befc1897a633842c71127fd0c42572da55abec0c618b",
-   "rtlil_sha256": "f8757c132e8d8a86a705cae25e98ad131db82dfa35194dcd4aca587f6889d60f",
+   "rtlil_sha256": "7f5dbe7f1fbcbf30194679d192ce474fb8c58ffc3f1eec122252ed7d335d97d3",
    "unit_depth": 3
   },
   "udiv_var": {
@@ -91,9 +91,9 @@
    "delay_ps": 7484,
    "depth": 62,
    "gates": 175,
-   "netlist_sha256": "e6c3734ab2f4f3f711e2420c5f170f7faa979699356a0bb0c51cb82a676db844",
+   "netlist_sha256": "8aecb72f43a91106f78eadc084b43132ab59aa84c7f304ac0790ce5034d38392",
    "repaired_sha256": "b64846c5a187c1e27ea2fe5995bcedbad9c5be87ff1f23a33aec3d6e14c9ccfa",
-   "rtlil_sha256": "7c735d9637f2dd7f74aecf6f397a49868adb873ba70200a12366414cac955e4f",
+   "rtlil_sha256": "c9a19b96dad55edb15930f8e1592b9fd6b02c52f5b76399d6aa822a6839ca085",
    "unit_depth": 62
   }
  },

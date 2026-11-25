@@ -43,7 +43,9 @@ Options:
   --netlist OUT   also write the scored gate netlist (Verilog) to OUT
   --rtlil OUT     also write the canonical RTLIL (stage 1's output) to OUT
   --repeat K      synthesize K times and fail unless all K results are identical
-  --yosys PATH    the Yosys binary (default: $SVGOLF_YOSYS, else `yosys` on PATH)
+  --yosys PATH    another Yosys binary, for research (default: $SVGOLF_YOSYS, else the
+                  RATING BUILD, score/yosys_wasm.py: the pinned WebAssembly Yosys 0.53,
+                  `pip install -r requirements.txt`; the result's `rating_build` says which)
   --no-gate       score the files as they are (research only: an ungated
                   score is not an svGolf score, and the result says so)
   --seq           the CLOCKED flow: score/svgolf_seq.ys (svgolf.ys with
@@ -63,9 +65,10 @@ Options:
 
 The result JSON (stdout) has: top, params, gates (count per gate type),
 num_gates, area_ge, area_mge (integer milli-GE, the exact value), depth,
-rtlil_sha256, yosys_version, script_sha256 (svgolf.ys), canon_script_sha256
-(canon.ys), ge_table_sha256, gated, sources (path, sha256 of the file, sha256
-of the canonical text Yosys read).
+rtlil_sha256, yosys_version, rating_build (whether the pinned WebAssembly
+build made it), script_sha256 (svgolf.ys), canon_script_sha256 (canon.ys),
+ge_table_sha256, gated, sources (path, sha256 of the file, sha256 of the
+canonical text Yosys read).
 Exit status: 0 = scored, 1 = the gate refused a source, synthesis failed, or
 the netlist has a cell the GE table does not price (a latch or flip-flop, for
 instance), 2 = usage error.
@@ -169,14 +172,95 @@ def load_ge_table(path=GE_TABLE):
     return {k: round(v * 1000) for k, v in table.items() if not k.startswith("_")}
 
 
+# THE RATING BUILD (decided 2026-11-24): YoWASP's WebAssembly Yosys 0.53, with ABC linked in, through the launcher
+# score/yosys_wasm.py (pip: requirements.txt), the same program on every machine: native builds of the same Yosys
+# version break ties in the order of their C++ and C libraries and gave other netlists for half the board
+# (score/reference_build.json). $SVGOLF_YOSYS or --yosys may name a native Yosys for research: its numbers can differ
+# from the board's, and the result says so (`rating_build: false`). Every Yosys process of the flow (the score, the
+# banlist backstop, the fourstate check, the A1' mapping, the post-synthesis re-read) runs through `yosys_argv`.
+WASM_YOSYS = os.path.join(HERE, "yosys_wasm.py")
+
+
 def yosys_bin(explicit=None):
-    return explicit or os.environ.get("SVGOLF_YOSYS") or "yosys"
+    return explicit or os.environ.get("SVGOLF_YOSYS") or WASM_YOSYS
+
+
+def is_rating_build(yosys):
+    """Whether `yosys` is the pinned WebAssembly launcher (score/yosys_wasm.py)."""
+    return os.path.realpath(shutil.which(yosys) or yosys) == os.path.realpath(WASM_YOSYS)
+
+
+def wasm():
+    """The launcher module, its pins checked and its machine-code cache compiled (once per process; under a lock the
+    first time on a machine): a sandboxed Yosys only reads the cache. Raises ScoreError when the installed module or
+    runtime is not the pinned one (never a fallback to another Yosys)."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import yosys_wasm
+    try:
+        yosys_wasm.check_pin()
+        yosys_wasm.warm()
+    except yosys_wasm.PinError as e:
+        raise ScoreError(str(e))
+    return yosys_wasm
+
+
+def yosys_argv(yosys):
+    """The command that runs `yosys`: the rating build through this interpreter (`python3.12 -B yosys_wasm.py`), a
+    native Yosys as itself."""
+    if is_rating_build(yosys):
+        wasm()
+        return [sys.executable, "-B", WASM_YOSYS]
+    return [yosys]
+
+
+def yosys_missing(yosys=None):
+    """Why the flow's Yosys cannot run here (a sentence), or None when it can: for the tests that skip without it."""
+    yosys = yosys_bin(yosys)
+    if is_rating_build(yosys):
+        try:
+            wasm()
+        except ScoreError as e:
+            return str(e)
+        return None
+    return None if shutil.which(yosys) else f"no Yosys at {yosys!r} ($SVGOLF_YOSYS)"
+
+
+def yosys_datdir(yosys=None):
+    """Yosys's data directory (simcells.v, techmap.v): the module's `share` for the rating build, else what the
+    `yosys-config` beside the binary (or on PATH) says."""
+    yosys = yosys_bin(yosys)
+    if is_rating_build(yosys):
+        return wasm().share_dir()
+    cfg = os.path.join(os.path.dirname(os.path.realpath(shutil.which(yosys) or yosys)), "yosys-config")
+    if not os.path.isfile(cfg):
+        cfg = shutil.which("yosys-config") or "yosys-config"
+    return subprocess.run([cfg, "--datdir"], capture_output=True, text=True, check=True,
+                          env=sandbox.scrubbed_env()).stdout.strip()
+
+
+_VERSIONS = {}
 
 
 def yosys_version(yosys):
-    out = subprocess.run([yosys, "-V"], capture_output=True, text=True, check=True,
-                         env=sandbox.scrubbed_env())
-    return out.stdout.strip()
+    """`yosys -V` (its version line), asked once per process and Yosys."""
+    if yosys not in _VERSIONS:
+        out = subprocess.run(yosys_argv(yosys) + ["-V"], capture_output=True, text=True, check=True,
+                             env=sandbox.scrubbed_env())
+        _VERSIONS[yosys] = out.stdout.strip()
+    return _VERSIONS[yosys]
+
+
+def abc_identity(yosys):
+    """The ABC that Yosys's `abc` pass runs: linked into the rating build's module (its version line is the module's,
+    its bytes the module's sha256), or the `yosys-abc` beside a native Yosys binary (its version line and bytes)."""
+    if is_rating_build(yosys):
+        w = wasm()
+        return {"version": w.ABC_VERSION, "sha256": w.PIN["wasm_sha256"]}
+    abc = os.path.join(os.path.dirname(os.path.realpath(shutil.which(yosys) or yosys)), "yosys-abc")
+    return {"version": subprocess.run([abc, "-q", "version"], capture_output=True, text=True,
+                                      env=sandbox.scrubbed_env()).stdout.strip(),
+            "sha256": sha256_file(abc)} if os.path.isfile(abc) else None
 
 
 def fill_template(template_path, fill):
@@ -213,15 +297,45 @@ def render_script(rtlil_path, top, stat_path, ltp_path, netlist_path, template_p
     })
 
 
+def wasm_mounts(paths):
+    """YOWASP_MOUNT for the rating build: every directory the process reads or writes (a file's directory), each at
+    its own path, and nothing else. The module then sees exactly the paths its script names (absolute paths only: no
+    working directory is mounted), the same set with or without the OS sandbox, which denies the runtime's default
+    mounts (every directory under `/` and the working directory's parents)."""
+    dirs = []
+    for p in paths:
+        p = os.path.abspath(p)
+        d = p if os.path.isdir(p) else os.path.dirname(p)
+        if d not in dirs:
+            dirs.append(d)
+    return ":".join(f"{d}={d}" for d in dirs)
+
+
 def yosys_run(cmd, yosys, workdir, reads=(), timeout=None, label="yosys"):
     """One Yosys process on submitted text, through the sandbox (check/sandbox): it may read `reads` (the
     sources, the netlist) and the system and package trees, and write `workdir` only. Without an active
-    sandbox this is `subprocess.run` with the scrubbed environment."""
-    exe = shutil.which(yosys) or yosys
-    spec = sandbox.tool_spec([exe], read=[os.path.abspath(r) for r in reads] + [workdir], write=[workdir],
-                             label=label)
-    return sandbox.run(cmd, spec, env=sandbox.tool_env(workdir) if sandbox.policy().active else None,
-                       cwd=workdir, timeout=timeout, kind="tool", label=label)
+    sandbox this is `subprocess.run` with the scrubbed environment. `cmd` starts with `yosys`, which runs as
+    `yosys_argv` says: the rating build may read, besides, the interpreter, the launcher, its packages and the
+    module's compiled cache (and map the last two executable), and sees only `reads` and `workdir` (`wasm_mounts`);
+    every path on its command line and in its script must be absolute."""
+    reads = [os.path.abspath(r) for r in reads]
+    if cmd and cmd[0] == yosys:
+        cmd = yosys_argv(yosys) + list(cmd[1:])
+    if is_rating_build(yosys):
+        w = wasm()
+        pkgs = w.package_dirs()
+        sites = list(dict.fromkeys(os.path.dirname(p) for p in pkgs))
+        cache = w.cache_dir()
+        spec = sandbox.tool_spec([sys.executable], read=reads + [workdir, WASM_YOSYS] + sites + [cache],
+                                 write=[workdir], label=label, map_exec=pkgs + [cache])
+        extra = {"PYTHONPATH": os.pathsep.join(sites), "YOWASP_CACHE_DIR": cache,
+                 "YOWASP_MOUNT": wasm_mounts(reads + [workdir])}
+        env = sandbox.tool_env(workdir, extra) if sandbox.policy().active else sandbox.scrubbed_env(extra)
+    else:
+        exe = shutil.which(yosys) or yosys
+        spec = sandbox.tool_spec([exe], read=reads + [workdir], write=[workdir], label=label)
+        env = sandbox.tool_env(workdir) if sandbox.policy().active else None
+    return sandbox.run(cmd, spec, env=env, cwd=workdir, timeout=timeout, kind="tool", label=label)
 
 
 def run_yosys(yosys, script_text, workdir, name="run", reads=()):
@@ -377,14 +491,13 @@ def score(sources, top, params, yosys=None, repeat=1, gate=True, netlist_out=Non
         with open(table) as fh:
             ovh = json.load(fh)["_reg_overhead"]["nand2_delays"]
         res["flow"] = "seq"
-        # the ABC that Yosys's `abc` pass runs (`yosys-abc` beside the Yosys binary): its version line and bytes
-        abc = os.path.join(os.path.dirname(os.path.realpath(shutil.which(yosys) or yosys)), "yosys-abc")
-        res["abc"] = {"version": subprocess.run([abc, "-q", "version"], capture_output=True, text=True,
-                                                env=sandbox.scrubbed_env()).stdout.strip(),
-                      "sha256": sha256_file(abc)} if os.path.isfile(abc) else None
+        # the ABC that Yosys's `abc` pass runs: its version line and bytes (`abc_identity`)
+        res["abc"] = abc_identity(yosys)
         res["reg_overhead_nand2"] = ovh
         res["reg_overhead_included"] = bool(reg_overhead)
         res["period"] = res["depth"] + (math.ceil(ovh) if reg_overhead else 0)
+    # whether the rating build made this result (score/yosys_wasm.py); a native build's numbers can differ
+    res["rating_build"] = is_rating_build(yosys)
     res["gated"] = bool(gate)
     res["sources"] = [{"path": s, "sha256": sha256_file(s), "canonical_sha256": c}
                       for s, c in zip(sources, canon_shas)]

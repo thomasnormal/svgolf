@@ -1,0 +1,27 @@
+<h1>Strassen, one level, seven MAC engines</h1>
+
+<p><code>strassen_one_level.sv</code> applies one level of Strassen's algorithm to 2 × 2 blocks of size H = ⌈N/2⌉. It computes seven block products instead of eight, each on an H × H array of multiply-accumulate cells: 28 multipliers at N = 4.</p>
+
+<h2>The idea</h2>
+
+<ul>
+<li><code>start</code> captures A and B into shift registers that move one column of A and one row of B per step, so every select is static.</li>
+<li>Each step forms the ten pre-sums (S1 to S7, T1 to T7) for one column and one row, exact in W + 1 bits.</li>
+<li>Cell (u, v) of engine r adds S_r[u][w]·T_r[w][v], wrapping at AccW bits.</li>
+<li>At t = H + 1 the four post-sums, such as C11 = M1 + M4 − M5 + M7, write C once and raise <code>done</code>.</li>
+<li>For odd N the matrices are treated as padded to 2H. The padded index meets row N of B, which reads zero, and the padded output row and column are never written.</li>
+</ul>
+
+<p>The latency is H + 2, which is 4 at N = 4.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 the design is 222,363 µm² with 1,942 flip-flops, 2.55 times <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s area. Each cell still does a multiply and an accumulate in one cycle, so the period, 10,883 ps, is close to the reference's 10,696 ps. The H steps halve the accumulation, but the pre-sum and post-sum stages add two cycles back: four cycles, 43,532 ps. The score is about 9.68 million µm²·ns: 2.595 × par on sky130 and 2.537 × par on ASAP7. Strassen saves against eight block products, which would be 32 cells here. The reference uses 16 cells over four steps, so at this size the saving does not show.</p>
+
+<h2>The proof</h2>
+
+<p>The proof has 2,073 code lines and uses only <code>simp</code>, <code>omega</code> and <code>decide</code>. Agreement (<code>st_sem_eq</code>) and the clock step (<code>st_profile</code>, <code>st_cycle</code>) follow <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>.</p>
+
+<p>The arithmetic section is the interesting part. <code>id11</code>, <code>id12</code>, <code>id21</code> and <code>id22</code> are Strassen's identities for one contraction index over the integers, proved by distributing the products and calling <code>omega</code>. <code>post11</code> to <code>post22</code> lift them, by recursion on the step count, to the engines' running sums <code>msum</code>. <code>post_dot</code> shows that the post-sum for entry (i, j) is <code>Tasks.Matmul.dot</code>. It splits the 2H-term sum into halves (<code>sumTo_split</code>), and for odd N it drops the padded index because B's row N reads zero (<code>extractLsb'_past</code>). <code>pre_range</code> and <code>preI_toInt</code> keep the pre-sums exact. <code>next_busy</code>, <code>next_last</code> and <code>model</code> finish the proof.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

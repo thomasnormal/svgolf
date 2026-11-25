@@ -1,0 +1,32 @@
+<h1>Four multiply-accumulate steps per cycle</h1>
+
+<p><code>solution.sv</code> keeps <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s layout, with one accumulator per entry of <code>C</code> and shift registers for the operands. Each unit, however, does four steps of the dot product per clock instead of one. At N = 4 that is the whole product in one cycle, and this record leads the matmul board.</p>
+
+<h2>The idea</h2>
+
+<p>In each busy cycle, unit (i, j) adds A[i][k..k+3]·B[k..k+3][j] to its accumulator: four sign-extended products and the old value, summed in one expression. The step counter advances by four. <code>a_sh</code> shifts by four entries and <code>b_sh</code> by four rows. The captured operands are zero-padded so that the four windows stay static and in range for every N: <code>a_sh</code> has three spare entries and <code>b_sh</code> three spare rows. Steps past N therefore read zeros and add nothing. <code>done</code> rises after ceil(N/4) cycles, and the latency function is <code>(N + 3) / 4</code>. Both shifts are written as two shifts of half the amount, so that no shift amount can wrap at 32 bits anywhere in the parameter range.</p>
+
+<p>Figure 1 shows the schedule at the scoring point.</p>
+
+<figure data-figure="matmul-schedule-four" data-alt="The schedule at N = 4: one busy cycle reads all four columns of A and rows of B, and done rises on edge 1.">
+<figcaption>At the scoring point the four steps of a cycle are the whole dot product.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>Four times as many multipliers cost area: about 241,920 µm² on sky130, with about 38,700 cells and 800 flip-flops. That is 2.8 times <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>. The cycle count falls from 4 to 1, though, and the period does not grow. It is 9,410 ps over a 66-cell critical path, against the reference's 10,696 ps. Area × time comes to about 2.28 million µm²·ns, 0.61 × par, first on the sky130 board. On the routed ASAP7 course it is also first, at about 6,990 µm²·ns, 0.79 × the reference's 8,886.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (855 code lines) has <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s structure: agreement with a hand-built design, the clock step, an invariant, the phase model and the three rules. The datapath facts are widened:</p>
+
+<ul>
+<li><code>setWidth_add4_mul_signExtend</code>: four sign-extended multiply-accumulates at the wide width, truncated to AccW bits, equal the wrapped integer sum. <code>psum_add4</code> unrolls the partial sum by four steps.</li>
+<li><code>padA</code>, <code>padB</code>, <code>winA_le</code>, <code>winB_le</code>: these define the padded operand registers and show that all eight windows lie inside them.</li>
+<li><code>entry_B_zero</code>, <code>psum_ge</code>, <code>accC_ge</code>: a term whose row index is at least N reads B outside its width, hence zero, so overshooting N leaves the product unchanged.</li>
+<li><code>ge_four_iff</code>, <code>toNat_mul3_lt</code>: the 32-bit counter test and the 32-bit shift amounts agree with their meaning in the integers.</li>
+</ul>
+
+<p>The Busy phase counts busy cycles j, at step t = 4j, with j + m + 1 = (N + 3)/4.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

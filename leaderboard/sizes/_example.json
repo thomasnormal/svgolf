@@ -25,11 +25,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
+     "netlist_sha256": "9329d45a617656d96df7652cbc0466e511002f9808f612d720e0aa043e71346d",
      "num_gates": 16,
      "repaired_sha256": "28a4d30c1807e8485a142102f5681ec21310c41266ebe9feb8aed005d456387d",
-     "rtlil_sha256": "08912da22756e668b8774aaddd737194b0151352c218ecf464f800b86c1cace7",
-     "seconds": 0.6,
+     "rtlil_sha256": "3c7377615a986766d4d3a2e0409f01aef3300c677aedbc6b8ae1371f725770f1",
+     "seconds": 2.5,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -56,11 +56,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "e0cbf38da58730c3dc9135c69644c1bfd89122e2c93941db159f9e075411ea1a",
+     "netlist_sha256": "12ddd0ce9a82dc7be2859e75964f8215165e626da62423aa489981d4b18de6e2",
      "num_gates": 32,
      "repaired_sha256": "54b2eaeabd7a53045c2507db46b635e4d23fdf329ecbdd9317d4bf6bd1bad82b",
-     "rtlil_sha256": "fb56f4912dd749940c3be1656236a5896618098c1515e02f1c9e7feff5ec2185",
-     "seconds": 0.5,
+     "rtlil_sha256": "98ccb61366befe154df4567c014c3dbc784a45b11b9db8085a46dc4e5d793723",
+     "seconds": 2.5,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -87,11 +87,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "71abc5b93a8c66a486b9113a0654e07f568a8e88d9d8f3071662374db52c644a",
+     "netlist_sha256": "10af07c54db10bb5b04fb5c6f7b365e4f515230ed1f2c5a10647ac8ef7acb011",
      "num_gates": 4,
      "repaired_sha256": "bbbff5e1613dcf43e05310554520a43fa28937100e3a6c3296a93e9f55500adc",
-     "rtlil_sha256": "8c2a3e1179327a84cf92f762267f2e5b43b7083d1e3bebc1c9b33421e3c291c7",
-     "seconds": 0.4,
+     "rtlil_sha256": "73581b1f4014a7af53eb7ebd6e23c364babbc10f582b101ab3d241d51a46fb66",
+     "seconds": 2.4,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -118,11 +118,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "17c8b5c5eda8cbd11f55872d47c1a7b4260ca88ef4ad2840012d07ef40ade8f4",
+     "netlist_sha256": "81b152786dfdf4d4d167e45c5806ab6ee473e4e0a5f58c2957837da95a88ed69",
      "num_gates": 64,
      "repaired_sha256": "fec4600e69b244f1a199e694b31aad836069d6b4ab9fcbb9e5df39eab838759b",
-     "rtlil_sha256": "f78208499a6d98c31bf21f47c439248b344f4e2bf693966b27f673e4ab7a85f7",
-     "seconds": 0.5,
+     "rtlil_sha256": "32439868eacaf33d30920995b2210ae21d2ea0a44c66202b23c977410b30c941",
+     "seconds": 3.0,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -149,11 +149,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "6958b63679929996a37cb2759a0fda983f1ac48cd3b3947b40f1d28d13e85a6b",
+     "netlist_sha256": "df0415e643a685af0eb23afd91990ef59a7c51a0b09dd54526db85a156a471c0",
      "num_gates": 8,
      "repaired_sha256": "2d4bb7b3167ffaf3dd9c5232a3abcde8d9da8ae1b51c4ca9f569e7c2c50c27e0",
-     "rtlil_sha256": "a8486f79134c2b20c7ec8e0c3fe19e1a3e632609080604e3910bc02eda9b2e0d",
-     "seconds": 0.5,
+     "rtlil_sha256": "975475b22dba8ef72da27a6bea12a48cd621907b7d3379cf89b22e2a99725d00",
+     "seconds": 2.4,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -164,7 +164,7 @@
    "records": [
     {
      "player": "svgolf-reference",
-     "record_hash": "63eff63ad5f0e5931a786681b40da4995d3b56c9a34ad29e0448aee42765258d",
+     "record_hash": "11e7e503f12a881ae8b3e9740925ce88f3219c1783c82267fdfd66340b26050e",
      "sv_name": "band.sv"
     }
    ],
@@ -195,11 +195,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "d6499297a145c23b802c40766f239336d8a15ea1462d342d3656dfc82ff0ae52",
+     "netlist_sha256": "9329d45a617656d96df7652cbc0466e511002f9808f612d720e0aa043e71346d",
      "num_gates": 16,
      "repaired_sha256": "28a4d30c1807e8485a142102f5681ec21310c41266ebe9feb8aed005d456387d",
-     "rtlil_sha256": "08912da22756e668b8774aaddd737194b0151352c218ecf464f800b86c1cace7",
-     "seconds": 0.6,
+     "rtlil_sha256": "3c7377615a986766d4d3a2e0409f01aef3300c677aedbc6b8ae1371f725770f1",
+     "seconds": 2.4,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -226,11 +226,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "e0cbf38da58730c3dc9135c69644c1bfd89122e2c93941db159f9e075411ea1a",
+     "netlist_sha256": "12ddd0ce9a82dc7be2859e75964f8215165e626da62423aa489981d4b18de6e2",
      "num_gates": 32,
      "repaired_sha256": "54b2eaeabd7a53045c2507db46b635e4d23fdf329ecbdd9317d4bf6bd1bad82b",
-     "rtlil_sha256": "fb56f4912dd749940c3be1656236a5896618098c1515e02f1c9e7feff5ec2185",
-     "seconds": 0.5,
+     "rtlil_sha256": "98ccb61366befe154df4567c014c3dbc784a45b11b9db8085a46dc4e5d793723",
+     "seconds": 2.4,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -257,11 +257,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "71abc5b93a8c66a486b9113a0654e07f568a8e88d9d8f3071662374db52c644a",
+     "netlist_sha256": "10af07c54db10bb5b04fb5c6f7b365e4f515230ed1f2c5a10647ac8ef7acb011",
      "num_gates": 4,
      "repaired_sha256": "bbbff5e1613dcf43e05310554520a43fa28937100e3a6c3296a93e9f55500adc",
-     "rtlil_sha256": "8c2a3e1179327a84cf92f762267f2e5b43b7083d1e3bebc1c9b33421e3c291c7",
-     "seconds": 0.4,
+     "rtlil_sha256": "73581b1f4014a7af53eb7ebd6e23c364babbc10f582b101ab3d241d51a46fb66",
+     "seconds": 2.4,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -288,11 +288,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "17c8b5c5eda8cbd11f55872d47c1a7b4260ca88ef4ad2840012d07ef40ade8f4",
+     "netlist_sha256": "81b152786dfdf4d4d167e45c5806ab6ee473e4e0a5f58c2957837da95a88ed69",
      "num_gates": 64,
      "repaired_sha256": "fec4600e69b244f1a199e694b31aad836069d6b4ab9fcbb9e5df39eab838759b",
-     "rtlil_sha256": "f78208499a6d98c31bf21f47c439248b344f4e2bf693966b27f673e4ab7a85f7",
-     "seconds": 0.5,
+     "rtlil_sha256": "32439868eacaf33d30920995b2210ae21d2ea0a44c66202b23c977410b30c941",
+     "seconds": 2.3,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -319,11 +319,11 @@
      "delay_ps": 280,
      "depth": 1,
      "flops": null,
-     "netlist_sha256": "6958b63679929996a37cb2759a0fda983f1ac48cd3b3947b40f1d28d13e85a6b",
+     "netlist_sha256": "df0415e643a685af0eb23afd91990ef59a7c51a0b09dd54526db85a156a471c0",
      "num_gates": 8,
      "repaired_sha256": "2d4bb7b3167ffaf3dd9c5232a3abcde8d9da8ae1b51c4ca9f569e7c2c50c27e0",
-     "rtlil_sha256": "a8486f79134c2b20c7ec8e0c3fe19e1a3e632609080604e3910bc02eda9b2e0d",
-     "seconds": 0.4,
+     "rtlil_sha256": "975475b22dba8ef72da27a6bea12a48cd621907b7d3379cf89b22e2a99725d00",
+     "seconds": 2.3,
      "status": "measured",
      "time_ps": 280,
      "unit_depth": 1
@@ -334,7 +334,7 @@
    "records": [
     {
      "player": "mistlebrook",
-     "record_hash": "82e7b9459530cafb33a4cd47a590b2f69bd3d694ae95208dc980fbc46005a0a4",
+     "record_hash": "89c9638eca4c8adcf62cd7a59c2daaf2b28afc4b4199e9c2bbb48548e29dff6a",
      "sv_name": "band_lp.sv"
     }
    ],
@@ -355,13 +355,13 @@
    "flow": "comb",
    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
-   "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+   "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
   },
   "limits": {
    "memory_gb": 6,
    "timeout_s": 900
   },
-  "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150",
+  "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
   "sky130": {
    "input_drive": "sky130_fd_sc_hd__buf_8",
    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",

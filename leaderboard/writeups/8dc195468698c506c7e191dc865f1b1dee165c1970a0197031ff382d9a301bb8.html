@@ -1,0 +1,31 @@
+<h1>Ripple carry, whole bit cell in one always_comb</h1>
+
+<p>This is the ripple-carry adder from <a href="a0abe75062d30836a441790c388fe3666be4c2371f9c856de4a7d1c670636a26.html">the <code>always_comb</code> carry-cell entry</a>, with the sum moved into the same block. Per bit, <code>p[i] = a[i] ^ b[i]</code> stays a continuous assign. One <code>always_comb</code> body sets <code>c[i+1]</code> (to <code>c[i]</code> when <code>p[i]</code> is set, otherwise to <code>a[i]</code>) and then <code>s[i] = p[i] ^ c[i]</code>. So a single procedural process writes two windows.</p>
+
+<h2>The idea</h2>
+
+<p>The circuit is unchanged. The question is whether a block that drives two different signals still counts as a comb design to the checker and the tactics. The carry selection is the same multiplexer as before: when the operand bits agree, the carry out is their common value, and otherwise the carry in passes through.</p>
+
+<p>The carry chain is <a href="../reference/add_n.html">par</a>'s, one cell per bit in series (Figure 1).</p>
+
+<figure data-figure="add-ripple" data-alt="The carry chain drawn as a prefix graph at N = 8: one carry cell per bit, eight in series.">
+<figcaption>The carry chain: each node is bit l's carry cell, <code>c[l+1]</code> = <code>p[l] ? c[l] : a[l]</code>, written in the bit's <code>always_comb</code> block.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>Synthesis flattens the block into the same gates: 48 NAND2 and 32 XOR2 cells, 460.4 µm² and 2.61 ns over a 32-cell path to <code>s[15]</code>. That is 1202.2 µm²·ns on sky130, a tie with par. On the routed ASAP7 course it is 7.00 µm² and 558 ps, or 3.91 µm²·ns. That matches <a href="a0abe75062d30836a441790c388fe3666be4c2371f9c856de4a7d1c670636a26.html">the one-window variant</a> and is 2 ps faster than <a href="../reference/add_n.html">par's design</a>.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (115 code lines) is <a href="a0abe75062d30836a441790c388fe3666be4c2371f9c856de4a7d1c670636a26.html">the one-window variant</a>'s proof, character for character, and a test in the task suite checks that the two match. This works because of how the tactics name facts. <code>Design2.lowerComb</code> turns the block into one assign of the concatenation <code>{c[i+1], s[i]}</code>. <code>sv_equations</code> then states one equation and one knownness fact per <em>window</em>, named by the signal written and by that window's position among the windows writing the same signal. This design therefore has the aliases <code>eq_c_1</code>, <code>eq_p_1</code>, <code>eq_c_2</code>, <code>eq_s_1</code> and <code>eq_cout_1</code>, with exactly the statements the split design has, so a proof written against the aliases holds for both.</p>
+
+<p>The rest of the proof matches too:</p>
+
+<ul>
+<li><code>add_struct</code> runs <code>sv_structure</code> with a <code>rippleRank</code> that gives the cell its bit's rank, <code>i + 1</code>, whether it writes one window or two. Every obligation closes with <code>intros; omega</code>.</li>
+<li><code>satisfiedAt_of_lowered</code> carries the lowered design's settled state back to <code>design.sem N</code>. <code>NoQ.sem_noQ</code> rules out qualified <code>case</code> statements with <code>decide</code>.</li>
+<li><code>add_final</code> turns the equations into <code>CombLib.AddView</code> by a case split on three Booleans for the carry cell, and <code>add_spec</code> gives the sum and carry out.</li>
+</ul>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

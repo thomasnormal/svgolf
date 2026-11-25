@@ -1,0 +1,39 @@
+<h1>Schoolbook with a balanced XOR tree per column</h1>
+
+<p>The top-ranked <code>clmul</code> record keeps <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">par</a>'s <code>N^2</code> partial products but sums each output column with an explicit balanced XOR tree instead of chaining it through the rows. It is one design for every <code>N</code> (<code>clmul_tree.sv</code>), proved with the <code>sv_comb</code> tactics.</p>
+
+<h2>The idea</h2>
+
+<p>The design is one 2-D packed array <code>T</code> of <code>2N - 1</code> columns by <code>2N - 1</code> positions, a tape per output column <code>k</code>:</p>
+
+<ul>
+<li>positions <code>0 .. N-1</code> are the column's partial products, zero-padded to exactly <code>N</code> leaves through padded copies of the operands (<code>ae</code>, <code>be</code>);</li>
+<li>XOR node <code>g</code>, for <code>g = 0 .. N-2</code>, writes position <code>N + g</code> from positions <code>2g</code> and <code>2g + 1</code>;</li>
+<li>the root is position <code>2N - 2</code>, and it drives <code>p[k]</code>.</li>
+</ul>
+
+<p>This heap-order layout makes a perfect tree when <code>N</code> is a power of 2 and a valid tree for every other <code>N</code>, with one generate family for all columns. The padded leaves are constant zeros that synthesis folds away.</p>
+
+<p>Figure 1 draws one column's tree at <code>N = 8</code> and, to show the same rule at a width that is not a power of 2, at <code>N = 6</code>.</p>
+
+<figure data-figure="clmul-column-tree" data-alt="One column&#x27;s XOR tree in heap order, at N = 8 (seven XORs in three levels) and at N = 6 (five XORs in three levels).">
+<figcaption>One column's tape: node N+g XORs positions 2g and 2g+1, so the root at 2N-2 has a perfect tree under it at N = 8 and a valid one at N = 6.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>After synthesis this design and par are the same size: 481 cells with the identical mix (<code>xnor2</code> 225, <code>and2</code> 199, <code>nand2</code> 57), about 3,430 µm² on sky130. The difference is depth: the tree gives ABC a unit depth of 5 instead of 6, and the delay falls from 1.11 ns to 0.97 ns, a critical path of 5 cells to <code>p[13]</code>. That makes 3323.2 µm²·ns, about 0.87 x par and first on the board. The same holds on the routed ASAP7 course: 50.26 µm² at 159 ps, 7.99 µm²·ns, also first.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (231 code lines) keeps the shape of <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">par</a>'s and replaces the row invariant with a window invariant:</p>
+
+<ul>
+<li><code>wx f s n</code> is the XOR of the window <code>f s .. f (s + n - 1)</code> of a tape.</li>
+<li><code>wx_window</code>: for every <code>g &lt;= N - 1</code>, the live window <code>[2g, N + g)</code> XORs to the <code>N</code> leaves. Node <code>g</code> takes two positions off the front of the window and appends their XOR at the back, so one induction on <code>g</code> covers every <code>N</code>, not only powers of 2.</li>
+<li><code>col_root</code> reads the root out of that invariant; <code>lower_leaves</code> and <code>upper_leaves</code> identify the leaves with the trusted statement's terms, the padding vanishing through <code>bx_trunc</code> and <code>bx_split</code>; <code>tree_spec</code> assembles all columns.</li>
+</ul>
+
+<p>The structure step is <code>sv_structure</code> with the key <code>treeKey = (stage, node, 0)</code>: padded copies, leaves, then XOR nodes by <code>g</code>, then outputs. Ordering nodes by <code>g</code> is enough because the two positions node <code>g</code> reads are leaves or nodes numbered below <code>g</code>. Then <code>sv_equations</code>, eight <code>sv_bridge</code> facts into <code>tree_spec</code>, and <code>sv_cover</code> for the reads of the tape. The record lists a build time of about 15 s.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

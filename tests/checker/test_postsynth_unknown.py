@@ -39,7 +39,8 @@ again, with the design's names kept; on the counter fixture that leaves an unrea
 has no such clause; end to end, a refusal of `_example` whose output bit is an x (the gate bypassed, as the attacks'
 `postsynth_alone` runs) names the source's bits.
 
-Needs Yosys (`yosys`, or $SVGOLF_YOSYS, and `yosys-config`); skipped with a message where it is not on PATH.
+Needs the flow's Yosys (the rating build, `pip install -r requirements.txt`, or $SVGOLF_YOSYS); skipped with a message
+where it cannot run.
 
     python3.12 tests/checker/test_postsynth_unknown.py
 """
@@ -57,7 +58,8 @@ sys.path.insert(0, os.path.join(SVGOLF, "score"))
 sys.path.insert(0, os.path.join(SVGOLF, "check"))
 import postsynth  # noqa: E402
 
-HAVE_YOSYS = bool(shutil.which(os.environ.get("SVGOLF_YOSYS") or "yosys")) and bool(shutil.which("yosys-config"))
+import score  # noqa: E402
+HAVE_YOSYS = score.yosys_missing() is None     # the rating build (score/yosys_wasm.py) unless $SVGOLF_YOSYS names another
 
 NETLISTS = {
     "n_ok": """module t(a, y);
@@ -298,7 +300,7 @@ endmodule
 })
 
 
-@unittest.skipUnless(HAVE_YOSYS, "needs Yosys (yosys and yosys-config on PATH)")
+@unittest.skipUnless(HAVE_YOSYS, "needs the flow's Yosys (score.yosys_missing)")
 class Readers(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -515,7 +517,7 @@ endmodule
 """
 
 
-@unittest.skipUnless(HAVE_YOSYS, "needs Yosys (yosys and yosys-config on PATH)")
+@unittest.skipUnless(HAVE_YOSYS, "needs the flow's Yosys (score.yosys_missing)")
 class NamingRun(unittest.TestCase):
     def test_it_names_the_source_bit(self):
         sres = {"sources": [{"path": FIXTURE}], "gated": True, "top": "cnt", "params": {"N": 8}, "flow": "seq"}

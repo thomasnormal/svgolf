@@ -324,8 +324,9 @@ class GateTest(unittest.TestCase):
         import shutil
         import subprocess
         import tempfile
-        yosys = os.environ.get("SVGOLF_YOSYS") or shutil.which("yosys")
-        self.assertTrue(yosys, "yosys not found (set SVGOLF_YOSYS)")
+        import score
+        self.assertIsNone(score.yosys_missing(), "the flow's Yosys cannot run (pip install -r requirements.txt)")
+        yosys = score.yosys_argv(score.yosys_bin())
         ok_fixtures = sorted(f for f in EXPECT if f.startswith("ok_host_"))
         self.assertTrue(ok_fixtures)
         for f in ok_fixtures:
@@ -335,7 +336,7 @@ class GateTest(unittest.TestCase):
                 path = os.path.join(d, f)
                 with open(path, "w", newline="") as fh:
                     fh.write(canon)
-                p = subprocess.run([yosys, "-q", "-p", f'read_verilog -sv "{path}"; '
+                p = subprocess.run(yosys + ["-q", "-p", f'read_verilog -sv "{path}"; '
                                     "hierarchy -top band; proc; opt"],
                                    capture_output=True, text=True, timeout=300)
             self.assertEqual(p.returncode, 0, (f, p.stderr[-400:] + p.stdout[-400:]))
@@ -603,10 +604,11 @@ class GateTest(unittest.TestCase):
     def test_ok_loops_is_a_program_yosys_reads(self):
         import shutil
         import subprocess
-        yosys = os.environ.get("SVGOLF_YOSYS") or shutil.which("yosys")
-        self.assertTrue(yosys, "yosys not found (set SVGOLF_YOSYS)")
+        import score
+        self.assertIsNone(score.yosys_missing(), "the flow's Yosys cannot run (pip install -r requirements.txt)")
+        yosys = score.yosys_argv(score.yosys_bin())
         path = os.path.join(GATE, "ok_loops.sv")
-        p = subprocess.run([yosys, "-q", "-p", f'read_verilog -sv "{path}"; '
+        p = subprocess.run(yosys + ["-q", "-p", f'read_verilog -sv "{path}"; '
                             "hierarchy -top band; proc; opt"],
                            capture_output=True, text=True, timeout=300)
         self.assertEqual(p.returncode, 0, p.stderr[-400:] + p.stdout[-400:])
@@ -614,11 +616,12 @@ class GateTest(unittest.TestCase):
     def test_clocked_positive_fixtures_are_programs_yosys_reads(self):
         import shutil
         import subprocess
-        yosys = os.environ.get("SVGOLF_YOSYS") or shutil.which("yosys")
-        self.assertTrue(yosys, "yosys not found (set SVGOLF_YOSYS)")
+        import score
+        self.assertIsNone(score.yosys_missing(), "the flow's Yosys cannot run (pip install -r requirements.txt)")
+        yosys = score.yosys_argv(score.yosys_bin())
         for f, top in (("for_param.sv", "cnt"), ("for_literal.sv", "rev")):
             path = os.path.join(CLOCKED_OK, f)
-            p = subprocess.run([yosys, "-q", "-p", f'read_verilog -sv "{path}"; '
+            p = subprocess.run(yosys + ["-q", "-p", f'read_verilog -sv "{path}"; '
                                 f"hierarchy -top {top}; proc; opt"],
                                capture_output=True, text=True, timeout=300)
             self.assertEqual(p.returncode, 0, (f, p.stderr[-400:] + p.stdout[-400:]))

@@ -1,40 +1,54 @@
 {
-  "_comment": "The tool build the ranked numbers (the sky130 A0' area and time, and with them par, the record and every board) are rated with: the README (\"Scoring\", \"The build ratings use\"), the site's rules page and every task page's score card read it from here, and tests/site/test_rating_build.py checks that the README states these values. The pinned FILES of the flow are hashed where they live (tests/expected.json `flow`, score/ppa_pins.json `liberty`, score/ppa.py itself); this file pins the BINARIES, which a golfer installs and the repository cannot carry, and what was measured about them. Not part of what the checker hashes. A change of the rating build is a decision of the maintainers: re-measure every stored number under the new build first.",
-  "decided": "2026-11-05",
+  "_comment": "The tool build the ranked numbers (the sky130 A0' area and time, and with them par, the record and every board) are rated with: the README (\"Scoring\", \"The build ratings use\"), the site's rules page, Step 0 and every task page's score card read it from here, and tests/site/test_rating_build.py checks that the README states these values and that they are score/yosys_wasm.py's pins. The pinned FILES of the flow are hashed where they live (tests/expected.json `flow`, score/ppa_pins.json `liberty`, score/ppa.py itself); this file names the BUILD, which a golfer installs (`pip install -r requirements.txt`) and the repository cannot carry, and what was measured about it. Not part of what the checker hashes (score/yosys_wasm.py is). A change of the rating build is a decision of the maintainers: measure every stored number again under the new build first (`leaderboard.py remake --measure`).",
+  "decided": "2026-11-24",
   "yosys": {
-    "binary": "yosys",
+    "build": "YoWASP's WebAssembly build of Yosys 0.53 with ABC linked in, run by wasmtime",
     "version": "0.53",
     "git_sha1": "53c22ab7c0ced80861c7536c5dae682c30fb5834",
-    "version_line": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
-    "build": "the Homebrew build for macOS arm64",
-    "compiler": "clang++ 17, -O3",
-    "sha256": "011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732",
-    "source": {
-      "_comment": "The release archive the rating build's own package is made from (Homebrew's yosys 0.53 formula: the same address and sha256), and the Ubuntu packages its build needs: what the public repository's records workflow builds on Ubuntu (tools/export_public.py writes that workflow from the same values; tests/site/test_rating_build.py compares them), and what Step 0 on the site gives a player as the recipe. A build made from it is another build than the rating build: its version line names another compiler.",
-      "url": "https://github.com/YosysHQ/yosys/releases/download/v0.53/yosys.tar.gz",
-      "sha256": "126e93d82ceca9ece1cf973b395b46a1cc8105651a8ecf3de9afbe786cdeea58",
-      "ubuntu_packages": ["build-essential", "autoconf", "bison", "flex", "gawk", "help2man", "libfl-dev", "libffi-dev", "libreadline-dev", "perl", "pkg-config", "tcl", "tcl-dev", "zlib1g-dev"]
-    }
+    "version_line": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)",
+    "compiler": "clang 18.1.3 with -O3 -flto, to WebAssembly",
+    "package": "yowasp-yosys==0.53.0.0.post912",
+    "runtime": [
+      "yowasp-runtime==1.96",
+      "wasmtime==47.0.1"
+    ],
+    "module": "yosys.wasm",
+    "sha256": "909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad",
+    "launcher": "score/yosys_wasm.py",
+    "self_check": "python3.12 score/yosys_wasm.py --self-check",
+    "memory_ceiling_gib": 4
   },
   "abc": {
-    "binary": "yosys-abc",
-    "version": "ABC 1.01 of 6 May 2025",
-    "version_line": "UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)",
-    "build": "the yosys-abc of that Homebrew build",
-    "sha256": "769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653"
+    "version": "the ABC of Yosys 0.53's release archive, linked into the module",
+    "version_line": "ABC linked into yowasp-yosys==0.53.0.0.post912 (yosys.wasm sha256 909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad)",
+    "build": "inside the module: there is no separate yosys-abc",
+    "sha256": "909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad"
   },
   "determinism": {
-    "measured": "2026-11-05",
-    "designs": 52,
-    "runs": 826,
-    "what": "every reference, baseline and record of the ranked tasks and two study designs, 14 to 16 runs each: serial and six at once, a dozen hash seeds, other temporary and working directories, two checkouts, two locales, other file names, two install paths; every number and every netlist byte equal on the rating build",
+    "measured": "2026-11-24",
+    "designs": 65,
+    "machines": [
+      "macOS arm64 (the rating machine)",
+      "x86-64 Linux"
+    ],
+    "what": "every record of the board, from the same commit: the canonical RTLIL, the scored netlist, the netlists at the clocked records' other post-synthesis points and the A1' mapped netlists, 198 files, byte for byte equal, and every number",
     "other_build": {
-      "build": "YoWASP's WebAssembly Yosys 0.53 (the same git sha1, its own ABC and C library)",
-      "designs_differing": 3,
-      "task": "fdivp",
-      "max_delay_change_pct": 2.9,
-      "max_area_change_pct": 0.3,
-      "cause": "ABC's mapper sorts with the C library's qsort, which is not stable, and its comparisons leave ties: another C library breaks the ties in another order"
+      "build": "the native builds of the same Yosys 0.53 (Homebrew's for macOS arm64, clang++ and libc++; conda-forge's for x86-64 Linux, g++ and libstdc++)",
+      "designs_differing": 33,
+      "task": "fdivp and matmul",
+      "max_score_change_pct": 7.07,
+      "max_delay_change_pct": 6.8,
+      "max_area_change_pct": 1.6,
+      "cause": "Yosys orders cells and connections by name indices it reuses in an order the C++ library sets, and ABC's mapper sorts cuts with the C library's qsort, which breaks ties its own way"
     }
+  },
+  "previous": {
+    "decided": "2026-11-05",
+    "until": "2026-11-24",
+    "build": "the Homebrew build of Yosys 0.53 for macOS arm64 (clang++ 17 with -O3) and its yosys-abc",
+    "version_line": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)",
+    "sha256": "011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732",
+    "abc_sha256": "769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653",
+    "moved": "three scores moved, all fdivp: its par -1.11%, tidereckon's Newton divider +1.11% and loamstep's D2 +3.00% (and their A1' columns); every other score and every board order stayed the same"
   }
 }

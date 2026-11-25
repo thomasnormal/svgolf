@@ -147,7 +147,7 @@ YOSYS_CHECK = """\
 {reads}
 hierarchy -check -top {top}{chparam}
 proc
-tee -q -o latches.txt dump t:$dlatch t:$adlatch t:$dlatchsr
+tee -q -o "{latches}" dump t:$dlatch t:$adlatch t:$dlatchsr
 select -assert-none t:$dlatch t:$adlatch t:$dlatchsr
 flatten
 check -assert
@@ -375,22 +375,22 @@ def latch_finding(work, at):
 
 def yosys_check(sources, top, point, yosys=None):
     """Rule (e): `check -assert` after `proc; flatten` at the point."""
-    yosys = yosys or os.environ.get("SVGOLF_YOSYS") or shutil.which("yosys")
-    if not yosys:
-        raise InfraError("yosys not found")
+    import score                        # (HERE is on sys.path) the rating build unless $SVGOLF_YOSYS names another
+    yosys = score.yosys_bin(yosys)
     work = tempfile.mkdtemp(prefix="svgolf-fourstate-")
     try:
         script = YOSYS_CHECK.format(
             reads="\n".join(f'read_verilog -sv "{os.path.abspath(s)}"' for s in sources),
-            top=top, chparam="".join(f" -chparam {k} {v}" for k, v in dict(point).items()))
-        with open(os.path.join(work, "c.ys"), "w") as fh:
+            top=top, chparam="".join(f" -chparam {k} {v}" for k, v in dict(point).items()),
+            latches=os.path.join(work, "latches.txt"))      # absolute: the rating build sees no working directory
+        path = os.path.join(work, "c.ys")
+        with open(path, "w") as fh:
             fh.write(script)
-        exe = shutil.which(yosys) or yosys
-        spec = sandbox.tool_spec([exe], read=[os.path.abspath(s) for s in sources] + [work], write=[work],
-                                 label="yosys (fourstate)")
-        p = sandbox.run([yosys, "-q", "-s", "c.ys"], spec,
-                        env=sandbox.tool_env(work) if sandbox.policy().active else None,
-                        cwd=work, timeout=1800, kind="tool", label="yosys (fourstate)")
+        try:
+            p = score.yosys_run([yosys, "-q", "-s", path], yosys, work, [os.path.abspath(s) for s in sources],
+                                1800, "yosys (fourstate)")
+        except (score.ScoreError, OSError) as e:
+            raise InfraError(f"Yosys cannot run: {e}")
         if p.returncode == 0:
             return []
         out = p.stderr + p.stdout

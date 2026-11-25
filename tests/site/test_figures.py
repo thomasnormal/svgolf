@@ -76,8 +76,21 @@ def point(text):
 
 
 def missing(*exes):
-    gone = [e for e in exes if not shutil.which(e)]
+    gone = [e for e in exes if not (yosys_cmd() if e == "yosys" else shutil.which(e))]
     return f"needs {', '.join(gone)}" if gone else ""
+
+
+_YOSYS = []
+
+
+def yosys_cmd():
+    """The flow's Yosys as score.py runs it (the rating build, score/yosys_wasm.py, unless $SVGOLF_YOSYS names
+    another), or None where it cannot run."""
+    if not _YOSYS:
+        sys.path.insert(0, os.path.join(SVGOLF, "score"))
+        import score
+        _YOSYS.append(None if score.yosys_missing() else score.yosys_argv(score.yosys_bin()))
+    return _YOSYS[0]
 
 
 def block(name, alt="Alt text.", caption="A caption."):
@@ -406,7 +419,7 @@ class Netlist:
     def __init__(self, path, top, params, tmp):
         out = os.path.join(tmp, "n.json")
         chp = " ".join(f"-chparam {k} {v}" for k, v in params.items())
-        subprocess.run(["yosys", "-q", "-p", f"read_verilog -sv {path}; hierarchy -top {top} {chp}; proc -noopt; "
+        subprocess.run(yosys_cmd() + ["-q", "-p", f"read_verilog -sv {path}; hierarchy -top {top} {chp}; proc -noopt; "
                         f"opt_clean; write_json {out}"], check=True, capture_output=True)
         with open(out, encoding="utf-8") as fh:
             mod = json.load(fh)["modules"][top]
@@ -739,7 +752,7 @@ class YosysTest(unittest.TestCase):
         path = os.path.join(self.tmp.name, "s.ys")
         with open(path, "w") as fh:
             fh.write("\n".join(script) + "\n")
-        out = subprocess.run(["yosys", "-s", path], check=True, capture_output=True, text=True).stdout
+        out = subprocess.run(yosys_cmd() + ["-s", path], check=True, capture_output=True, text=True).stdout
         vals = re.findall(r"Eval result: \\(\w+) = \d+'([01]+)\.", out)
         th, k = {}, 0
         for da in range(8):

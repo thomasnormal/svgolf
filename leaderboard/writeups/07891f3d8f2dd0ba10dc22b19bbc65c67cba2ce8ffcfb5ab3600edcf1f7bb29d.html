@@ -1,0 +1,32 @@
+<h1>Two multiply-accumulate steps per cycle</h1>
+
+<p><code>solution2.sv</code> sits halfway between <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a> and <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">the four-step design</a>. Each accumulator takes two steps of the dot product per clock, so the product needs ceil(N/2) cycles: two at the scoring point.</p>
+
+<h2>The idea</h2>
+
+<p>In each busy cycle, unit (i, j) adds A[i][k]·B[k][j] + A[i][k+1]·B[k+1][j] to C[i][j]. Every operand is sign-extended to AccW bits, and the register width does the wrap. The counter advances by two, <code>a_sh</code> shifts by two entries and <code>b_sh</code> by two rows. The operands are captured zero-extended, with one spare entry for A and one spare row for B. When N is odd, the second term of the last cycle therefore reads zero. The latency function is <code>(N + 1) / 2</code>. Unlike <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">the four-step design</a>, this one shifts by 2·N·W bits in a single shift, because that amount always fits in 32 bits within the parameter range.</p>
+
+<p>Figure 1 shows the schedule at the scoring point.</p>
+
+<figure data-figure="matmul-schedule-two" data-alt="The schedule at N = 4: two busy cycles, each reading two columns of A and two rows of B; done rises on edge 2.">
+<figcaption>Two steps of every dot product per cycle.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>The design has 32 multipliers, against 16 in <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a> and 64 in <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">the four-step design</a>. It takes about 137,100 µm² on sky130 with 801 flip-flops. That is about 0.57 times the area of the four-step design and 1.6 times the reference. The period is 9,159 ps over a 65-cell critical path, so two cycles take 18,318 ps. Area × time is about 2.51 million µm²·ns, 0.67 × par. It is third on the sky130 board, behind the four-step design and <a href="dd2c02b42fa891c1efd6249bfcec1fb58a10590779144d837227f2afc9ddc25c.html">the pipelined one</a>. On the routed ASAP7 course it is also third, at about 7,555 µm²·ns. In this family, unrolling the dot product has so far paid: each doubling of the steps per cycle has cost less in area than it saved in cycles.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (805 code lines) is <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">the four-step proof</a> cut down to two steps on <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>'s skeleton. One of its section titles still says "four-step datapath".</p>
+
+<ul>
+<li><code>setWidth_add2_mul_signExtend</code> and <code>psum_add2</code>: two wrapped multiply-accumulates advance the integer partial sum by two terms.</li>
+<li><code>padA</code>, <code>padB</code>, <code>winA_le</code>, <code>winB_le</code>: these define the padding and show that the windows stay inside the padded registers.</li>
+<li><code>entry_B_zero</code>, <code>psum_ge</code>, <code>accC_ge</code>: the overshoot past N adds zero, because those terms read B outside its width.</li>
+<li><code>ge_two_iff</code>: the 32-bit test of <code>k + 2</code> against N means N ≤ t + 2, using N &lt; 2^31.</li>
+</ul>
+
+<p>The Busy phase counts busy cycles j, at step t = 2j, with j + m + 1 = (N + 1)/2. The rest carries over from <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a> unchanged in shape: the agreement with a hand-built design, the clock step, the power-up shape, Moore outputs through <code>combDeps_of_ffOnly</code> and the x-safety <code>simp</code>.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

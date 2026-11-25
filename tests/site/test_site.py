@@ -60,6 +60,12 @@ def read_tree(top):
     return out
 
 
+
+# the tasks whose par design waits for a routed run: every par was routed on 2026-11-13; since 2026-11-24 fdivp's is
+# pending again (the new rating build changed its ASAP7 netlist; `asap7pnr --rebind`), until the course host routes it
+# at its stored seed. SiteTest.test_the_routed_pars_that_wait_are_the_data_s checks this set against the data.
+PNR_PAR_PENDING = {"fdivp"}
+
 class Page(html.parser.HTMLParser):
     """The ids, links, tags and `<pre data-src>` texts of one page."""
 
@@ -899,6 +905,22 @@ class SiteTest(unittest.TestCase):
                 self.assertNotIn("not proved", score)
                 self.assertTrue(all(d["banned"] for d in data["designs"] if d["kind"] == "baseline"), t)
 
+    def test_the_routed_pars_that_wait_are_the_data_s(self):
+        """PNR_PAR_PENDING (the routed-view tests skip those tasks' par) is exactly the set of listed tasks whose par
+        design's routed entry is pending: when the run is made, this fails and the exception goes."""
+        got = set()
+        for t in self.ranked:
+            task = lb.load_task(os.path.join(SVGOLF, "tasks"), t)
+            stem = lb.par_stem(os.path.join(SVGOLF, "tasks"), task)
+            ref = next((r for r in task.get("references") or [] if os.path.basename(r["sv"])[:-3] == stem), None)
+            if ref is None:
+                continue
+            sha = hashlib.sha256(open(os.path.join(SVGOLF, "tasks", t, ref["sv"]), "rb").read()).hexdigest()
+            entry = lb.asap7pnr_entry(lb.load_asap7pnr(t), sha)
+            if entry is not None and entry.get("status") == "pending":
+                got.add(t)
+        self.assertEqual(got, PNR_PAR_PENDING)
+
     def test_every_reference_shows_when_it_joined(self):
         """The score chart plots par's design at the date it joined the task (content/reference_dates.json); since the
         Par card went (decided 2026-11-13, the owner's UI feedback item 7) the leaderboard's par row says that date as
@@ -911,6 +933,8 @@ class SiteTest(unittest.TestCase):
             if stem not in dates.get(t, {}):
                 continue
             for pdk in ("sky130", "asap7pnr"):
+                if pdk == "asap7pnr" and t in PNR_PAR_PENDING:
+                    continue                            # par has no routed row yet (PNR_PAR_PENDING)
                 with self.subTest(task=t, view=pdk):
                     board = section(self.html(f"tasks/{t}/index.html", pdk), "leaderboard")
                     row = re.findall(r'<li class="par">(.*?)</li>', board, re.S)
@@ -1852,6 +1876,8 @@ class SiteTest(unittest.TestCase):
         seen = 0
         for t in self.ranked:
             for pdk in ("sky130", "asap7pnr"):
+                if pdk == "asap7pnr" and t in PNR_PAR_PENDING:
+                    continue                            # par has no routed numbers yet (PNR_PAR_PENDING)
                 explore = section(self.html(f"tasks/{t}/index.html", pdk), "explore")
                 rows = [[norm(text_of(c)) for c in re.findall(r"<td\b[^>]*>(.*?)</td>", r, re.S)]
                         for r in re.findall(r"<tr\b[^>]*>(.*?)</tr>", explore, re.S)]
@@ -1872,13 +1898,13 @@ class SiteTest(unittest.TestCase):
 
     def test_step0_is_complete(self):
         """Decided 2026-11-17 (Step 0 completed, the critique's visitor B): Step 0 on every task page (on the tutorial,
-        its walk-through's) says which systems svGolf runs on, how to get the pinned Yosys (the records workflow's
-        recipe from the release archive, copyable, with its sha256: score/reference_build.json) and that another
-        build's numbers are estimates, makes a virtual environment before pip, names bubblewrap on Linux and `gh`
-        for handing a record in, and says what the build costs (time, disk, peak memory) and how long the checks take.
-        llms.txt says the same in short."""
+        its walk-through's) says which systems svGolf runs on, that requirements.txt brings the rating build of Yosys
+        (since 2026-11-24: the WebAssembly build, the same program on every machine, nothing to build) and how to
+        check it (the launcher's self-check, copyable, with the module's sha256: score/reference_build.json), makes a
+        virtual environment before pip, names bubblewrap on Linux and `gh` for handing a record in, and says what the
+        build costs (time, disk, peak memory) and how long the checks take. llms.txt says the same in short."""
         rb = json.loads(read_text_file("score/reference_build.json"))
-        src = rb["yosys"]["source"]
+        y = rb["yosys"]
         for t in self.listed:
             with self.subTest(task=t):
                 html_ = self.files[f"tasks/{t}/index.html"].decode("utf-8")
@@ -1888,10 +1914,9 @@ class SiteTest(unittest.TestCase):
                 step0 = step0[:step0.index("Then golf.") if tutorial else step0.index("Then, for each design")]
                 text = norm(text_of(step0))
                 for said in ("svGolf runs on macOS and Linux; Windows is not supported.",
-                             "Package managers now ship newer versions of Yosys", "the numbers are then estimates",
-                             "listed as not ranked until a maintainer re-makes it on the rating build",
-                             f"curl -sSfL -o yosys.tar.gz {src['url']}", f"{src['sha256']} yosys.tar.gz",
-                             "sha256sum -c -", 'PREFIX="$HOME/tools"', "python3.12 -m venv .venv && . .venv/bin/activate",
+                             "the same program on macOS and on Linux", "nothing to build, no Yosys on PATH needed",
+                             y["self_check"], f"# sha256 {y['sha256']}", f"# version {y['version_line']}",
+                             "python3.12 -m venv .venv && . .venv/bin/activate",
                              "bubblewrap (bwrap) with unprivileged user namespaces", "3.75 GB of memory",
                              "about 15 seconds", "about a minute"):
                     self.assertIn(said, text)
@@ -1899,11 +1924,10 @@ class SiteTest(unittest.TestCase):
                 for said in ("gh auth login", "without gh it prints the steps to do by hand"):
                     (self.assertIn if build.submissions_open(self.config) else self.assertNotIn)(said, text)
                 self.assertLess(text.index("python3.12 -m venv"), text.index("pip install -r requirements.txt"))
-                # the recipe folds (the caveat is behind a click) and is a copyable code block
-                self.assertRegex(step0, r'<details id="build-yosys"><summary>Build Yosys [0-9.]+ from its release '
-                                        r'archive')
+                # the check folds (behind a click) and is a copyable code block
+                self.assertIn(f'<details id="{build.YOSYS_RECIPE}"><summary>Check the rating build', step0)
         llms = self.files["llms.txt"].decode("utf-8")
-        for said in ("Windows is not supported", src["url"], src["sha256"], "python3.12 -m venv .venv"):
+        for said in ("Windows is not supported", y["self_check"], y["sha256"], "python3.12 -m venv .venv"):
             self.assertIn(said, llms)
         (self.assertIn if build.submissions_open(self.config) else self.assertNotIn)("git and gh, logged in", llms)
         self.assertNotIn("from the root of a clone:", llms)
@@ -2183,8 +2207,8 @@ class SiteTest(unittest.TestCase):
                 pane = norm(text_of(section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "does-not-count")))
                 self.assertIn("The checker stops at the first stage that refuses; each design is listed with that "
                               "stage.", pane)
-        self.assertIn("always scores the same on the rating build (another build of Yosys can differ slightly: "
-                      "reproduce a score)", home)
+        self.assertIn("The same file scores the same on every machine, byte for byte: the rating build is one "
+                      "WebAssembly program (a native Yosys can differ: reproduce a score)", home)
         # the salt clause is the records' (decided 2026-11-12: whatever a new record says, the page stays true): every
         # record says of each run whether it was salted, and the front page says what they say
         recs = records()
@@ -2739,8 +2763,8 @@ class SiteTest(unittest.TestCase):
         top = readme.split("\n## Quick start\n", 1)[0]
         self.assertIn("<https://thomasnormal.github.io/svgolf/>", top)
         self.assertIn("```bash\ngit clone https://github.com/thomasnormal/svgolf\n```", top)
-        self.assertIn("macOS and Linux; Windows is not supported. The ranked numbers are rated on one build, the "
-                      "Homebrew Yosys 0.53 for macOS arm64", norm(top))
+        self.assertIn("macOS and Linux; Windows is not supported. The ranked numbers are made by one build, the "
+                      "WebAssembly Yosys 0.53 that pip install -r requirements.txt installs", norm(top))
         table = top.split("| where | what |\n|---|---|\n", 1)[1].split("\n\n", 1)[0].split("\n")
         self.assertEqual([re.match(r"\| \[?`?([^`\]|]+)", row).group(1) for row in table],
                          ["the site", "tasks/<name>/README.md", "PROVING.md", "CONTRIBUTING.md", "REFUSALS.md"])
@@ -2935,7 +2959,7 @@ class SiteTest(unittest.TestCase):
         self.assertIn("A record on the board also needs a Lean proof that the design meets the task's statement; "
                       "scoring needs none.", text)
         self.assertIn(f'href="tasks/_example/index.html#{build.YOSYS_RECIPE}"', box)
-        self.assertIn('id="build-yosys"', self.files["tasks/_example/index.html"].decode("utf-8"))
+        self.assertIn(f'id="{build.YOSYS_RECIPE}"', self.files["tasks/_example/index.html"].decode("utf-8"))
         self.assertIn('href="#try-it-without-lean"', home[home.index('<section class="how"'):])
         self.assertEqual(norm(text_of(home)).count("score/ppa.py --fetch-liberty"), 1)
 
@@ -4341,7 +4365,7 @@ class LatencyTaskTest(unittest.TestCase):
                 self.assertIn("Adapted from licensed code (MIT): its licence notice is in the design file, shown in "
                               "full below.", card)
                 self.assertNotIn("the list of changes", card)
-        self.assertGreaterEqual(checked, 1)     # kestrel-golf's 3b1ec4b16d7a keeps the reference's MIT notice
+        self.assertGreaterEqual(checked, 1)     # kestrel-golf's 999504da3683 keeps the reference's MIT notice
         grant, condition = build.LICENCE_NOTICES["MIT"]
         self.assertEqual(build.licence_ids(f"// {grant[:60]}\n//   {grant[60:]}\n/* {condition} */\n"), ["MIT"])
         self.assertEqual(build.licence_ids(f"// {grant}\n"), [])

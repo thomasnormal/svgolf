@@ -1,0 +1,243 @@
+{
+  "assisted_by": [
+    "Claude Sonnet 5.5",
+    "Claude Opus 5.5",
+    "Claude Fable 5.2"
+  ],
+  "canonical_sha256": "c5e3f2b30c41f9ccc9356df5df1e1de8bc4f37c31123f4d8cb6bfe0e367e05eb",
+  "checker": {
+    "canon_script_sha256": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+    "extractor_sha256": "beca26afa5b039de7eb8a9edd8f5d1f007b1b85816d2587a57bf56547d152755",
+    "files": {
+      "check.py": "4d41601ed4381c82fe105faf631a5fa44935ec632c0db45cfa0343c152ba5859",
+      "check/Comparator.lean": "b7808bbe32f19297df5b04047c071861ef67bdf4384be38d65f6605aab2629ef",
+      "check/SvEval.lean": "fb51d72510b515460866c2798aad3c6f55295536e627b92854c3580af215bb91",
+      "check/clocked_rules.py": "73856a45905724544247ad29042bdc2f1778271ec07b15cdb3a5f214685165c1",
+      "check/envelope.py": "076db01a9791bcc25ee84e9b0033604a4b675f00b212eab0c864078e6a4748b7",
+      "check/postsynth.py": "a60d186b61c54e41cf644c2f553daf42031af09fff52468508e19ca9456cd7f1",
+      "lakefile.toml": "f35a88404367d22906effc14d644aac9a9cad47dfd3b704ea8fec88acfaf9c4d",
+      "lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "score/banlist.py": "475972039bc68a026f0de7378a3d1f6b91b3e9fe92c4b39d65971627475552e6",
+      "score/canon.ys": "bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b",
+      "score/fourstate.py": "cfa21985d0c194928d2de64818c9a6e6d19d69d7f49fbe0f5df7563bbdf1eb8c",
+      "score/ge.json": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+      "score/ge_seq.json": "0a1aa1147b6916efa4a41e03aa3c8c70e68c1e3fd7a0e9c9a3cbc177edefd1f6",
+      "score/ppa.py": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
+      "score/ppa_mapped.ys": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "score/ppa_mapped_pins.json": "0e9a28f40bfcb85f35e495e0530c8086af19926d216de0162c1b27aa4d451cbc",
+      "score/ppa_pins.json": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "score/score.py": "133e036cf1d8702334d05811df5ac33b3a0c911f2036cc1efcea54780ff33634",
+      "score/srcgate.py": "11952f61058051c9e8de91a801b672d07e66a29308e978156c04ffd9f0dbef45",
+      "score/svgolf.ys": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+      "score/svgolf_seq.ys": "c3874dbfc85921a87df6eacdfc6b2c9a0e2b34edd5738951e0d8bdb51f4558b2",
+      "score/yosys_wasm.py": "3f45aa4110f5b2c344dfe9e8e0a2b81de7a92c2ea4a03b9f8f3edf84df341928"
+    },
+    "ge_table_sha256": "6a29196a3f4b58241f4c9af650c9141e4632b737214d563a11ba142a725c4bea",
+    "lean_surfaces_revision": "5f30e54d2e2c58083308a75ed0891c360bdb3e38",
+    "lean_toolchain": "leanprover/lean4:v4.35.0",
+    "script_sha256": "ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445",
+    "statement": {
+      "SvGolf/Task.lean": "b3f184fea55550ad95a76f0af490899f2d69f39dc5205d7408c69e1cf6de4e75",
+      "tasks/aes_sbox/Spec.lean": "86844849d794efd430aeaa990a589c395796f3218959caed0463d4ec165ad4d4"
+    },
+    "svgolf_revision": "5f30e54d2e2c58083308a75ed0891c360bdb3e38",
+    "verilator": "Verilator 5.042 2025-11-02 rev UNKNOWN.REV",
+    "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+  },
+  "files": {
+    "lean": {
+      "name": "sbox_bp_d16.lean",
+      "sha256": "dd0e9f3cc5256cb2e653d88ee2b0577a8abb63a1d31c519daa001121c8aa116c"
+    },
+    "sv": {
+      "name": "sbox_bp_d16.sv",
+      "sha256": "dfe26b83d68a2d83eabe6a42568dbf3ffa3125730ae19cd49cfb4b8d66bcbc14"
+    }
+  },
+  "notes": "The depth-16 AES S-box circuit of 125 gates published by Boyar and Peralta, translated gate for gate from their netlist (credited in the file header).",
+  "player": "gorsecipher",
+  "postsynth": {
+    "full_vectors": 256,
+    "mismatches": 0,
+    "mode": "full",
+    "point": "default",
+    "salted": false,
+    "seed": "bc98c19afc8bd0cdccffcd8318d1ef89571f899eb32a3f3cba45a75b3392bb58",
+    "vectors": 256
+  },
+  "ppa": {
+    "area_e4um2_sky130": 9521632,
+    "area_um2_sky130": 952.1632,
+    "available": true,
+    "cell_hist_sky130": {
+      "and2_1": 20,
+      "inv_1": 2,
+      "mux2_1": 3,
+      "nand2_1": 19,
+      "nand2b_1": 4,
+      "nor2_1": 3,
+      "nor2b_1": 6,
+      "or2_1": 3,
+      "xnor2_1": 56,
+      "xor2_1": 15
+    },
+    "cells_sky130": 131,
+    "constants": false,
+    "critical": {
+      "cells": 18,
+      "edge": "r",
+      "output": "y[1]"
+    },
+    "delay_ps_sky130": 3670,
+    "legality": {
+      "cells_outside_tables": 0,
+      "over_max_capacitance": 0,
+      "over_max_transition": 0,
+      "table_reads_outside": 0,
+      "worst_load_ratio": 0.272,
+      "worst_transition_ratio": 0.299
+    },
+    "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+    "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+    "mapped": {
+      "abc_version": "ABC linked into yowasp-yosys==0.53.0.0.post912 (yosys.wasm sha256 909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad)",
+      "area_e4um2_sky130_mapped_v1": 11223264,
+      "area_um2_sky130_mapped_v1": 1122.3264,
+      "available": true,
+      "constants": false,
+      "critical": {
+        "cells": 12,
+        "edge": "r",
+        "output": "y[3]"
+      },
+      "equivalence": {
+        "seed": "svgolf-ppa-mapped/1",
+        "vectors": 2048
+      },
+      "liberty_file": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+      "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+      "mapped_buffers_sky130_v1": 0,
+      "mapped_cell_hist_sky130_v1": {
+        "a211oi_1": 3,
+        "a21o_1": 1,
+        "a21oi_1": 6,
+        "a32o_1": 1,
+        "a32oi_1": 1,
+        "and2_0": 1,
+        "and3_1": 2,
+        "nand2_1": 7,
+        "nand2b_1": 1,
+        "nand3_1": 3,
+        "nor2_1": 10,
+        "o211ai_1": 6,
+        "o21a_1": 2,
+        "o21ai_0": 5,
+        "o21ba_1": 1,
+        "o21bai_1": 1,
+        "o311ai_0": 1,
+        "or2_0": 1,
+        "xnor2_1": 27,
+        "xnor3_1": 16,
+        "xor2_1": 23,
+        "xor3_1": 1
+      },
+      "mapped_cells_sky130_v1": 120,
+      "mapped_delay_sky130_v1": 3822,
+      "mapped_inverters_sky130_v1": 0,
+      "mapped_levels_sky130_v1": 12,
+      "netlist_sha256": "108d527e9c499aa148d5783d5765243c753e9dc0df3500ce7ef350aee23bdb95",
+      "ppa_mapped_pins_sha256": "0e9a28f40bfcb85f35e495e0530c8086af19926d216de0162c1b27aa4d451cbc",
+      "ppa_mapped_script_sha256": "93547b343dbac135737e98516b1004a780e1cf2f579e1bd7fed82c908c6d4125",
+      "ppa_mapped_version": "sky130_a1_v2",
+      "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+      "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
+      "rtlil_sha256": "b7bab52d7d14d7c02aee13caa6631648b223fd02387c05291ed6f9cf4da0f7b8",
+      "setup": {
+        "pi_slew_ps": 50,
+        "po_load_ff": 10,
+        "wires": "none"
+      },
+      "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "netlist_sha256": "1e65f96a7cd4fa48babd04a1bf82796a27bcf7d7a609cb0b8069ffba8c62b4ec",
+    "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+    "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5",
+    "ppa_version": "sky130_a0_v3",
+    "repair": {
+      "buffers": 0,
+      "cells_before": 131,
+      "method": "buffer_trees_v1",
+      "netlist_sha256": "87b7a0dedc815ced11f1b8d33dbbf400a204eeb516a40b725d2a1e8dbafd9e00",
+      "nets_buffered": 0,
+      "rounds": 1,
+      "tie_cells": 0
+    },
+    "setup": {
+      "input_drive": "sky130_fd_sc_hd__buf_8",
+      "pi_slew_ps": 50,
+      "po_load_ff": 10,
+      "tables": "no extrapolation",
+      "wires": "none"
+    },
+    "unit_depth": 18
+  },
+  "proof": {
+    "axioms": [
+      "Classical.choice",
+      "Quot.sound",
+      "propext"
+    ],
+    "build_seconds": 52.64,
+    "imports": [
+      "Submission.Design",
+      "SvGolf.Comb",
+      "LeanModels.Sv.CombEqTactic",
+      "LeanModels.Sv.CombLib"
+    ],
+    "lines": 209,
+    "tactics": [
+      "decide",
+      "induction",
+      "omega",
+      "simp",
+      "sv_equations",
+      "sv_interface",
+      "sv_structure"
+    ],
+    "uses_comb_eq": true,
+    "uses_comb_view": false
+  },
+  "record_hash": "8c3af9345efa346b5161d5a72564d123505164a827732ccf06ac7a3ce84ed18c",
+  "remade": {
+    "date": "2026-11-24",
+    "from_record": "e98b307e09605023e195db34289edb82442d1125a213b021f11e4b8282f182db",
+    "original_lean_sha256": "dd0e9f3cc5256cb2e653d88ee2b0577a8abb63a1d31c519daa001121c8aa116c",
+    "proof": "original",
+    "reason": "The rating build changed (decided 2026-11-24): every record was measured again on YoWASP's WebAssembly Yosys 0.53 (score/yosys_wasm.py), one program for every machine, which gives byte-identical netlists on macOS and Linux; the native builds of the same Yosys version broke ABC's and Yosys's ties in the order of their C and C++ libraries.",
+    "scores": "measured"
+  },
+  "schema": "svgolf-leaderboard-record/1",
+  "score": {
+    "area_ge": 216.322,
+    "area_mge": 216322,
+    "depth": 18,
+    "gates": {
+      "AND": 20,
+      "ANDNOT": 6,
+      "MUX": 3,
+      "NAND": 19,
+      "NOR": 3,
+      "NOT": 2,
+      "OR": 3,
+      "ORNOT": 4,
+      "XNOR": 56,
+      "XOR": 15
+    },
+    "num_gates": 131,
+    "rtlil_sha256": "b7bab52d7d14d7c02aee13caa6631648b223fd02387c05291ed6f9cf4da0f7b8",
+    "scoring_point": {},
+    "top": "aes_sbox"
+  },
+  "submitted_at": "2026-11-13",
+  "task": "aes_sbox"
+}

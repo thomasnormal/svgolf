@@ -170,7 +170,7 @@
    "worst_transition_ratio": 0.252
   },
   "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
-  "netlist_sha256": "53acc0a89c3304e66ce09c8bccce981934d96a11c23058bdccd4f3c528bc7806",
+  "netlist_sha256": "a132f59481ef56a7ba360313b29fcdaee39dff62473b941a45f48e706f45b879",
   "params": {
    "N": 8,
    "W": 8
@@ -332,6 +332,6 @@
   "elkjs": "0.3.0",
   "netlistsvg": "1.0.2",
   "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
-  "yosys": "Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)"
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
  }
 }

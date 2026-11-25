@@ -312,7 +312,7 @@ def tool(name):
     p = shutil.which(name)
     if not p:
         raise InfraError(f"`{name}` is not on PATH (the postsynth stage needs Verilator 5, a C++ "
-                         "compiler, make and Yosys)")
+                         "compiler and make; Yosys is the rating build, score/yosys_wasm.py)")
     return p
 
 
@@ -407,11 +407,14 @@ def model_sandbox(exe, vp):
 
 
 def simcells():
+    """Yosys's simulation models of its gate cells, from the data directory of the Yosys the flow runs (the rating
+    build's `share`, or `yosys-config --datdir` of a native one; score.yosys_datdir)."""
     try:
-        dat = subprocess.run([tool("yosys-config"), "--datdir"], capture_output=True, text=True,
-                             check=True, env=sandbox.scrubbed_env()).stdout.strip()
-    except subprocess.CalledProcessError as e:
+        dat = score.yosys_datdir()
+    except (subprocess.CalledProcessError, OSError) as e:
         raise InfraError(f"`yosys-config --datdir` failed: {e}")
+    except score.ScoreError as e:
+        raise InfraError(f"the rating build of Yosys cannot run: {e}")
     path = os.path.join(dat, "simcells.v")
     if not os.path.isfile(path):
         raise InfraError(f"no {path} (Yosys's simulation models of its gate cells)")

@@ -1,0 +1,23 @@
+<h1>Core mesh, every column fed one cycle late</h1>
+
+<p><code>core_mesh_late.sv</code> computes the product on an N × N mesh of identical cores, modelled on the public description of a wafer-scale engine. Each core keeps a row of A in its own local memory and has one accumulator and one input link from the north. A core multiplies and accumulates when a valid message arrives. The same mesh is recorded as <a href="eaf7419681d147ffbb4a18f5271a3b8add74cf4c52aef4d4ab5d4b3d1f5ce755.html"><code>core_mesh.sv</code></a>, which feeds B one cycle earlier. This version keeps the edge logic uniform and pays one cycle for it.</p>
+
+<h2>The idea</h2>
+
+<ul>
+<li>A message is {valid, last, payload}. Routers pass it one core south per cycle, and the arrival order stands for k.</li>
+<li>Core (i, j) adds the head of its local row times the payload to its accumulator and shifts the row.</li>
+<li>At the start edge the edge buffer takes B above N − 1 zero rows, and then it shifts down one row per cycle.</li>
+<li>One generate loop treats every column alike: column j enters core (0, j) j + 1 cycles after the start. The skew keeps each core's registers its own.</li>
+<li>The far core raises <code>done</code> on its last message. The latency is 3N − 1, which is 11 at N = 4.</li>
+</ul>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 the design is 109,011 µm² with 1,393 flip-flops, slightly more than <a href="eaf7419681d147ffbb4a18f5271a3b8add74cf4c52aef4d4ab5d4b3d1f5ce755.html">the early variant</a>'s 1,361. The period is 10,455 ps: one AccW-bit multiply-accumulate per core per cycle, as in <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the reference</a>. Eleven cycles take 115,005 ps. The score is about 12.54 million µm²·ns: 3.361 × par on sky130 and 3.321 × par on ASAP7. That is 12% behind the early variant, almost all of it from the extra cycle.</p>
+
+<h2>The proof</h2>
+
+<p>The proof has 1,728 code lines, about 280 fewer than <a href="eaf7419681d147ffbb4a18f5271a3b8add74cf4c52aef4d4ab5d4b3d1f5ce755.html">the early variant</a>'s, because there is no column-0 special case. After agreement (<code>c_sem_eq</code>), the clock step (<code>c_profile</code>, <code>c_cycle</code>) and the commit (<code>commit_SS</code>) comes one invariant <code>AtT</code> that gives every register in closed form t cycles after a start. Core (i, j) has consumed min(t − (i + j + 1), N) messages (<code>fc</code>). The accumulators (<code>accV</code>) are the partial sums over those messages, the memories (<code>amV</code>) are shifted to match, and the links (<code>lw</code>, <code>lkV</code>) carry the right messages. <code>next_step</code> advances <code>AtT</code> one cycle. <code>accV_fin</code> and <code>lkV_fin</code> close the transaction after 3N − 1 cycles. The phase model's busy state with m cycles left is <code>AtT</code> at t = 3N − 2 − m.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

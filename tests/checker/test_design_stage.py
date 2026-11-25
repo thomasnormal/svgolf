@@ -135,7 +135,14 @@ class DesignStage(unittest.TestCase):
         with mock.patch.dict(os.environ, {"SVGOLF_YOSYS": "/nonexistent/yosys"}):
             with self.assertRaises(RuntimeError) as cm:
                 self.run_check((0, "SVGOLF_UNSUPPORTED_FREE 4\n", 1.0))
-        self.assertIn("Yosys is not on PATH (infrastructure", str(cm.exception))
+        self.assertIn("SVGOLF_YOSYS names no program (infrastructure", str(cm.exception))
+        # the rating build (score/yosys_wasm.py, since 2026-11-24) not installed or not the pinned module: the remedy
+        with mock.patch.object(checkpy.score, "wasm",
+                               side_effect=checkpy.score.ScoreError("the rating build is not installed (x): pip ...")):
+            with self.assertRaises(RuntimeError) as cm:
+                self.run_check((0, "SVGOLF_UNSUPPORTED_FREE 4\n", 1.0))
+        self.assertIn("the rating build of Yosys cannot run (infrastructure): the rating build is not installed",
+                      str(cm.exception))
         with mock.patch.object(checkpy.envelope, "EXTRACTOR", "/nonexistent/extract.py"):
             with self.assertRaises(RuntimeError) as cm:
                 self.run_check((0, "SVGOLF_UNSUPPORTED_FREE 4\n", 1.0))

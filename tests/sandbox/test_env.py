@@ -125,6 +125,10 @@ NO_ENV_OK = {
     ("check/sandbox/supervisor.py", "main"): "the supervisor: its command carries its own `env -i ...` prefix "
                                              "(a sandboxed command) or the scrubbed environment it was given",
     ("check/postsynth.py", "run_group"): "defaults env= to scrubbed_env() (kw.setdefault)",
+    ("score/yosys_wasm.py", "self_check"): "the launcher's `--self-check`, a command a person or CI runs, never the "
+                                           "checker and never on submitted text: its one child is the launcher's own "
+                                           "`-V`, and the WebAssembly module sees no host environment variable "
+                                           "(yowasp-runtime passes argv and the mounts only)",
 }
 LINTED = ["check.py"] + [os.path.join("check", f) for f in sorted(os.listdir(os.path.join(SVGOLF, "check")))
                          if f.endswith(".py")] + \

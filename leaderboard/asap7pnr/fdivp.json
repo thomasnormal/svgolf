@@ -7,7 +7,7 @@
    "ppa_pins_sha256": "edd00a44e4f068fa31806d6d562e4f0635cb558310793b59e80dfa7cfa42a563",
    "ppa_version": "asap7_a0_v1"
   },
-  "ppa_script_sha256": "2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150"
+  "ppa_script_sha256": "7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5"
  },
  "course": {
   "area_rule": "liberty_sum_e5um2",
@@ -62,392 +62,60 @@
  "designs": [
   {
    "a0_asap7": {
-    "area_e5um2": 15639966,
-    "delay_ps": 6879,
-    "time_ps": 6879
+    "area_e5um2": 15663294,
+    "delay_ps": 7210,
+    "time_ps": 7210
    },
    "cycles": null,
-   "layout": {
-    "caption": "The scored layout: placed and routed by OpenROAD-flow-scripts on ASAP7, placement seed 1; die 21.8 \u00d7 21.8 \u00b5m (power and ground wires not drawn).",
-    "core_um": [
-     "19.71",
-     "19.44"
-    ],
-    "die_um": [
-     "21.773",
-     "21.773"
-    ],
-    "image": "site/layouts/fdivp/153248f45ba3bb7e.webp",
-    "image_bytes": 292086,
-    "image_px": [
-     1400,
-     1400
-    ],
-    "image_sha256": "b990df995e969bbbe146ba35e06017e30fe5928cfc6435656513763e1c6a2b63",
-    "odb_sha256": "1144581ccc2b88ca870bd64ecd483cd32dbcc4321d070916b7cd06f4db63ff95",
-    "render_png_px": [
-     1600,
-     1600
-    ],
-    "render_png_sha256": "461c98d15dcf4e835ee8ead3575c9807a9dab8aaf89c2e2c8ea0280784226d1f",
-    "run_seed": 1,
-    "thumb": "site/layouts/fdivp/153248f45ba3bb7e.thumb.webp",
-    "thumb_bytes": 88244,
-    "thumb_px": [
-     640,
-     640
-    ],
-    "thumb_sha256": "f23f833269195ba4568fb4dd37271de48406505bb1f9456b177c482aa313aaf6",
-    "view": "the flow's routing view (the settings of its scripts/save_images.tcl): every layer, net and instance; power and ground nets hidden",
-    "webp_quality": 65
-   },
-   "netlist_sha256": "f20e2ec9c6d0fc93f6a6f30c8e63ec7f21da734f6b5e6dfd26f3c2e260e2a06a",
+   "layout": null,
+   "netlist_sha256": "0c9d8b6b802d734bbc7986905fe34a5412881219d49f05f8f866f045a17e2846",
    "of": [
     "baseline:fdivp_d2",
-    "record:ffcad16e02e487364e0380791f13c4338a76914b98993cf31b2bf362f30cc78f"
+    "record:3828e5cfd493b1940bb6a4eb621bb4ea9603cc7149dedc151e1c44f172256e90"
    ],
-   "record": "ffcad16e02e487364e0380791f13c4338a76914b98993cf31b2bf362f30cc78f",
+   "record": "3828e5cfd493b1940bb6a4eb621bb4ea9603cc7149dedc151e1c44f172256e90",
    "request": {
     "seed": 1,
     "settings": {},
     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     "source": "default"
    },
-   "runs": [
-    {
-     "area_e5um2": 15715782,
-     "artifacts": {
-      "1_2_yosys.v": "f20e2ec9c6d0fc93f6a6f30c8e63ec7f21da734f6b5e6dfd26f3c2e260e2a06a",
-      "2_floorplan.odb": "734fb522a1328eceaa2eddb6ce2a89dcf095a06ecf39e11bb5fc601fb187cd56",
-      "3_place.odb": "7c203314139b946f89526fdaa10c6a8e43be71e273aa8118fa0a7df1299b4528",
-      "4_cts.odb": "3a209cb2489d17ee69155e322d098dd9ce134f1345753918ad18b903bb295e7b",
-      "5_route.odb": "9ebce9713102b7e9f97aa71078111c2d7a5b50fcb58cf0455aefa0c242b6e6c4",
-      "6_final.def": "54b73deca98d7c8c796d0f1688bee68422d20892e41a748296b6d0a07bd1771a",
-      "6_final.odb": "1144581ccc2b88ca870bd64ecd483cd32dbcc4321d070916b7cd06f4db63ff95",
-      "6_final.spef(normalized)": "f22bff574c602e06cfb5c9ad538676f9832814dae1c8e79119202c671b866697",
-      "6_final.v": "5c2e96bb639f8ac36e35de6e480fed3237d4acc50faf74ab6c8f4d0e3f6ad5f3"
-     },
-     "cells_in": 2069,
-     "cells_out": 2075,
-     "config_mk_sha256": "c2ddd3fcb1f9fb5fe4530b63f5fe21956be7cf9c7b071781c2901b78a506239f",
-     "delay_ps": 7131,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 0
-     },
-     "exact": 112069241442,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "5d449b3db8f81d3e08c52b7421f0c2601d57056437e199712989aa6d128d86d8",
-      "log_sha256": "bd35d62455e3030fc48faab296c9862977cfb53a0daf31654d0dbdf1c33af5d4",
-      "reference_sha256": "f20e2ec9c6d0fc93f6a6f30c8e63ec7f21da734f6b5e6dfd26f3c2e260e2a06a",
-      "routed_lec_sha256": "5c2e96bb639f8ac36e35de6e480fed3237d4acc50faf74ab6c8f4d0e3f6ad5f3",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-12",
-     "orfs": {
-      "area_stdcell": "161.357",
-      "area_tap_cell": "4.19904",
-      "period_min": "7130.65",
-      "sdc_period": "6879.0",
-      "setup_ws": "-251.648"
-     },
-     "peak_mb": 853,
-     "role": "scoring",
-     "sdc_sha256": "ff6862473916329ebe9de4dd171e308c47421ea676aebe68be547277c810dcb6",
-     "seconds": 99.0,
-     "seed": 1,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7131,
-     "wire_um": "2246"
-    }
-   ],
-   "scored_netlist_sha256": "b7dae79dd7fb975f4670e9b0b90c933949a5b5fbd5f92c2f03739b264660c80b",
+   "runs": [],
+   "scored_netlist_sha256": "27e9c697e3cb915cfa0f788ce8630497d237b5b2c6c6363e806b6d72af9e6e9d",
    "scores": {
     "v_median": null,
-    "v_owner": {
-     "area_e5um2": 15715782,
-     "exact": 112069241442,
-     "seed": 1,
-     "time_ps": 7131,
-     "um2ns": 1120.69241442
-    }
+    "v_owner": null
    },
-   "status": "measured",
+   "status": "pending",
    "sv_sha256": "153248f45ba3bb7ef4b55e0bfe6c391cee0dd429f71e3c1500715775b06dae0e"
   },
   {
    "a0_asap7": {
-    "area_e5um2": 14584374,
-    "delay_ps": 6972,
-    "time_ps": 6972
+    "area_e5um2": 14563962,
+    "delay_ps": 7056,
+    "time_ps": 7056
    },
    "cycles": null,
-   "layout": {
-    "caption": "The scored layout: placed and routed by OpenROAD-flow-scripts on ASAP7, placement seed 1; die 21.1 \u00d7 21.1 \u00b5m (power and ground wires not drawn).",
-    "core_um": [
-     "19.062",
-     "18.9"
-    ],
-    "die_um": [
-     "21.094",
-     "21.094"
-    ],
-    "image": "site/layouts/fdivp/6accce8480176a43.webp",
-    "image_bytes": 288076,
-    "image_px": [
-     1400,
-     1400
-    ],
-    "image_sha256": "f80b65c118827eedd798accc0b716aa1c95d4bdfb9148c055b5b3eb63f76edc8",
-    "odb_sha256": "bd065cb2a206925ffff5f6e6b0d61a3f82d6a307fca0fed994a5e6e9c8fed7cf",
-    "render_png_px": [
-     1600,
-     1600
-    ],
-    "render_png_sha256": "582a24c53cfe03c1dc628cb6d716d37ddc3517f678bcc2aa1c4539f7600a8705",
-    "run_seed": 1,
-    "thumb": "site/layouts/fdivp/6accce8480176a43.thumb.webp",
-    "thumb_bytes": 87768,
-    "thumb_px": [
-     640,
-     640
-    ],
-    "thumb_sha256": "d8644fa580c1caffea5b70f01fdd643cf2a3d761f38bb2ce3d4d7d4463ae3241",
-    "view": "the flow's routing view (the settings of its scripts/save_images.tcl): every layer, net and instance; power and ground nets hidden",
-    "webp_quality": 65
-   },
-   "netlist_sha256": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
+   "layout": null,
+   "netlist_sha256": "d6b23590ff8161d13d85d3fb0305929d7f130878e7d842b096b1057333eefede",
    "of": [
-    "record:f5a6045c647f29e093b2c35ded2bd33da330c897e174ee98e974a0f902835892",
+    "record:0184d719b6192105d28011e50f9879afd27935af02c78fe114ef002f0d05c58e",
     "reference:fdivp"
    ],
-   "record": "f5a6045c647f29e093b2c35ded2bd33da330c897e174ee98e974a0f902835892",
+   "record": "0184d719b6192105d28011e50f9879afd27935af02c78fe114ef002f0d05c58e",
    "request": {
     "seed": 1,
     "settings": {},
     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     "source": "default"
    },
-   "runs": [
-    {
-     "area_e5um2": 14721426,
-     "artifacts": {
-      "1_2_yosys.v": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
-      "2_floorplan.odb": "f2f6f0ec7300902a0fd54c8244d22e58d7de97eb8d3acb05408f7c701b36403d",
-      "3_place.odb": "fe1b1271b64ff62540c2a939df3f38e5de1305719a5090b376e6db00cd6f9cd6",
-      "4_cts.odb": "c1b529a2e1a46fd4c172ebf3a14a434483d82ce7a5a7ea94cf6a10c221652286",
-      "5_route.odb": "2af9f17d566d296f188184bf2112a57331e8a9b20324664f0a34cceeaf386f57",
-      "6_final.def": "4dbece5ad7419649384d9b089fe202942d5b74c7f2bbee04e32bb925908158b9",
-      "6_final.odb": "bd065cb2a206925ffff5f6e6b0d61a3f82d6a307fca0fed994a5e6e9c8fed7cf",
-      "6_final.spef(normalized)": "baa7bb7e02529aebb324374bdf6b4a466ad5a6ee66314e69243a9294d84d2a2b",
-      "6_final.v": "0920766e6775252192319068a7b5f145a7712485c4bb574c267540a6ce0c8760"
-     },
-     "cells_in": 1906,
-     "cells_out": 1917,
-     "config_mk_sha256": "70ca297e644a16cf9fcf9549dbb646d6c6fb610987e332423ab81703700a5f9b",
-     "delay_ps": 7246,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 26
-     },
-     "exact": 106671452796,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "8978ef5c05343de66565bdcea433e9f1d800896c1631d7f113978ff6382e37a0",
-      "log_sha256": "ce12246931786b1e22de8e6dc1559bf087077db6936bf0f81d81b20576374e92",
-      "reference_sha256": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
-      "routed_lec_sha256": "0920766e6775252192319068a7b5f145a7712485c4bb574c267540a6ce0c8760",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-11",
-     "orfs": {
-      "area_stdcell": "151.297",
-      "area_tap_cell": "4.0824",
-      "period_min": "7246.46",
-      "sdc_period": "6972.0",
-      "setup_ws": "-274.459"
-     },
-     "peak_mb": 844,
-     "role": "scoring",
-     "sdc_sha256": "8f53358eac79c75a3d486cd301922c4f198993303de870e175ebf51e16577b93",
-     "seconds": 96.5,
-     "seed": 1,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7246,
-     "wire_um": "2199"
-    },
-    {
-     "area_e5um2": 14721426,
-     "artifacts": {
-      "1_2_yosys.v": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
-      "2_floorplan.odb": "f2f6f0ec7300902a0fd54c8244d22e58d7de97eb8d3acb05408f7c701b36403d",
-      "3_place.odb": "190985748be1d8a21052cf943d24bd871588dc2ff4ad086c4dfa48f8c59cd3c7",
-      "4_cts.odb": "feb02e50cb059a97971e2cbaf9dba32bac2a982cf7dd88587834cd58b5899b80",
-      "5_route.odb": "30f79dbd337f34d1f3155d65052f300ba49d89ad0d7f35e59d3530d13257ed3b",
-      "6_final.def": "5489b96c1a1d7c3c3f98d27e4f865fa88a6aa6517eca92c5021c6a2b753470ef",
-      "6_final.odb": "9588b05f7f3c94a813594b0a98595acd2f9474abc8b321f175e73a21c5855740",
-      "6_final.spef(normalized)": "512cb5fe6ce2e7fbb26a5bdf25cf8556673df23fb2de482aab4e072d856286a0",
-      "6_final.v": "0796ac67d9e6144fb40c955b18d9bca3822ae803aa0d54b6a0868caf48438408"
-     },
-     "cells_in": 1906,
-     "cells_out": 1917,
-     "config_mk_sha256": "48dd06a51c39f09853957a9a1dfd06a2f40f4cadec8e6e50d43b054abb0b13e4",
-     "delay_ps": 7254,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 0
-     },
-     "exact": 106789224204,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "f42d338745c9fc9771b9b3bfe80adae926c6f1e689da555982c5e857589f1c2d",
-      "log_sha256": "53e9f6be254fef7fbbdcb84df49dee2546fa9fb32d3dea8853c190c35fcf94d3",
-      "reference_sha256": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
-      "routed_lec_sha256": "0796ac67d9e6144fb40c955b18d9bca3822ae803aa0d54b6a0868caf48438408",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-11",
-     "orfs": {
-      "area_stdcell": "151.297",
-      "area_tap_cell": "4.0824",
-      "period_min": "7254.35",
-      "sdc_period": "6972.0",
-      "setup_ws": "-282.348"
-     },
-     "peak_mb": 844,
-     "role": "spread",
-     "sdc_sha256": "8f53358eac79c75a3d486cd301922c4f198993303de870e175ebf51e16577b93",
-     "seconds": 97.9,
-     "seed": 2,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7254,
-     "wire_um": "2223"
-    },
-    {
-     "area_e5um2": 14759334,
-     "artifacts": {
-      "1_2_yosys.v": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
-      "2_floorplan.odb": "f2f6f0ec7300902a0fd54c8244d22e58d7de97eb8d3acb05408f7c701b36403d",
-      "3_place.odb": "1416a13c3e3d825280871c0358e3655ecb439675ba282fd4ff688c661cd37553",
-      "4_cts.odb": "9fb20a9ca754effff1c1d18e6981dd879b1909ec632aa48c6cc51fa26e962d84",
-      "5_route.odb": "b7d9e4ccae67d64d16def329539c632efa02e646bc01acb5e5a96f35bbe5f5b2",
-      "6_final.def": "43e1f38778e59e3bd51a5d2faf95a4a1cf6e7b7e274d3f5c30e7f08348ab20b2",
-      "6_final.odb": "c38c9a1c9989a3edb6008db7b4cb92f93de4f1277b05152d37414e8a327e853f",
-      "6_final.spef(normalized)": "14e125fa29626d7ede20cba84d0185ac7866f4df4aee8b9ed30745462639210b",
-      "6_final.v": "9098ad7ab1e3a7bda204f87a5a157522b19e5486a030eb02aab10c5f03115b25"
-     },
-     "cells_in": 1906,
-     "cells_out": 1920,
-     "config_mk_sha256": "0e85edb81d5113d781109b1852028a6e366ec71e1fdbbdb4bd9024d1f59f5245",
-     "delay_ps": 7166,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 0
-     },
-     "exact": 105765387444,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "56e70f23f9e4327eae2ff5393f279dddbcbfe35424aeda87afc79de335d018c0",
-      "log_sha256": "32d99227167d7978e335e67b4edb95602d5e431a1cd746994cd39d2edb27233a",
-      "reference_sha256": "2a8f1e6e6f2288fcd96e3550182983814f55f3151cd9c4bd8f8733b938488085",
-      "routed_lec_sha256": "9098ad7ab1e3a7bda204f87a5a157522b19e5486a030eb02aab10c5f03115b25",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-11",
-     "orfs": {
-      "area_stdcell": "151.676",
-      "area_tap_cell": "4.0824",
-      "period_min": "7166.11",
-      "sdc_period": "6972.0",
-      "setup_ws": "-194.107"
-     },
-     "peak_mb": 844,
-     "role": "spread",
-     "sdc_sha256": "8f53358eac79c75a3d486cd301922c4f198993303de870e175ebf51e16577b93",
-     "seconds": 98.2,
-     "seed": 3,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7166,
-     "wire_um": "2205"
-    }
-   ],
-   "scored_netlist_sha256": "2005e2c7cf970697947c217ef4c462647f7ce1dfa43c9d3a97a434361a822a2b",
+   "runs": [],
+   "scored_netlist_sha256": "eb8764d47f80b77c32763c9eb4eb960a27ba4061998cf5ee2ebf3e9a88fd8c08",
    "scores": {
-    "v_median": {
-     "area_e5um2": 14721426,
-     "exact": 106671452796,
-     "median_seed": 1,
-     "seeds": [
-      1,
-      2,
-      3
-     ],
-     "spread_pct": "0.96",
-     "time_ps": 7246,
-     "um2ns": 1066.71452796
-    },
-    "v_owner": {
-     "area_e5um2": 14721426,
-     "exact": 106671452796,
-     "seed": 1,
-     "time_ps": 7246,
-     "um2ns": 1066.71452796
-    }
+    "v_median": null,
+    "v_owner": null
    },
-   "status": "measured",
+   "status": "pending",
    "sv_sha256": "6accce8480176a433638ac74ce597a3310aef2a72d2439f90f2abb7a16b72310"
   },
   {
@@ -493,10 +161,10 @@
    },
    "netlist_sha256": "3dd2acac6e05d51e9f5623a213c7105660536c44a41c692c5ba207ac6cdea366",
    "of": [
-    "record:9aa52640fe80ffe54d5422953ec8a3df35f3b5dbb5d8c79955a6ed6fe0c36e1f",
+    "record:eaef556c295d7c214890217904914e0324c60cee4f7c4f4bd5ca1e652ac3db2a",
     "reference:fdivp_srt"
    ],
-   "record": "9aa52640fe80ffe54d5422953ec8a3df35f3b5dbb5d8c79955a6ed6fe0c36e1f",
+   "record": "eaef556c295d7c214890217904914e0324c60cee4f7c4f4bd5ca1e652ac3db2a",
    "request": {
     "seed": 1,
     "settings": {},
@@ -685,7 +353,7 @@
      "wire_um": "3647"
     }
    ],
-   "scored_netlist_sha256": "942547f5b4f26ae116a7391320f670e9fc156a57ef7c7816d1b173ad2721cdda",
+   "scored_netlist_sha256": "298cc68624e34ced54490cd8cf7512a1a0da7838e38e3b5198af705269822829",
    "scores": {
     "v_median": {
      "area_e5um2": 18717804,
@@ -713,263 +381,31 @@
   },
   {
    "a0_asap7": {
-    "area_e5um2": 50614470,
-    "delay_ps": 6964,
-    "time_ps": 6964
+    "area_e5um2": 50618844,
+    "delay_ps": 6962,
+    "time_ps": 6962
    },
    "cycles": null,
-   "layout": {
-    "caption": "The scored layout: placed and routed by OpenROAD-flow-scripts on ASAP7, placement seed 1; die 37.6 \u00d7 37.6 \u00b5m (power and ground wires not drawn).",
-    "core_um": [
-     "35.532",
-     "35.37"
-    ],
-    "die_um": [
-     "37.571",
-     "37.571"
-    ],
-    "image": "site/layouts/fdivp/c43cb22fa8ddedf7.webp",
-    "image_bytes": 288556,
-    "image_px": [
-     1200,
-     1200
-    ],
-    "image_sha256": "d2026d16049db8b4896fc8f6b6215e1df48197f02e0512da73ac6b0450432812",
-    "odb_sha256": "183e93ac525120b310ce01a75fc778a32d33fcc955d9430b4ed0d6e946d60575",
-    "render_png_px": [
-     1600,
-     1600
-    ],
-    "render_png_sha256": "2a26c40446c42106c5e00d13f88b6c60c130b3002bff6c1edd086ef0d96162c0",
-    "run_seed": 1,
-    "thumb": "site/layouts/fdivp/c43cb22fa8ddedf7.thumb.webp",
-    "thumb_bytes": 98080,
-    "thumb_px": [
-     640,
-     640
-    ],
-    "thumb_sha256": "9251922e536972552fe7f3edba48cb774c863996ea8e02524728676f0c377cf3",
-    "view": "the flow's routing view (the settings of its scripts/save_images.tcl): every layer, net and instance; power and ground nets hidden",
-    "webp_quality": 71
-   },
-   "netlist_sha256": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
+   "layout": null,
+   "netlist_sha256": "d2c501bdb3af413e0bcc629e2bc9a8bf8f1c164a4d2d94da0c37c55fb43ee8ba",
    "of": [
-    "record:6395a1d6d55ee756f62a3a661edc9bcba5bf400b3769dbf1a0744c13499f223b",
+    "record:a96bea0f6b28d6a5f9761b842a1a177abe47b40364c84749ff33553deac63ab2",
     "reference:fdivp_newton"
    ],
-   "record": "6395a1d6d55ee756f62a3a661edc9bcba5bf400b3769dbf1a0744c13499f223b",
+   "record": "a96bea0f6b28d6a5f9761b842a1a177abe47b40364c84749ff33553deac63ab2",
    "request": {
     "seed": 1,
     "settings": {},
     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     "source": "default"
    },
-   "runs": [
-    {
-     "area_e5um2": 51355134,
-     "artifacts": {
-      "1_2_yosys.v": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
-      "2_floorplan.odb": "836cdac91831fd2afdab9c39c65ceb1f43eca1dfdaa1a9ff6755b1425f46029b",
-      "3_place.odb": "8486cd5f868f90e97a1c1ed8935d21fbd028e1f6a781dc2fc1eb1711b7fbe17d",
-      "4_cts.odb": "4d53d6c3a36c511828a31bb02aba6d41ae2e6cfb80ab25b8e4682575461fde87",
-      "5_route.odb": "c83e302422c23e1e94b02c1298361a82de1445a5a7c9eb682e1c77e06ec179e9",
-      "6_final.def": "3e007936af1c0c3ca0c55875b2a0d953c2e1ea58f6f6d4a7207c946fed59f2c8",
-      "6_final.odb": "183e93ac525120b310ce01a75fc778a32d33fcc955d9430b4ed0d6e946d60575",
-      "6_final.spef(normalized)": "081de43cfcbcea9bf167c587401fbd1434ec612180607bd54a6afe87f6ff51e1",
-      "6_final.v": "d3a368fd8439ea008d7038bcd6fad2b776fac3a4b809f5ffb291d1b04e073c02"
-     },
-     "cells_in": 6045,
-     "cells_out": 6107,
-     "config_mk_sha256": "e1e9e29ceb5046f03a0dbf0f30a29d56d4017ff1d0a435724d17d6654f5c7233",
-     "delay_ps": 7118,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 0
-     },
-     "exact": 365545843812,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "820f1958b89ad06731ac184481ae530679792bc3f2f3d2302846c0282d83ff8f",
-      "log_sha256": "9aa6d617937ff2cc32aadaf9385f95292fdf04a7861c4abc8f571a4014dfb32a",
-      "reference_sha256": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
-      "routed_lec_sha256": "d3a368fd8439ea008d7038bcd6fad2b776fac3a4b809f5ffb291d1b04e073c02",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-11",
-     "orfs": {
-      "area_stdcell": "523.116",
-      "area_tap_cell": "9.56448",
-      "period_min": "7118.39",
-      "sdc_period": "6964.0",
-      "setup_ws": "-154.389"
-     },
-     "peak_mb": 1183,
-     "role": "scoring",
-     "sdc_sha256": "0c200395f3637544500945d0ac95499852e1e95d9911775d05ea8b94eb4c7d8e",
-     "seconds": 151.6,
-     "seed": 1,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7118,
-     "wire_um": "8789"
-    },
-    {
-     "area_e5um2": 51323058,
-     "artifacts": {
-      "1_2_yosys.v": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
-      "2_floorplan.odb": "836cdac91831fd2afdab9c39c65ceb1f43eca1dfdaa1a9ff6755b1425f46029b",
-      "3_place.odb": "35e021d8938938417d71152676821917a6eb6335056ed06fcfe2b82024302b04",
-      "4_cts.odb": "6d80100bb2d0f0e2ce625e097317f8fed9e620d3b210c286779ce8381d546ae7",
-      "5_route.odb": "17fd93f739fba90483d424a92d2dcabdfe6ec963f48d9a69a62546747a645f48",
-      "6_final.def": "d4e0f8e83ef8706dbefe5d06abfd48160a0b58e2a7edfa1a454a2aeec465fbfe",
-      "6_final.odb": "d5862241d036036602059fa83f895dca55f07c42e31239a73bf8358d5fefbbfe",
-      "6_final.spef(normalized)": "34c582a04d00a4b49df317dd92c18dd0a4ff58419e67272504b28c3b35e4c1ba",
-      "6_final.v": "9d33051ce8f86ddd5ccfe494dcb10e095e2b182fe28f92a5a75225bd45b0a1dc"
-     },
-     "cells_in": 6045,
-     "cells_out": 6105,
-     "config_mk_sha256": "ad1cffb76f7bb2b67b51231addcea692dbc45e35825041fe6ff2d896f9cb8e10",
-     "delay_ps": 7188,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 0
-     },
-     "exact": 368910140904,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "8ca8ea79dd845f50c33a3cf1620e1b296254e6e95c477102168e350e2e4b3c5a",
-      "log_sha256": "89ab9dfd2646cf4807bcea02eece745fe2ad0c23b9e330aa57cb6c43fa97d9f0",
-      "reference_sha256": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
-      "routed_lec_sha256": "9d33051ce8f86ddd5ccfe494dcb10e095e2b182fe28f92a5a75225bd45b0a1dc",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-11",
-     "orfs": {
-      "area_stdcell": "522.795",
-      "area_tap_cell": "9.56448",
-      "period_min": "7188.27",
-      "sdc_period": "6964.0",
-      "setup_ws": "-224.265"
-     },
-     "peak_mb": 1142,
-     "role": "spread",
-     "sdc_sha256": "0c200395f3637544500945d0ac95499852e1e95d9911775d05ea8b94eb4c7d8e",
-     "seconds": 151.7,
-     "seed": 2,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7188,
-     "wire_um": "8819"
-    },
-    {
-     "area_e5um2": 51422202,
-     "artifacts": {
-      "1_2_yosys.v": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
-      "2_floorplan.odb": "836cdac91831fd2afdab9c39c65ceb1f43eca1dfdaa1a9ff6755b1425f46029b",
-      "3_place.odb": "4e88b10dc0ee383972241db36b1ce4bbe0624dd70fdf4575f28a5edc784fbbc8",
-      "4_cts.odb": "cd115d4d42a1df7475b393edc140eac111e1997fccf5109725fa4d23275036f6",
-      "5_route.odb": "95ee43888fa426491033b80ab00e230b84175c3440c2a45b1514a8ce377e1049",
-      "6_final.def": "0b7d408a46a063c145fce0743f1415249c8bc029e01ce88bc5939b91d6a06cd4",
-      "6_final.odb": "b02dffa3f6a0db0abf823975fe7d67e5f191d6a4761f212ee4f987f0f768f34c",
-      "6_final.spef(normalized)": "7b464bc8cc653d0a6f2928e6a1029f3676a7da341093e32bafabe2cefb707ab9",
-      "6_final.v": "3a6d035e664a0bc57640229fe646556b97d9b1cf392260614e4f3739c5c04b4c"
-     },
-     "cells_in": 6045,
-     "cells_out": 6112,
-     "config_mk_sha256": "b8ae750b080ed22ca4df949a063cfc71ad96137462bf8c5fb5376f368bb8ffc2",
-     "delay_ps": 7072,
-     "drc": 0,
-     "drv": {
-      "max_cap": 0,
-      "max_fanout": 0,
-      "max_slew": 0
-     },
-     "exact": 363657812544,
-     "hold_violations": 0,
-     "host": {
-      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
-      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
-      "os": "Rocky Linux 9.8",
-      "runtime": "rootless userns+chroot"
-     },
-     "io_tcl_sha256": null,
-     "lec": [
-      "6_final:IDENTICAL"
-     ],
-     "lec_reference": {
-      "config_sha256": "8096e85f82e74bf2521022dbb94bee994d1e51b5186c4ba6bd0555f5bb72c827",
-      "log_sha256": "b20718f8add6c5e29144d0f04a1d592340caab932c75325f52b7dd2d088aa770",
-      "reference_sha256": "eb5d1060f5c3e4389339debf954f9fbc34d8a008613a0a484ebe1a9c8919f50e",
-      "routed_lec_sha256": "3a6d035e664a0bc57640229fe646556b97d9b1cf392260614e4f3739c5c04b4c",
-      "verdict": "IDENTICAL"
-     },
-     "measured_at": "2026-11-11",
-     "orfs": {
-      "area_stdcell": "523.787",
-      "area_tap_cell": "9.56448",
-      "period_min": "7072.24",
-      "sdc_period": "6964.0",
-      "setup_ws": "-108.24"
-     },
-     "peak_mb": 1175,
-     "role": "spread",
-     "sdc_sha256": "0c200395f3637544500945d0ac95499852e1e95d9911775d05ea8b94eb4c7d8e",
-     "seconds": 150.1,
-     "seed": 3,
-     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-     "status": "ok",
-     "time_ps": 7072,
-     "wire_um": "8781"
-    }
-   ],
-   "scored_netlist_sha256": "506bbfbb49a6f8eec778ff86e575c03a69bc57b55c22faffb88a2a7be939e39d",
+   "runs": [],
+   "scored_netlist_sha256": "f48c2ea16f043b98446c33c634fc179bb82c6320045cdb2c6ee59dce721ca5c8",
    "scores": {
-    "v_median": {
-     "area_e5um2": 51355134,
-     "exact": 365545843812,
-     "median_seed": 1,
-     "seeds": [
-      1,
-      2,
-      3
-     ],
-     "spread_pct": "1.44",
-     "time_ps": 7118,
-     "um2ns": 3655.45843812
-    },
-    "v_owner": {
-     "area_e5um2": 51355134,
-     "exact": 365545843812,
-     "seed": 1,
-     "time_ps": 7118,
-     "um2ns": 3655.45843812
-    }
+    "v_median": null,
+    "v_owner": null
    },
-   "status": "measured",
+   "status": "pending",
    "sv_sha256": "c43cb22fa8ddedf799a46dab975e9d5759d2c9b8b43c320291a0015b9fc21128"
   }
  ],

@@ -1,0 +1,34 @@
+<h1>One-level Karatsuba, three half-size arrays</h1>
+
+<p>This record applies one level of Karatsuba to the carry-less product, for every <code>N</code>, in <code>clmul_k1.sv</code>: three half-size carry-less arrays of <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">the reference</a>'s row shape and an XOR layer that combines them. It is proved with the <code>sv_comb</code> tactics.</p>
+
+<h2>The idea</h2>
+
+<p>With <code>H = (N + 1) / 2</code>, the operands are copied into <code>ap</code> and <code>bp</code>, zero-padded to <code>2H + 1</code> bits. The extra bit keeps the padding loop non-empty at the default <code>N = 16</code>, where <code>N</code> is even and nothing else needs padding. Three <code>H x H</code> arrays, written exactly like <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">par</a>'s rows, compute <code>L = aL (x) bL</code>, <code>Hh = aH (x) bH</code> and <code>M = (aL ^ aH) (x) (bL ^ bH)</code>. The combination layer writes <code>pf = L + x^H (M ^ L ^ Hh) + x^2H Hh</code> in five generate families, reading each array product straight from its rows, and <code>p</code> is the low <code>2N - 1</code> bits of <code>pf</code>. At <code>N = 16</code> that is 192 partial-product ANDs instead of 256.</p>
+
+<p>Figure 1 shows where the three products land at the scoring width.</p>
+
+<figure data-figure="clmul-karatsuba-1" data-alt="Where the three 8 x 8 carry-less products land in the 31-bit product at N = 16: L at bit 0, M + L + H at bit 8, H at bit 16.">
+<figcaption>The three half-size products and their offsets at the scoring size; a product bit is the XOR of the bars over it.</figcaption>
+</figure>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 it is about 2,890 µm², about 16% below <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">par</a>, at 1.42 ns against par's 1.11 ns, so 4115.7 µm²·ns, about 1.08 x par. The 398 cells are <code>xnor2</code> (185), <code>and2</code> (150), <code>nand2</code> (44) and <code>xor2</code> (19). The saved quarter of the multipliers does not pay for the XORs that the operand sums and the combination add in depth: unit depth 7 against par's 6, and the critical path ends at <code>p[14]</code>, in the middle columns where all three products meet. On the routed ASAP7 course: 42.46 µm² at 250 ps, 10.61 µm²·ns.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (504 code lines) follows <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">par</a>'s route and reuses its arithmetic wholesale:</p>
+
+<ol>
+<li><code>k_struct</code>: <code>sv_structure</code> with a lexicographic key <code>kKey</code> (padding first, then the rows of all three arrays by row index, then the combination layer, then the outputs).</li>
+<li><code>k_interface</code>, then <code>sv_equations</code>; <code>sv_cover</code> closes the coverage goals.</li>
+<li>Three instances of <a href="8675d68032b35b65e22cdebdb42ca27522b66bb548113629bf3c73a1d1cd722d.html">par</a>'s <code>View</code> structure, one per array, each filled by five <code>sv_bridge</code> lines; <code>view_spec</code> turns each into "this array holds the product of its operands".</li>
+<li>The Karatsuba identity over coefficient functions: <code>karatsuba</code> splits the double sum into four quarter products (<code>bx_add</code>, <code>cl_shift</code>), <code>cl_sum</code> expands the middle product by bilinearity, and <code>karatsuba_full</code> combines them by a case split over eight Booleans. <code>comb_spec</code> matches the five combination families to the identity by ranges of <code>k</code>, and <code>cl_trunc</code> removes the padding.</li>
+</ol>
+
+<h2>What did not work</h2>
+
+<p>The task notes record an earlier proof of a one-level Karatsuba that compiled except for its coverage obligations: <code>sv_cover</code> normalized the whole conjunction at once and ran out of simp steps on larger designs. The tactic was changed to renormalize each goal after the split, and the coverage goals now close with the standard closer.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

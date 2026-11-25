@@ -35,7 +35,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 POINTS = [1, 2, 3, 4, 5, 8]
 MODES = [0, 1, 2, 3]
 CHECKS = ["G0", "G1", "G2", "G3", "G4", "MO", "XK"]
-YOSYS = os.environ.get("SVGOLF_YOSYS") or "yosys"
+sys.path.insert(0, os.path.join(HERE, "..", "..", "score"))
+import score  # noqa: E402  (the pinned flow's Yosys: the rating build unless $SVGOLF_YOSYS names another)
+YOSYS = score.yosys_argv(score.yosys_bin())
 
 # design -> (expected verdict, the checks expected to fire at some point[, the checks that must not fire])
 EXPECT = {
@@ -114,7 +116,7 @@ def powerup(srcs, n, mode, work):
               + f" hierarchy -top arbiter -chparam N {n}; proc; setundef -undriven -init {how}; opt_clean;"
               + f' write_verilog -noattr "{out}"; design -reset; read_verilog -sv "{out}"; proc;'
               + f' write_json "{chk}"')
-    r = subprocess.run([YOSYS, "-q", "-p", script], capture_output=True, text=True)
+    r = subprocess.run(YOSYS + ["-q", "-p", script], capture_output=True, text=True)
     if r.returncode != 0 or not os.path.isfile(out) or not os.path.isfile(chk):
         return None, (r.stdout + r.stderr).strip().splitlines()[-3:]
     with open(chk) as fh:

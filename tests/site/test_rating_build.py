@@ -1,6 +1,7 @@
-"""The build ratings use (decided 2026-11-05): score/reference_build.json is the data, the README's "Scoring" states it,
-and the site reads it (the rules page's section, every task's score card). No site build: the README, the data files
-and site/build.py's functions.
+"""The build ratings use (decided 2026-11-05; since 2026-11-24 the WebAssembly Yosys, score/yosys_wasm.py):
+score/reference_build.json is the data, the README's "Scoring" states it, and the site reads it (the rules page's
+section, every task's score card, Step 0's check). No site build: the README, the data files and site/build.py's
+functions.
 
     python3 -m unittest discover -s svgolf/tests/site      (from the lean-surfaces root)
 """
@@ -54,24 +55,41 @@ class RatingBuild(unittest.TestCase):
         cls.pins = json.loads(text("score/ppa_pins.json"))
         cls.flow = json.loads(text("tests/expected.json"))["flow"]
         cls.scoring = flat(section(text("README.md"), "Scoring"))
+        sys.path.insert(0, os.path.join(SVGOLF, "score"))
+        import yosys_wasm
+        cls.launcher = yosys_wasm
 
-    def test_the_data_is_the_pinned_flow(self):
-        """The rating build's Yosys is the version the expected scores were measured with."""
-        y = self.rb["yosys"]
+    def test_the_data_is_the_pinned_flow_and_the_launchers_pin(self):
+        """The rating build's Yosys is the version the flow pins, and the data names the module the launcher checks,
+        with the package versions it requires and requirements.txt installs."""
+        y, w = self.rb["yosys"], self.launcher.PIN
         self.assertEqual(y["version_line"], self.flow["yosys_version"])
-        self.assertIn(y["git_sha1"], y["version_line"])
+        self.assertEqual(y["version_line"], w["version_line"])
+        self.assertTrue(y["git_sha1"].startswith(w["version_line"].split("git sha1 ")[1].split(",")[0]))
         self.assertTrue(y["version_line"].startswith(f"Yosys {y['version']} "))
-        for k in ("yosys", "abc"):
-            self.assertRegex(self.rb[k]["sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(y["sha256"], w["wasm_sha256"])
+        self.assertEqual(self.rb["abc"]["sha256"], w["wasm_sha256"])      # ABC is linked into the same module
+        self.assertEqual(y["package"], w["package"])
+        self.assertEqual(sorted(y["runtime"] + [y["package"]]), sorted(f"{k}=={v}" for k, v in w["packages"].items()))
+        req = text("requirements.txt")
+        for k, v in w["packages"].items():
+            self.assertIn(f"\n{k}=={v}\n", req)
+        self.assertEqual(y["launcher"], "score/yosys_wasm.py")
+        self.assertEqual(y["self_check"], "python3.12 score/yosys_wasm.py --self-check")
+        # the module's memory ceiling, as leaderboard/sizes.py names it when a size stops there
+        sys.path.insert(0, os.path.join(SVGOLF, "leaderboard"))
+        import sizes
+        self.assertEqual(y["memory_ceiling_gib"], sizes.WASM_MEMORY_GIB)
 
     def test_the_readme_states_the_build_and_every_hash(self):
-        y, a, d = self.rb["yosys"], self.rb["abc"], self.rb["determinism"]
-        want = [y["git_sha1"], y["sha256"], flat(y["version_line"]), a["sha256"], flat(a["version_line"]),
-                "Homebrew build for macOS arm64", "clang++ 17 with -O3", "ABC 1.01 of 6 May 2025",
+        y, d, prev = self.rb["yosys"], self.rb["determinism"], self.rb["previous"]
+        o = d["other_build"]
+        want = [y["git_sha1"], y["sha256"], flat(y["version_line"]), y["package"], *y["runtime"], y["self_check"],
                 self.pins["liberty"]["sha256"], sha256("score/ppa.py"), sha256("score/ppa_pins.json"),
-                self.flow["canon_script_sha256"], self.flow["script_sha256"],
-                f"{d['designs']} designs, {d['runs']} runs", f"{d['other_build']['max_delay_change_pct']:g}% in delay",
-                "score/reference_build.json"]
+                self.flow["canon_script_sha256"], self.flow["script_sha256"], "score/reference_build.json",
+                f"{o['designs_differing']} of them", f"{o['max_score_change_pct']:g}%",
+                flat(prev["version_line"]), prev["sha256"], prev["abc_sha256"], "tests/checker/test_yosys_wasm.py",
+                f"at most {y['memory_ceiling_gib']} GiB of memory"]
         for w in want:
             self.assertIn(w, self.scoring.replace("`", ""), w)
 
@@ -80,62 +98,40 @@ class RatingBuild(unittest.TestCase):
         b = build.rating_build()
         self.assertEqual(dict(b["files"])["score/ppa.py"], sha256("score/ppa.py"))
         section_html = build.rating_build_html()
-        for w in (self.rb["yosys"]["sha256"], self.rb["abc"]["sha256"], self.pins["liberty"]["sha256"],
+        y = self.rb["yosys"]
+        for w in (y["sha256"], y["git_sha1"], y["package"], *y["runtime"], self.pins["liberty"]["sha256"],
                   sha256("score/ppa.py"), sha256("score/ppa_pins.json"), self.flow["canon_script_sha256"],
-                  self.flow["script_sha256"], f'id="{build.RATING_BUILD_ANCHOR}"'):
+                  self.flow["script_sha256"], f'id="{build.RATING_BUILD_ANCHOR}"', y["launcher"], y["self_check"],
+                  self.rb["previous"]["version_line"]):
+            self.assertIn(w, section_html)
+        for w in ("Yosys 0.53", "byte for byte", f"{self.rb['determinism']['designs']} designs", "pip install -r "
+                  "requirements.txt", "macOS and on Linux alike", f"at most {y['memory_ceiling_gib']} GiB of memory"):
             self.assertIn(w, section_html)
         # since 2026-11-11 the score card's line names the version and links the section, which holds the rest
-        for w in ("Yosys 0.53", self.rb["yosys"]["git_sha1"][:8], "ABC 1.01 of 6 May 2025", "deterministic",
-                  f"{self.rb['determinism']['designs']} designs", f'id="{build.RATING_BUILD_ANCHOR}"'):
-            self.assertIn(w, section_html)
-        # score_line reads the page's path and the view's library: sky130's names the build; the routed course's
-        # (2026-11-12) names its own rules instead, since that build does not make its numbers
         line = build.score_line(types.SimpleNamespace(page="tasks/add/index.html", pdk="sky130"))
         self.assertIn("Rated with " + build.page.link("../../rules.html#" + build.RATING_BUILD_ANCHOR,
-                                                      "Yosys " + self.rb["yosys"]["version"]), line)
-        self.assertIn("Yosys 0.53", line)
+                                                      "Yosys " + y["version"]), line)
         line = build.score_line(types.SimpleNamespace(page="tasks/add/index.html", pdk=build.COURSE2))
         self.assertNotIn("Rated with", line)
         self.assertIn(build.page.link("../../rules.html#" + build.ASAP7PNR_ANCHOR, "How the routed course is scored"),
                       line)
 
-    def test_the_source_archive_is_the_workflows(self):
-        """Decided 2026-11-17 (Step 0 completed): the release archive and the Ubuntu packages Step 0's recipe gives a
-        player are score/reference_build.json's `yosys.source`, which are the public repository's records workflow's:
-        in the development tree tools/export_public.py writes that workflow from its own copy of the values, in the
-        public tree the workflow is a file; whichever this tree has must say the same. The recipe on the site is made
-        from the data, checked by its sha256, and its build is never called the rating build."""
-        src = self.rb["yosys"]["source"]
-        self.assertRegex(src["url"], r"^https://github\.com/YosysHQ/yosys/releases/download/v" + re.escape(
-            self.rb["yosys"]["version"]) + r"/")
-        self.assertRegex(src["sha256"], r"^[0-9a-f]{64}$")
+    def test_step0_checks_the_build_and_builds_none(self):
+        """Decided 2026-11-24: Step 0 gives no recipe to build Yosys any more (pip installs the rating build); its fold is
+        the launcher's self-check with the module's sha256 and version line, copyable."""
+        recipe = load_build().yosys_recipe(None)
+        y = self.rb["yosys"]
+        self.assertIn(y["self_check"], recipe)
+        self.assertIn(y["sha256"], recipe)
+        self.assertIn(y["version_line"], recipe)
+        self.assertNotIn("yosys.tar.gz", recipe)
         export = os.path.join(SVGOLF, "tools", "export_public.py")
         workflow = os.path.join(SVGOLF, ".github", "workflows", "records.yml")
-        seen = 0
-        if os.path.isfile(export):
-            text_ = text("tools/export_public.py")
-            self.assertIn(f'YOSYS_URL = "{src["url"]}"', text_)
-            self.assertIn(f'YOSYS_SHA256 = "{src["sha256"]}"', text_)
-            seen += 1
-        if os.path.isfile(workflow):
-            text_ = text(".github/workflows/records.yml")
-            self.assertIn(src["url"], text_)
-            self.assertIn(src["sha256"], text_)
-            seen += 1
-        self.assertGreater(seen, 0, "neither the export script nor the records workflow is in this tree")
-        for kind in (("export", export), ("workflow", workflow)):
-            if os.path.isfile(kind[1]):
-                body = text(os.path.relpath(kind[1], SVGOLF).replace(os.sep, "/"))
-                line = next(ln for ln in body.split("\n") if "apt-get install" in ln)
-                at = body.index(line)
-                apt = " ".join(body[at:at + 600].split("\n")[:3]).replace("\\", " ")
-                for pkg in src["ubuntu_packages"]:
-                    self.assertRegex(apt, rf"(?<![\w-]){re.escape(pkg)}(?![\w-])", (kind[0], pkg))
-        recipe = load_build().yosys_recipe(None)
-        self.assertIn(f"curl -sSfL -o yosys.tar.gz {src['url']}", recipe)
-        self.assertIn(f'echo "{src["sha256"]}  yosys.tar.gz" | sha256sum -c -', recipe)
-        self.assertIn("make -C", recipe)
-        self.assertNotIn("rating build", recipe)
+        for path in (export, workflow):
+            if os.path.isfile(path):
+                body = text(os.path.relpath(path, SVGOLF).replace(os.sep, "/"))
+                self.assertNotIn("yosys.tar.gz", body)
+                self.assertIn("score/yosys_wasm.py --self-check", body)
 
 
 if __name__ == "__main__":

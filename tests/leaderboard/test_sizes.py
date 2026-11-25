@@ -607,6 +607,30 @@ class Watchdog(unittest.TestCase):
             self.assertEqual(r["limit"], "memory")
             self.assertLess(r["seconds"], 30)
 
+    def test_the_rating_builds_memory_ceiling_is_a_limit(self):
+        """The rating build stops at 4 GiB with its libc++'s abort line (2026-11-24: five matmul designs at N = 16,
+        which passed the 6 GiB limit under the native build): `limit` with that reason, never the flow's bare
+        "yosys failed (exit 1):" first line; any other flow error stays `flow`."""
+        err = ("the pinned flow failed: yosys failed (exit 1):\nlibc++abi: bad_alloc was thrown in -fno-exceptions mode"
+               "\nTraceback (most recent call last):\n ...")
+        r = {"rc": 1, "out": json.dumps({"error": err}), "err": "", "seconds": 64.5, "limit": None}
+        self.assertTrue(sizes._wasm_out_of_memory(r))
+        self.assertEqual(sizes._wasm_limit_reason(r),
+                         "Yosys passed the rating build's memory ceiling of 4 GiB (WebAssembly's address space) "
+                         "(after 64 s)")
+        other = dict(r, out=json.dumps({"error": "the pinned flow failed: yosys failed (exit 1):\nERROR: x"}))
+        self.assertFalse(sizes._wasm_out_of_memory(other))
+        self.assertEqual(sizes._flow_reason(other), "the pinned flow refused it: the pinned flow failed: yosys failed "
+                                                    "(exit 1):")
+        # a trap without the allocation line (measured: two of those five designs): `flow`, the trap and the memory
+        trap = dict(r, peak_bytes=4396061016, out=json.dumps({"error": "the pinned flow failed: yosys failed (exit 1):\n"
+                    "Traceback ...\nwasmtime._trap.Trap: error while executing at wasm backtrace:\n    0: 0xb4008a - "
+                    "<unknown>!<wasm function 17942>\n\nCaused by:\n    wasm trap: wasm `unreachable` instruction "
+                    "executed"}))
+        self.assertFalse(sizes._wasm_out_of_memory(trap))
+        self.assertEqual(sizes._flow_reason(trap), "Yosys stopped inside the rating build (wasm trap: wasm `unreachable` "
+                                                   "instruction executed) after 64 s, its processes at 4.4 GB")
+
     def test_normal_run(self):
         r = sizes.run_limited([sys.executable, "-c", "import sys; print('out'); print('err', file=sys.stderr); "
                                "sys.exit(3)"], 30, 1 << 34)

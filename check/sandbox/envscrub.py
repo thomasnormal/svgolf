@@ -26,6 +26,9 @@ ALLOW_EXACT = frozenset({
     "SDKROOT", "DEVELOPER_DIR", "CXX", "CC",
     # Verilator's runtime
     "VERILATOR_ROOT",
+    # the rating build's compiled-module cache (score/yosys_wasm.py; a directory, no secret): a `yosys -V` run with
+    # the scrubbed environment would otherwise compile a second cache in the default place
+    "YOWASP_CACHE_DIR",
 })
 # name prefixes: the locale; elan/Lake/Lean's own settings (LEAN_PATH, LEAN_SYSROOT,
 # LEAN_NUM_THREADS ... ; the slot wrapper sets LEAN_NUM_THREADS)

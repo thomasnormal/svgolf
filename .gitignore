@@ -21,3 +21,6 @@ __pycache__/
 
 # a virtual environment for the Python tools (README.md, Step 0)
 /.venv/
+
+# the rating build's machine-code cache (score/yosys_wasm.py; YOWASP_CACHE_DIR moves it)
+/score/.wasm-cache/

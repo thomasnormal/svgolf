@@ -1,3 +1,9 @@
 # The SystemVerilog frontend of lean-surfaces' extractor (extractors/sv/extract.py, Python 3.12).
 # Pinned: the version is part of every envelope's cache key (check/envelope.py).
 pyslang==11.0.0
+# The RATING BUILD of the scoring flow (score/yosys_wasm.py, decided 2026-11-24): YoWASP's WebAssembly Yosys 0.53 with
+# ABC linked in, one program for every machine (score/reference_build.json), and the runtime that runs it. The launcher
+# checks the installed yosys.wasm's sha256 and these versions before every run and refuses anything else.
+yowasp-yosys==0.53.0.0.post912
+yowasp-runtime==1.96
+wasmtime==47.0.1

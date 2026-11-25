@@ -248,8 +248,24 @@ def yosys_json(repaired, top, work):
     script = os.path.join(work, "read.ys")
     with open(script, "w") as fh:
         fh.write(f'read_liberty -lib "{lib}"\nread_verilog "{repaired}"\nhierarchy -top {top}\nwrite_json "{out}"\n')
-    run([os.environ.get("SVGOLF_YOSYS", "yosys"), "-q", "-s", script], 600, "yosys")
+    sc = score_module()
+    yosys = sc.yosys_bin()               # the rating build (score/yosys_wasm.py) unless $SVGOLF_YOSYS names another
+    try:
+        proc = sc.yosys_run([yosys, "-q", "-s", script], yosys, work, [lib, repaired], 600, "yosys (schematic)")
+    except sc.ScoreError as e:
+        raise GenError(f"yosys: {e}")
+    if proc.returncode != 0:
+        raise GenError(f"yosys exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[-600:]}")
     return load_json(out)
+
+
+def score_module():
+    """score/score.py (the pinned flow's Yosys launcher and its runs), imported on first use."""
+    d = os.path.join(SVGOLF, "score")
+    if d not in sys.path:
+        sys.path.insert(0, d)
+    import score
+    return score
 
 
 def node_tool(nsvg_dir):
@@ -265,7 +281,8 @@ def node_tool(nsvg_dir):
 
 
 def yosys_version():
-    return run([os.environ.get("SVGOLF_YOSYS", "yosys"), "-V"], 60, "yosys -V").strip()
+    sc = score_module()
+    return run(sc.yosys_argv(sc.yosys_bin()) + ["-V"], 60, "yosys -V").strip()
 
 
 # ---------------------------------------------------------------------------

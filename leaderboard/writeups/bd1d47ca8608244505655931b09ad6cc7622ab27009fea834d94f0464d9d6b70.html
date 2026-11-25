@@ -1,0 +1,26 @@
+<h1>Weight-FIFO systolic array, cleared on start</h1>
+
+<p><code>ws_fifo_array_clear.sv</code> is the same weight-FIFO systolic array as <a href="1a79420162f5e1db4bdfad07699b7786a3c24a2b38f190707a9f74d51b95c1de.html">its sibling record</a>. Its header cites the same published description of the TPU's matrix multiply unit (Jouppi et al., ISCA 2017). B enters through a FIFO into shadow weights, which shift down the array and are swapped into the active weights at step N. A enters as a diagonal wavefront through a triangle of delay stages, and partial sums move south. Each column ends in a rotating file of N accumulator words that share one adder. The latency is 4N, 16 cycles at N = 4.</p>
+
+<h2>The idea</h2>
+
+<p>Two choices differ from <a href="1a79420162f5e1db4bdfad07699b7786a3c24a2b38f190707a9f74d51b95c1de.html">the sibling</a>. First, the start clears every register that matters: the data rows, the shadow and active weights, the partial sums and the accumulators. Second, the stored data and weights are W bits wide, and the sign extension to AccW bits happens at the multiplier inputs instead of when a value enters the array.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>Both records have 1,650 flip-flops, but this one is larger and slower. It takes about 110,420 µm² on sky130 against 107,010, and its period is 10,402 ps against 8,229. Over 16 cycles that is about 18.4 million µm²·ns, 4.93 × par on sky130. On ASAP7 it is 4.75 × par, closer to <a href="1a79420162f5e1db4bdfad07699b7786a3c24a2b38f190707a9f74d51b95c1de.html">the sibling</a>'s 4.55. The files do not separate how much comes from the clear multiplexers and how much from sign extension in the multiplier's path.</p>
+
+<h2>The proof</h2>
+
+<p>This variant's interest is in the proof. Every register is cleared at the start, so every register family has an exact closed form t steps later. Next to <code>wfV</code>, <code>ubV</code>, <code>datV</code> and <code>cV</code>, the shadow weights, active weights and partial sums get <code>shV</code>, <code>waV</code> and <code>psV</code>, and each describes the whole register. <a href="1a79420162f5e1db4bdfad07699b7786a3c24a2b38f190707a9f74d51b95c1de.html">The sibling</a> needs partial-knowledge machinery: <code>PEnt</code> with its fold lemmas, and the invariants <code>shOK</code>, <code>waOK</code> and <code>psOK</code>. Here all of it is gone, replaced by start lemmas (<code>pe_start</code>, <code>mem_p0Q_start</code>, <code>mem_pkQ_start</code>) that show the clears. The proof is 2,317 code lines, against the sibling's 2,381.</p>
+
+<p>The rest is shared:</p>
+
+<ul>
+<li>agreement with the hand-built <code>tpD</code> through the triangle offsets <code>base</code> and <code>DW</code> (<code>base_succ</code>, <code>base_N</code>);</li>
+<li>the clock step <code>tp_cycle</code> and commits register by register through <code>nbaFold</code>;</li>
+<li>the 32-bit counter tests, including <code>loB_tv</code> and <code>hiB_tv</code> for each column's accumulate window;</li>
+<li>the phase model, the three rules, and both of the statement's range bounds.</li>
+</ul>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>

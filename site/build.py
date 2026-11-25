@@ -1213,7 +1213,8 @@ _PAR_PHRASE_RE = re.compile(r"(?:\b[Tt]he (?:[\w-]+ ){0,3}|^)[Rr]eference\b(?! v
 
 def linked_text(site, t, rec, text, here, *, names=True):
     """`text` escaped, with what it names linked: a record hash (12 to 64 hex digits, a prefix of one record's hash
-    but this one's) links that record's page (`record_link_html`: marked when it is later); with `names`, a reference
+    but this one's, or of the hash of the record one record replaced, `remade.from_record`) links that record's page
+    (`record_link_html`: marked when it is later); with `names`, a reference
     design of the task (its stem, alone or with .sv or .lean) links par's page when it is par's design, else the file
     in the repository (`repo_html`), and, in a text that names no reference design, its first "the ... reference"
     (or a leading "reference", as in "reference architecture with ...") or "par's design" links par's page."""
@@ -1242,6 +1243,11 @@ def linked_text(site, t, rec, text, here, *, names=True):
         tok = m.group(0)
         if m.lastgroup == "hash":
             hit = [h for h in by_hash if h.startswith(tok) and h != rec["record_hash"]]
+            if not hit:
+                # a record that has since been re-made (`remade.from_record`, decided 2026-11-24 when every record
+                # was measured again): the hash the player wrote links the record that replaced it
+                hit = [h for h, r in by_hash.items() if h != rec["record_hash"]
+                       and str((r.get(lb.REMADE_KEY) or {}).get("from_record", "")).startswith(tok)]
             if len(hit) != 1:
                 continue
             html_ = record_link_html(here, rec, by_hash[hit[0]], esc(tok))
@@ -1281,9 +1287,11 @@ def remade_rows(rec):
     whose = ("the player's proof, checked again unchanged" if m.get("proof") == "original" else
              "the proof is the maintainers' port of the player's to the current checker (the design is the "
              "player's, byte for byte)")
-    return [("re-made", f"{esc(m.get('date', ''))}: {whose}; the scores are carried from record "
-                        f"{code(str(m.get('from_record', ''))[:12])} (the same design under the same scoring flow). "
-                        f"{esc(m.get('reason', ''))}")]
+    old = code(str(m.get('from_record', ''))[:12])
+    scores = (f"the scores are measured again on the rating build (the scoring flow changed), replacing record {old}"
+              if m.get("scores") == "measured" else
+              f"the scores are carried from record {old} (the same design under the same scoring flow)")
+    return [("re-made", f"{esc(m.get('date', ''))}: {whose}; {scores}. {esc(m.get('reason', ''))}")]
 
 
 def record_title(site, rec):
@@ -2413,7 +2421,8 @@ def trust_html(site, tasks, here):
          "pragmas, " + code("unique") + " and " + code("priority") + ", " + code("x") + " and " + code("z")
          + " literal digits and every use of the host, strips the comments, and hands one canonical text to the "
          "extractor, the banlist and Yosys, so that the proof and the score read one program."),
-        ("For the score only, the synthesis and timing flow", f"Yosys {esc(rb['yosys']['version'])} and its ABC ("
+        ("For the score only, the synthesis and timing flow", f"Yosys {esc(rb['yosys']['version'])} and its ABC, "
+         "one WebAssembly program on every machine ("
          + code("score/canon.ys") + ", " + code("score/svgolf.ys") + ", or " + code("score/svgolf_seq.ys") + " on a "
          "clocked task) make the scored netlist, and " + code("score/ppa.py") + ", with " + code("score/ppa_pins.json")
          + " and the pinned sky130 liberty, weighs its area and time (" + page.link(
@@ -2427,7 +2436,8 @@ def trust_html(site, tasks, here):
                "make proof terms the kernel checks; and the references, oracles and tests, where a mistake gives a "
                "wrong warning, never a wrong verdict.</p>")
     measured = ("<p>Area, time and the score, area × time, are measured by the pinned flow on one build of the tools, "
-                "not proved: another build can give slightly other numbers (" + page.link(
+                "not proved. That build is one WebAssembly program, the same on every machine, so anyone gets the "
+                "board's numbers byte for byte; a native build of the same Yosys can give other numbers (" + page.link(
                     rel_link(here, REPRODUCE_PAGE), "reproduce a score") + "). The routed course's numbers come from "
                 "one place-and-route run per design. Area in gate equivalents and depth are extra columns of the same "
                 "netlist.</p>")
@@ -2607,12 +2617,14 @@ RATING_BUILD_ANCHOR = "rating-build"
 
 
 def rating_build():
-    """The build the ranked numbers are rated with (decided 2026-11-05), from data: score/reference_build.json (the
-    Yosys and yosys-abc binaries and the determinism measurements), the liberty's sha256 from score/ppa_pins.json,
+    """The build the ranked numbers are rated with (decided 2026-11-24: the WebAssembly Yosys), from data:
+    score/reference_build.json (the module, its packages, the build before it and the determinism measurements), the
+    liberty's sha256 from score/ppa_pins.json,
     and the sha256 of score/ppa.py, score/ppa_pins.json and the flow scripts computed from the files themselves."""
     rb = json.loads(read_text(RATING_BUILD))
     pins = json.loads(read_text("svgolf/score/ppa_pins.json"))
     return {"yosys": rb["yosys"], "abc": rb["abc"], "determinism": rb["determinism"], "decided": rb["decided"],
+            "previous": rb.get("previous"),
             "liberty": {"file": pins["liberty"]["file"], "sha256": pins["liberty"]["sha256"]},
             "ppa_version": pins["ppa_version"],
             "files": [(f"score/{n}", sha256(read_bytes(f"svgolf/score/{n}")))
@@ -2641,30 +2653,43 @@ def score_line(t):
 
 
 def rating_build_html():
-    """The rules page's section on the build the ranked numbers are rated with, from `rating_build()`: every binary
-    and pinned file with its sha256."""
+    """The rules page's section on the build the ranked numbers are rated with, from `rating_build()`: the module, its
+    packages and every pinned file with its sha256, what was measured across machines, and the build before it."""
     b = rating_build()
     y, a, d = b["yosys"], b["abc"], b["determinism"]
-    o = d["other_build"]
-    rows = [page.Row(["Yosys", f"{code(y['version_line'])}<br>{esc(y['build'])}, {esc(y['compiler'])}",
+    o, prev = d["other_build"], b.get("previous") or {}
+    rows = [page.Row(["Yosys", f"{code(y['version_line'])}<br>{esc(y['build'])}, Yosys git sha1 "
+                               f"{code(y['git_sha1'])}, {esc(y['compiler'])}; "
+                               f"{code(y['package'])} with {', '.join(code(r) for r in y['runtime'])}",
                       code(y["sha256"])]),
-            page.Row([code(a["binary"]), f"{esc(a['version'])}: {code(a['version_line'])}<br>{esc(a['build'])}",
-                      code(a["sha256"])]),
+            page.Row(["ABC", f"{esc(a['version'])}<br>{esc(a['build'])}", code(a["sha256"])]),
             page.Row(["liberty", code(b["liberty"]["file"]), code(b["liberty"]["sha256"])])]
     rows += [page.Row([code(f), "the file as in the repository" + (f" ({code(b['ppa_version'])})"
                                                                    if f.endswith("ppa_pins.json") else ""), code(h)])
              for f, h in b["files"]]
+    machines = " and ".join(esc(m) for m in d["machines"])
+    native = code('"rating_build": false')
+    before = (f"<p>Until {esc(prev['until'])} the rating build was {esc(prev['build'])} "
+              f"({code(prev['version_line'])}); every record was measured again on this one on {esc(prev['until'])}: "
+              f"{esc(prev['moved'])}.</p>") if prev else ""
     return (f'<section><h2 id="{RATING_BUILD_ANCHOR}">The build ratings use <a class="anchor" '
             f'href="#{RATING_BUILD_ANCHOR}" aria-label="link to this section">#</a></h2>'
             f"<p>Every ranked number on the board and on this site (the sky130 A0′ area and time, and with them par, "
-            f"the record and under par) is made by ONE build of the tools (decided {esc(b['decided'])}). The flow is "
-            f"deterministic on that build: the same design text gives the same area, time and netlist on every run "
-            f"(measured {esc(d['measured'])} on {d['designs']} designs, {d['runs']} runs: {esc(d['what'])}). Another "
-            f"build of the same Yosys version can break ABC's ties differently ({esc(o['cause'])}): under "
-            f"{esc(o['build'])}, {o['designs_differing']} of the {d['designs']} designs, all {esc(o['task'])}, moved by "
-            f"up to {o['max_delay_change_pct']:g}% in delay and {o['max_area_change_pct']:g}% in area. So a number you "
-            f"make on another platform may differ slightly from the board's; the same build gives it bit for bit. "
-            f"The build is not pinned to a slower portable one: get as close to it as you like.</p>"
+            f"the record and under par) is made by ONE program (decided {esc(b['decided'])}): {esc(y['build'])}, "
+            f"which {code('pip install -r requirements.txt')} installs on macOS and on Linux alike. Its C++ library, "
+            f"its C library, its allocator and its floating point are inside the module, so every machine runs the "
+            f"same program and the same design text gives the same netlist, byte for byte: measured "
+            f"{esc(d['measured'])} on {d['designs']} designs, {esc(d['what'])}, on {machines}. "
+            f"{code(y['launcher'])} checks the module's sha256 before every run and refuses any other module, and "
+            f"{code(y['self_check'])} prints the sha256, the package versions and the module's version line. The module "
+            f"addresses at most {y['memory_ceiling_gib']} GiB of memory (WebAssembly's 32-bit address space): a design "
+            f"whose synthesis needs more stops with Yosys's allocation failure and is not rated, on any machine.</p>"
+            f"<p>Native builds of the same Yosys version do not agree with each other ({esc(o['cause'])}): under "
+            f"{esc(o['build'])}, {o['designs_differing']} of the {d['designs']} records scored differently, all "
+            f"{esc(o['task'])}, by up to {o['max_score_change_pct']:g}% (up to {o['max_delay_change_pct']:g}% in "
+            f"delay and {o['max_area_change_pct']:g}% in area). A native Yosys still runs the flow "
+            f"({code('$SVGOLF_YOSYS')}), for research: its results say {native}, and its "
+            f"numbers can differ from the board's.</p>" + before
             + page.table(["what", "version, build", "sha256"], rows) + "</section>")
 
 
@@ -3684,59 +3709,44 @@ def clone_commands(repo_url):
     return f"git clone {repo_url}\ncd {top}" + ("/svgolf\n" if LAYOUT == "inside" else "\n")
 
 
-YOSYS_RECIPE = "build-yosys"            # the id of Step 0's fold with the recipe (a link to it opens it: site.js)
+YOSYS_RECIPE = "check-yosys"            # the id of Step 0's fold with the rating build's check (a link opens it: site.js)
 
 
 def yosys_recipe(site):
-    """The commands that build the rating build's Yosys version from its release archive (score/reference_build.json
-    `yosys.source`): the recipe of the public repository's records workflow, on Ubuntu, as a player copies it."""
-    src = rating_build()["yosys"]["source"]
+    """The commands that check the rating build after `pip install -r requirements.txt` (score/reference_build.json
+    `yosys`): the launcher's self-check, which prints the module's sha256, the package versions and its version line,
+    as a player copies it."""
     y = rating_build()["yosys"]
-    pkgs = src["ubuntu_packages"]
-    half = (len(pkgs) + 1) // 2
-    return ("# Ubuntu: what the Yosys and Verilator builds need (the repository's CI installs the same)\n"
-            "sudo apt-get install -y --no-install-recommends \\\n    " + " ".join(pkgs[:half]) + " \\\n    "
-            + " ".join(pkgs[half:]) + "\n"
-            f"# Yosys {y['version']} from its release archive, checked by its sha256\n"
-            f"curl -sSfL -o yosys.tar.gz {src['url']}\n"
-            f"echo \"{src['sha256']}  yosys.tar.gz\" | sha256sum -c -\n"
-            "mkdir yosys && tar -xzf yosys.tar.gz -C yosys\n"
-            "src=yosys; [ -f yosys/Makefile ] || src=$(find yosys -mindepth 1 -maxdepth 1 -type d | head -n 1)\n"
-            "make -C \"$src\" -j\"$(nproc)\" PREFIX=\"$HOME/tools\" PRETTY=0 install\n"
-            "export PATH=\"$HOME/tools/bin:$PATH\"\n"
-            f"yosys -V      # Yosys {y['version']} (git sha1 {y['git_sha1'][:12]}..., then this machine's compiler)\n")
+    return ("# once the requirements are installed (below): the module, its packages and its version line\n"
+            f"{y['self_check']}\n"
+            f"# sha256   {y['sha256']}\n"
+            f"# version  {y['version_line']}\n"
+            "# ok: the rating build (the same module on every machine)\n")
 
 
 def step0_html(site, here, id_=None):
-    """Step 0: the systems svGolf runs on, what to install (decided 2026-11-17, completed: the pinned Yosys and how to
-    build it, the virtual environment, bubblewrap on Linux, `gh` for handing a record in), then (from the clone) the
+    """Step 0: the systems svGolf runs on, what to install (decided 2026-11-17, completed: the virtual environment, whose
+    requirements bring the rating build of Yosys since 2026-11-24, bubblewrap on Linux, `gh` for handing a record in),
+    then (from the clone) the
     virtual environment, `pyslang`, `lake build` and the liberty, once per machine, and what they cost. Only what the
     repository's own files say. `id_`: an anchor on its first line (`step-0`: How to submit's, or on the tutorial the
     walk-through's, which How to submit there points to)."""
     v = prerequisites(site)
-    rb = rating_build()
-    other = rb["determinism"]["other_build"]
     rating = page.link(rel_link(here, "rules.html") + "#" + RATING_BUILD_ANCHOR, "the rating build")
     sandbox = page.link(rel_link(here, "rules.html") + "#checker-stages", "the checker")
-    recipe = page.details(f"Build Yosys {esc(v['yosys'])} from its release archive (the recipe the repository's CI "
-                          "runs on Ubuntu)",
+    recipe = page.details("Check the rating build (its module's sha256 and version line)",
                           page.code_block(yosys_recipe(site), "bash", name="yosys " + v["yosys"], term=True),
                           id_=YOSYS_RECIPE)
     tools = ("<ul>"
              f"<li>{page.link('https://github.com/leanprover/elan', 'elan')}, which installs the pinned Lean toolchain "
              f"(<code>{esc(v['lean'])}</code>) on first use;</li>"
-             f"<li>Yosys {esc(v['yosys'])} with its <code>yosys-abc</code>. The board's numbers are made with one build "
-             f"of it ({rating}). Package managers now ship newer versions of Yosys: the commands run with them, but the "
-             "numbers are then estimates. Any other build, the one below included, makes a record that is listed as "
-             "not ranked until a maintainer re-makes it on the rating build; a build of the same version from its "
-             f"release archive comes close (another build of {esc(v['yosys'])} moved {other['designs_differing']} of "
-             f"{rb['determinism']['designs']} designs, by up to {other['max_delay_change_pct']:g}% in time). "
-             + recipe + "</li>"
-             # check/postsynth.py tool(): "the postsynth stage needs Verilator 5, a C++ compiler, make and Yosys"
+             # check/postsynth.py tool(): "the postsynth stage needs Verilator 5, a C++ compiler and make"
              "<li>Verilator 5, a C++ compiler and <code>make</code>, for the post-synthesis check;</li>"
              f"<li>Python 3.12: the block below makes a virtual environment, since a system that manages its own "
              f"Python refuses <code>pip</code> into it, and installs <code>{esc(v['pyslang'])}</code>, the "
-             "SystemVerilog frontend; run every later command in it;</li>"
+             f"SystemVerilog frontend, and Yosys {esc(v['yosys'])}: {rating}, a WebAssembly build that is the same "
+             "program on macOS and on Linux, so your numbers are the board's, byte for byte (nothing to build, no "
+             "Yosys on PATH needed). Run every later command in the environment. " + recipe + "</li>"
              # README.md "Sandbox": bwrap needs unprivileged user namespaces; not yet checked end to end with Lean
              "<li>on Linux, bubblewrap (<code>bwrap</code>) with unprivileged user namespaces (Debian: "
              "<code>kernel.unprivileged_userns_clone=1</code>; Ubuntu 24.04: an AppArmor profile for "
@@ -6544,14 +6554,15 @@ def try_html(site, tasks, here):
             "python3.12 -m pip install -r requirements.txt\n"
             "python3.12 score/ppa.py --fetch-liberty\n"
             f"python3.12 score/ppa.py {sv} \\\n    --task tasks/{t.name} --no-mapped\n")
-    recipe = (page.link(rel_link(here, f"{tut.page}#{YOSYS_RECIPE}"), "how to build it") if tut else "Step 0")
+    recipe = (page.link(rel_link(here, f"{tut.page}#{YOSYS_RECIPE}"), "how to check it") if tut else "Step 0")
     # the text beside the commands (one column on a phone); the line the last command prints ends the block
     line = ppa_summary_line(p).split("; ", 1)
     cmds += f"# its last line, on stderr:\n# {line[0]};\n#     {line[1]}\n"
     text = (f"<p>Score a design with the real tools on your own machine, with no Lean and no proof: you need "
-            f"Python 3.12 and Yosys {esc(v['yosys'])} ({recipe}). From a clone of the repository, the commands score "
-            f"the adder's par, {code(t.par['stem'] + '.sv')}; edit it and score it again. The same file always scores "
-            "the same on the rating build (another build of Yosys can differ slightly: "
+            f"Python 3.12; its requirements install Yosys {esc(v['yosys'])}, the rating build ({recipe}). From a clone "
+            f"of the repository, the commands score the adder's par, {code(t.par['stem'] + '.sv')}; edit it and score "
+            "it again. The same file scores the same on every machine, byte for byte: the rating build is one "
+            "WebAssembly program (a native Yosys can differ: "
             + page.link(rel_link(here, REPRODUCE_PAGE), "reproduce a score") + ").</p>"
             "<p><strong>A record on the board also needs a Lean proof</strong> that the design meets the task's "
             "statement; scoring needs none.</p>")
@@ -7262,19 +7273,16 @@ def llms_txt(site, tasks):
              "[llms-full.txt](llms-full.txt) is the whole proving guide in plain text.", "",
              "## Step 0, once per machine", "",
              f"svGolf runs on macOS and Linux (Linux: bubblewrap, `bwrap`, for the sandbox); Windows is not supported. "
-             f"Install elan (it installs the Lean toolchain that lean-toolchain pins, {v['lean']}), Yosys "
-             f"{v['yosys']} with yosys-abc, Verilator 5, a C++ compiler and make (the post-synthesis check compiles "
-             "Verilator's model of the netlist) and Python 3.12" + ("; to hand a record in, git and gh, logged in"
-                                                                   if submissions_open(site.config) else "")
-             + ". Package "
-             "managers ship newer versions of Yosys: with any other build than the rating build the numbers are "
-             f"estimates, and a record made with it is not ranked until re-made on the rating build. Yosys "
-             f"{v['yosys']}'s release archive: {rating_build()['yosys']['source']['url']} (sha256 "
-             f"{rating_build()['yosys']['source']['sha256']}; build it with `make PREFIX=... install`, as the "
-             "repository's records workflow does). Then:", "",
+             f"Install elan (it installs the Lean toolchain that lean-toolchain pins, {v['lean']}), Verilator 5, a "
+             "C++ compiler and make (the post-synthesis check compiles Verilator's model of the netlist) and Python "
+             "3.12" + ("; to hand a record in, git and gh, logged in" if submissions_open(site.config) else "")
+             + f". Yosys {v['yosys']} is not installed by hand: requirements.txt installs the rating build, YoWASP's "
+             "WebAssembly Yosys, the same program on macOS and Linux, so the numbers you make are the board's, byte "
+             f"for byte; `{rating_build()['yosys']['self_check']}` prints its module's sha256 "
+             f"({rating_build()['yosys']['sha256']}) and version line. Then:", "",
              "```bash", *clone,
              "python3.12 -m venv .venv && . .venv/bin/activate   # where pip refuses a system-managed Python",
-             "python3.12 -m pip install -r requirements.txt   # " + v["pyslang"],
+             "python3.12 -m pip install -r requirements.txt   # " + v["pyslang"] + " and the rating build of Yosys",
              "lake build                                      # the trusted Lean and the checker's evaluator",
              "python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty, checked by its hash",
              "```", "",

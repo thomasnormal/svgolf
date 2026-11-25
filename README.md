@@ -30,10 +30,11 @@ proof. To play, clone the repository:
 git clone https://github.com/thomasnormal/svgolf
 ```
 
-**Platforms.** macOS and Linux; Windows is not supported. The ranked numbers are rated on one build, the
-Homebrew Yosys 0.53 for macOS arm64 ("The build ratings use", under [Scoring](#scoring)). On Linux the sandbox
-is not yet checked end to end ([Sandbox](#sandbox)). **Tools:** elan (it installs Lean), Yosys 0.53 with
-`yosys-abc`, Verilator 5, a C++ compiler, `make` and Python 3.12: Step 0 of the [Quick start](#quick-start).
+**Platforms.** macOS and Linux; Windows is not supported. The ranked numbers are made by one build, the WebAssembly
+Yosys 0.53 that `pip install -r requirements.txt` installs, which is the same program on every machine and gives the
+same netlists, byte for byte, on macOS and Linux ("The build ratings use", under [Scoring](#scoring)). On Linux the
+sandbox is not yet checked end to end ([Sandbox](#sandbox)). **Tools:** elan (it installs Lean), Verilator 5, a C++
+compiler, `make` and Python 3.12 (its requirements bring Yosys): Step 0 of the [Quick start](#quick-start).
 
 | where | what |
 |---|---|
@@ -58,13 +59,14 @@ statement; "Checker v0 limits" below says what is not covered yet.
 ## Quick start
 
 **Step 0, once per machine.** Install [elan](https://github.com/leanprover/elan) (it installs the Lean
-toolchain that `lean-toolchain` pins, `leanprover/lean4:v4.35.0`, on first use), Yosys 0.53 with its
-`yosys-abc` (the pinned flow; the ranked numbers are made with one build of it, "The build ratings use"),
-Verilator 5, a C++ compiler and `make` (the post-synthesis stage compiles
+toolchain that `lean-toolchain` pins, `leanprover/lean4:v4.35.0`, on first use), Verilator 5, a C++ compiler and
+`make` (the post-synthesis stage compiles
 Verilator's model of the netlist, and without them `check.py` stops with the infrastructure error
 "postsynth: `c++` is not on PATH ...", or names the compiler `$CXX` sets; "Checking" says which compiler) and
-Python 3.12. The leaderboard tests and `leaderboard.py verify --offline` expect the pinned rating build of Yosys,
-and with a different Yosys on PATH they show records as stale: run them with no Yosys on PATH, as CI does. Then:
+Python 3.12. Yosys is not installed by hand: `requirements.txt` installs the rating build, YoWASP's WebAssembly Yosys
+0.53, which `score/yosys_wasm.py` runs ("The build ratings use"; `python3.12 score/yosys_wasm.py --self-check` prints
+its module's sha256 and version line). A Yosys on PATH is never used; `$SVGOLF_YOSYS` names a native one, for
+research only. Then:
 
 ```bash
 python3.12 -m pip install -r requirements.txt   # pyslang 11.0.0, the extractor's SystemVerilog frontend
@@ -550,6 +552,8 @@ svgolf/
                                     (`design.sem` under `run2` on many vectors)
   score/score.py                    scoring; score/canon.ys + score/svgolf.ys (the two
                                     stages) and score/ge.json are pinned
+  score/yosys_wasm.py               the rating build's launcher: the pinned WebAssembly Yosys
+                                    (its sha256 checked on every run; --self-check)
   score/srcgate.py                  the source gate (one program for slang and Yosys)
   score/banlist.py                  the operator banlist (pyslang + Yosys backstop)
   score/fourstate.py                the 4-state rules (no x or z value can arise at the probed points)
@@ -592,6 +596,9 @@ svgolf/
                                     `comparator` step
   tests/checker/check_bv_enabled.py  check.py with the dormant `BV_DECIDE_SUPPORTED` forced on in its
                                     own process: the groundwork rows of `tests/run.py` only
+  tests/checker/test_yosys_wasm.py  the rating build: five designs' canonical RTLIL and netlists
+                                    byte for byte (CI: Linux and macOS), the refusals of another
+                                    module or runtime, the cold-cache lock
   tests/checker/test_ppa_wiring.py  the `--ppa` modes, the absent-liberty path, the tripwire, flow
                                     A1''s `mapped` block and its failure modes, and the
                                     byte-identity of the default result against the checker
@@ -1325,7 +1332,10 @@ slot, supervisor, sandbox, program (the slot's `LEAN_NUM_THREADS` is forwarded).
 Needs unprivileged user namespaces on Linux (Debian `kernel.unprivileged_userns_clone=1`; Ubuntu 24.04's AppArmor restriction
 needs a profile for `bwrap`). Inside `bwrap` a tool's own install tree is mounted (the directory above the `bin/` of its
 resolved path), not every `PATH` entry: where a run stopped with `bwrap: execvp yosys: No such file or directory`
-(2026-11-11), setting `SVGOLF_YOSYS` to the full path of the Yosys binary let it run.
+(2026-11-11), setting `SVGOLF_YOSYS` to the full path of the Yosys binary let it run. Since 2026-11-24 the rating build
+runs as the checker's own Python (`score.yosys_argv`) and its spec names the interpreter, the launcher, the packages'
+directories and the compiled module, so it needs no `PATH` entry; under Seatbelt its module sees exactly the directories
+the run reads and writes (`YOWASP_MOUNT`, `score.wasm_mounts`), measured with the whole checker on macOS.
 Seatbelt cannot nest (`sandbox_apply: Operation not permitted`): a checker already inside
 another Seatbelt sandbox falls back (`auto`) or stops (`require`).
 
@@ -1728,40 +1738,65 @@ the score, ranked by nothing. "Reproduce a score" (the end of this section, and
 default course; the second course is ASAP7 placed and routed ("How the routed course is scored", at the end of this
 section), whose input is the cells-only ASAP7 view ("The ASAP7 view").
 
-**The build ratings use** (decided 2026-11-05). Every ranked number, on the boards and on the site, is made, or
-reproduced bit for bit, by one build of the tools, and it is not a slower portable one:
+**The build ratings use** (decided 2026-11-24). Every ranked number, on the boards and on the site, is made by one
+program, and it is the same program on every machine:
 
-* **Yosys 0.53** (git sha1 `53c22ab7c0ced80861c7536c5dae682c30fb5834`), the Homebrew build for macOS arm64, compiled
-  by clang++ 17 with -O3 (version line `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++
-  17.0.0 -fPIC -O3)`; the `yosys` binary's sha256 `011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732`);
-* its **`yosys-abc`**, ABC 1.01 of 6 May 2025 (`UC Berkeley, ABC 1.01 (compiled May  6 2025 05:45:16)`; sha256
-  `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653`);
+* **Yosys 0.53** (git sha1 `53c22ab7c0ced80861c7536c5dae682c30fb5834`) as YoWASP's WebAssembly build, compiled by
+  clang 18.1.3 with -O3 -flto to WebAssembly and run by wasmtime: the pip package `yowasp-yosys==0.53.0.0.post912`
+  with `yowasp-runtime==1.96` and `wasmtime==47.0.1` (`requirements.txt`; version line `Yosys 0.53 (git sha1
+  53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)`; the module `yosys.wasm`'s sha256
+  `909a42f5c804ee9b29ca0570fc558419db55df4d5e817fdb02dbd808cbda2fad`);
+* **ABC**, the one of Yosys 0.53's release archive, linked into the same module (there is no separate `yosys-abc`);
 * the liberty `sky130_fd_sc_hd__tt_025C_1v80.lib` (sha256
   `ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5`), `score/ppa.py` (sha256
-  `2be8c01e931a3b640c1d3a4104ffe06d8fd3f0e48737d5222e78ed5f58747150`) and `score/ppa_pins.json` (`sky130_a0_v3`,
+  `7a82e7054a36104d8499fba7e5145a734a1796d7713601cf57f6e9bfb9aa0ce5`) and `score/ppa_pins.json` (`sky130_a0_v3`,
   sha256 `d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8`), with the scripts `score/canon.ys`
   (`bbd11227d45dc1365f27597fd45c565fe721ba2648450588fc4fd983d00b367b`) and `score/svgolf.ys`
   (`ea58219d8ef14c3bad265218ee266ccdb709ac9d4dc5258edc34d51ee83a0445`).
 
-Records made before this `score/ppa.py` (every record on the board on 2026-11-12) name an earlier file, sha256
-`912031912c3e3f6790725161753e95415df34846bd8c27dde3eb707747ddbcbe`, in their checker files and as
-`ppa_script_sha256`. The changes since then add the ASAP7 view (`--pdk asap7`, "The ASAP7 view", below; that file
-was sha256 `1ef1b1c1904853711cbed9b3b5e275f333aade8f60361f8bbc61305c98c480ab`) and, on 2026-11-12, a summary line on
-stderr after the JSON and `--latency` (with `--seq`: the line then shows area x cycles x period), and leave the
-sky130 output identical: rescoring all 23 records with this file on 2026-11-12 reproduced every stored sky130 field
-but that hash, and every ASAP7 number. So the records were not made again; `leaderboard.py verify` prints a note for the changed
-file, and a note never changes a record's status. The ASAP7 view's numbers come from the same build and the same
-`score/ppa.py`, with `score/ppa_pins_asap7.json` and its five pinned liberty files in place of the sky130 pins and
-liberty.
+`score/yosys_wasm.py` runs the module. Before every run it checks the module's sha256 and the three package versions
+and refuses anything else (exit status 3, with the `pip` command to run); it never falls back to a native Yosys. It
+compiles the module to machine code once per machine, into `score/.wasm-cache/` (git-ignored, about 65 MB;
+`$YOWASP_CACHE_DIR` moves it; a few seconds, under a lock so that parallel first runs wait for one compile). Every
+Yosys process of the flow goes through it: the score's two stages, the banlist backstop, the fourstate check, the A1'
+mapping, the post-synthesis re-read, the schematics. The module addresses at most 4 GiB of memory (WebAssembly's
+32-bit address space): a design whose synthesis needs more stops with Yosys's allocation failure (`libc++abi: bad_alloc
+was thrown in -fno-exceptions mode`) and is not rated, on any machine (no record comes near it; at N = 16 five
+matmul designs in `leaderboard/sizes/` stop at about 4.4 GB, three of them with that line, two with the module's trap
+alone). To check an installation:
 
-The flow is deterministic on that build: the same design text gives the same area, time and netlist on every run
-(measured 2026-11-05 on 52 designs, 826 runs). Another build of the same Yosys version can break ABC's ties differently
-(ABC's mapper sorts with the C library's `qsort`, which is not stable): measured, under YoWASP's WebAssembly Yosys 0.53
-(the same git sha1) three `fdivp` designs moved, by up to 2.9% in delay and 0.3% in area, and the other 49 were
-identical. So a number you make on another platform may differ slightly from the board's; the same build gives it bit
-for bit, and you can get as close to it as you like. The binaries and these measurements are data
-(`score/reference_build.json`), which the site's rules page and every task's score card read;
-`tests/site/test_rating_build.py` checks that this paragraph states them.
+```bash
+python3.12 -m pip install -r requirements.txt
+python3.12 score/yosys_wasm.py --self-check     # the module's sha256, the package versions, its version line: "ok"
+```
+
+`$SVGOLF_YOSYS` (or `--yosys`) names a native Yosys instead, for research: the flow runs with it, its results say
+`"rating_build": false`, and its numbers can differ from the board's.
+
+Why one WebAssembly program (measured 2026-11-24). Native builds of the same Yosys 0.53 source do not agree. The C++
+standard library (libc++ on macOS, libstdc++ on Linux) changes the order in which Yosys's passes visit cells and
+connections (Yosys reuses freed name indices and orders by them; first visible in `opt_expr`), and the C library's
+`qsort` breaks the ties of ABC's cut sort in another order. On the 65 records of 2026-11-24 a Linux build (conda-forge,
+g++ and libstdc++) gave another score than the macOS build (Homebrew, clang++ and libc++) for 33 of them, by up to
+7.07% (6.8% in delay, 1.6% in area), and changed the order of the matmul board. The WebAssembly module carries its own C++
+library, C library, allocator and floating point: from the same commit, every record of the board (65 records: their canonical RTLIL, their scored netlists, the clocked records' netlists at their other post-synthesis
+points and the combinational records' A1' mapped netlists, 198 files) gave
+the same canonical RTLIL and the same netlists, byte for byte and banner included, on macOS arm64 and on x86-64 Linux,
+and so the same numbers. It takes about 1.2 times a native build's time on the largest designs and about a second
+more per Yosys process on small ones.
+
+Until 2026-11-24 the rating build was the Homebrew build of Yosys 0.53 for macOS arm64 (clang++ 17 with -O3, version
+line `Yosys 0.53 (git sha1 53c22ab7c0ced80861c7536c5dae682c30fb5834, clang++ 17.0.0 -fPIC -O3)`, the `yosys` binary's
+sha256 `011e094340da48932dd0af17da0846519af24cee7de9ae84c11cc78753ab7732`) and its `yosys-abc` (ABC 1.01 of 6 May
+2025, sha256 `769348bb154a26d5d97cd877d086893b3c6a1c8242343a505025bad62c7fa653`). On 2026-11-24 every record was
+measured again on the new build (`leaderboard.py remake --measure`: the proof checked again, the scores measured
+again, the player, the date, the assistance and the notes kept): three scores moved, all fdivp (its par -1.11%, tidereckon's Newton divider +1.11%, loamstep's D2 +3.00%; their A1'
+columns moved too), every other score stayed the same, and no board's order changed. The ASAP7 view's numbers come from the same
+build and the same `score/ppa.py`, with `score/ppa_pins_asap7.json` and its five pinned liberty files in place of the
+sky130 pins and liberty. The module, its packages and these measurements are data (`score/reference_build.json`),
+which the site's rules page and every task's score card read; `tests/site/test_rating_build.py` checks that this
+paragraph states them, and `tests/checker/test_yosys_wasm.py` pins the canonical RTLIL and netlists of five designs
+byte for byte (two of them designs on which the native builds disagree), which CI runs on Linux and on macOS.
 
 ```bash
 python3.12 score/ppa.py SOLUTION.sv --task tasks/<name>        # the ranked score (sky130 um^2, ps) and the GE columns
@@ -1867,7 +1902,7 @@ the canonical RTLIL of the same run mapped by a real `abc -liberty` run (the pin
 0.53's default ABC script, every ordinary sky130 cell and drive strength allowed, compound cells, no sizing pass), checked against the
 scored netlist on a sample of input vectors and weighed by the very same STA: `area_um2_sky130_mapped_v1`, `mapped_delay_sky130_v1`
 (integer ps), `mapped_cells_sky130_v1`, `mapped_cell_hist_sky130_v1`, `mapped_levels_sky130_v1`, with its own version
-(`ppa_mapped_version` `sky130_a1_v1`) and hashes. A1' is closer to a fabricated chip and more sensitive to the mapper than A0': over the
+(`ppa_mapped_version` `sky130_a1_v2`, since the rating build of 2026-11-24; `sky130_a1_v1` before) and hashes. A1' is closer to a fabricated chip and more sensitive to the mapper than A0': over the
 18 reference and baseline designs `score/tests/ppa/designs.json` held when it was measured (2026-11-04) it is a median 0.93x the
 repaired A0' in area and 1.04x in delay,
 and on the four proved multipliers it puts the array multiplier last in area where GE and A0' put it first. A0' is the ranked score
@@ -1878,10 +1913,11 @@ process; the board ranks the exact integers of this model). **The numbers are no
 deterministic function of the design's text: the same file gives the same area, time and netlist on every run (measured
 2026-11-05 on all 52 references, baselines, records and trial designs of the ranked tasks, 14 to 16 runs each: serial and six
 at once, a dozen hash seeds, other temporary and working directories, two checkouts, two locales, other file names, two
-install paths; every number and every netlist byte equal), so anyone who runs the pinned tools gets the board's number, and
-there is no tie band and no best-of-k. The pinned tools include the Yosys and ABC BUILD ("The build ratings use", above):
-another build of Yosys 0.53 can give other numbers on some designs (measured 2026-11-05: three fdivp designs, up to 2.9% in
-delay), because ABC's mapper breaks ties in the order the C library's sort leaves them. What moves a
+install paths; every number and every netlist byte equal; and since 2026-11-24 every record on macOS and on Linux, byte
+for byte), so anyone who runs the pinned tools gets the board's number, and there is no tie band and no best-of-k. The
+pinned tools include the Yosys and ABC BUILD ("The build ratings use", above), one WebAssembly program for every machine:
+native builds of Yosys 0.53 give other numbers on half the board (up to 7.1%), because Yosys's passes and ABC's mapper
+break ties in the order of the C++ and C libraries they are built with. What moves a
 score is how the circuit is written, and that is the golf: names, comments, blank lines, whitespace and the file name never
 change it (stage 1 erases them), while the order of an operator's operands, how a chain of XORs or ANDs is grouped and the
 order of independent statements do, always the same way (commuting operands moved A0' area by up to 11% and delay by up to
@@ -1946,8 +1982,9 @@ period 10,705 to 10,696 ps (one of its five trees is now 2 x `buf_4`, 6 buffers,
 2,523. score/PPA.md, "The per-edge loads".
 
 **Reproduce a score.** The ranked numbers (A0' area and time) are a pure function of the design text, the pinned flow and
-tool build, the pins and the task's scoring point and input drive, and each is reproduced bit for bit by one command from the repository's root (Python 3.12 with `pyslang`, `Yosys 0.53 (git sha1
-53c22ab7c0ce…)` and the `yosys-abc` beside it on `PATH`):
+tool build, the pins and the task's scoring point and input drive, and each is reproduced bit for bit, on any machine, by one
+command from the repository's root (Python 3.12 with `requirements.txt`: `pyslang` and the rating build of Yosys, `Yosys 0.53 (git sha1
+53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)`):
 
 ```
 python3.12 score/ppa.py --fetch-liberty                     # once: the pinned liberty (sha256 ef34f999…5d23d5) into score/lib/
@@ -1964,7 +2001,7 @@ gate, the buffering repair, the STA with the task's input drive behind a 50 ps r
 legality audit. `out.json` carries every input's hash (Yosys version, scripts, canonical RTLIL, liberty, pins, `ppa.py`,
 the scored and the repaired netlist) and `setup`. [score/PPA.md](score/PPA.md), "Reproduce a score", lists the tool
 versions and file hashes, prints both Yosys scripts as filled in for the `add` reference, shows the ABC scripts, and
-runs the same steps by hand (`srcgate.py`, two `yosys -s` runs, `ppa.py --netlist-in`); it was tested by following it
+runs the same steps by hand (`srcgate.py`, two `score/yosys_wasm.py -s` runs, `ppa.py --netlist-in`); it was tested by following it
 literally in a scratch copy on the `add` and `aes_sbox` references, bit for bit equal to the goldens.
 
 ### The ASAP7 view
@@ -2097,7 +2134,9 @@ and route pending" while it has no run) and shows a dash: never a cells-only num
 Since 2026-11-13 every design the tasks show (52 design files: records, references and baselines, the 13 matmul
 architecture records included) has a routed score, except a record added after that day until its run is made
 (thirteen matmul records, recorded 2026-11-19, 2026-11-20, ten on 2026-11-23 and one on 2026-11-24, two arbiter
-records, both of 2026-11-23, and one sorter record, of 2026-11-24, wait for their runs).
+records, both of 2026-11-23, and one sorter record, of 2026-11-24, wait for their runs), and since 2026-11-24 three
+fdivp designs whose ASAP7 netlist the new rating build changed (par's, tidereckon's and loamstep's: pending again at
+their stored seeds, `asap7pnr --rebind`); every other routed run placed exactly the netlist its design has now.
 
 **The layout picture.** Each routed design's record page, and par's, shows the layout of its scored run in the
 netlist card's Layout tab (in the page's Schematics tab), beside the schematic, on the routed course only (decided
@@ -2745,7 +2784,7 @@ outside `nightly/`.
 | `_example` | N-bit bitwise AND (toy) | `assign y = a & b;`, for-all-`N` proof | 100.096 um^2, 280 ps; 21.328 GE, depth 1 |
 | `add` | N-bit adder with carry, `{cout, s} = a + b + cin`; bans `+ - * / % **` | par: ripple carry from gates, for-all-`N` proof (with the sv_comb tactics, and by hand as `add_n_byhand`); proved Sklansky and Kogge-Stone prefix adders, entries (`tests/add/baselines`), and two proved banned-operator designs as baselines | ripple (par) 460.4416 um^2, 2611 ps; 112.0 GE, depth 33. Sklansky 541.7696, 2451; 127.658, 28. Kogge-Stone 641.8656, 2064; 149.652, 24 (Yosys's own `+`: 497.9776, 3143; 117.994, 33) |
 | `mul` | N-bit unsigned multiplier, `p = a * b` on `2N` bits; bans `+ - * / % **` | par: the array multiplier (AND partial products, ripple-carry rows of full adders), for-all-`N` proof (with the sv_comb tactics, and by hand as `mul_n_byhand`); entries: three proved tree references and a Dadda tree with a ripple-carry final adder, one design for every `N`, proved by hand (`tests/mul/baselines`); Yosys's own `*` as a proved banned-operator baseline | array (par) 8290.4512 um^2, 10907 ps; 1962.576 GE, depth 88. The proved tree `mul_tree_h`, an entry: 8563.2128, 5992; 2025.905, 62 (Dadda + ripple, an entry: 8230.3936, 5461; 1953.585, 61. Yosys's own `*`: 8825.9648, 6261; 2081.227, 59) |
-| `fdivp` | IEEE 754 division PARAMETRIC in the format, `fdiv #(W, P)` on `W + P` bits for every `W >= 2`, `P >= 2`, round to nearest even, canonical NaN, subnormals (`LeanModels.SoftFloat.Binary.divide`, Proglib's IEEE 754 library); bans `/ % **` | a word-level netlist of 34 sites (linear normalizer and `P + 2` restoring steps as generate families), Verilator-validated on all 66 formats with `W + P <= 14` and both 2^32-pair formats and **proved for every format** (`tasks/fdivp/README.md`; one self-contained proof over `LeanModels.Sv.Lib`: the spec's facts, the certificate, the math layer, the glue `Glue.chain`, `OutN_fdivBits`); binary16 is the instance `(5, 11)` (the former 16-bit task, removed 2026-11-03, is folded in): par, restoring division; entries: the fragment-friendly D2 (`tests/fdivp/baselines`), a second proved reference, a Newton-Raphson divider (a logarithmic number of Newton steps over the run-time `*`), not competitive, and a third, a radix-4 SRT divider adapted from CORE-V Wally (carry-save remainder, digit selection by table constants, on-the-fly conversion), the fastest | par 9675.5296 um^2, 37984 ps; 2166.076 GE, depth 289 at `(5, 11)` (Newton 33824.9408, 40031; 7892.452, 252; SRT: 12356.8512, 27592; 2787.652, 189) |
+| `fdivp` | IEEE 754 division PARAMETRIC in the format, `fdiv #(W, P)` on `W + P` bits for every `W >= 2`, `P >= 2`, round to nearest even, canonical NaN, subnormals (`LeanModels.SoftFloat.Binary.divide`, Proglib's IEEE 754 library); bans `/ % **` | a word-level netlist of 34 sites (linear normalizer and `P + 2` restoring steps as generate families), Verilator-validated on all 66 formats with `W + P <= 14` and both 2^32-pair formats and **proved for every format** (`tasks/fdivp/README.md`; one self-contained proof over `LeanModels.Sv.Lib`: the spec's facts, the certificate, the math layer, the glue `Glue.chain`, `OutN_fdivBits`); binary16 is the instance `(5, 11)` (the former 16-bit task, removed 2026-11-03, is folded in): par, restoring division; entries: the fragment-friendly D2 (`tests/fdivp/baselines`), a second proved reference, a Newton-Raphson divider (a logarithmic number of Newton steps over the run-time `*`), not competitive, and a third, a radix-4 SRT divider adapted from CORE-V Wally (carry-save remainder, digit selection by table constants, on-the-fly conversion), the fastest | par 9644.2496 um^2, 37683 ps; 2163.08 GE, depth 292 at `(5, 11)` (Newton 33823.6896, 40478; 7888.778, 252; SRT: 12356.8512, 27592; 2787.652, 189) |
 | `aes_sbox` | the AES S-box (FIPS 197 Section 5.1.1), `y = S(x)` on 8 bits, defined algebraically (inverse in GF(2^8), then the affine map), fixed size; NO operator banned; the post-synthesis check is exhaustive (all 256 inputs) | par: a proved 256-entry `case` table; entries: the Boyar-Peralta 113-gate circuit, validated (Verilator, all 256 inputs; gate for gate against the authors' netlist file), scored and **proved** (113 plain sites: `sv_structure` and `sv_equations` decide the obligations of a flat netlist instead of normalising them, `PROVING.md` section 12), and the proved depth-16 Boyar-Peralta circuit (`tests/aes_sbox/baselines`) | `case` table (par) 3445.8048 um^2, 2288 ps; 786.894 GE, depth 11 (fixed size). 113-gate circuit 892.1056, 4297; 200.986, 21. Depth-16 circuit 952.1632, 3670; 216.322, 18 |
 | `clmul` | N-bit carry-less multiplier (product of polynomials over GF(2)), `p = a (x) b` on `2N-1` bits; bans run-time `+ - *` | the N x N AND/XOR array (`mul_n`'s shape without carries), validated (Verilator, exhaustive to `N = 8`; the Lean spec equals the oracle on every pair to `N = 7`), scored and **proved** for every `N` (`sv_structure`/`sv_equations`/`sv_cover`/`sv_bridge`, 206 code lines, `solution` stage 7.7 s), par; proved schoolbook-tree and Karatsuba designs, entries (`tests/clmul/baselines`); 18 real-world styles under `tests/clmul/attacks` (`tasks/clmul/README.md`, "How people write clmul") | 3429.5392 um^2, 1114 ps; 772.267 GE, depth 6 at `N = 16`; Karatsuba (`kara_lv`, 4-bit base) 2732.6208, 1810; 616.626, 8 |
 | `arbiter` | a fair N-client arbiter, CLOCKED and REACTIVE (`ReactTask`, kind `react-family`): per cycle at most one grant, only to a requester, someone whenever anyone requests (G1 to G3), no grant out of reset (G0), and a client that requests `N` cycles in a row granted within them (G4, `K = N - 1`, tight), from every power-up state, Moore outputs, no environment assumption; every `N >= 1` with `N*N < 2^31`; bans `/ % **` | a registered mask round-robin (own code), **proved** for every `N` through `ReactTask.satisfiedAt_of_rank` (an invariant and a rank: `PROVING.md` section 20); the adapted OpenTitan `prim_arbiter_tree` behind an output register and a rotating priority by simulation (`tests/arbiter/designs`); 17 attacks (`tests/arbiter/attacks`); listed and ranked, par the reference's record (`tasks/arbiter/README.md`) | 769.488 um^2, 2826 ps (the register-to-register period, one decision per cycle; 16 flops); 188.979 GE, depth 17 at `N = 8`. OpenTitan tree 668.1 um^2, 1454 ps (an earlier flow version, not proved) |

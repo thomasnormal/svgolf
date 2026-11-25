@@ -1,0 +1,23 @@
+<h1>Boyar-Peralta 113-gate circuit</h1>
+
+<p>This record is the published 113-gate AES S-box circuit of Boyar and Peralta, translated gate for gate into <code>sbox_bp.sv</code>: 32 AND, 77 XOR and 4 XNOR gates as continuous assigns over 105 internal one-bit nets. Its files are the task's own proved reference circuit, entered on the board under a handle like any player's.</p>
+
+<h2>The idea</h2>
+
+<p>The circuit is optimized for gate count rather than depth. The netlist opens with 23 XORs of the input bits, does its nonlinear work with all 32 ANDs in the middle, and ends with 28 XORs into the outputs. The XNORs, written <code>a ^ b ^ 1'b1</code>, land on <code>y[0]</code>, <code>y[1]</code>, <code>y[5]</code> and <code>y[6]</code>, the set bits of the affine constant <code>8'h63</code>. The price is depth: 27 levels in the published file.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 it is about 892 µm² at 4.30 ns, 3833.4 µm²·ns, about 0.49 x par. Synthesis rebalances it to 123 cells and a unit depth of 21 (from 27), with a critical path of 18 cells to <code>y[6]</code>. <a href="8c3af9345efa346b5161d5a72564d123505164a827732ccf06ac7a3ce84ed18c.html">The depth-16 variant</a> of the same circuit family wins the sky130 product. On the routed ASAP7 course this record had the smallest area on the board, 13.36 µm² at 724 ps (9.67 µm²·ns), and sits on that course's area-time frontier.</p>
+
+<p>Statement order matters for a flat netlist like this one: the task notes found that reordering the 113 assigns moves both its area and its sky130 delay, in either direction, because the checker scores the statements in the order given. Searching orders is legitimate golf here.</p>
+
+<h2>The proof</h2>
+
+<p>The proof (202 code lines) is generated from the netlist and has four parts. <code>bp_struct</code> is one <code>sv_structure</code> call whose rank is each gate's depth; <code>bp_interface</code> is <code>sv_interface</code>; in <code>solution</code>, <code>sv_equations</code> returns the 113 gate equations and also decides the coverage of all 221 reads, and the tactic <code>gok_chain</code> chains the equations into the predicate <code>GOK</code>. The arithmetic treats the netlist as a straight-line program <code>bpProg</code> over a packed 121-bit natural: <code>bp_correct</code> evaluates all 256 inputs against the algebraic <code>sbox</code> by <code>decide +kernel</code>, and <code>bp_vals</code> (an induction over the gate list) shows any state meeting the equations holds the program's values.</p>
+
+<h2>What did not work</h2>
+
+<p>The task notes record three earlier walls. Before the flat-netlist tactics, <code>sv_structure</code> grew roughly quadratically in the number of gates and failed with a recursion-depth error at this size. A first proof applied the structure theorem by hand, and <code>sv_equations</code> left it every coverage goal to close, which made it much longer and slower. The one-line <code>sv_exhaustive</code> route did not finish on these 113 assigns in a long probe.</p>
+
+<p>Writeup by the maintainers, from the design and proof files.</p>
