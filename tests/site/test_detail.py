@@ -827,7 +827,8 @@ class DetailTest(unittest.TestCase):
                     if par is not None and par["id"] != d["id"]:
                         (prow,) = [r[1] for r in rows if "· par<" in r[1] or "· par</span>" in r[1]]
                         vs = text_of(re.findall(r"<td[^>]*>(.*?)</td>", prow)[-1]).strip()
-                        card = re.search(r'<dt>vs par</dt><dd><strong>([^<]+)</strong> (\w+)<span',
+                        card = re.search(r'<dt>vs par</dt><dd>(?:<span class="good">)?<strong>([^<]+)</strong> (\w+)'
+                                         r'(?:</span>)?<span',
                                          section(h, "dashboard").split('id="h-score', 1)[1])
                         self.assertEqual(vs, f"{card.group(1)} {card.group(2)}")
                     checked += 1

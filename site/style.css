@@ -304,6 +304,9 @@ li { margin: var(--sp-1) 0; }
 li > p { margin: var(--sp-2) 0; }
 strong { font-weight: 650; }
 .muted { color: var(--text-2); }
+/* good news as text (decided 2026-11-25): under par, best, ahead, better than par or than another design, a first place
+   (build.py good_if); behind and over par stay neutral, and red is for errors only */
+.good { color: var(--good-ink); }
 .small { font-size: var(--fs-sm); }
 hr { border: 0; border-top: 1px solid var(--border); margin: var(--sp-5) 0; }
 
@@ -659,7 +662,8 @@ td.num { font-family: var(--mono); font-size: 0.82rem; }
 td.al-right, th.al-right { text-align: right; }
 td.al-center, th.al-center { text-align: center; }
 tr.par-row td, tr.frontier-row td { background: var(--surface-2); }
-tr.par-row td:first-child, tr.frontier-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+tr.par-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+tr.frontier-row td:first-child { box-shadow: inset 3px 0 0 var(--good); }   /* the table's first place (2026-11-25) */
 tr:target td { outline: 2px solid var(--accent); outline-offset: -2px; }
 td code { overflow-wrap: break-word; }
 .doc-body td code { overflow-wrap: anywhere; }      /* a hash in a document's table wraps, not the table */
@@ -843,7 +847,8 @@ ol.board > li.par { background: var(--surface-2); }
 .legend-row .lg-par::before { background: var(--text-3); }
 
 /* the latest records (latest.html under a heading per day, and the front page's strip; decided 2026-11-23): a board
-   row with its task in front of the player; under the score how far it is under par, in the accent as Under par */
+   row with its task in front of the player; under the score how it stands against its task's best (build.py
+   vs_best), then, quieter, against par; best, ahead and under par in the good colour (decided 2026-11-25) */
 ol.latest { list-style: none; margin: 0; padding: 0; }
 ol.latest > li { display: grid; grid-template-columns: 8rem minmax(0, 1fr) auto; grid-template-areas: "task who score"; align-items: center; gap: var(--sp-1) var(--sp-4); padding: var(--sp-3) var(--sp-5); border-bottom: 1px solid var(--border); margin: 0; }
 ol.latest > li:last-child { border-bottom: 0; }
@@ -855,7 +860,9 @@ ol.latest .board-score { grid-area: score; }
 .latest-task .no { color: var(--accent-ink); font-weight: 700; margin-right: 0.5em; }
 .latest-task:hover { color: var(--accent-ink); text-decoration: underline; }
 .latest-date { color: var(--text-3); }
-.board-score .under { color: var(--accent-ink); font-weight: 700; }
+.board-score .vs-best { color: var(--text-2); }
+.board-score .vs-best.good { color: var(--good-ink); font-weight: 700; }
+.board-score .vs-par { font-weight: 400; }
 .latest-day + .latest-day { border-top: 1px solid var(--border); }
 .card .latest-day > h2 { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); margin: 0; padding: var(--sp-2) var(--sp-5); background: var(--surface-2); border-bottom: 1px solid var(--border); font: 700 var(--fs-sm)/1.4 var(--mono); letter-spacing: 0; }
 .latest-day > h2 .n { font-weight: 500; font-size: var(--fs-xs); color: var(--text-3); }
@@ -864,6 +871,9 @@ ol.latest .board-score { grid-area: score; }
 @media (max-width: 40rem) {
   ol.latest > li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "task score" "who score"; padding: var(--sp-3) var(--sp-4); gap: 2px var(--sp-3); }
   .latest-where { padding-top: 0; flex-direction: row; flex-wrap: wrap; gap: 0 var(--sp-3); }
+  /* each part of the line under a score on a line of its own: the score column stays narrow beside the name */
+  ol.latest .vs-next, ol.latest .vs-par { display: block; }
+  ol.latest .board-score .sep { display: none; }
   .card .latest-day > h2 { padding-left: var(--sp-4); padding-right: var(--sp-4); }
 }
 
@@ -1303,8 +1313,10 @@ dl.mfacts dd { color: var(--text-2); }
 .tag { font-size: 0.72rem; color: var(--text-3); }
 .meter { display: flex; gap: 2px; height: 8px; border-radius: 0; background: var(--sunken); overflow: hidden; margin: 0 0 0.35rem; }
 .meter > span { display: block; flex-basis: 0; min-width: 4px; }
-.meter .m-beat { background: var(--accent); }
-.meter .m-tie { background: color-mix(in srgb, var(--accent) 42%, var(--surface)); }
+/* the players this design beats, in the good colour (decided 2026-11-25: better than another is good news; it was the
+   accent); the equal ones a paler step of it */
+.meter .m-beat { background: var(--good); }
+.meter .m-tie { background: color-mix(in srgb, var(--good) 42%, var(--surface)); }
 .meter .m-trade { background: var(--axis); }
 .meter .m-behind { background: transparent; }
 .mcard .meter + .fine { margin: 0 0 0.6rem; }      /* the field's count line under its meter (2026-11-11) */

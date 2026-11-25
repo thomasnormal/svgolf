@@ -3111,14 +3111,108 @@ class SiteTest(unittest.TestCase):
                 t.records.reverse()
             self.assertEqual([r["record_hash"] for _, r in build.latest_records(tasks)], want)
 
+    def test_a_record_against_the_best_on_made_up_boards(self):
+        """Decided 2026-11-25 (the owner: "show how good they are relative to the current best"): `vs_best` on made-up
+        boards, ranked as leaderboard.py ranks them (equal scores share a rank). The first place: "best" and how far it
+        is ahead of the next place; with no other place "best" alone; equal first places "tied for best". Any other
+        place: how far it is behind. Both are shares of the best's score, so the second place's "behind" is the first
+        place's "ahead". Only a first place is good news. A share that would round to 0% keeps two significant digits
+        (under par's rule, now also at exactly half a percent). Not ranked, or a preview: None."""
+        def task(*rows, preview=False):
+            ranking = [{"record_hash": h, "rank": k, "exact": e, "player": f"p-{h}"} for h, k, e in rows]
+            designs = [{"id": h, "kind": "record", "m": {"adp": e / 100}} for h, _, e in rows]
+            return types.SimpleNamespace(board={"ranking": ranking}, designs=designs, preview=preview)
+
+        def said(t, h):
+            phrases, good, title = build.vs_best(t, h)
+            return " · ".join(phrases), good
+        one = task(("a", 1, 1000))
+        self.assertEqual(build.vs_best(one, "a"), (("best",), True, "rank 1 of 1 on this course's board"))
+        self.assertIsNone(build.vs_best(one, "b"))
+        self.assertIsNone(build.vs_best(task(("a", 1, 1000), preview=True), "a"))
+        t = task(("a", 1, 1000), ("b", 2, 1250), ("c", 3, 3000))
+        phrases, good, title = build.vs_best(t, "a")
+        self.assertEqual((phrases, good), (("best", "25% ahead of the next"), True))
+        self.assertTrue(title.startswith("rank 1 of 3 on this course's board; the next: p-b, "), title)
+        self.assertEqual(said(t, "b"), ("25% behind the best", False))
+        self.assertEqual(said(t, "c"), ("200% behind the best", False))
+        self.assertIn("rank 3 of 3 on this course's board; the best: p-a, ", build.vs_best(t, "c")[2])
+        tied = task(("a", 1, 1000), ("b", 1, 1000), ("c", 3, 1100))
+        for h in "ab":
+            self.assertEqual(said(tied, h), ("tied for best · 10% ahead of the next", True))
+        self.assertEqual(said(tied, "c"), ("10% behind the best", False))
+        self.assertEqual(said(task(("a", 1, 7), ("b", 1, 7)), "b"), ("tied for best", True))
+        close = task(("a", 1, 100000), ("b", 2, 100035))
+        self.assertEqual(said(close, "a")[0], "best · 0.035% ahead of the next")
+        self.assertEqual(said(close, "b")[0], "0.035% behind the best")
+        self.assertEqual([build.pct_text(x) for x in (0, 0.005, 0.0049, 0.015, 0.68, 3.53)],
+                         ["0%", "0.5%", "0.49%", "2%", "68%", "353%"])
+        self.assertEqual(build.under_text(0.005), "0.5%")
+        self.assertEqual(build.under_text(-0.005), "0.5% over par")
+        self.assertEqual(build.under_text(-0.05), "5% over par")
+
+    def test_good_news_is_green(self):
+        """Decided 2026-11-25 (the owner: ""13% under par" is a good thing, so it should be green, not red"; on 11-24
+        the same of the Under par tile): every figure that says a design is under par, best, ahead or better than par
+        or than another design is in the site's good colour, and nothing of the kind is in the accent or the error
+        colour. In style.css: the class `good` and the latest list's first place are `--good-ink`, behind and over
+        par are neutral text, the record pages' meter of the players a design beats and the board table's first
+        place are `--good`; the accent class the latest list used for under par is gone. On the pages: the latest
+        list (test_pdk.py, both courses), and a record page's "vs par" rows, its "on this page" first places and its
+        Charts tab's "this design vs it" column, green exactly where the design is the better one."""
+        css = read_text_file("site/style.css")
+
+        def rule(sel):
+            m = re.search(rf"^\s*{re.escape(sel)} \{{([^}}]*)\}}", css, re.M)
+            self.assertIsNotNone(m, sel)
+            return m.group(1)
+        self.assertIn("color: var(--good-ink)", rule(".good"))
+        self.assertIn("color: var(--good-ink)", rule(".board-score .vs-best.good"))
+        self.assertIn("color: var(--text-2)", rule(".board-score .vs-best"))
+        self.assertNotIn("color", rule(".board-score .vs-par"))
+        self.assertIn("background: var(--good)", rule(".meter .m-beat"))
+        self.assertIn("var(--good)", rule(".meter .m-tie"))
+        self.assertIn("var(--good)", rule("tr.frontier-row td:first-child"))
+        self.assertNotIn(".under", css)
+        for sel in re.findall(r"^([^{}\n]*(?:\.good|\.vs-best|\.vs-par|\.m-beat|\.m-tie|frontier-row)[^{}\n]*)"
+                              r"\{([^}]*)\}", css, re.M):
+            with self.subTest(rule=sel[0]):
+                self.assertNotRegex(sel[1], r"var\(--(accent|bad|warn)")
+        words = {"smaller": True, "faster": True, "better": True, "larger": False, "slower": False, "worse": False,
+                 "equal": False}
+        seen = {"vs par": set(), "vs it": set(), "first": 0}
+        for path in sorted(p for p in self.files if re.fullmatch(r"tasks/[^/]+/(records|reference)/[^/]+\.html", p)):
+            raw = self.files[path].decode("utf-8")
+            with self.subTest(page=path):
+                for green, pct, word in re.findall(r'<dt>vs par</dt><dd>(<span class="good">)?<strong>([^<]+)</strong> '
+                                                   r'(\w+)', raw):
+                    self.assertEqual(bool(green), words[word], (pct, word))
+                    self.assertEqual(pct.startswith("−"), words[word], (pct, word))
+                    seen["vs par"].add(word)
+                for green, place in re.findall(
+                        r'<dt>on this page</dt><dd>(<span class="good">)?<strong>([^<]+)</strong>', raw):
+                    first = place in ("best", "smallest", "fastest", "1st")
+                    self.assertEqual(bool(green), first, place)
+                    seen["first"] += first
+                for table in re.findall(r'<table[^>]*class="[^"]*\bcompare\b.*?</table>', raw, re.S):
+                    for green, pct, word in re.findall(r'<td[^>]*>(<span class="good">)?<strong>([^<]+)</strong> (\w+)',
+                                                       table):
+                        self.assertEqual(bool(green), words[word], (pct, word))
+                        seen["vs it"].add(word)
+        self.assertEqual(seen["vs par"], set(words))
+        self.assertTrue({"better", "worse"} <= seen["vs it"], seen["vs it"])
+        self.assertGreater(seen["first"], 10)
+
     def test_latest_lists_every_record_newest_first(self):
         """Decided 2026-11-23 (the owner's request: a way to see the latest submissions to all tasks, sorted by date):
         latest.html lists every record of every task the site shows exactly once, newest first by its date
         (`submitted_at`), one day's records in the front page's task order, then by player and record hash; under a
         heading per day, newest first, written YYYY-MM-DD as the records and their pages write it; every row links
         its record's page and its task's page. A row's score (sky130) is the number the task's leaderboard shows for
-        that record (par's records: the front card's Par), marked under par exactly when the record's exact score,
-        from its own sky130 columns, is below par's, from the goldens and tests/expected.json; on the routed course
+        that record (par's records: the front card's Par, with no line under it), and the line under it ends with how
+        far it is under or over par, under par (in the good colour, class `good`, decided 2026-11-25) exactly when the
+        record's exact score, from its own sky130 columns, is below par's, from the goldens and tests/expected.json
+        (how it stands against its task's best: test_pdk.py, on both courses); on the routed course
         a row has a number exactly where the task's routed leaderboard ranks the record, else a dash and why. The nav
         links the page from every page and marks it there, llms.txt lists it, and the front page's strip, after "Try
         it without Lean" and before the steps, shows the five newest rows, each with its date, and links to it."""
@@ -3147,6 +3241,7 @@ class SiteTest(unittest.TestCase):
                 self.assertEqual(int(n), len(mine))
                 self.assertTrue(all(by_hash[x]["submitted_at"][:10] == day for _, x, *_ in mine))
         self.assertIn(build.LATEST_DATE_NOTE, text_of(h))
+        self.assertIn(build.LATEST_SCORE_NOTE, text_of(h))
         # par's score and each task's board, read off the pages
         cards = {re.search(r'href="tasks/([^/]+)/index.html"', c).group(1):
                  {k: norm(v) for k, v in re.findall(r"<dt>([^<]+)</dt><dd>([^<]+)<", c)}
@@ -3181,7 +3276,9 @@ class SiteTest(unittest.TestCase):
                 exact = p["area_e4um2_sky130"] * r["score"].get("time_ps", p["delay_ps_sky130"])
                 want = ("under par" if exact < par else "equal to par" if exact == par else "over par")
                 self.assertTrue(under.endswith(want), (under, exact, par))
-                self.assertEqual('class="under"' in li, exact < par)
+                vs_par = re.search(r'<span class="vs-par">(?:<span class="sep"> · </span>)?(.*?)</span></small>', li)
+                self.assertEqual(vs_par.group(1).startswith('<span class="good">'), exact < par, vs_par.group(1))
+                self.assertNotIn('class="under"', li)        # the accent class it had until 2026-11-25
         for task, x, num, under, li in self.latest_rows(self.html("latest.html", "asap7pnr")):
             with self.subTest(routed=x[:12]):
                 if by_hash[x]["player"] == ref_player:

@@ -2017,12 +2017,16 @@ def under_text(under):
     record that beats par read as no record)."""
     if under is None:
         return "–"
-    pct = under * 100
-    if 0 < abs(pct) < 0.5:
-        small = f"{abs(pct):.2g}"
-        return f"{small}%" if pct > 0 else f"{small}% over par"
-    pct = round(pct)
-    return "0%" if pct == 0 else f"{pct}%" if pct > 0 else f"{-pct}% over par"
+    return pct_text(under) if under >= 0 else f"{pct_text(-under)} over par"
+
+
+def pct_text(share):
+    """A share (0 or more) as a whole percentage, '68%'; one that is not 0 but would round to 0% with two significant
+    digits, '0.35%' (`under_text`'s rule since 2026-11-17, also at exactly half a percent, which rounds to 0)."""
+    pct = share * 100
+    if pct > 0 and round(pct) == 0:
+        return f"{pct:.2g}%"
+    return f"{round(pct)}%"
 
 
 OPEN_WORD = "OPEN"
@@ -5156,7 +5160,9 @@ def beats_html(ax):
 
 def vs_par_row(s, st, axis, fmt_v, par):
     """The card's "vs par" row: the signed difference and its word, and under them, quietly, par's name (a link to
-    its page) and its own number: two lines on every card, where par's name used to wrap onto a line of its own."""
+    its page) and its own number: two lines on every card, where par's name used to wrap onto a line of its own. Below
+    par (smaller, faster, better) the difference and its word are in the good colour (decided 2026-11-25: better than
+    par is good news, as Under par), equal or above par neutral."""
     if s.d is not None and s.d["par"]:
         return ("vs par", "this design <strong>is par</strong>")
     if par is None or st["vs_par"] is None:
@@ -5168,14 +5174,21 @@ def vs_par_row(s, st, axis, fmt_v, par):
     name = esc(par["id"].split("/", 1)[-1])
     if pd is not None and pd["id"] == par["id"]:
         name = page.link(rel_link(s.here, design_target(s.t, pd)), name)
-    return ("vs par", f'<strong>{esc(signed_pct(vp["rel"]))}</strong> {word}'
-                      f'<span class="mpar">{name} · {esc(fmt_v(standing.value(par, axis)))}</span>')
+    diff = good_if(vp["delta"] < 0, f'<strong>{esc(signed_pct(vp["rel"]))}</strong> {word}')
+    return ("vs par", f'{diff}<span class="mpar">{name} · {esc(fmt_v(standing.value(par, axis)))}</span>')
+
+
+def good_if(good, html_):
+    """`html_` in the good colour (class `good`, style.css) when `good`, else as it is (decided 2026-11-25: a design's
+    lead over par or over another design, and a first place, are good news; the rest is neutral, never red)."""
+    return f'<span class="good">{html_}</span>' if good else html_
 
 
 def among_row(st, axis):
     """The card's "on this page" row: the design's place among the designs of the page's area-time plot (what they
     are is said once, under the cards: not a ranking), the designs a link to the plot further down. None when the
-    plot has this design alone: the note says it once, where each card said "the only design with sky130 numbers"."""
+    plot has this design alone: the note says it once, where each card said "the only design with sky130 numbers". A
+    first place, tied or not, is in the good colour (`good_if`)."""
     a = st["among"][axis]
     if a["of"] == 1:
         return None
@@ -5183,7 +5196,7 @@ def among_row(st, axis):
     place = best if a["place"] == 1 and not a["tied"] else ordinal(a["place"])
     tied = f' <span class="muted">(tied with {a["tied"]})</span>' if a["tied"] else ""
     of = page.link("#area-time", f"{a['of']} designs")
-    return ("on this page", f"<strong>{esc(place)}</strong> of {of}{tied}")
+    return ("on this page", good_if(a["place"] == 1, f"<strong>{esc(place)}</strong>") + f" of {of}{tied}")
 
 
 def rows_html(rows, cls="mrows"):
@@ -5541,9 +5554,9 @@ def compare_html(s, board_html=""):
     """The Charts tab's comparison (decided 2026-11-16, the owner's item 4): this design against par and its
     neighbours on the board of the course in view (`s.t.pdk`): the ranked records just better and just worse by score
     (and any whose score equals this design's), in the board's order, each with its area, time and score and this
-    design's score against it, as the cards' "vs par" says it (below zero: this design is better). From the task's
-    designs of that course, the numbers the board and the plot use: nothing is measured for it. "" without ranked
-    numbers (the overview says why)."""
+    design's score against it, as the cards' "vs par" says it (below zero: this design is better, in the good colour,
+    `good_if`). From the task's designs of that course, the numbers the board and the plot use: nothing is measured
+    for it. "" without ranked numbers (the overview says why)."""
     t, d = s.t, s.d
     if d is None:
         return ""
@@ -5579,7 +5592,8 @@ def compare_html(s, board_html=""):
             other = standing.score(st_point(x, pdk))
             rel = (me - other) / other
             good, bad = AXIS_WORDS["score"]
-            vs = f'<strong>{esc(signed_pct(rel))}</strong> {"equal" if me == other else good if me < other else bad}'
+            vs = good_if(me < other, f'<strong>{esc(signed_pct(rel))}</strong> '
+                                     f'{"equal" if me == other else good if me < other else bad}')
         rows.append(page.Row([cell, esc(um2_text(combined.area_int(x["m"]["area_um2"], pdk), pdk=pdk)),
                               esc(thin(x["m"]["time_ps"])), esc(combined.fmt(x["m"].get("adp"))), vs],
                              cls="is-subject" if x is d else None))
@@ -6729,7 +6743,10 @@ def routed_how_note(tasks, here):
 # sorted by date): latest.html lists every record of every task the site shows, newest first, under a heading per day,
 # and the front page shows the newest LATEST_FRONT of them under "Try it without Lean", with a link to the page. Each
 # row is the board's row of the record (the player, the submission's title, its score) with its task in front, and
-# under the score how far it is under par (the boards' word and accent) or over it
+# under the score how it stands against the best record of its task on the course shown, then, quieter, against par
+# (decided 2026-11-25, the owner's request: "instead of just showing how far casper's submissions are relative to
+# par, you should show how good they are relative to the current best. Also, remember that "13% under par" is a good
+# thing, so it should be green": `vs_best`; best, ahead and under par in the good colour, behind and over par neutral)
 # ---------------------------------------------------------------------------
 
 LATEST_PAGE = "latest.html"             # page.NAV's "Latest"
@@ -6740,6 +6757,8 @@ LATEST_TITLE = "Latest submissions"
 # `remake` makes keeps the player's date, and its page says when it was re-made)
 LATEST_DATE_NOTE = ("A record is dated by the day it was submitted (UTC), the date on its own page; a record re-made "
                     "later for a new checker keeps that date.")
+# what the line under a score says (`latest_score`), once, under the page's title
+LATEST_SCORE_NOTE = "Under each score: how it compares with the best record of its task on this course, then with par."
 
 
 def latest_records(tasks):
@@ -6754,10 +6773,45 @@ def latest_records(tasks):
     return sorted(rows, key=lambda tr: tr[1]["submitted_at"], reverse=True)      # stable: ties keep the order above
 
 
+def vs_best(t, h):
+    """The player's record `h` against the best of its task on the course in view (`Task.view`), as the latest list
+    says it under the score: (phrases, good, title), or None when the record is not ranked on that course; the phrases
+    are shown joined by " · ", on a phone one under the other (`latest_score`). The best is the first place of the
+    board's ranking (leaderboard.py `build_board`: by area × time, equal scores sharing a rank, the row `Task.best`
+    names and the task page's board puts first), so equal first places are each "tied for best". The first place says
+    how far it is ahead of the next place ("best · 12% ahead of the next"; "best" alone with no other place), any
+    other place how far it is behind the first ("13% behind the best"), both as a share of the best's score, so that
+    the next place's "behind" and the first place's "ahead" are the same number. `good`: a first place. `title`: its
+    rank, and the record it is compared with, for a hover. A preview ranks nothing: None."""
+    if getattr(t, "preview", False):
+        return None
+    ranking = t.board["ranking"]
+    row = next((r for r in ranking if r["record_hash"] == h), None)
+    if row is None or not ranking[0]["exact"]:
+        return None
+    adp = {d["id"]: d["m"].get("adp") for d in t.designs if d["kind"] == "record"}
+
+    def who(r):
+        return f"{r['player']}, {combined.fmt(adp[r['record_hash']])} {combined.UNIT}"
+    place = f"rank {row['rank']} of {len(ranking)} on this course's board"
+    if row["rank"] == 1:
+        word = "tied for best" if sum(1 for r in ranking if r["rank"] == 1) > 1 else "best"
+        nxt = next((r for r in ranking if r["rank"] > 1), None)
+        if nxt is None:
+            return (word,), True, place
+        ahead = (nxt["exact"] - row["exact"]) / row["exact"]
+        return (word, f"{pct_text(ahead)} ahead of the next"), True, f"{place}; the next: {who(nxt)}"
+    behind = (row["exact"] - ranking[0]["exact"]) / ranking[0]["exact"]
+    return (f"{pct_text(behind)} behind the best",), False, f"{place}; the best: {who(ranking[0])}"
+
+
 def latest_score(site, t, rec):
     """A record's score on the latest list, in the view task `t` is in (`Task.view`): the board's number and, under it,
-    how far it is under par (the accent, as the boards' Under par) or over it; nothing under par's own records. A record
-    with no score on the course: a dash, and why (on the routed course, "not placed and routed yet")."""
+    how it stands against the best of its task on that course (`vs_best`), then, quieter, how far it is under par or
+    over it; best, ahead and under par in the good colour (class `good`), behind and over par neutral; nothing under
+    par's own records. The parts are joined by " · " (class `sep`); on a phone each stands on a line of its own
+    (style.css), so that the score column stays narrow beside the player's name. A record with no score on the course:
+    a dash, and why (on the routed course, "not placed and routed yet")."""
     h = rec["record_hash"]
     if rec["player"] == site.config["reference_player"]:
         ref = t.ref_of_record.get(h)
@@ -6775,9 +6829,18 @@ def latest_score(site, t, rec):
         share = "equal to par"
     else:
         under = (p["exact"] - d["exact"]) / p["exact"]
-        share = (f'<span class="under">{esc(under_text(under))} under par</span>' if under > 0
+        share = (f'<span class="good">{esc(under_text(under))} under par</span>' if under > 0
                  else esc(under_text(under)))
-    return esc(combined.fmt(d["m"]["adp"])) + (f"<small>{share}</small>" if share else "")
+    best = vs_best(t, h) if d["kind"] == "record" else None
+    sep = '<span class="sep"> · </span>'
+    parts = []
+    if best:
+        phrases, good, title = best
+        inner = esc(phrases[0]) + "".join(f'{sep}<span class="vs-next">{esc(x)}</span>' for x in phrases[1:])
+        parts.append(f'<span class="vs-best{" good" if good else ""}" title="{esc(title)}">{inner}</span>')
+    if share:
+        parts.append(f'<span class="vs-par">{sep if parts else ""}{share}</span>')
+    return esc(combined.fmt(d["m"]["adp"])) + (f"<small>{''.join(parts)}</small>" if parts else "")
 
 
 def latest_item(site, t, rec, here, *, dated=False):
@@ -6848,13 +6911,14 @@ def latest_page(site, tasks):
     label = f"newest first · scores on {pdk_text('sky130', 'ASAP7 placed and routed')}"
     body = (page.page_head(title_html=esc(LATEST_TITLE),
                            sub_html=(f"Every record on every task, newest first: {esc(counted(len(rows), 'record'))} "
-                                     f"on {esc(counted(n_tasks, 'task'))}. {esc(LATEST_DATE_NOTE)}"))
+                                     f"on {esc(counted(n_tasks, 'task'))}. {esc(LATEST_DATE_NOTE)} "
+                                     f"{esc(LATEST_SCORE_NOTE)}"))
             + (page.card("".join(parts), tag="section", id_="records", cls="latest-card", flush=True,
                          label_html=label, foot_html=latest_foot(here)) if parts else
                page.card("<p>No records yet.</p>")))
     site.page(here, LATEST_TITLE, body, active=here, scores=True,
               description=("Every record on every svGolf task, newest first: the player, the design, its score and how "
-                           "far it is under par."))
+                           "it compares with the task's best record and with par."))
 
 
 def home_page(site, tasks):

@@ -626,6 +626,98 @@ class PdkTest(unittest.TestCase):
         rows = re.findall(r'<li(?: class="(lead|par)")?>(.*?)</li>', ol, re.S)
         self.assertEqual([k for k, _ in rows], ["par", ""])
 
+    def test_the_latest_rows_compare_with_the_best_on_each_course(self):
+        """Decided 2026-11-25 (the owner: "instead of just showing how far casper's submissions are relative to par, you
+        should show how good they are relative to the current best"): on latest.html and the front page's strip, in each
+        course's view, a player's record that the course ranks says first how it stands against the first place of that
+        course's board, read here off leaderboard.py's own boards (by area × time, equal scores sharing a rank): a
+        first place "best" (equal first places "tied for best") and, with another place, how far it is ahead of the
+        next place, in the good colour; any other place "N% behind the best", neutral; both as a share of the best's
+        score, so the second place's N is the first place's; its hover names its rank. Then, quieter, how far it is
+        under that course's par (in the good colour) or over it. A record the course does not rank (not placed and
+        routed yet) says why and
+        neither; par's own records say neither. Seen on the data: casper-hansen's records both best and behind on
+        sky130, and a task whose routed board has one record."""
+        def pct(share):
+            p = share * 100
+            return f"{p:.2g}%" if p > 0 and round(p) == 0 else f"{round(p)}%"
+        ref_player = self.config["reference_player"]
+        players = {r["record_hash"]: r["player"] for r in self.records}
+        boards, pars = {}, {}
+        for t in self.listed:
+            task = self.task(t)
+            boards[t] = dict(zip(("sky130", R), self.boards(t)))
+            sky_par = lb.par_of(task, [r for r in self.records if r["task"] == t], flow=pinned_flow(task),
+                                identity=lb.ppa_identity(), input_drive=lb.ppa_setup_now(task).get("input_drive"),
+                                statement=lb.current_statement_or_none(task),
+                                names=lb.par_names(lb.DEFAULT_TASKS, task))
+            pars[t] = {"sky130": sky_par["exact"] if sky_par else None, R: self.a7_par(t)[1]}
+        seen = {"best": set(), "behind": set(), "one": set(), "pending": 0, "rows": 0}
+        for pdk in ("sky130", R):
+            for page_path, part in (("latest.html", None), ("index.html", "latest")):
+                h = self.view(page_path, pdk)
+                if part:
+                    h = section(h, part)
+                lists = "".join(re.findall(r'<ol class="latest">(.*?)</ol>', h, re.S))
+                for li in re.findall(r"<li\b[^>]*>.*?</li>", lists, re.S):
+                    t, x = re.search(r'tasks/([^/]+)/records/([0-9a-f]{64})\.html', li).groups()
+                    cell = re.search(r'<div class="board-score">(.*)</div></li>', li, re.S).group(1)
+                    ranking = boards[t][pdk]["ranking"]
+                    row = next((r for r in ranking if r["record_hash"] == x), None)
+                    best = re.search(r'<span class="vs-best( good)?" title="([^"]*)">(.*?)</span>'
+                                     r'(?=<span class="vs-par">|</small>)', cell)
+                    vs_par = re.search(r'<span class="vs-par">(?:<span class="sep"> · </span>)?(.*?)</span></small>',
+                                       cell)
+                    with self.subTest(pdk=pdk, page=page_path, task=t, record=x[:12]):
+                        seen["rows"] += 1
+                        if players[x] == ref_player or row is None:
+                            self.assertIsNone(best)
+                            self.assertIsNone(vs_par)
+                            if players[x] != ref_player:
+                                self.assertIn("–", text_of(cell))
+                                seen["pending"] += pdk == R
+                            continue
+                        good, title, text = bool(best.group(1)), html.unescape(best.group(2)), best.group(3)
+                        first = ranking[0]
+                        self.assertIn(f"rank {row['rank']} of {len(ranking)} on this course's board", title)
+                        if row["rank"] == 1:
+                            word = "tied for best" if sum(r["rank"] == 1 for r in ranking) > 1 else "best"
+                            nxt = next((r for r in ranking if r["rank"] > 1), None)
+                            want = word if nxt is None else \
+                                f"{word} · {pct((nxt['exact'] - row['exact']) / row['exact'])} ahead of the next"
+                            self.assertTrue(good)
+                            seen["best"].add((pdk, players[x]))
+                            if len(ranking) == 1:
+                                seen["one"].add((pdk, t))
+                        else:
+                            want = f"{pct((row['exact'] - first['exact']) / first['exact'])} behind the best"
+                            self.assertFalse(good)
+                            self.assertIn(f"the best: {first['player']}, ", title)
+                            seen["behind"].add((pdk, players[x]))
+                        self.assertEqual(text_of(text), want)
+                        if " · " in want:                     # on a phone the second phrase stands on its own line
+                            self.assertIn('<span class="sep"> · </span><span class="vs-next">', text)
+                        par = pars[t][pdk]
+                        if par is None:
+                            self.assertIsNone(vs_par)
+                            continue
+                        under = (par - row["exact"]) / par
+                        said = text_of(vs_par.group(1))
+                        self.assertEqual(said, f"{pct(under)} under par" if under > 0 else "equal to par"
+                                         if under == 0 else f"{pct(-under)} over par")
+                        self.assertEqual(vs_par.group(1).startswith('<span class="good">'), under > 0)
+        self.assertIn(("sky130", "casper-hansen"), seen["best"])
+        self.assertIn(("sky130", "casper-hansen"), seen["behind"])
+        # on a phone each part under a score stands on its own line, without the dots (style.css, at 40rem)
+        css = self.raw("style.css")
+        phone = css[css.index("@media (max-width: 40rem) {\n  ol.latest > li"):]
+        phone = phone[:phone.index("\n}")]
+        self.assertIn("ol.latest .vs-next, ol.latest .vs-par { display: block; }", phone)
+        self.assertIn("ol.latest .board-score .sep { display: none; }", phone)
+        self.assertTrue(any(pdk == R for pdk, _ in seen["one"]), seen["one"])
+        self.assertGreater(seen["pending"], 0)
+        self.assertGreater(seen["rows"], 140)
+
     def test_a_reference_players_record_says_par_only_where_it_is_par(self):
         """A record of the reference player calls itself par in a view only when its reference is that view's par;
         the others are shown with par (before 2026-11-09 mul_n_byhand, sbox_table and the fdivp ones said par)."""
