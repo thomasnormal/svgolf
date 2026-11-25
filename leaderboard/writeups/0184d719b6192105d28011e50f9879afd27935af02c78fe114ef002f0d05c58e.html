@@ -19,7 +19,7 @@
 
 <h2>Why it scores as it does</h2>
 
-<p>On sky130 it is about 9,676 µm² at 38.0 ns, 367,515 µm²·ns, which defines par. The 13 serial restoring steps dominate the delay: unit depth 289 and a critical path of 285 cells to <code>q[12]</code>, in 1515 cells. The task notes name the linear normalizer and denormalizer as where logarithmic forms would save area. On the routed ASAP7 course: 147.2 µm² at 7.25 ns, 1066.7 µm²·ns, the smallest area there.</p>
+<p>On sky130 it is about 9,644 µm² at 37.7 ns, 363,424 µm²·ns, which defines par. The 13 serial restoring steps dominate the delay: unit depth 292 and a critical path of 290 cells to <code>q[14]</code>, in 1520 cells. The task notes name the linear normalizer and denormalizer as where logarithmic forms would save area. Its run on the routed ASAP7 course is pending: its netlist changed when every record was measured again on the rating build (2026-11-24).</p>
 
 <figure data-figure="fdivp-cores" data-alt="Par&#x27;s restoring core, 13 steps of one quotient bit each, beside the SRT record&#x27;s core, 7 stages of two bits each and one final adder, at binary16.">
 <figcaption>The quotient core beside the SRT record's: thirteen serial steps, each with a 12-bit subtraction.</figcaption>

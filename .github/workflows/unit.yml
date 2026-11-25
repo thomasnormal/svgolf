@@ -1,5 +1,10 @@
 # The tests that need no Lean and no Yosys (the whole suite is tests/run.py, on a machine with the
 # toolchain: see README.md), and the rating build's pinned netlists on Linux and macOS.
+# On a pull request that only adds records (and their writeups), those records are set aside first
+# (leaderboard/pr_check.py --set-aside): the tests then run on the board the pull request goes to, because a
+# record's derived tables (the ASAP7 view, the routed course, the other sizes, the schematics) are made by the
+# maintainers when they make the record, never carried by the pull request; the `records` workflow checks the
+# records themselves, and the site is then built once with them in place.
 name: unit
 on:
   push:
@@ -12,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2      # a pull request's merge commit and its first parent, the branch it goes to
       - name: Fetch lean-surfaces at the revision lake-manifest.json pins (the files the site reads)
         run: |
           rev=$(python3 -c 'import json; print(next(p["rev"] for p in json.load(open("lake-manifest.json"))["packages"] if p["name"].strip("\u00ab\u00bb") == "lean-models"))')
@@ -24,11 +31,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: A pull request that only adds records sets them aside (the job summary says what was moved)
+        if: github.event_name == 'pull_request'
+        run: python3 leaderboard/pr_check.py --set-aside "$RUNNER_TEMP/added" --summary "$GITHUB_STEP_SUMMARY"
       - name: The layouts, the site generator, the leaderboard
         run: |
           python3 tests/checker/test_layout.py
           python3 -m unittest discover -s tests/site
           python3 tests/leaderboard/test_leaderboard.py
+      - name: The site builds with the records the pull request adds put back
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -d "$RUNNER_TEMP/added" ]; then cp -R "$RUNNER_TEMP/added/." .; fi
+          python3 site/build.py --offline --out "$RUNNER_TEMP/site"
       - name: REFUSALS.md is what the pinned register renders
         run: |
           python3 .lake/packages/lean-models/tools/gen_sv_refusals.py --root .lake/packages/lean-models --emit-svgolf "$RUNNER_TEMP/REFUSALS.md"

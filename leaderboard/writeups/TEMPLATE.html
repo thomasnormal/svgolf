@@ -1,6 +1,6 @@
 <h1>Short name of the idea (at most 60 characters)</h1>
 
-<p>One or two sentences: what the design is and what it scores (area, time, cycles, the score against par).
+<p>One or two sentences: what the design is and how it compares with par and with the records before it.
 Copy this file to <code>leaderboard/writeups/&lt;record_hash&gt;.html</code>, the full hash of your record, and replace every part.
 It is an HTML fragment: <code>&lt;h2&gt;</code> sections, <code>&lt;p&gt;</code> paragraphs, lists, <code>&lt;code&gt;</code>, links and figures (README.md, "Writeups", lists what is allowed).</p>
 
@@ -8,14 +8,17 @@ It is an HTML fragment: <code>&lt;h2&gt;</code> sections, <code>&lt;p&gt;</code>
 
 <p>The circuit's architecture and its trick: what it computes where, and the trade-off between area and time it makes.</p>
 
+<h2>What it was built on</h2>
+
+<p>The record or the reference design it starts from, if any: its hash or file, linked, a diff of the two design files in a code block, and the licence notice kept if that file has one. A design of your own that only looks like another: say so, naming it. Leave this part out for a design that starts from nothing on the board.</p>
+
 <h2>Why it scores as it does</h2>
 
-<p>The numbers, from your record or <code>score/ppa.py</code>: the area and what dominates it, the critical path or the clock
-period and the latency, the score and how it compares with par and with the records before it.</p>
+<p>The numbers as your record measured them (the check compares every number with a unit of area or time with the measurements the tree holds): the area and what dominates it, the critical path or the clock period and the latency, the score and how it compares with par and with the records before it. A variant that is not a record, or a difference, as a ratio or a percentage.</p>
 
 <h2>The proof</h2>
 
-<p>How the proof goes: its structure, the invariant or the key lemmas, the tactics that did the work, what was hard.</p>
+<p>How the proof goes: its structure, the invariant or the key lemmas, the tactics that did the work, what was hard, and the proof it was built on, if any.</p>
 
 <h2>What did not work</h2>
 

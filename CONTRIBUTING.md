@@ -25,7 +25,10 @@ repository svGolf requires as the Lake package `lean-models` (in a clone of svGo
 * **Python 3.12** (`python3.12`) with `pip install -r requirements.txt`: `pyslang` (the extractor) and **Yosys 0.53**
   as the rating build, YoWASP's WebAssembly Yosys, the same program on every machine (`score/yosys_wasm.py`; the scores
   are comparable only when the pinned flow's hashes and Yosys version line agree: `tests/expected.json`, key `flow`);
-  **Verilator 5** (the post-synthesis check), a C++ compiler and `make`.
+  **Verilator 5** (the post-synthesis check), a C++ compiler and `make`. One command checks the pinned tools:
+  `python3.12 score/yosys_wasm.py --self-check` prints the module's sha256 against the pin, the package versions
+  and the version line, and exits 0 only when all are the pinned ones; `add` stops with the same reason when they
+  are not, and the pull request's check prints the versions it ran with.
 * **Lean** through elan, toolchain `leanprover/lean4:v4.35.0` (`lean-toolchain`). Build the trusted part
   once: `lake build SvGolf tasks svgolf-eval` (`check.py` does this itself in its `trusted` stage unless
   you pass `--no-trusted-build`). No Mathlib is built; a solution that imports it needs the Mathlib build
@@ -226,22 +229,75 @@ python3.12 leaderboard/leaderboard.py verify --full               # re-runs chec
 
 There is **no submission server**: `add` writes a record on your machine and sends nothing. A record is
 self-verifying through `verify --full`, which re-runs the whole check (the faster levels do not re-derive a clocked
-record's latency from its proof). To hand in a record, `leaderboard.py submit` opens a pull request that adds its
-three files; a check on the pull request verifies every record and runs the full check on the added ones, and a
-maintainer re-makes the ranked number on the rating build when the pull request is merged. For a private trial, use
-`--data-dir` so your records stay out of the repository's own (README.md, "Leaderboard").
+record's latency from its proof). For a private trial, use `--data-dir` so your records stay out of the repository's
+own (README.md, "Leaderboard").
 
-**Write it up** (decided 2026-11-13). Every golfer and every agent is asked for a writeup with the pull request:
-`leaderboard/writeups/<record_hash>.html`, copied from `leaderboard/writeups/TEMPLATE.html`, its first line
-`<h1>title</h1>`, the submission's short title (at most 60 characters). Say what the idea is, why it scores as it
-does, how the proof goes and what did not work, as a competition write-up post would. It is an HTML fragment of a
-short list of elements, and may hold your own inline SVG figures (HTML since 2026-11-16). It is optional (a record
-without one is accepted), it lies outside the record (adding or improving one never changes the record or its
-hash), and `verify --offline` checks it, refusing anything outside the lists with the line it is on (README.md,
-"Writeups", has the lists and how to preview a writeup).
+### How a record reaches the board
 
-**A record derived from another** (decided 2026-11-17): when your design starts from a record already on the board, a
-change to its design rather than a new one, say so in your writeup. Name that record by its hash and link its page
+To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files and its writeup; a check
+on the pull request verifies every record and runs the full check on the added ones, and the maintainers then make
+the record again on the rating machine, under your handle and with your files and writeup, publish it, and merge or
+close the pull request with a link to it.
+
+In steps: (1) `add` makes the record on your machine (the full check, sandboxed, on the rating build: the numbers
+it writes are the board's); (2) you write its writeup; (3) `submit --dry-run`, then `submit`, opens the pull request,
+after checking the record offline and against the rules below; (4) the `records` workflow runs
+`leaderboard/pr_check.py` on it and writes a short account to the job summary: what to fix, then one line per check
+saying what it compared and the tools it ran with (the `unit` workflow sets your records aside to test the rest of
+the tree, then builds the site with them); (5) the maintainers run the same check on the rating machine, make
+the record there with your handle, date, `--assisted-by`, notes and files (`add`; the numbers do not move, the hash
+does, since the checker block names their revision), copy your writeup to the new hash, add the derived tables (the
+ASAP7 view, the routed course's request, the other sizes, the schematics), publish it with the site's next update,
+and merge or close your pull request with a link to it (section 11).
+
+A record is what `leaderboard.py add` writes: to change its notes, credits or files, run `add` again, and never edit
+its JSON by hand. A newer version of your own record is a new record: before the first is published, put the new
+record's files in the same pull request instead of the old ones; after it is published, submit the new one in a pull
+request of its own, naming the older record as what it was built on.
+
+### The rules for a record
+
+Decided 2026-11-25. Each rule closes a gap the first outside records showed; `add` refuses a record that breaks
+the second, fourth or fifth rule before its check runs and asks for the first and the third, and `submit` and the
+pull request's check refuse a record that breaks any of them (README.md, "The rules for a record", says what the
+check measures).
+
+* **A writeup with every record.** A record goes in with its writeup, `leaderboard/writeups/<record_hash>.html`,
+  copied from `leaderboard/writeups/TEMPLATE.html`: the idea, why it scores as it does, how the proof goes, what did
+  not work and what it was built on. `submit` and the pull request's check refuse a record without one.
+* **No score number the tool cannot verify.** None in the notes or in the design's comments: the record's columns
+  carry its numbers, measured. A number with a unit of area or time in a writeup must be a measurement the tree
+  holds (a record's, par's, the ASAP7 view's, the routed course's, another size's) within the precision written; a
+  variant that is not a record, or a difference, is written as a ratio or a percentage.
+* **Credit what you built on.** A design or a proof built on a board record or a reference design names it: the
+  record's hash (12 characters or more) or the design's file name, in the writeup's parent part (with a link and a
+  diff), in `--assisted-by` or in the file's header. The check finds the nearest records and designs by shared
+  code; par's design and proof, where everyone starts, need no credit.
+* **Keep licence notices.** A design built on a file that carries a licence notice (an SPDX line, a copyright and
+  permission text) keeps the notice word for word and lists the changes made; the check refuses a record whose base
+  has a notice that its design lacks.
+* **A header of your own.** The design's header comment describes the design you submit: what it is, what it was
+  built on, any licence notice kept. A header copied word for word from another design is refused.
+* **The pinned tools, one command.** `python3.12 score/yosys_wasm.py --self-check` checks the rating build of
+  Yosys, the same program on every machine, so the numbers you make are the board's; `add` stops when it is not the
+  pinned one, and the pull request's check prints the versions it ran with.
+
+A good header comment, for a design built on a record: its first line says what the design is ("A carry-save tree
+of 4:2 compressors with a sparse Kogge-Stone final adder"), the next ones how it works and what it was built on
+("Built on record 10dcb2412c66: its tree; the final adder is new"), then, when the base carries one, the licence
+notice word for word and a line listing your changes. No numbers of area or time: the record has them.
+
+**Write it up** (decided 2026-11-13; required since 2026-11-25): `leaderboard/writeups/<record_hash>.html`, copied
+from `leaderboard/writeups/TEMPLATE.html`, its first line `<h1>title</h1>`, the submission's short title (at most 60
+characters). Say what the idea is, why it scores as it does, how the proof goes, what did not work and what it was
+built on, as a competition write-up post would. It is an HTML fragment of a short list of elements, and may hold
+your own inline SVG figures (HTML since 2026-11-16). A record goes in with it; it lies outside the record (adding
+or improving one never changes the record or its hash), and `verify --offline` checks it, refusing anything outside
+the lists with the line it is on (README.md, "Writeups", has the lists and how to preview a writeup).
+
+**A record derived from another** (decided 2026-11-17; checked since 2026-11-25, "The rules for a record"): when
+your design starts from a record already on the board or from a reference design, a change to its design rather
+than a new one, say so in your writeup. Name that record by its hash and link its page
 (`<a href="<record_hash>.html">`, the full hash; a design from the task's reference designs: its file,
 `../reference/<stem>.sv`), and show the change as a diff of the two design files (`diff -u THEIRS.sv YOURS.sv`) in a
 code block, `<pre><code class="language-text">...</code></pre>`, with `<`, `>` and `&` written `&lt;`, `&gt;` and
@@ -369,39 +425,51 @@ and rejects the run (rerun it).
 | [`design/`](design/README.md) | the maintainers' working notes: history, not maintained (its README lists the folders) |
 | lean-surfaces' `docs/sv-*.md` | the ls-sv documents: charter, envelope schema, refusal register, Xcelium reference, changelog |
 
-## 11. For the maintainers: merging a record's pull request
+## 11. For the maintainers: a record's pull request, from check to board
 
 The check on a record's pull request (`leaderboard/pr_check.py`, the `records` workflow) is advisory: it runs the
-pull request's own files on a hosted machine with no secret. Since 2026-11-24 that machine's Yosys is the rating build
-(`requirements.txt`), so it compares the scores too, but its run is the pull request's own code. At merge a maintainer
-runs the full check on the rating machine (README.md, "The build ratings use") and, where the record was made under
-another build, re-makes its ranked number there. For pull request `N` adding record `HASH` of
-task `TASK`:
+pull request's own files on a hosted machine with no secret. That machine's Yosys is the rating build
+(`requirements.txt`), so its full check compares the scores too, record by record, and its summary says for which
+records it did and why not for the others (a record made under another flow is stale, which is not a failure). It
+also checks the rules for a record (section 6), against the board the pull request goes to. The `unit` workflow on
+such a pull request sets the added records aside and tests the rest (`pr_check.py --set-aside`), then builds the
+site with them: a red test step there is about the tree, a red last step (the site build) can be about the
+contributor's files. The route, as section 6 tells
+the contributor, for pull request `N` adding record `HASH` of task `TASK`:
 
 ```bash
 gh workflow run records.yml -f pull_request=N      # the hosted check again, by hand (or -f ref=BRANCH)
-gh pr checkout N                                   # on the rating build: the pull request's head
+gh pr checkout N                                   # on the rating machine: the pull request's head
 python3.12 leaderboard/pr_check.py --base "$(git merge-base origin/main HEAD)"     # the full check, sandboxed
 ```
 
-Merge it. Then, on `main`, `leaderboard.py board --task TASK` ranks the record if it was made on the rating build;
-if it lists it as not ranked (checked under another flow), re-make it with the player's own fields:
+Then make the record again on the rating machine, in the source tree the public repository is exported from (the
+pull request's files never enter it), under the contributor's handle and fields, with their files and writeup:
 
 ```bash
-D=$(mktemp -d); J=leaderboard/data/TASK/HASH.json
+D=$(mktemp -d)             # in the checkout of the pull request: its record's three files and its writeup
+cp leaderboard/data/TASK/HASH.json leaderboard/data/TASK/HASH.sv leaderboard/data/TASK/HASH.lean "$D/"
+cp leaderboard/writeups/HASH.html "$D/"
 python3.12 -c 'import json, sys; r = json.load(open(sys.argv[1])); print(r["player"], r["submitted_at"],
-    r["files"]["sv"]["name"], r["files"]["lean"]["name"], r["assisted_by"], repr(r["notes"]))' "$J"
-cp leaderboard/data/TASK/HASH.sv "$D/SV_NAME"; cp leaderboard/data/TASK/HASH.lean "$D/LEAN_NAME"
-git rm -q leaderboard/data/TASK/HASH.json leaderboard/data/TASK/HASH.sv leaderboard/data/TASK/HASH.lean
+    r["files"]["sv"]["name"], r["files"]["lean"]["name"], r["assisted_by"], repr(r["notes"]))' "$D/HASH.json"
+cp "$D/HASH.sv" "$D/SV_NAME"; cp "$D/HASH.lean" "$D/LEAN_NAME"
+# then in the source tree, committed and clean:
 python3.12 leaderboard/leaderboard.py add --task TASK --player PLAYER --date DATE --assisted-by "TOOL" \
-    --notes "NOTES" --sv "$D/SV_NAME" --lean "$D/LEAN_NAME"      # the full check, sandboxed, on the rating build
+    --notes "NOTES" --sv "$D/SV_NAME" --lean "$D/LEAN_NAME" --require-clean   # the full check, sandboxed
+cp "$D/HASH.html" leaderboard/writeups/NEW_HASH.html                          # the writeup, under the new hash
 python3.12 leaderboard/leaderboard.py asap7 --write --task TASK      # the record's ASAP7 columns
-git add leaderboard/data/TASK leaderboard/asap7/TASK.json
-git commit -m "leaderboard: TASK: PLAYER's record re-made on the rating build"
+python3.12 leaderboard/leaderboard.py asap7pnr --request --task TASK --design leaderboard/data/TASK/NEW_HASH.sv --write
+git add leaderboard/data/TASK leaderboard/asap7/TASK.json leaderboard/asap7pnr/TASK.json leaderboard/writeups
+git commit -m "leaderboard: TASK: PLAYER's record made on the rating machine"
 ```
 
-One `--assisted-by` per entry of the record's `assisted_by` (none for an empty list). The old record goes (the git
-history keeps it), so a record is on the board once.
+One `--assisted-by` per entry of the record's `assisted_by` (none for an empty list). The other derived tables (the
+other sizes, `sizes --write`; the schematics, `site/gen_schematics.py`) follow as for any record, then the gates, the
+export and the push. Once the record is public, merge or close the pull request with a link to the commit that
+published it; the record in the pull request is replaced by the one made here (a merge brings the pull request's
+files into the public history, and the next export, made from the source tree, removes them), so a record is on the
+board once. A rule the check refused is the contributor's to fix in the pull request: ask for it
+there (a reply can quote the summary's "What to fix").
 
 After a change of the checker, the library pin or a task's statement that leaves the scoring flow as it is, the
 records are re-made without measuring them again (decided 2026-11-16): check each record's stored design with its

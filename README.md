@@ -110,9 +110,11 @@ python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assi
     --sv solution.sv --lean Solution.lean
 ```
 
-**After step 3.** To hand in a record, `leaderboard.py submit` opens a pull request that adds its three
-files; a check on the pull request verifies every record and runs the full check on the added ones, and a
-maintainer re-makes the ranked number on the rating build when the pull request is merged. For the adder:
+**After step 3.** Write the record's writeup (see "Writeups"). To hand in a record, `leaderboard.py submit` opens a
+pull request that adds its three files and its writeup; a check on the pull request verifies every record and runs
+the full check on the added ones, and the maintainers then make the record again on the rating machine, under your
+handle and with your files and writeup, publish it, and merge or close the pull request with a link to it. For the
+adder:
 `python3.12 leaderboard/leaderboard.py submit --task add --record HASH`, HASH as step 3 prints it; `--dry-run`
 prints the steps first. It uses your git and the GitHub command-line tool `gh` (without `gh` it prints the
 steps for doing by hand).
@@ -2241,16 +2243,27 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks,
 ```
 
 * **How a record reaches the board.** There is no submission server: `add` writes a record on your machine and
-  sends nothing. To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files; a
-  check on the pull request verifies every record and runs the full check on the added ones, and a maintainer
-  re-makes the ranked number on the rating build when the pull request is merged. `submit` first checks the
-  record with `verify --offline` and refuses a failed, stale or light one; the pull request's text gives the
-  task, the handle, `assisted_by` and the record's board line (its place on the board as the site shows it), in
-  the parts of `.github/pull_request_template.md`. The check is `leaderboard/pr_check.py`, which the
+  sends nothing. To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files and
+  its writeup; a check on the pull request verifies every record and runs the full check on the added ones, and
+  the maintainers then make the record again on the rating machine, under your handle and with your files and
+  writeup, publish it, and merge or close the pull request with a link to it. The numbers do not move in that
+  step (the rating build is one program on every machine); the record gets a new hash, because its checker block
+  names the maintainers' revision. `submit` first checks the record with `verify --offline` and the rules for a
+  record (below), and refuses a failed, stale or light one, or one that breaks a rule; the pull request's text
+  gives the task, the handle, `assisted_by` and the record's board line (its place on the board as the site shows
+  it), in the parts of `.github/pull_request_template.md`. The check is `leaderboard/pr_check.py`, which the
   repository's `records` workflow runs on every pull request that touches `leaderboard/data/` or
   `leaderboard/writeups/`: it refuses one that changes anything but added records and added or improved writeups
-  ("Writeups" below; `submit` takes a record's writeup along when there is one), and writes each added record's
-  board line and the outcome to the job summary. `leaderboard/data/<task>/` is where `add` writes without `--data-dir`, and what a pull request adds;
+  ("Writeups" below), checks the rules for a record, and writes a short account to the job summary (what to fix,
+  then one line per check saying what it compared, the tools it ran with), each added record's board line and the
+  outputs. The `unit` workflow sets the added records aside on such a pull request (`pr_check.py --set-aside`) and
+  runs its tests on the board the pull request goes to: a record's derived tables (the ASAP7 view, the routed
+  course, the other sizes, the schematics) are made by the maintainers when they make the record, so a pull
+  request of records does not carry them. A record is what `leaderboard.py add` writes: to change its notes,
+  credits or files, run `add` again, and never edit its JSON by hand. A newer version of your own record is a new
+  record: before the first is published, put the new record's files in the same pull request instead of the old
+  ones; after it is published, submit the new one in a pull request of its own, naming the older record as what it
+  was built on. `leaderboard/data/<task>/` is where `add` writes without `--data-dir`, and what a pull request adds;
   `--data-dir DIR` keeps a private trial out of it.
   **That directory takes only a record whose check the board ran itself** (decided 2026-11-06, the
   universal-correctness audit): `add` refuses `--from-check` (a stored result, never re-run) and `--sandbox off` there, and a check that did not run in the OS sandbox
@@ -2395,12 +2408,51 @@ every record was re-made (`leaderboard.py remake`): each proof checked again at 
 (the same design files under the same scoring flow), and `remade` in each record says whose proof it is. On
 2026-11-19, when matmul's range changed, every matmul record was re-made the same way under the new statement.
 
+### The rules for a record
+
+Decided 2026-11-25, from what the first outside records got wrong: each mistake was a gap in this guide or in the
+tools, so the tools now check what they can. `add` refuses a record that breaks the second, fourth or fifth rule
+before its check runs, and asks for the first and the third (the writeup, named by the hash `add` makes, may hold
+the credit); `submit` and the pull request's check refuse a record that breaks any of them (`leaderboard.py`,
+"THE RULES FOR A RECORD"). Records already on the board are not judged again: records are append-only.
+
+* **A writeup with every record.** A record goes in with its writeup, `leaderboard/writeups/<record_hash>.html`,
+  copied from `leaderboard/writeups/TEMPLATE.html`: the idea, why it scores as it does, how the proof goes, what did
+  not work and what it was built on. `submit` and the pull request's check refuse a record without one.
+* **No score number the tool cannot verify.** None in the notes or in the design's comments: the record's columns
+  carry its numbers, measured. A number with a unit of area or time in a writeup must be a measurement the tree
+  holds (a record's, par's, the ASAP7 view's, the routed course's, another size's) within the precision written; a
+  variant that is not a record, or a difference, is written as a ratio or a percentage.
+* **Credit what you built on.** A design or a proof built on a board record or a reference design names it: the
+  record's hash (12 characters or more) or the design's file name, in the writeup's parent part (with a link and a
+  diff), in `--assisted-by` or in the file's header. The check finds the nearest records and designs by shared
+  code; par's design and proof, where everyone starts, need no credit.
+* **Keep licence notices.** A design built on a file that carries a licence notice (an SPDX line, a copyright and
+  permission text) keeps the notice word for word and lists the changes made; the check refuses a record whose base
+  has a notice that its design lacks.
+* **A header of your own.** The design's header comment describes the design you submit: what it is, what it was
+  built on, any licence notice kept. A header copied word for word from another design is refused.
+* **The pinned tools, one command.** `python3.12 score/yosys_wasm.py --self-check` checks the rating build of
+  Yosys, the same program on every machine, so the numbers you make are the board's; `add` stops when it is not the
+  pinned one, and the pull request's check prints the versions it ran with.
+
+What "built on" means to the check: the share of a file's own code (its runs of eight tokens, comments left out,
+less what most designs of the task share, such as the module header) that is found in another file. A third or
+more is near; among the near files, the nearest (within five points of the nearest) are the candidates, and naming
+any one of them is enough. A design of your own that only looks like another is named too, with a line saying so.
+Measured on the first outside records: the designs their reviews found built on a record or a reference design
+shared 41 % to 72 % of their code, the others 23 % or less. The leading comment of a design is compared with every
+other design's, and a header of at least 120 characters that is another design's word for word, over code that is
+not, is refused. Score numbers are numbers with a unit of area (um^2 and its spellings), time (ps, ns), area x time
+or GE; an integer's trailing zeros may be rounding ("about 137,100 um^2"). A new record's own ASAP7 and routed
+numbers are measured when the maintainers make it, so until then its writeup gives them as ratios.
+
 ### Writeups
 
-**Write up your submission** (decided 2026-11-13). The record proves that a design is correct and what it scores;
-a writeup tells the story, as a write-up post after a competition does: what the idea is, why it scores as it
-does, how the proof goes and what did not work. Every golfer and every agent is asked for one with each pull
-request of a record; a record without one is still accepted.
+**Write up your submission** (decided 2026-11-13; required since 2026-11-25). The record proves that a design is
+correct and what it scores; a writeup tells the story, as a write-up post after a competition does: what the idea
+is, why it scores as it does, how the proof goes and what did not work. A record goes in with its writeup:
+`submit` and the pull request's check refuse one without it, or with the template's text left in.
 
 A writeup is one HTML file, `leaderboard/writeups/<record_hash>.html`, named by the full hash of its record (HTML
 since 2026-11-16, so that a writeup can hold inline SVG figures; a Markdown writeup is no longer read, and `verify`
@@ -2412,11 +2464,13 @@ record page's Writeup tab. A good writeup has:
 
 * **the approach**: the circuit's architecture and its trick, the area/time trade-off it makes;
 * **the key insight**: why it beats, or does not beat, par and the record before it;
-* **the numbers**: area, time, cycles and score, and what dominates them (the cells, the critical path);
+* **the numbers**: area, time, cycles and score, as the record measured them, and what dominates them (the cells,
+  the critical path); every score number is compared with the tree's measurements ("The rules for a record");
 * **the proof strategy**: the structure of the proof, its invariants and key lemmas, the tactics that did the work;
 * **the dead ends**: variants that scored worse, proofs that did not go through, and why;
-* **its parent**, for a record derived from one already on the board: that record's hash and a diff of the two design
-  files in a code block (CONTRIBUTING.md, "The leaderboard and the record file");
+* **its parent**, for a record derived from one already on the board or from a reference design: that record's hash
+  or that design's file and a diff of the two design files in a code block (CONTRIBUTING.md, "The leaderboard and
+  the record file"), and the licence notice it kept, if its parent has one;
 * **links for what it names** (decided 2026-11-23): another record, a player, par's design ("the reference",
   "par's") or a reference design of `tasks/<task>/reference/`, each linked in the paragraph that names it (a record by
   its page, `<record_hash>.html`; a reference design by its file, `../reference/<stem>.sv`). A record submitted after

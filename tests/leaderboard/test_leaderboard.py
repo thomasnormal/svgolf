@@ -67,6 +67,27 @@ theorem solution : Goal := by   -- trailing comment
 end Submission
 """
 SV_SHA = lb.sha256_bytes(SV_TEXT)
+GOOD_WRITEUP = (b"<h1>Ripple carry, one cell per bit</h1>\n\n<p>The idea: a full adder per bit.</p>\n\n"
+                b"<h2>The proof</h2>\n\n<p><code>sv_equations</code> and <code>omega</code>.</p>\n")
+
+
+def distinct_lean(tag):
+    """A toy proof whose text is its own (`distinct_sv`'s reason)."""
+    w = re.sub(r"\W", "_", tag)
+    steps = "".join(f"  have h_{w}_{i} : {i} + {len(w)} = {i + len(w)} := rfl\n" for i in range(12))
+    return (f"import Submission.Design\nnamespace Submission\ntheorem solution : Goal := by\n{steps}  sv_structure\n"
+            "end Submission\n").encode()
+
+
+def distinct_sv(tag):
+    """A toy design whose code is its own (names and constants of `tag`): the rules for a record (decided 2026-11-25)
+    call two designs near when a third of one's code is in the other, and SV_TEXT's copies share all of it."""
+    w = re.sub(r"\W", "_", tag)
+    body = "".join(f"  wire [N-1:0] {w}_t{i} = a ^ {i + 3 * len(w)};\n" for i in range(12))
+    return (b"module toy_top #(parameter N = 1) (input [N-1:0] a, output [N-1:0] y);\n" + body.encode()
+            + f"  assign y = {w}_t0 ^ {w}_t11;\nendmodule\n".encode())
+
+
 CANON_SHA = "c" * 64
 # the reason check.py's `incomplete_reasons` gives for a light post-synthesis check
 LIGHT_REASON = ("the post-synthesis check ran LIGHT (a subset of the vectors, for local feedback); leaderboard.py add "
@@ -1215,13 +1236,13 @@ class CliEnv:
             json.dump(res, fh)
         return p
 
-    def files(self, tag):
+    def files(self, tag, distinct=False):
         sv = os.path.join(self.tmp, f"{tag}.sv")
         lean = os.path.join(self.tmp, f"{tag}.lean")
         with open(sv, "wb") as fh:
-            fh.write(SV_TEXT + f"// {tag}\n".encode())
+            fh.write(distinct_sv(tag) if distinct else SV_TEXT + f"// {tag}\n".encode())
         with open(lean, "wb") as fh:
-            fh.write(LEAN_TEXT)
+            fh.write(distinct_lean(tag) if distinct else LEAN_TEXT)
         return sv, lean
 
     def with_references(self, stems=("ref_n",), par="ref_n"):
@@ -1245,8 +1266,8 @@ class CliEnv:
         return quiet(lb.main, list(argv[:1]) + ["--data-dir", self.data, "--tasks-dir", self.tasks,
                                                  "--check-py", self.fake] + list(argv[1:]))
 
-    def add(self, player, *, tag=None, assisted=(), from_check=None, date="2026-10-29", extra=()):
-        sv, lean = self.files(tag or player)
+    def add(self, player, *, tag=None, assisted=(), from_check=None, date="2026-10-29", extra=(), distinct=False):
+        sv, lean = self.files(tag or player, distinct=distinct)
         argv = ["add", "--task", "toy", "--player", player, "--sv", sv, "--lean", lean,
                 "--date", date] + list(extra)
         for a in assisted:
@@ -4213,11 +4234,20 @@ class SubmitTest(Tmp):
         p = mock.patch.object(lb, "DEFAULT_DATA", self.env.data)     # the CliEnv's data directory is the board's own
         p.start()
         self.addCleanup(p.stop)
+        self.wdir = os.path.join(self.tmp, "writeups")                # and its writeups (required since 2026-11-25)
+        os.makedirs(self.wdir)
+        shutil.copy(os.path.join(lb.WRITEUPS_DIR, lb.WRITEUP_TEMPLATE), self.wdir)
+        p = mock.patch.object(lb, "WRITEUPS_DIR", self.wdir)
+        p.start()
+        self.addCleanup(p.stop)
 
-    def record(self, player="alice", extra=()):
-        rc, out, err = self.env.add(player, extra=extra)
+    def record(self, player="alice", extra=(), writeup=GOOD_WRITEUP):
+        rc, out, err = self.env.add(player, extra=extra, distinct=True)
         self.assertEqual(rc, 0, err)
         rec = next(r for _, r, _ in lb.load_records(self.env.data, "toy") if r["player"] == player)
+        if writeup is not None:
+            with open(os.path.join(self.wdir, rec["record_hash"] + ".html"), "wb") as fh:
+                fh.write(writeup)
         return rec
 
     def submit(self, *argv):
@@ -4310,6 +4340,50 @@ class SubmitTest(Tmp):
         self.assertIn(f"[FAIL] toy/{h[:12]}", out)
         self.assertIn("does not have the recorded sha256", err)
         self.assertNotIn("TMP=", out)
+
+    def test_submit_refuses_a_record_that_breaks_a_rule(self):
+        """The rules for a record (decided 2026-11-25): no writeup, the template's text, a writeup number the tree
+        does not hold, a design built on another record that nothing names. Each refused, with the reason; named, the
+        same record goes."""
+        dry = ("--repo", self.REPO, "--dry-run")
+        bare = self.record("bare", writeup=None)
+        rc, out, err = self.submit("--record", bare["record_hash"], *dry)
+        self.assertEqual(rc, 1)
+        self.assertIn("no writeup: a record goes in with its writeup", err)
+        self.assertNotIn("TMP=", out)
+        with open(os.path.join(self.wdir, lb.WRITEUP_TEMPLATE), "rb") as fh:
+            template = fh.read()
+        tmpl = self.record("tmpl", writeup=template)
+        rc, _, err = self.submit("--record", tmpl["record_hash"], *dry)
+        self.assertEqual(rc, 1)
+        self.assertIn("still holds TEMPLATE.html's text", err)
+        nums = self.record("nums", writeup=GOOD_WRITEUP + b"<p>On ASAP7: 9.28746 um^2 x 345 ps.</p>\n")
+        rc, _, err = self.submit("--record", nums["record_hash"], *dry)
+        self.assertEqual(rc, 1)
+        self.assertIn("line 8: `9.28746 um^2` is no measurement the tree holds", err)
+        # the toy record's own sky130 numbers are measurements: they may be given
+        own = self.record("own", writeup=GOOD_WRITEUP + b"<p>460.4416 um^2 at 2,487 ps.</p>\n")
+        rc, out, err = self.submit("--record", own["record_hash"], *dry)
+        self.assertEqual(rc, 0, err)
+        # two records of one code: the later one must name the earlier one
+        rc, _, err = self.env.add("first")
+        self.assertEqual(rc, 0, err)
+        first = next(r for _, r, _ in lb.load_records(self.env.data, "toy") if r["player"] == "first")
+        rc, _, err = self.env.add("second", date="2026-10-30")
+        self.assertEqual(rc, 0, err)
+        second = next(r for _, r, _ in lb.load_records(self.env.data, "toy") if r["player"] == "second")
+        with open(os.path.join(self.wdir, second["record_hash"] + ".html"), "wb") as fh:
+            fh.write(GOOD_WRITEUP)
+        rc, _, err = self.submit("--record", second["record_hash"], *dry)
+        self.assertEqual(rc, 1)
+        self.assertIn(f"the design is built on record `{first['record_hash'][:12]}` (first) (100% of its code), which "
+                      "the record does not name", err)
+        with open(os.path.join(self.wdir, second["record_hash"] + ".html"), "wb") as fh:
+            fh.write(GOOD_WRITEUP + f'<p>Built on <a href="{first["record_hash"]}.html">record '
+                                    f'{first["record_hash"][:12]}</a>.</p>\n'.encode())
+        rc, out, err = self.submit("--record", second["record_hash"], *dry)
+        self.assertEqual(rc, 0, err)
+        self.assertIn(f"leaderboard/writeups/{second['record_hash']}.html", out)     # the writeup goes with it
 
     def test_hostile_arguments_and_the_printed_quoting(self):
         """The review's n-1, n-2, n-3: a word of the printed script stands in double quotes only when its one `$` is an
@@ -4437,8 +4511,10 @@ class SubmitTest(Tmp):
         self.assertEqual(fields(template), fields(text))
         self.assertEqual(fields(text), ["- task", "- handle", "- assisted by", "- files"])
         self.assertIn("leaderboard.py submit --task TASK --record HASH", template)
-        self.assertIn("a maintainer re-makes the ranked\nnumber on the rating build when the pull request is merged",
+        self.assertIn("the maintainers then make the record again on the rating machine, under your handle and\nwith "
+                      "your files and writeup, publish it, and merge or close the pull request with a link to it.",
                       template)
+        self.assertIn("(required: copy `leaderboard/writeups/TEMPLATE.html`", template)
 
     def test_the_pinned_flows_are_the_sites(self):
         with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
@@ -4501,11 +4577,20 @@ class PrCheckTest(Tmp):
         git(self.repo, "add", "-A")
         git(self.repo, "commit", "-q", "-m", msg)
 
-    def add_record(self, player="bob", sv=None):
-        sv = sv or SV_TEXT + f"// {player}\n".encode()
-        rec = make_record(player=player, sv=sv)
-        lb.store_record(self.rdata, rec, sv, LEAN_TEXT)
+    def add_record(self, player="bob", sv=None, writeup=GOOD_WRITEUP, lean=None, **kw):
+        sv = sv or distinct_sv(player)
+        lean = lean or distinct_lean(player)
+        rec = make_record(player=player, sv=sv, lean=lean, **kw)
+        lb.store_record(self.rdata, rec, sv, lean)
+        if writeup is not None:
+            self.write_writeup(rec["record_hash"], writeup)
         return rec
+
+    def write_writeup(self, h, data):
+        wdir = os.path.join(self.repo, "leaderboard", "writeups")
+        os.makedirs(wdir, exist_ok=True)
+        with open(os.path.join(wdir, h + ".html"), "wb") as fh:
+            fh.write(data)
 
     def check(self, *argv):
         rc, out, err = quiet(pc.main, ["--repo", self.repo, "--check-py", self.fake, "--sandbox", "off",
@@ -4530,6 +4615,15 @@ class PrCheckTest(Tmp):
         self.assertIn("verify (full re-check): 1 records, 0 failed", summary)
         self.assertIn(pc.RATING_NOTE, summary)
         self.assertIn("This machine's Yosys", summary)
+        # the short account first (decided 2026-11-25): what was compared, one line per check, and the tools
+        short = summary.split("### `leaderboard.py verify --offline`")[0]
+        self.assertNotIn("### What to fix", short)
+        self.assertIn("### What was compared", short)
+        self.assertIn("- the files: only records and writeups (1 record, 1 writeup)", short)
+        self.assertIn("- the rules for a record (CONTRIBUTING.md, \"The rules for a record\": the writeup, score "
+                      "numbers, credits, licence notices, header comments): ok", short)
+        self.assertIn(f"- record `toy/{b['record_hash'][:12]}`: ", short)      # whether its scores were compared
+        self.assertIn("- tools: Yosys `", short)
         with open(self.log) as fh:                          # check.py ran once, on the added record, sandbox as given
             runs = fh.read().splitlines()
         self.assertEqual(len(runs), 1)
@@ -4581,8 +4675,10 @@ class PrCheckTest(Tmp):
                 self.commit(what)
                 rc, out, err, summary = self.check()
                 self.assertEqual(rc, 1)
-                self.assertIn("### Problems", out)
+                self.assertIn("### What to fix", out)
                 self.assertIn(why, out)
+                self.assertIn("- the rules for a record (CONTRIBUTING.md, \"The rules for a record\": the writeup, "
+                              "score numbers, credits, licence notices, header comments): not run", out)
                 self.assertIn("the records it adds: not run\n\nNot run because of the problems above.", out)
                 git(self.repo, "revert", "--no-edit", "HEAD")      # back to the board, as a commit of its own
         # a record without its proof
@@ -4679,6 +4775,85 @@ class PrCheckTest(Tmp):
         self.assertEqual(rc, 2)
         self.assertIn("error: git rev-parse --verify --end-of-options no-such-ref^{commit}", err)   # resolved first
 
+    def test_the_rules_for_a_record(self):
+        """Decided 2026-11-25: each rule fails the check with its reason under "What to fix", naming the record; the
+        full check still runs (a rule is no reason to keep the record's own check from the contributor)."""
+        a12 = self.a["record_hash"][:12]
+        cases = [
+            ("no writeup", dict(writeup=None), "no writeup: a record goes in with its writeup"),
+            ("numbers in the notes", dict(notes="a tree, 460.4416 um^2 x 2487 ps"), "the notes carry a score number"),
+            ("numbers in a writeup", dict(writeup=GOOD_WRITEUP + b"<p>9.28746 um^2.</p>\n"),
+             "line 8: `9.28746 um^2` is no measurement the tree holds"),
+            ("alice's design and proof, unnamed", dict(sv=SV_TEXT + b"// bob\n", lean=LEAN_TEXT),
+             f"the design is built on record `{a12}` (alice) (100% of its code), which the record does not name"),
+        ]
+        for what, kw, why in cases:
+            with self.subTest(what):
+                b = self.add_record(**kw)
+                self.commit(what)
+                if os.path.exists(self.log):
+                    os.remove(self.log)
+                rc, out, err, summary = self.check()
+                self.assertEqual(rc, 1, out)
+                fix = out.split("### What to fix", 1)[1].split("###", 1)[0]
+                self.assertIn(f"- record `toy/{b['record_hash'][:12]}`: {why}", fix)
+                self.assertIn("the rules for a record (CONTRIBUTING.md, \"The rules for a record\": the writeup, score "
+                              "numbers, credits, licence notices, header comments): ", out)
+                self.assertTrue(os.path.exists(self.log))                   # the full check ran all the same
+                git(self.repo, "reset", "-q", "--hard", "HEAD^")
+        # named (here in its writeup, as its parent): the same copy passes
+        b = self.add_record(sv=SV_TEXT + b"// bob\n", lean=LEAN_TEXT,
+                            writeup=GOOD_WRITEUP + f'<p>Built on <a href="{self.a["record_hash"]}.html">alice\'s '
+                                                   f'record</a>.</p>\n'.encode())
+        self.commit("a credited copy")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 0, out)
+        git(self.repo, "reset", "-q", "--hard", "HEAD^")
+        # a writeup a pull request improves, for a record on the board: its numbers are compared too
+        self.write_writeup(self.a["record_hash"], GOOD_WRITEUP + b"<p>About 123,457 GE.</p>\n")
+        self.commit("an improved writeup")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(f"- writeup `{a12}`: line 8: `123,457 GE` is no measurement the tree holds", out)
+
+    def test_set_aside_for_the_unit_tests(self):
+        """`--set-aside DIR` (the unit workflow's, decided 2026-11-25): a records-only pull request's records and
+        writeups move to DIR, paths kept, and the summary says why; any other pull request moves nothing."""
+        b = self.add_record()
+        self.commit("a record")
+        dest = os.path.join(self.tmp, "aside")
+        rc, out, err, summary = self.check("--set-aside", dest)
+        self.assertEqual(rc, 0, err)
+        h = b["record_hash"]
+        rels = [f"leaderboard/data/toy/{h}.{e}" for e in ("json", "sv", "lean")] + [f"leaderboard/writeups/{h}.html"]
+        for rel in rels:
+            self.assertTrue(os.path.isfile(os.path.join(dest, rel)), rel)
+            self.assertFalse(os.path.exists(os.path.join(self.repo, rel)), rel)
+        self.assertTrue(os.path.isfile(os.path.join(self.rdata, "toy", self.a["record_hash"] + ".json")))  # the base's
+        self.assertIn("It only adds records (1) and their writeups, so they were set aside (4 files)", summary)
+        self.assertFalse(os.path.exists(self.log))                          # nothing was checked
+        git(self.repo, "checkout", "-q", "--", ".")
+        with open(os.path.join(self.repo, "check.py"), "w") as fh:
+            fh.write("print('accepted')\n")
+        self.commit("and the checker")
+        dest2 = os.path.join(self.tmp, "aside2")
+        rc, out, err, summary = self.check("--set-aside", dest2)
+        self.assertEqual(rc, 0)
+        self.assertIn("Nothing was set aside: it changes more than records and writeups", summary)
+        self.assertFalse(os.path.exists(dest2))
+        self.assertTrue(os.path.isfile(os.path.join(self.rdata, "toy", h + ".json")))
+
+    def test_what_was_compared_says_it_per_record(self):
+        k = ("toy", "a" * 64)
+        self.assertEqual(pc.compared_lines({k: set()}, {}, True, (0, "")),
+                         ["record `toy/aaaaaaaaaaaa`: its scores compared with the record's own, column by column"])
+        self.assertEqual(pc.compared_lines({k: set()}, {k: ["checked under another flow (yosys differ)"]}, True,
+                                           (0, "")),
+                         ["record `toy/aaaaaaaaaaaa`: no score compared (checked under another flow (yosys differ))"])
+        self.assertIn("this machine's Yosys is not the rating build's", pc.compared_lines({k: set()}, {}, False,
+                                                                                          (0, ""))[0])
+        self.assertIn("the full check did not run", pc.compared_lines({k: set()}, {}, True, None)[0])
+
     def test_classify_and_the_flow_note(self):
         h, g = "1" * 64, "2" * 64
         f = "100644"
@@ -4717,14 +4892,9 @@ class PrCheckTest(Tmp):
             "`leaderboard/writeups/notes.html` is added: it is not a record's file, and a pull request of records "
             "changes nothing else (it would bring the checker it runs)"])
         pin = {lb.COMB_FLOW: {"yosys": "Yosys 0.53 (rating)"}}
-        self.assertEqual(pc.flow_note(pin, pin), "This machine's Yosys is the rating build's (Yosys 0.53 (rating)), so "
-                         "the full check compared the scores too.")
+        self.assertEqual(pc.flow_note(pin, pin), "This machine's Yosys is the rating build's (Yosys 0.53 (rating)).")
         self.assertIn("This machine's Yosys (none found) is not the rating build's (Yosys 0.53 (rating)), so the full "
                       "check compared no score", pc.flow_note({lb.COMB_FLOW: {"yosys": None}}, pin))
-
-
-GOOD_WRITEUP = (b"<h1>Ripple carry, one cell per bit</h1>\n\n<p>The idea: a full adder per bit.</p>\n\n"
-                b"<h2>The proof</h2>\n\n<p><code>sv_equations</code> and <code>omega</code>.</p>\n")
 
 
 class WriteupTest(Tmp):
@@ -4853,7 +5023,7 @@ class WriteupTest(Tmp):
         _, with_w = lb.submit_text(rec, "line", "verified", writeup=True)
         _, without = lb.submit_text(rec, "line", "verified")
         self.assertIn(f"and its writeup `leaderboard/writeups/{h}.html`", with_w)
-        self.assertIn("no writeup yet (encouraged: leaderboard/writeups/TEMPLATE.html)", without)
+        self.assertIn("no writeup (a record goes in with its writeup: leaderboard/writeups/TEMPLATE.html)", without)
 
     def test_the_committed_writeups_pass(self):
         recs = {rec["record_hash"]: rec for _, rec, _ in lb.load_records(lb.DEFAULT_DATA)}
@@ -5108,6 +5278,222 @@ class RemakeTest(Tmp):
             rc, out, err = quiet(lb.main, argv)        # the old record is gone
         self.assertEqual(rc, 1)
         self.assertIn("no record", err)
+
+
+# a design with a licence notice and a header comment of its own (the rules for a record, decided 2026-11-25)
+LIC_SV = (b"// lic_ref: a toy design adapted from an imagined upstream file, to test that its notice is kept by\n"
+          b"// every design built on it and that its header is not copied word for word over other code.\n"
+          b"// Copyright (c) 2026 Upstream Authors.\n"
+          b"// SPDX-License-Identifier: MIT\n"
+          + distinct_sv("upstream"))
+
+
+def with_line(sv, line=b"  wire [N-1:0] extra_wire = a;\n"):
+    """`sv` with one more line of code before its endmodule: other code, the same header."""
+    return sv.replace(b"endmodule", line + b"endmodule", 1)
+
+
+class RecordRulesTest(Tmp):
+    """The rules for a record (decided 2026-11-25; README.md, "The rules for a record"): what the first outside records
+    got wrong, checked where the tool can: (a) the writeup, (b) no score number typed where the tool cannot verify it,
+    (c) the credit, (d) the licence notice, (e) a header of its own. The pure functions first, then `add`."""
+
+    def cand(self, sv, lean=LEAN_TEXT, name="a" * 64, par=False):
+        text = sv.decode()
+        return {"label": f"record `{name[:12]}` (alice)", "hashes": {name}, "names": set(), "par": par, "sv": text,
+                "lean": lean.decode() if lean else None, "licences": lb.licence_ids(text)}
+
+    def test_score_numbers_and_their_precision(self):
+        from decimal import Decimal
+        nums = lb.score_numbers("a 3434.5440 um^2 design\n966 ps, 3317.77 um2*ns; 9,676 µm² at 38.0 ns; "
+                                "37.36 million µm²·ns; 112 GE and 21328 mGE; about 137,100 µm²")
+        self.assertEqual([(n[0], n[2]) for n in nums], [(1, "area"), (2, "time"), (2, "axt"), (2, "area"), (2, "time"),
+                                                        (2, "axt"), (2, "ge"), (2, "ge"), (2, "area")])
+        self.assertEqual((nums[0][3], nums[0][4]), (Decimal("3434.5440"), Decimal("0.00005")))
+        self.assertEqual((nums[4][3], nums[4][4]), (Decimal("38000"), Decimal("50")))            # ns, as ps
+        self.assertEqual((nums[5][3], nums[5][4]), (Decimal("37360000"), Decimal("5000")))       # a magnitude word
+        self.assertEqual(nums[7][3], Decimal("21.328"))                                          # mGE, as GE
+        self.assertEqual((nums[8][3], nums[8][4]), (Decimal("137100"), Decimal("50")))           # trailing zeros
+        self.assertEqual([n[4] for n in lb.score_numbers("2,000 ps, 900 ps, 50 ps, 1,000,000 GE")],
+                         [Decimal("50"), Decimal("5"), Decimal("0.5"), Decimal("50000")])       # two digits kept
+        for text in ("N = 16", "16 bits", "a 4:2 compressor", "the 900 s cap", "ps[3] and ns[2]", "2x faster",
+                     "-18.3% against record 1", "x_ps = 5", "0.47 × par", "4 cycles"):
+            self.assertEqual(lb.score_numbers(text), [], text)
+
+    def test_notes_and_design_comments_carry_no_score_number(self):
+        self.assertEqual(lb.notes_problems("A ripple-carry adder, one full adder per bit (N = 16)."), [])
+        p = lb.notes_problems("Transposed rows (3434.5440 um^2 x 966 ps = 3317.77 um2*ns on sky130 A0').")
+        self.assertEqual(len(p), 1)
+        self.assertIn("the notes carry a score number (`3434.5440 um^2`, `966 ps`, `3317.77 um2*ns`)", p[0])
+        self.assertEqual(lb.design_comment_problems("// a ripple adder\nmodule m; localparam P = 966; endmodule\n"), [])
+        p = lb.design_comment_problems("// a ripple adder: 462.9440 um^2 at 2449 ps\nmodule m; endmodule\n")
+        self.assertIn("the design's comments carry a score number (`462.9440 um^2`, `2449 ps`)", p[0])
+        self.assertEqual(lb.design_comment_problems("/* 2 ns */ module m; endmodule\n")[0][:40],
+                         "the design's comments carry a score numb")
+
+    def test_writeup_numbers_are_measurements(self):
+        from decimal import Decimal
+        meas = {"area": {Decimal("8232.8960")}, "time": {Decimal(4508)},
+                "axt": {Decimal("8232.8960") * 4508 / 1000}, "ge": {Decimal("195.975")}}
+        good = ("<h1>A tree</h1>\n<p>It is 8232.9 µm² at 4,508 ps (4.5 ns), about 37,114 µm²&middot;ns, and "
+                "about 8,230 µm² or 8,200 µm² rounded; 196.0 GE. A variant was 12% larger.</p>\n")
+        self.assertEqual(lb.writeup_number_problems(good, meas), [])
+        bad = "<h1>A tree</h1>\n\n<p>On ASAP7: 9.28746 um^2 x 345 ps, and about 8,300 µm² on sky130.</p>\n"
+        p = lb.writeup_number_problems(bad, meas)
+        self.assertEqual([x.split(" is ")[0] for x in p], ["line 3: `9.28746 um^2`", "line 3: `345 ps`",
+                                                           "line 3: `8,300 µm²`"])
+        self.assertIn("a variant that is not a record, or a difference, as a relation", p[0])
+
+    def test_near_credit_licence_and_header(self):
+        base = self.cand(LIC_SV)
+        mine = lb.licence_ids(LIC_SV.decode())
+        self.assertEqual(mine, ["MIT"])
+        # a design of its own is near nothing
+        own = distinct_sv("own").decode()
+        self.assertEqual(lb.nearest(own, "sv", [base]), [])
+        self.assertEqual(lb.credit_problems(own, distinct_lean("own").decode(), "", [base]), [])
+        # (d) a copy without the notice (and the header that names it)
+        stripped = b"\n".join(ln for ln in LIC_SV.split(b"\n") if not ln.startswith(b"//")).decode()
+        p = lb.licence_problems(stripped, [base])
+        self.assertEqual(len(p), 1)
+        self.assertIn("the design is built on record `aaaaaaaaaaaa` (alice) (100% of its code), whose header carries "
+                      "a licence notice (MIT) that this file does not: keep the notice, word for word", p[0])
+        # (e) the header kept word for word over other code; the same file is no problem, nor a header of its own
+        p = lb.header_problems(with_line(LIC_SV).decode(), [base])
+        self.assertIn("the header comment is record `aaaaaaaaaaaa` (alice)'s word for word, but the design is not",
+                      p[0])
+        self.assertEqual(lb.header_problems(LIC_SV.decode(), [base]), [])
+        own_head = with_line(LIC_SV.replace(b"// lic_ref: a toy design", b"// mine: built on aaaaaaaaaaaa, a design"))
+        self.assertEqual(lb.header_problems(own_head.decode(), [base]), [])
+        self.assertEqual(lb.licence_problems(own_head.decode(), [base]), [])
+        # (c) the credit: unnamed, refused; named anywhere it can be (a word, not a part of a longer hash), not
+        p = lb.credit_problems(stripped, LEAN_TEXT.decode(), "", [base])
+        self.assertEqual([x.split(" (")[0] for x in p], ["the design is built on record `aaaaaaaaaaaa`",
+                                                         "the proof is built on record `aaaaaaaaaaaa`"])
+        self.assertEqual(lb.credit_problems(stripped, LEAN_TEXT.decode(), "built on record aaaaaaaaaaaa", [base]), [])
+        self.assertTrue(lb.credit_problems(stripped, LEAN_TEXT.decode(), "record aaaaaaaaaaaab", [base]))
+        # par's design and proof need no credit, but par's licence notice is kept all the same
+        par = self.cand(LIC_SV, par=True)
+        self.assertEqual(lb.credit_problems(stripped, LEAN_TEXT.decode(), "", [par]), [])
+        self.assertTrue(lb.licence_problems(stripped, [par]))
+        # the near ones within NEAR_TIE of the nearest are the candidates: naming either of two copies is enough
+        twin = dict(self.cand(LIC_SV, name="b" * 64))
+        self.assertEqual([c["label"] for _, c in lb.nearest(stripped, "sv", [base, twin])],
+                         ["record `aaaaaaaaaaaa` (alice)", "record `bbbbbbbbbbbb` (alice)"])
+        self.assertEqual(lb.credit_problems(stripped, distinct_lean("x").decode(), "bbbbbbbbbbbb", [base, twin]), [])
+
+    def test_the_writeup_is_required_and_is_not_the_template(self):
+        wdir = os.path.join(self.tmp, "writeups")
+        os.makedirs(wdir)
+        shutil.copy(os.path.join(lb.WRITEUPS_DIR, lb.WRITEUP_TEMPLATE), wdir)
+        h = "c" * 64
+        self.assertIn("no writeup: a record goes in with its writeup", lb.writeup_required_problems(h, wdir)[0])
+        shutil.copy(os.path.join(wdir, lb.WRITEUP_TEMPLATE), os.path.join(wdir, h + ".html"))
+        self.assertIn("still holds TEMPLATE.html's text", lb.writeup_required_problems(h, wdir)[0])
+        with open(os.path.join(wdir, h + ".html"), "wb") as fh:
+            fh.write(GOOD_WRITEUP)
+        self.assertEqual(lb.writeup_required_problems(h, wdir), [])
+
+    def test_add_refuses_before_the_check_and_asks_after_it(self):
+        env = CliEnv(self)
+        env.with_references(stems=("ref_n",), par="ref_n")
+        ref = os.path.join(env.tasks, "toy", "reference")
+        with open(os.path.join(ref, "lic_ref.sv"), "wb") as fh:
+            fh.write(LIC_SV)
+        with open(os.path.join(ref, "lic_ref.lean"), "wb") as fh:
+            fh.write(distinct_lean("upstream"))
+        log = os.path.join(self.tmp, "argv.log")
+
+        def add(player, sv, notes="", assisted=()):
+            path = os.path.join(self.tmp, f"{player}.sv")
+            with open(path, "wb") as fh:
+                fh.write(sv)
+            lean = os.path.join(self.tmp, f"{player}.lean")
+            with open(lean, "wb") as fh:
+                fh.write(distinct_lean(player))
+            argv = ["add", "--task", "toy", "--player", player, "--sv", path, "--lean", lean, "--date", "2026-11-25",
+                    "--notes", notes] + [x for a in assisted for x in ("--assisted-by", a)]
+            with mock.patch.dict(os.environ, {"FAKE_ARGV_LOG": log}):
+                return env.run(*argv)
+        stripped = b"\n".join(ln for ln in LIC_SV.split(b"\n") if not ln.startswith(b"//"))
+        for what, sv, notes, want in (
+                ("numbers in the notes", distinct_sv("n1"), "a tree, 460.4416 um^2 x 2487 ps",
+                 "the notes carry a score"),
+                ("numbers in a comment", b"// 2487 ps\n" + distinct_sv("n2"), "",
+                 "the design's comments carry a score"),
+                ("the licence notice lost", stripped, "", "whose header carries a licence notice (MIT)"),
+                ("the header copied", with_line(LIC_SV), "", "the header comment is reference design `lic_ref.sv`'s")):
+            with self.subTest(what):
+                rc, out, err = add("p" + str(len(what)), sv, notes)
+                self.assertEqual(rc, 1, out + err)
+                self.assertIn("REFUSED: the submission was not added:", err)
+                self.assertIn(want, err)
+                self.assertFalse(os.path.exists(log))                   # before the check: check.py never ran
+        # the notice kept, a header of its own, the base named in --assisted-by: added, no question
+        rc, out, err = add("namer", with_line(LIC_SV.replace(b"// lic_ref: a toy design", b"// namer: a design"),
+                                              b"  wire [N-1:0] other_wire = a;\n"), assisted=["built on lic_ref"])
+        self.assertEqual(rc, 0, err)
+        self.assertNotIn("ASK:", out)
+        # the base left unnamed: added, and asked to name what it was built on (now namer's record and lic_ref, the
+        # two nearest), and for the writeup
+        rc, out, err = add("keeper", with_line(LIC_SV.replace(b"// lic_ref: a toy design", b"// keeper: a design")))
+        self.assertEqual(rc, 0, err)
+        self.assertIn("ASK: the design is near ", out)
+        self.assertIn("reference design `lic_ref.sv` (", out)
+        self.assertIn("NEXT: the writeup, leaderboard/writeups/", out)
+        rc, out, err = add("loner", distinct_sv("loner"))
+        self.assertEqual(rc, 0, err)
+        self.assertNotIn("ASK:", out)
+        self.assertIn("NEXT: the writeup", out)
+
+
+class RecordRulesCommittedTest(unittest.TestCase):
+    """The rules for a record on the committed tree (decided 2026-11-25)."""
+
+    def test_the_maintainers_writeups_carry_measured_numbers(self):
+        """Every score number in a writeup the maintainers wrote is a measurement the tree holds (they keep their own
+        text current when the numbers move; a player's writeup is checked when its pull request adds or changes it)."""
+        meas = lb.tree_measurements()
+        n = 0
+        for name in sorted(os.listdir(lb.WRITEUPS_DIR)):
+            if not lb.WRITEUP_NAME_RE.fullmatch(name):
+                continue
+            with open(os.path.join(lb.WRITEUPS_DIR, name), encoding="utf-8") as fh:
+                text = fh.read()
+            if "Writeup by the maintainers" not in text.rstrip().rsplit("\n", 1)[-1]:
+                continue
+            n += 1
+            with self.subTest(writeup=name[:12]):
+                self.assertEqual(lb.writeup_number_problems(text, meas), [])
+        self.assertGreater(n, 40)
+
+    def test_records_from_the_rule_on_have_their_writeups(self):
+        """A record submitted on or after 2026-11-25 has its writeup, whoever made it (the maintainers' records too)."""
+        for path, rec, _ in lb.load_records(lb.DEFAULT_DATA):
+            if str(rec.get("submitted_at", ""))[:10] >= "2026-11-25":
+                with self.subTest(record=rec["record_hash"][:12]):
+                    self.assertEqual(lb.writeup_required_problems(rec["record_hash"], lb.WRITEUPS_DIR), [])
+
+    def test_a_copy_of_a_reference_keeps_its_notice_and_names_it(self):
+        """fdivp_srt.sv, adapted from licensed code (NOTICE): a copy that drops the notice, or keeps its header word for
+        word over changed code, is refused; one that keeps the notice, lists its changes and names it is not."""
+        task = lb.load_task(lb.DEFAULT_TASKS, "fdivp")
+        cands = lb.rule_candidates(task, lb.DEFAULT_TASKS, [lb.DEFAULT_DATA])
+        with open(os.path.join(lb.DEFAULT_TASKS, "fdivp", "reference", "fdivp_srt.sv"), encoding="utf-8") as fh:
+            ref = fh.read()
+        self.assertIn("Apache-2.0 WITH SHL-2.1", lb.licence_ids(ref))
+        code = ref.replace("endmodule", "  wire extra_unused;\nendmodule", 1)
+        no_notice = "\n".join(ln for ln in code.split("\n")
+                              if "SPDX-License-Identifier" not in ln and "Copyright" not in ln)
+        p = lb.licence_problems(no_notice, cands)
+        self.assertEqual(len(p), 1)
+        self.assertIn("reference design `fdivp_srt.sv`", p[0])
+        self.assertIn("(Apache-2.0 WITH SHL-2.1)", p[0])
+        self.assertIn("the header comment is", lb.header_problems(code, cands)[0])
+        mine = "// Changes from fdivp_srt.sv: one unused wire.\n" + code
+        self.assertEqual(lb.licence_problems(mine, cands) + lb.header_problems(mine, cands), [])
+        self.assertTrue(lb.credit_problems(mine, "", "", cands))
+        self.assertEqual(lb.credit_problems(mine, "", lb.credit_text_of({}, mine, ""), cands), [])
 
 
 class CommittedDataTest(unittest.TestCase):

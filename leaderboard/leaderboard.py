@@ -3066,8 +3066,9 @@ def load_records(data_dir, task=None):
 # leaderboard/writeups/<record_hash>.html, its first line `<h1>title</h1>` (the submission's short title, plain text,
 # at most WRITEUP_TITLE_MAX characters), the rest an HTML fragment, a blog-post-style account of the design and its
 # proof. It lies OUTSIDE the record: no field of the record and none of its hashes name it, so adding or improving a
-# writeup never changes a record, its hash or its rank. Optional: a record without one is accepted. `verify` checks
-# every writeup's shape (`writeup_problems`) and that the site's allowlist sanitizer accepts its HTML
+# writeup never changes a record, its hash or its rank. `verify` accepts a record without one (the board's older
+# records), while `submit` and the pull request's check require it since 2026-11-25 ("THE RULES FOR A RECORD", below).
+# `verify` checks every writeup's shape (`writeup_problems`) and that the site's allowlist sanitizer accepts its HTML
 # (`writeup_renderer`: site/writeup.py and site/safehtml.py, which refuse rather than strip, naming the line); the
 # site renders it from the checked tree on the record's page and shows the title in the submissions list and the
 # charts' tooltips. leaderboard/writeups/TEMPLATE.html is the template, not a writeup. Markdown writeups (`.md`, the
@@ -3197,6 +3198,445 @@ def check_writeups(wdir, records, *, task=None, deny=(), render=None):
             title = None
         out.append((name, title, (rec or {}).get("task"), problems))
     return out
+
+
+# ---------------------------------------------------------------------------
+# THE RULES FOR A RECORD (decided 2026-11-25; the owner: "if there are things the user is doing wrong, it might be
+# that our guide/rules require an update", and on a writeup as a hard requirement "Sounds good to me")
+# ---------------------------------------------------------------------------
+#
+# What the first outside records got wrong is a gap in the guide or the tool, so the tool checks it where it can
+# (CONTRIBUTING.md, "The rules for a record", says each in words):
+#   (a) a record goes in with its writeup, and the writeup is more than TEMPLATE.html (`writeup_required_problems`);
+#   (b) no score number typed by hand where the tool cannot verify it: none in the notes or in the design's comments
+#       (the record's columns carry its numbers, measured), and every score number in a writeup is a measurement the
+#       tree holds (`score_numbers`, `writeup_number_problems`);
+#   (c) a design or a proof built on a board record or a reference design names it (`credit_problems`);
+#   (d) a design built on a file that carries a licence notice keeps the notice (`licence_problems`);
+#   (e) the header comment describes the design submitted, not the one it was built on (`header_problems`).
+# None of them is a checker rule: they read the record's text and its relation to the board, never the design's
+# function or score, and they live here, outside every record hash. `add` refuses (b), (d) and (e) before the check
+# runs and asks for (a) and (c) (the writeup, named by the hash `add` makes, may hold the credit); `submit` and the
+# pull request's check (leaderboard/pr_check.py) refuse all five. Records already on the board are not re-judged:
+# records are append-only, and their notes are part of their hashes.
+
+# (b) a score number: digits (thousands may be grouped by commas or thin spaces), an optional magnitude word, and a
+# unit of a score column: an area (um^2 and its spellings), a time (ps, ns), an area x time (um^2 x ns) or a GE area
+_SCORE_NUM = r"(?<![\w.,   ])(\d{1,3}(?:[,   ]\d{3})+|\d+)(?:\.(\d+))?"
+_AREA_UNIT = r"(?:µm²|μm²|um²|µm\^2|um\^2|um2|square microns?)"
+SCORE_NUMBER_RE = re.compile(
+    _SCORE_NUM + r"\s*(million|thousand|k)?\s*"
+    r"(?:(?P<axt>" + _AREA_UNIT + r"\s*(?:·|\*|×|x)?\s*ns)|(?P<area>" + _AREA_UNIT + r")|(?P<ps>ps)|(?P<ns>ns)"
+    r"|(?P<mge>mGE)|(?P<ge>GE))(?![\w^²])")
+_MAGNITUDE = {None: 1, "thousand": 1000, "k": 1000, "million": 1000000}
+
+
+def score_numbers(text):
+    """[(line, the text matched, kind, value, tolerance)] of every score number in `text` (pure): kind "area" (um^2),
+    "time" (ps; a number in ns is converted), "axt" (um^2 x ns) or "ge" (GE; mGE converted), the value as a Decimal
+    and the tolerance its written precision allows (half a unit of its last digit; an integer's trailing zeros may be
+    rounding while two significant digits remain: "137,100" is 137,100 within 50, "2,000" is 2,000 within 50)."""
+    from decimal import Decimal
+    out = []
+    for no, line in enumerate(text.split("\n"), 1):
+        for m in SCORE_NUMBER_RE.finditer(line):
+            digits = re.sub(r"[,   ]", "", m.group(1))
+            frac = m.group(2) or ""
+            value = Decimal(digits + ("." + frac if frac else ""))
+            if frac:
+                tol = Decimal(5).scaleb(-len(frac) - 1)
+            else:
+                zeros = len(digits) - len(digits.rstrip("0")) if digits.strip("0") else 0
+                tol = Decimal(5).scaleb(max(min(zeros, len(digits) - 2), 0) - 1)
+            mult = _MAGNITUDE[m.group(3)]
+            value, tol = value * mult, tol * mult
+            kind = next(k for k in ("axt", "area", "ps", "ns", "mge", "ge") if m.group(k))
+            if kind == "ns":
+                kind, value, tol = "time", value * 1000, tol * 1000
+            elif kind == "ps":
+                kind = "time"
+            elif kind == "mge":
+                kind, value, tol = "ge", value / 1000, tol / 1000
+            out.append((no, m.group(0), kind, value, tol))
+    return out
+
+
+def notes_problems(notes):
+    """(b): the problems of a record's notes (pure): a score number in them."""
+    nums = score_numbers(notes or "")
+    if not nums:
+        return []
+    return ["the notes carry a score number (" + ", ".join(f"`{n[1]}`" for n in nums[:3]) + "): leave the numbers "
+            "out, the record's own columns carry them, measured (CONTRIBUTING.md, \"The rules for a record\"); the "
+            "notes say in one line what the design is"]
+
+
+def sv_comments(text):
+    """The comments of a design's text, in order (`//` and `/* */`), each without its markers (pure)."""
+    out = []
+    for m in re.finditer(r"//([^\n]*)|/\*(.*?)\*/", text, re.S):
+        out.append(m.group(1) if m.group(1) is not None else m.group(2))
+    return out
+
+
+def lean_comments(text):
+    """The comments of a proof's text (`--` and `/- -/`, unnested), each without its markers (pure)."""
+    return [m.group(1) if m.group(1) is not None else m.group(2)
+            for m in re.finditer(r"--([^\n]*)|/-(.*?)-/", text, re.S)]
+
+
+def leading_comment(text):
+    """The comment text before a design's first line of code, its whitespace collapsed, or "" (pure)."""
+    parts, rest = [], text.lstrip()
+    while True:
+        m = re.match(r"//([^\n]*)\n?|/\*(.*?)\*/", rest, re.S)
+        if not m:
+            break
+        parts.append(m.group(1) if m.group(1) is not None else m.group(2))
+        rest = rest[m.end():].lstrip()
+    return " ".join(" ".join(parts).split())
+
+
+def design_comment_problems(sv_text):
+    """(b), (e): the problems of a design's comments (pure): a score number in them."""
+    in_comment = score_numbers("\n".join(sv_comments(sv_text)))
+    if not in_comment:
+        return []
+    shown = ", ".join(f"`{t}`" for _, t, *_ in in_comment[:3])
+    return [f"the design's comments carry a score number ({shown}): a comment describes the design, and its "
+            "numbers are the record's columns, measured (CONTRIBUTING.md, \"The rules for a record\")"]
+
+
+# (d) the licence notices a design can carry: SPDX identifiers, and these notices in full (the site's Files card and
+# How to submit name them too)
+LICENCE_NOTICES = {
+    "MIT": ("Permission is hereby granted, free of charge, to any person obtaining a copy of this software and "
+            "associated documentation files",
+            "The above copyright notice and this permission notice shall be included in all copies or substantial "
+            "portions of the Software."),
+}
+
+
+def licence_ids(sv_text):
+    """The licences a design's source declares: its SPDX identifiers, and the identifier of every notice of
+    LICENCE_NOTICES it carries in full (pure)."""
+    ids = set(re.findall(r"SPDX-License-Identifier:\s*([^\n]+?)\s*$", sv_text, re.M))
+    prose = " ".join(" ".join(re.sub(r"^\s*(//+|/\*+|\*+/?)", "", ln) for ln in sv_text.split("\n")).split())
+    ids |= {i for i, sentences in LICENCE_NOTICES.items() if all(x in prose for x in sentences)}
+    return sorted(ids)
+
+
+# (c) "built on": the share of a file's own code (its runs of NEAR_K tokens, comments left out, less the runs that
+# most designs of the task share: the module header and the like) found in another file. A third or more is "near"
+# (measured on the first outside records: the designs their reviews found built on a record or a reference were at
+# 0.41 to 0.72, the others at 0.23 or less); the nearest files (within NEAR_TIE of the nearest) are the candidates for
+# what it was built on, and naming one of them is enough. Par's design and proof are what the guide tells everyone to
+# start from, so they need no credit; their licence notice is kept all the same.
+NEAR_K = 8
+NEAR_SHARE = 1 / 3
+NEAR_TIE = 0.05
+NEAR_BOILERPLATE = 0.6
+_TOKEN_RE = re.compile(r"[A-Za-z_$][\w$']*|\d+'[sS]?[bBoOdDhH][0-9a-fA-F_xXzZ?]+|\d+|<<<|>>>|<=|>=|==|!=|&&|\|\||<<|>>"
+                       r"|:=|->|<-|\S")
+
+
+def code_shingles(text, lang):
+    """The set of runs of NEAR_K tokens of `text`'s code, comments left out (`lang` "sv" or "lean"; pure)."""
+    if lang == "lean":
+        text = re.sub(r"--[^\n]*", "", re.sub(r"/-.*?-/", " ", text, flags=re.S))
+    else:
+        text = re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", " ", text, flags=re.S))
+    t = _TOKEN_RE.findall(text)
+    return {tuple(t[i:i + NEAR_K]) for i in range(max(len(t) - NEAR_K + 1, 0))}
+
+
+def _read_text(path):
+    """A file's text (UTF-8, undecodable bytes replaced), or None when it is not there."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        return fh.read()
+
+
+def rule_candidates(task, tasks_dir, data_dirs, *, exclude=(), before=None):
+    """What a new record of `task` may be built on (pure but for reading files): every record of the task in
+    `data_dirs` (hash not in `exclude`, submitted no later than `before` when given) and every reference design of
+    `tasks/<task>/reference/`, each {"label", "hashes" (a record's hash and its predecessor's, `remade.from_record`:
+    12 or more of their first characters name it), "names" (the words that name it: a reference's stem; a record of a
+    reference file's bytes is named by that stem too), "par" (par's design: no credit needed), "sv", "lean" (texts;
+    None if missing), "licences"}."""
+    name = task["name"]
+    refs, par = {}, par_stem(tasks_dir, task)
+    rdir = os.path.join(tasks_dir, name, "reference")
+    out = []
+    if os.path.isdir(rdir):
+        for f in sorted(os.listdir(rdir)):
+            if not f.endswith(".sv"):
+                continue
+            stem = f[:-3]
+            with open(os.path.join(rdir, f), "rb") as fh:
+                raw = fh.read()
+            refs[sha256_bytes(raw)] = stem
+            lean = _read_text(os.path.join(rdir, stem + ".lean"))
+            sv = raw.decode("utf-8", errors="replace")
+            out.append({"label": f"reference design `{f}`", "hashes": set(), "names": {stem}, "par": stem == par,
+                        "sv": sv, "lean": lean, "licences": licence_ids(sv)})
+    seen = set()
+    for d in data_dirs:
+        for path, rec, _ in load_records(d, name):
+            if not isinstance(rec, dict) or not isinstance(rec.get("record_hash"), str):
+                continue
+            h = rec["record_hash"]
+            if h in exclude or h in seen or (before and str(rec.get("submitted_at", ""))[:10] > before[:10]):
+                continue
+            seen.add(h)
+            base = path[:-len(".json")]
+            try:
+                with open(base + ".sv", "rb") as fh:
+                    raw = fh.read()
+            except OSError:
+                continue
+            lean = _read_text(base + ".lean")
+            hashes = {h}
+            prev = (rec.get(REMADE_KEY) or {}).get("from_record")
+            if isinstance(prev, str) and re.fullmatch(r"[0-9a-f]{64}", prev):
+                hashes.add(prev)
+            stem = refs.get(sha256_bytes(raw))
+            sv = raw.decode("utf-8", errors="replace")
+            out.append({"label": f"record `{h[:12]}` ({rec.get('player')})", "hashes": hashes,
+                        "names": {stem} if stem else set(),
+                        "par": rec.get("player") == REFERENCE_PLAYER or (stem is not None and stem == par),
+                        "sv": sv, "lean": lean, "licences": licence_ids(sv)})
+    return out
+
+
+def _boilerplate(sets):
+    """The runs most of the distinct `sets` share (NEAR_BOILERPLATE of them, and at least three; none with fewer than
+    three distinct designs): byte-identical copies (a reference design and its record) count once, so that a copy never
+    makes its own code look like everyone's."""
+    distinct = {frozenset(x) for x in sets}
+    count = {}
+    for s in distinct:
+        for x in s:
+            count[x] = count.get(x, 0) + 1
+    need = max(3, -(-int(NEAR_BOILERPLATE * 100) * len(distinct) // 100))
+    return {x for x, n in count.items() if n >= need}
+
+
+def nearest(text, lang, candidates):
+    """[(share, candidate)] of the candidates `text` is built on (pure): its share of its own code (`code_shingles`,
+    less the task's boilerplate) found in each, nearest first, kept when at least NEAR_SHARE and within NEAR_TIE of the
+    nearest. [] when none is near."""
+    key = "sv" if lang == "sv" else "lean"
+    pool = [(c, code_shingles(c[key], lang)) for c in candidates if c.get(key)]
+    if not pool:
+        return []
+    own = code_shingles(text, lang) - _boilerplate([s for _, s in pool])
+    if not own:
+        return []
+    scored = sorted(((len(own & s) / len(own), c) for c, s in pool), key=lambda x: -x[0])
+    top = scored[0][0]
+    return [(sh, c) for sh, c in scored if sh >= NEAR_SHARE and sh >= top - NEAR_TIE]
+
+
+def names_it(text, cand):
+    """Whether `text` names the candidate `cand` (`rule_candidates`): 12 or more of the first characters of one of its
+    record hashes, as a run of hex digits of its own (a whole hash in a link included), or one of its names as a
+    word."""
+    runs = re.findall(r"(?<![0-9a-f])[0-9a-f]{12,64}(?![0-9a-f])", text)
+    if any(full.startswith(r) for r in runs for full in cand.get("hashes", ())):
+        return True
+    return any(re.search(r"(?<![\w])" + re.escape(n) + r"(?![\w])", text) for n in cand.get("names", ()))
+
+
+def _near_words(near):
+    return " and ".join(f"{c['label']} ({round(100 * sh)}% of its code)" for sh, c in near[:3])
+
+
+def credit_problems(sv_text, lean_text, credit_text, candidates):
+    """(c): the problems of a record that is built on a board record or a reference design without naming it (pure).
+    `credit_text`: everything that can name it (assisted_by, the notes, the two files' comments, the writeup)."""
+    out = []
+    for what, text, lang in (("design", sv_text, "sv"), ("proof", lean_text, "lean")):
+        near = nearest(text, lang, candidates)
+        if not near or any(c["par"] for _, c in near):
+            continue
+        if not any(names_it(credit_text, c) for _, c in near):
+            out.append(f"the {what} is built on {_near_words(near)}, which the record does not name: name it in "
+                       "the writeup (its parent: the hash, a link and a diff), in --assisted-by or in the file's "
+                       "header (CONTRIBUTING.md, \"The rules for a record\"); a design of your own that only looks "
+                       "alike: say so, naming it")
+    return out
+
+
+def credit_text_of(rec_fields, sv_text, lean_text, writeup_text=""):
+    """The text that can credit a base: assisted_by, the notes, the comments of both files, the writeup."""
+    return "\n".join(list(rec_fields.get("assisted_by") or []) + [rec_fields.get("notes") or ""]
+                     + sv_comments(sv_text) + lean_comments(lean_text or "") + [writeup_text or ""])
+
+
+def licence_problems(sv_text, candidates):
+    """(d): the problems of a design built on a file with a licence notice that it does not keep (pure)."""
+    have = set(licence_ids(sv_text))
+    lost = {}                                     # the notices lost -> the near files that carry them
+    for sh, c in nearest(sv_text, "sv", candidates):
+        key = tuple(i for i in c["licences"] if i not in have)
+        if key:
+            lost.setdefault(key, []).append((sh, c))
+    return [f"the design is built on {_near_words(near)}, whose header carries a licence notice ({', '.join(ids)}) "
+            "that this file does not: keep the notice, word for word, and list the changes you made "
+            "(CONTRIBUTING.md, \"The rules for a record\"; NOTICE)" for ids, near in sorted(lost.items())]
+
+
+HEADER_MIN = 120          # characters of a leading comment worth comparing (a short line may coincide)
+
+
+def header_problems(sv_text, candidates):
+    """(e): the problems of a design whose header comment is another design's word for word while its code is not
+    (pure)."""
+    head = leading_comment(sv_text)
+    if len(head) < HEADER_MIN:
+        return []
+    mine = code_shingles(sv_text, "sv")
+    for c in candidates:
+        if leading_comment(c["sv"]) == head and code_shingles(c["sv"], "sv") != mine:
+            return [f"the header comment is {c['label']}'s word for word, but the design is not: describe the design "
+                    "you submit (what it is, what it was built on, any licence notice kept with your changes "
+                    "listed; CONTRIBUTING.md, \"The rules for a record\")"]
+    return []
+
+
+def file_rule_problems(sv_text, lean_text, notes, candidates):
+    """(b), (d), (e): what `add` refuses before the check runs (pure)."""
+    return (notes_problems(notes) + design_comment_problems(sv_text) + licence_problems(sv_text, candidates)
+            + header_problems(sv_text, candidates))
+
+
+def near_note(sv_text, lean_text, candidates):
+    """(c) as `add` asks it: the bases the design and the proof are near, in one sentence, or None (pure)."""
+    parts = []
+    for what, text, lang in (("design", sv_text, "sv"), ("proof", lean_text, "lean")):
+        near = nearest(text, lang, candidates)
+        if near and not any(c["par"] for _, c in near):
+            parts.append(f"the {what} is near {_near_words(near)}")
+    return "; ".join(parts) or None
+
+
+def writeup_required_problems(record_hash, writeups_dir):
+    """(a): the problems of a record's writeup being missing, or TEMPLATE.html's text unchanged (reads the files)."""
+    path = os.path.join(writeups_dir, f"{record_hash}.html")
+    if not os.path.isfile(path):
+        return [f"no writeup: a record goes in with its writeup, leaderboard/writeups/{record_hash}.html (copy "
+                "leaderboard/writeups/TEMPLATE.html and replace every part; README.md, \"Writeups\")"]
+    with open(path, "rb") as fh:
+        text = fh.read(WRITEUP_SIZE_MAX + 1).decode("utf-8", errors="replace")
+    template = _read_text(os.path.join(writeups_dir, WRITEUP_TEMPLATE)) or ""
+    placeholders = [p for p in re.findall(r"<p>([^<]{40,})", template)]
+    if template and (text.strip() == template.strip()
+                     or writeup_title(text) == writeup_title(template)
+                     or any(p in text for p in placeholders)):
+        return [f"the writeup leaderboard/writeups/{record_hash[:12]}….html still holds TEMPLATE.html's text: "
+                "replace every part with your own"]
+    return []
+
+
+def _measure_walk(o, vals):
+    from decimal import Decimal
+
+    def dec(x):
+        return Decimal(str(x))
+    if isinstance(o, dict):
+        area = None
+        for k, v in o.items():
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            if k.startswith("area_e4um2"):
+                area = dec(v) / 10000
+                vals["area"].add(area)
+            elif k.startswith("area_e5um2"):
+                area = dec(v) / 100000
+                vals["area"].add(area)
+            elif k.startswith("area_um2"):
+                vals["area"].add(dec(v))
+            elif k.startswith(("delay_ps", "time_ps", "mapped_delay", "pi_slew_ps")):
+                vals["time"].add(dec(v))
+            elif k == "area_x_time":
+                vals["axt"].add(dec(v) / 10000000)
+            elif k == "area_mge":
+                vals["ge"].add(dec(v) / 1000)
+            elif k == "area_ge":
+                vals["ge"].add(dec(v))
+        t = o.get("time_ps", o.get("delay_ps"))
+        if area is not None and isinstance(t, int) and not isinstance(t, bool):
+            vals["axt"].add(area * dec(t) / 1000)
+        for v in o.values():
+            _measure_walk(v, vals)
+    elif isinstance(o, list):
+        for v in o:
+            _measure_walk(v, vals)
+
+
+def tree_measurements(data_dirs=(DEFAULT_DATA,), svgolf=SVGOLF):
+    """{"area", "time", "axt", "ge": set of Decimal} of every measurement the tree holds, every task's: the records'
+    columns (and each record's ranked area x time), the ASAP7 view, the routed course, the other sizes and the PPA
+    goldens of the references and baselines. What a writeup's numbers are compared with (reads the files)."""
+    from decimal import Decimal
+    vals = {"area": set(), "time": set(), "axt": set(), "ge": set()}
+    for d in data_dirs:
+        for _, rec, _ in load_records(d):
+            if not isinstance(rec, dict):
+                continue
+            _measure_walk({"score": rec.get("score"), "ppa": rec.get(PPA_KEY)}, vals)
+            pb, sc = rec.get(PPA_KEY) or {}, rec.get("score") or {}
+            t = sc.get("time_ps") or pb.get("delay_ps_sky130")
+            if isinstance(pb.get("area_e4um2_sky130"), int) and isinstance(t, int):
+                a = Decimal(pb["area_e4um2_sky130"]) / 10000
+                vals["time"].add(Decimal(t))
+                vals["axt"].add(a * Decimal(t) / 1000)
+    for sub in ("asap7", "asap7pnr", "sizes"):
+        d = os.path.join(svgolf, "leaderboard", sub)
+        for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+            if f.endswith(".json"):
+                try:
+                    with open(os.path.join(d, f), encoding="utf-8") as fh:
+                        _measure_walk(json.load(fh), vals)
+                except (OSError, ValueError):
+                    pass
+    for rel in ("score/tests/ppa/expected_ppa.json", "score/tests/ppa/expected_ppa_mapped.json", "tests/expected.json"):
+        try:
+            with open(os.path.join(svgolf, rel), encoding="utf-8") as fh:
+                _measure_walk(json.load(fh), vals)
+        except (OSError, ValueError):
+            pass
+    return vals
+
+
+def _writeup_lines(text):
+    """A writeup's text as plain lines (tags out, character references decoded), line numbers kept."""
+    return "\n".join(html.unescape(re.sub(r"<[^>]*>", " ", ln)) for ln in text.split("\n"))
+
+
+def writeup_number_problems(text, measurements):
+    """(b): the problems of a writeup's score numbers (pure): each must be a measurement of `measurements`
+    (`tree_measurements`) within the precision it is written in."""
+    out = []
+    for no, shown, kind, value, tol in score_numbers(_writeup_lines(text)):
+        if not any(abs(v - value) <= tol for v in measurements.get(kind, ())):
+            out.append(f"line {no}: `{shown.strip()}` is no measurement the tree holds (the records, par, the ASAP7 "
+                       "view, the routed course, the other sizes): give a record's numbers as measured, and a "
+                       "variant that is not a record, or a difference, as a relation (a ratio, a percentage)")
+    return out
+
+
+def record_rule_problems(rec, sv_text, lean_text, candidates, *, writeups_dir, measurements):
+    """(a) to (e) for one record, as `submit` and the pull request's check refuse them (reads its writeup)."""
+    problems = writeup_required_problems(rec["record_hash"], writeups_dir)
+    wtext = _read_text(os.path.join(writeups_dir, f"{rec['record_hash']}.html")) or ""
+    if wtext:
+        problems += writeup_number_problems(wtext, measurements)
+    problems += file_rule_problems(sv_text, lean_text, rec.get("notes"), candidates)
+    problems += credit_problems(sv_text, lean_text, credit_text_of(rec, sv_text, lean_text, wtext), candidates)
+    return problems
 
 
 def intact(path, rec):
@@ -3820,6 +4260,15 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
                 and _get(other, "files", "lean", "sha256") == sha256_bytes(lean_bytes)):
             raise Refused([f"already recorded: {other.get('record_hash')} (same player, same "
                            "files)"])
+    if not reference:
+        # the rules for a record (decided 2026-11-25) that the files and the notes decide, before minutes of Lean: no
+        # score number in the notes or the design's comments, a licence notice of what the design is built on kept,
+        # a header comment of its own (`file_rule_problems`); the writeup and the credit are asked for after
+        problems = file_rule_problems(sv_bytes.decode("utf-8", errors="replace"),
+                                      lean_bytes.decode("utf-8", errors="replace"), notes,
+                                      add_candidates(args, task, date))
+        if problems:
+            raise Refused(problems)
     env_before = collect_environment(task=task)    # read BEFORE the check: the checker and the statement as it ran
     if from_check:
         with open(from_check, encoding="utf-8") as fh:
@@ -3864,6 +4313,13 @@ def add_submission(args, *, sv, lean, player, assisted_by, notes, date, from_che
 def is_official_data_dir(data_dir):
     """Whether `data_dir` is the board's own data directory, `leaderboard/data` (DEFAULT_DATA), by real path."""
     return os.path.realpath(data_dir) == os.path.realpath(DEFAULT_DATA)
+
+
+def add_candidates(args, task, date, exclude=()):
+    """What a record `add` makes may be built on (`rule_candidates`): the task's reference designs and the records of
+    the board (leaderboard/data) and of `--data-dir`, submitted no later than `date`."""
+    dirs = [DEFAULT_DATA] + ([args.data_dir] if not is_official_data_dir(args.data_dir) else [])
+    return rule_candidates(task, args.tasks_dir, dirs, exclude=set(exclude), before=date)
 
 
 def cmd_add(args):
@@ -3922,6 +4378,26 @@ def cmd_add(args):
     # the ASAP7 view (decided 2026-11-09) ranks a record once its columns are measured beside it
     print(f"  NOTE: the site's ASAP7 view ranks it once its ASAP7 columns are measured: "
           f"`leaderboard.py asap7 --write --task {args.task}` (leaderboard/asap7/{args.task}.json)")
+    # the rules for a record (decided 2026-11-25) that `add` asks for rather than refuses: what the design and the
+    # proof are near (the writeup may name it), and the writeup itself, which `submit` and the pull request's check
+    # require
+    try:
+        with open(args.sv, encoding="utf-8", errors="replace") as fh:
+            sv_text = fh.read()
+        with open(args.lean, encoding="utf-8", errors="replace") as fh:
+            lean_text = fh.read()
+        task = load_task(args.tasks_dir, args.task)
+        cands = add_candidates(args, task, rec["submitted_at"], exclude={rec["record_hash"]})
+        near = near_note(sv_text, lean_text, cands)
+        if near and credit_problems(sv_text, lean_text, credit_text_of(rec, sv_text, lean_text), cands):
+            print(f"  ASK: {near}: name the one it was built on in the writeup (its parent: the hash, a link and a "
+                  "diff), or, if it is your own, say so there naming it; `submit` and the pull request's check refuse "
+                  "a record that leaves it unnamed (CONTRIBUTING.md, \"The rules for a record\")")
+    except (OSError, ValueError, KeyError, TypeError):
+        pass                                # the record is written: a question that cannot be asked is no failure
+    print(f"  NEXT: the writeup, leaderboard/writeups/{rec['record_hash']}.html (copy "
+          "leaderboard/writeups/TEMPLATE.html): a record goes in with it, so `submit` and the pull request's check "
+          "refuse one without it (README.md, \"Writeups\")")
     return 0
 
 
@@ -4993,9 +5469,11 @@ RECORD_PREFIX_RE = re.compile(r"[0-9a-f]{12,64}")
 # The parts of a record's pull request, in order: `submit_text` writes them, and .github/pull_request_template.md has
 # the same headings (a test compares them)
 PR_HEADINGS = ("Record", "Board line", "Checks")
-PR_CHECK_NOTE = ("The check on this pull request runs `leaderboard.py verify --offline` on every record and the full "
-                 "check (`verify --full`) on the records it adds, and writes their board lines to its summary. A "
-                 "maintainer re-makes the ranked number on the rating build when the pull request is merged.")
+PR_CHECK_NOTE = ("The check on this pull request runs `leaderboard.py verify --offline` on every record, the rules for "
+                 "a record (CONTRIBUTING.md) and the full check (`verify --full`) on the records it adds, and writes "
+                 "what to fix, what it compared and their board lines to its summary. The maintainers then make the "
+                 "record again on the rating machine, under its handle and with its files and writeup, publish it, "
+                 "and merge or close the pull request with a link to it.")
 PR_TEXT_END = "SVGOLF_PR_TEXT"    # the here-document delimiter of the printed steps
 
 
@@ -5079,7 +5557,7 @@ def submit_text(rec, line, verified, writeup=False):
     body = [f"## {PR_HEADINGS[0]}", "", f"- task: `{rec['task']}`", f"- handle: `{rec['player']}`",
             f"- assisted by: {assisted}", f"- files: `{files}.json`, `.sv` and `.lean`, as `leaderboard.py add` wrote "
             "them" + (f", and its writeup `leaderboard/writeups/{rec['record_hash']}.html`" if writeup else
-                      "; no writeup yet (encouraged: leaderboard/writeups/TEMPLATE.html)"), "",
+                      "; no writeup (a record goes in with its writeup: leaderboard/writeups/TEMPLATE.html)"), "",
             f"## {PR_HEADINGS[1]}", "", line, "",
             f"## {PR_HEADINGS[2]}", "", "`leaderboard.py verify --offline` of this record before it was sent:", "",
             "```text", verified, "```", "", PR_CHECK_NOTE, ""]
@@ -5231,6 +5709,18 @@ def cmd_submit(args):
         if not r.fails and record_mode(rec["postsynth"]) == "light":
             problems.append("a LIGHT record (its post-synthesis check ran light) never ranks: it is for local use; "
                             "`add` without --postsynth light makes one the board ranks")
+        if not r.fails:
+            # the rules for a record (decided 2026-11-25): its writeup, no score number typed where the tool cannot
+            # verify it, the credit, the licence notice, a header of its own (`record_rule_problems`)
+            _, spath, lpath = record_paths(args.data_dir, rec["task"], rec["record_hash"])
+            with open(spath, encoding="utf-8", errors="replace") as fh:
+                sv_text = fh.read()
+            with open(lpath, encoding="utf-8", errors="replace") as fh:
+                lean_text = fh.read()
+            cands = rule_candidates(task, args.tasks_dir, [args.data_dir], exclude={rec["record_hash"]},
+                                    before=rec["submitted_at"])
+            problems += record_rule_problems(rec, sv_text, lean_text, cands, writeups_dir=WRITEUPS_DIR,
+                                             measurements=tree_measurements([args.data_dir]))
         if problems:
             raise Refused(problems)
     except Refused as e:
@@ -5244,7 +5734,8 @@ def cmd_submit(args):
         print(f"error: the board cannot be built: {e}", file=sys.stderr)
         return 2
     line = board_line(board, par, rec["record_hash"])
-    # the record's writeup goes with it when there is one (decided 2026-11-13), checked as `verify` checks it
+    # the record's writeup goes with it (decided 2026-11-13; required since 2026-11-25, above), checked as `verify`
+    # checks it
     wpath = os.path.join(WRITEUPS_DIR, f"{rec['record_hash']}.html")
     if os.path.isfile(wpath):
         with open(wpath, "rb") as fh:
@@ -5252,7 +5743,7 @@ def cmd_submit(args):
                                          site_denylist(), writeup_renderer())
         if wproblems:
             print("REFUSED: the record was not submitted: its writeup "
-                  f"{os.path.relpath(wpath, SVGOLF)} has problems (fix them, or move it away to submit without it):",
+                  f"{os.path.relpath(wpath, SVGOLF)} has problems (fix them):",
                   file=sys.stderr)
             for p in wproblems:
                 print(f"  - {p}", file=sys.stderr)

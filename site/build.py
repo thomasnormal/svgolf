@@ -365,9 +365,43 @@ def library_md(config):
 # `leaderboard.py submit`, and the check of every record's pull request, leaderboard/pr_check.py, which the public
 # repository's `records` workflow runs). Without them the pages say the sentence of that state instead, and a ready
 # task's badge says "ready to play", not "open for submissions" (`status_badge`).
-HANDOFF_MD = ("To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files; a check on "
-              "the pull request verifies every record and runs the full check on the added ones, and a maintainer "
-              "re-makes the ranked number on the rating build when the pull request is merged.")
+HANDOFF_MD = ("To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files and its "
+              "writeup; a check on the pull request verifies every record and runs the full check on the added ones, "
+              "and the maintainers then make the record again on the rating machine, under your handle and with your "
+              "files and writeup, publish it, and merge or close the pull request with a link to it.")
+# The rest of the route (decided 2026-11-25, PLAN item h): what a record is, and how a newer version of one's own
+# record goes in; said where HANDOFF_MD is said in full (README's Leaderboard, CONTRIBUTING, llms.txt)
+NEWER_VERSION_MD = ("A record is what `leaderboard.py add` writes: to change its notes, credits or files, run `add` "
+                    "again, and never edit its JSON by hand. A newer version of your own record is a new record: "
+                    "before the first is published, put the new record's files in the same pull request instead of "
+                    "the old ones; after it is published, submit the new one in a pull request of its own, naming the "
+                    "older record as what it was built on.")
+# THE RULES FOR A RECORD (decided 2026-11-25; the owner: "You should also put this in the rules the agents read and
+# follow"): what the first outside records got wrong, each a gap in the guide or the tool, said in these words in
+# README's "The rules for a record" (so on the rules page, RULES_ANCHOR), CONTRIBUTING and llms.txt (a test compares
+# them), and checked by leaderboard.py (`add`, `submit`) and the pull request's check (leaderboard/pr_check.py)
+RULES_ANCHOR = "the-rules-for-a-record"            # README.md's "### The rules for a record" on the rules page
+RECORD_RULES = (
+    "**A writeup with every record.** A record goes in with its writeup, `leaderboard/writeups/<record_hash>.html`, "
+    "copied from `leaderboard/writeups/TEMPLATE.html`: the idea, why it scores as it does, how the proof goes, what "
+    "did not work and what it was built on. `submit` and the pull request's check refuse a record without one.",
+    "**No score number the tool cannot verify.** None in the notes or in the design's comments: the record's columns "
+    "carry its numbers, measured. A number with a unit of area or time in a writeup must be a measurement the tree "
+    "holds (a record's, par's, the ASAP7 view's, the routed course's, another size's) within the precision written; "
+    "a variant that is not a record, or a difference, is written as a ratio or a percentage.",
+    "**Credit what you built on.** A design or a proof built on a board record or a reference design names it: the "
+    "record's hash (12 characters or more) or the design's file name, in the writeup's parent part (with a link and a "
+    "diff), in `--assisted-by` or in the file's header. The check finds the nearest records and designs by shared "
+    "code; par's design and proof, where everyone starts, need no credit.",
+    "**Keep licence notices.** A design built on a file that carries a licence notice (an SPDX line, a copyright and "
+    "permission text) keeps the notice word for word and lists the changes made; the check refuses a record whose base "
+    "has a notice that its design lacks.",
+    "**A header of your own.** The design's header comment describes the design you submit: what it is, what it was "
+    "built on, any licence notice kept. A header copied word for word from another design is refused.",
+    "**The pinned tools, one command.** `python3.12 score/yosys_wasm.py --self-check` checks the rating build of "
+    "Yosys, the same program on every machine, so the numbers you make are the board's; `add` stops when it is not "
+    "the pinned one, and the pull request's check prints the versions it ran with.",
+)
 HANDOFF_UNPUBLISHED_MD = ("Public submissions open when the svGolf repository is published; until then you check and "
                           "record on your own machine.")
 HANDOFF_NONE_MD = ("There is no way to hand in a record yet: `leaderboard.py add` writes it on your machine and sends "
@@ -4175,7 +4209,15 @@ def submit_html(site, t, repo_url, card=None, skeleton=None, checks="", fresh=""
                 if repo_url else "") + "</p>"
              # decided 2026-11-13 (the owner's UI feedback item 3): every golfer and agent is asked for a writeup
              + f"<p>{md_inline(writeup_ask(site.config).replace('Write it up:', '**Write it up**:', 1))} "
-             + page.link(rel_link(t.page, f"rules.html#{WRITEUPS_ANCHOR}"), "What a good writeup holds") + ".</p>")
+             + page.link(rel_link(t.page, f"rules.html#{WRITEUPS_ANCHOR}"), "What a good writeup holds") + ".</p>"
+             # decided 2026-11-25: the rules for a record, behind one link (the task page shows the step, the rules
+             # page the definitions), where a record can be handed in
+             + ("<p><strong>Before you hand it in</strong>: "
+                + page.link(rel_link(t.page, f"rules.html#{RULES_ANCHOR}"), "the rules for a record")
+                + ": no score numbers in the notes or the design's comments, the record or reference design you built "
+                "on named, with its copyright and licence lines kept, a header comment of your own. <code>add</code>, "
+                "<code>submit</code> and the pull request's check enforce them.</p>"
+                if submissions_open(site.config) else ""))
     sandbox = ("<p><code>leaderboard.py add</code> runs the check with <code>--sandbox require</code>: the "
                "proof's Lean, the extractor, Yosys and Verilator must run inside the operating system's "
                "sandbox (Seatbelt on macOS, bubblewrap on Linux). Where that sandbox is missing or fails its "
@@ -5695,21 +5737,11 @@ def cells_html(s, ge_tables):
 # A licence notice a design may carry in full instead of an SPDX identifier: its SPDX identifier -> sentences that
 # must all appear in the source's comments (comment markers and line breaks ignored). The MIT notice is its grant
 # and its condition (MIT-0 has the grant alone): the sorter's reference, adapted from andrewpeck/cell-sort.
-LICENCE_NOTICES = {
-    "MIT": ("Permission is hereby granted, free of charge, to any person obtaining a copy of this software and "
-            "associated documentation files",
-            "The above copyright notice and this permission notice shall be included in all copies or substantial "
-            "portions of the Software."),
-}
-
-
-def licence_ids(sv_text):
-    """The licences a design's source declares: its SPDX identifiers, and the identifier of every notice of
-    LICENCE_NOTICES it carries in full."""
-    ids = set(re.findall(r"SPDX-License-Identifier:\s*([^\n]+?)\s*$", sv_text, re.M))
-    prose = " ".join(" ".join(re.sub(r"^\s*(//+|/\*+|\*+/?)", "", ln) for ln in sv_text.split("\n")).split())
-    ids |= {i for i, sentences in LICENCE_NOTICES.items() if all(x in prose for x in sentences)}
-    return sorted(ids)
+# the licences a design's source declares (its SPDX identifiers, and the notices it carries in full): leaderboard.py's,
+# one definition for the site's Files card and the rules for a record (decided 2026-11-25: the check refuses a record
+# built on a file with a notice that its design does not keep)
+LICENCE_NOTICES = lb.LICENCE_NOTICES
+licence_ids = lb.licence_ids
 
 
 def licence_html(s, sv_text):
@@ -5834,9 +5866,11 @@ def detail_head(s, title_html, status, lead, kind, chips=(), sub_html=None):
 
 WRITEUP_ASK = ("Write it up: `leaderboard/writeups/<record_hash>.html`, copied from "
                "`leaderboard/writeups/TEMPLATE.html`, its first line the submission's short title (HTML, inline SVG "
-               "figures welcome). Say what the idea is, why it scores as it does, how the proof goes and what did not "
-               "work; a record without one is still accepted, and a writeup never changes the record.")
-WRITEUP_ASK_PR = " It goes in the record's pull request (`leaderboard.py submit` takes it along)."
+               "figures welcome). Say what the idea is, why it scores as it does, how the proof goes, what did not "
+               "work and what it was built on; a record goes in with its writeup, and a writeup never changes the "
+               "record.")
+WRITEUP_ASK_PR = (" It goes in the record's pull request (`leaderboard.py submit` takes it along, and `submit` and the "
+                  "pull request's check refuse a record without one).")
 
 
 def writeup_ask(config):
@@ -7214,7 +7248,7 @@ def llms_txt(site, tasks):
         how = ("Records are made locally with leaderboard/leaderboard.py add (written to leaderboard/data/<task>/, the "
                f"directory a pull request adds). {HANDOFF_MD} The public repository is {repo_url}; the command is "
                "python3.12 leaderboard/leaderboard.py submit --task <task> --record HASH (--dry-run prints its steps "
-               "first).")
+               f"first). {NEWER_VERSION_MD}")
     elif repo_url:
         how = ("Records are made locally with leaderboard/leaderboard.py (written to leaderboard/data/<task>/). "
                + HANDOFF_NONE_MD)
@@ -7330,6 +7364,10 @@ def llms_txt(site, tasks):
              "tasks.*, and Mathlib with its packages; axioms: the task's allowed_axioms (normally propext, "
              "Classical.choice, Quot.sound); no sorry, native_decide or bv_decide. Every task ships a complete "
              "reference pair under tasks/<name>/reference/.", "",
+             # decided 2026-11-25 (the owner: "put this in the rules the agents read and follow"): the rules for a
+             # record, which add, submit and the pull request's check enforce, where a record can be handed in
+             *([f"## The rules for a record (the check enforces them; rules.html#{RULES_ANCHOR})", "",
+                *[f"- {r}" for r in RECORD_RULES], ""] if submissions_open(site.config) else []),
              "## Pages", "",
              "- [Tasks and scorecard](index.html)",
              f"- [The latest submissions: every record on every task, newest first]({LATEST_PAGE})",

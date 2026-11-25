@@ -92,6 +92,17 @@ asks for a light record, `--no-trusted-build`, a `--time-limit` other than the t
 `stages.trusted` with exit 0, and a solution stage that did not run under the task's own CPU limit
 (`stages.solution.time_limit_s`) or was stopped at a limit (`stopped_by`).
 
+**The rules for a record** (decided 2026-11-25; ../README.md, "The rules for a record"). Before its check runs,
+`add` refuses a player's record (any directory; not par's, which `seed-references` records) whose notes or design
+comments carry a score number, whose design is built on a file with a licence notice it does not keep, or whose
+header comment is another design's word for word over code that is not (`file_rule_problems`, against the task's
+reference designs and the records of `leaderboard/data` and of `--data-dir` submitted no later than it). After
+writing the record it asks for the rest: `ASK:` names the record or reference design the design or the proof is
+near, when nothing the record holds names it (the writeup may), and `NEXT:` names the writeup's file. `submit` and
+the pull request's check refuse what is still missing then. The functions are pure and live in `leaderboard.py`
+("THE RULES FOR A RECORD"), outside every record hash: none of them judges a design's function or score, and records
+already on the board are not judged again.
+
 `add` reads the two files once, hands `check.py` a snapshot of exactly those
 bytes, hashes the same bytes into the record and stores them: the files in
 `data/` are the files that were checked. It refuses a submission that
@@ -162,10 +173,12 @@ come back as an entry under a handle of its own):
 
 ## Handing a record in (decided 2026-11-11)
 
-To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files; a check on the pull
-request verifies every record and runs the full check on the added ones, and a maintainer re-makes the ranked number
-on the rating build when the pull request is merged. There is no submission server: `add` sends nothing, and the
-pull request is the hand-off.
+To hand in a record, `leaderboard.py submit` opens a pull request that adds its three files and its writeup; a check
+on the pull request verifies every record and runs the full check on the added ones, and the maintainers then make
+the record again on the rating machine, under your handle and with your files and writeup, publish it, and merge or
+close the pull request with a link to it. There is no submission server: `add` sends nothing, and the pull request is
+the hand-off. The rules a record must meet, and what each check measures, are ../README.md's "The rules for a
+record" (writeup, score numbers, credit, licence notices, header comments; decided 2026-11-25).
 
 ```bash
 python3.12 leaderboard/leaderboard.py submit --task add --record HASH --dry-run   # the steps and the text; changes nothing
@@ -174,14 +187,19 @@ python3.12 leaderboard/leaderboard.py submit --task add --record HASH           
 
 `submit` takes a record of the board's own data directory (`leaderboard/data`, where `add` writes without
 `--data-dir`), named by its hash or the first 12 characters or more of it, as `add` prints it. It runs `verify
---offline` on it and refuses a failed or stale record and a light one (which never ranks), then builds the record's
+--offline` on it and refuses a failed or stale record and a light one (which never ranks), then the rules for a record
+(`record_rule_problems`: its writeup, `leaderboard/writeups/<hash>.html`, is there and is more than the template, and
+every score number in it is a measurement the tree holds; no score number in the notes or the design's comments; a
+design or proof built on a board record or a reference design names it; a licence notice of that base is kept; the
+header comment is not another design's word for word), and refuses a record that breaks one, then builds the record's
 board line: its area x time and rank among the players' records, par and whether it is under par, as the site ranks
 them (under the rating build's flows that `tests/expected.json` pins), or why it is not ranked. With your git and
 the GitHub command-line tool `gh` (and its login) it then makes a commit of exactly the record's three files on the
 public repository's `main`, through a temporary git index (your working tree, index and branches are not touched;
 git writes only objects and `FETCH_HEAD`), forks the repository if you have no fork, pushes the commit to the branch
 `record-<task>-<hash12>` of your fork (a fork under the repository's own name: one you renamed fails at the push,
-with git's message), and opens the pull request. Its title is the record and its score; its text
+with git's message), and opens the pull request; the commit holds the record's three files and its writeup. Its
+title is the record and its score; its text
 has the parts of `.github/pull_request_template.md` (Record: the task, your handle, `assisted_by`, the files; Board
 line; Checks: the offline check's line). `--dry-run` prints all of it as a shell script and changes nothing; without
 `gh` on PATH, `submit` prints the same steps for doing by hand (fork on github.com, push, open the pull request with
@@ -191,12 +209,20 @@ git's or gh's message).
 
 **The check on the pull request** is `leaderboard/pr_check.py`; the public repository's `records` workflow runs it
 on every pull request that touches `leaderboard/data/`. From the merge commit and its first parent it reads what the
-pull request changes and accepts only added records, each with its three files: an edited or removed record, or any
-other file, is refused, and the full check is not run (a pull request that changes the checker would bring the
-checker it runs). Then it runs `verify --offline` on every record and `verify --full` on the added ones alone
-(`check.py` again, the whole check), and writes each added record's board line, both outputs, whether the machine's
-Yosys is the rating build's, and that the ranked number is re-made on the rating build at merge (the commands are
-in ../CONTRIBUTING.md, "For the maintainers"), to the job summary.
+pull request changes and accepts only added records, each with its three files, and added or improved writeups: an
+edited or removed record, or any other file, is refused, and the full check is not run (a pull request that changes
+the checker would bring the checker it runs). Then it runs `verify --offline` on every record, the rules for a record
+on each added one against the board the pull request goes to (the base's records of its task, submitted no later than
+it, and the task's reference designs) and on the score numbers of every writeup it adds or changes, and `verify
+--full` on the added records alone (`check.py` again, the whole check). The job summary is short first: the verdict
+and each added record's board line, "What to fix", then "What was compared", one line per check (the files; the
+offline check; the rules; the full check; for each added record whether its scores were compared with its own, and
+why not; the tools it ran with: the rating build's Yosys version line, which its launcher prints only after checking
+the module's sha256 and the package versions, Verilator, Lean and Python), then what the maintainers do next (the
+commands are in ../CONTRIBUTING.md, "For the maintainers") and the two outputs. `--set-aside DIR` is the `unit`
+workflow's: on a pull request that only adds records it moves them and their writeups to DIR, so that the tree's
+tests run on the board the pull request goes to (a record's derived tables are made by the maintainers when they make
+the record), and says so in the summary; on any other pull request it moves nothing.
 A record's file must be a plain one (git's mode 100644: not a symbolic link, not an executable), a record under
 `svgolf-reference`, par's handle, is refused, and the two refs are resolved to commits first (one
 that begins with `-` is refused).
@@ -209,9 +235,10 @@ restricts the user namespaces bubblewrap needs, and Lean has not yet been run in
 its number, or a branch, tag or commit of the repository against its merge base with `main`, with the same script.
 Its Yosys is the rating build, so `verify --full` there compares the score and the columns
 too (a record made under another build is stale for the flow, not a failure, and its score is then not compared; the
-summary says which). Run by hand: `python3.12 leaderboard/pr_check.py --base REF [--head REF] [--summary
-FILE]`, in a checkout of the pull request. Exit status: 0 every check passed, 1 a check failed or the pull request
-changes more than records, 2 usage or git.
+summary says which records it compared). Run by hand: `python3.12 leaderboard/pr_check.py --base REF [--head REF]
+[--summary FILE] [--set-aside DIR]`, in a checkout of the pull request. Exit status: 0 every check passed (and
+always with `--set-aside`), 1 a check failed, a rule was broken or the pull request changes more than records, 2 usage
+or git.
 
 ## The record (schema `svgolf-leaderboard-record/1`)
 

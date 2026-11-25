@@ -16,7 +16,7 @@
 
 <h2>Why it scores as it does</h2>
 
-<p>On sky130 it is about 10,345 µm² at 38.3 ns, 396,148 µm²·ns, about 1.08 x <a href="0184d719b6192105d28011e50f9879afd27935af02c78fe114ef002f0d05c58e.html">par</a>. The 1618 cells (par: 1515) include 449 <code>nand2</code> and 204 <code>mux2</code>. The serial restoring chain sets the delay in both designs (unit depth 295 here, 289 for par, and a critical path of 292 cells to <code>q[13]</code>), so the different spelling costs about 7% in area and 1% in delay. On the routed ASAP7 course it is 157.2 µm² at 7.13 ns, slightly faster than par's 7.25 ns, and 1120.7 µm²·ns, about 1.05 x par.</p>
+<p>On sky130 it is about 10,360 µm² at 39.4 ns, 408,047 µm²·ns, about 1.12 x <a href="0184d719b6192105d28011e50f9879afd27935af02c78fe114ef002f0d05c58e.html">par</a>. The 1616 cells (par: 1520) include 426 <code>nand2</code> and 197 <code>mux2</code>. The serial restoring chain sets the delay in both designs (unit depth 302 here, 292 for par, and a critical path of 297 cells to <code>q[13]</code>), so the different spelling costs about 7% in area and 5% in delay. Its run on the routed ASAP7 course is pending: its netlist changed when every record was measured again on the rating build (2026-11-24).</p>
 
 <h2>The proof</h2>
 

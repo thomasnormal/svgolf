@@ -3863,6 +3863,37 @@ class GuardTest(unittest.TestCase):
             self.build(config=config)
         self.assertIn("at least once", str(e.exception))
 
+    def test_the_rules_for_a_record_are_said_in_the_same_words(self):
+        """Decided 2026-11-25 (the owner: "You should also put this in the rules the agents read and follow"): the rules
+        for a record, build.RECORD_RULES, word for word in README's "The rules for a record" (so on the rules page,
+        under its anchor), in CONTRIBUTING and in llms.txt, with the rest of the route (build.NEWER_VERSION_MD); How to
+        submit points to them and asks for the writeup as a requirement."""
+        config = build.load_config()
+        config["repo_url"] = "https://example.org/someone/lean-surfaces.git"
+        site = self.build(config=config)
+        llms = site.files["llms.txt"].decode("utf-8")
+        rules_html = site.files["rules.html"].decode("utf-8")
+        self.assertEqual(len(build.RECORD_RULES), 6)
+        for rel in ("README.md", "CONTRIBUTING.md"):
+            with self.subTest(doc=rel):
+                text = norm(read_text_file(rel))
+                for r in build.RECORD_RULES:
+                    self.assertIn(norm(r), text)
+                self.assertIn(norm(build.NEWER_VERSION_MD), text)
+        for r in build.RECORD_RULES:
+            self.assertIn(f"- {r}", llms)
+            self.assertIn(norm(r.replace("**", "")), norm(text_of(rules_html)))
+        self.assertIn(f"## The rules for a record (the check enforces them; rules.html#{build.RULES_ANCHOR})", llms)
+        self.assertIn(build.NEWER_VERSION_MD, llms)
+        self.assertIn(f'id="{build.RULES_ANCHOR}"', rules_html)
+        part = section(site.files["tasks/clmul/index.html"].decode("utf-8"), "submit")
+        self.assertIn(f'rules.html#{build.RULES_ANCHOR}"', part)
+        self.assertIn("a record goes in with its writeup, and a writeup never changes the record. It goes in the "
+                      "record's pull request (leaderboard.py submit takes it along, and submit and the pull request's "
+                      "check refuse a record without one).", norm(text_of(part)))
+        self.assertNotIn("still accepted", text_of(part))
+        self.assertNotIn("a record without one is still accepted", norm(read_text_file("README.md")))
+
     def test_submit_with_a_public_repository(self):
         config = build.load_config()
         config["repo_url"] = "https://example.org/someone/lean-surfaces.git"
