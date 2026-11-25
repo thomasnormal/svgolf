@@ -24,6 +24,27 @@
    "time_ps": 373
   },
   {
+   "area_e5um2": 1371978,
+   "area_mge": 208324,
+   "buffers": 0,
+   "canonical_sha256": "6d97c39bcdd032f6a044e5f0d06023337d89edc595cbf90adeac92fc0993bda4",
+   "cells": 139,
+   "cycles": null,
+   "delay_ps": 470,
+   "depth": 15,
+   "flops": null,
+   "netlist_sha256": "5fca88e8ace007a35ed9fd712e8329600f891cd094adf8c74188e2a6cec841d6",
+   "of": [
+    "record:14a3b0ab13a9f4a7bca5032d1d8cdde00aaedbbd787009163a96499fef0230e3"
+   ],
+   "repaired_sha256": "7dc27e00527f0fd4e8185d5bf0ca200bec522b2ba392759edf79e3183d457761",
+   "rtlil_sha256": "fe0664396c9562d5ddbcec81a90582d66c8a805dbc1ced0b9036eb580be2f4f3",
+   "sv_sha256": "5c49cff05f9117cb86094c4898ab0037464b535ea12842ab255bf0dbc2c87432",
+   "table_reads_floored": 172,
+   "tie_cells": 0,
+   "time_ps": 470
+  },
+  {
    "area_e5um2": 1335528,
    "area_mge": 200986,
    "buffers": 0,

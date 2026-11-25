@@ -2136,7 +2136,8 @@ and route pending" while it has no run) and shows a dash: never a cells-only num
 Since 2026-11-13 every design the tasks show (52 design files: records, references and baselines, the 13 matmul
 architecture records included) has a routed score, except a record added after that day until its run is made
 (thirteen matmul records, recorded 2026-11-19, 2026-11-20, ten on 2026-11-23 and one on 2026-11-24, two arbiter
-records, both of 2026-11-23, and one sorter record, of 2026-11-24, wait for their runs), and since 2026-11-24 three
+records, both of 2026-11-23, and one sorter record, of 2026-11-24, wait for their runs, and so do the eight records
+of the first outside player, casper-hansen, dated 2026-11-24), and since 2026-11-24 three
 fdivp designs whose ASAP7 netlist the new rating build changed (par's, tidereckon's and loamstep's: pending again at
 their stored seeds, `asap7pnr --rebind`); every other routed run placed exactly the netlist its design has now.
 
@@ -2391,8 +2392,8 @@ the extra GE area and depth from `tests/expected.json`):
 | `mul` | Yosys's own `p = a * b` (banned `*`; proved with the banlist lifted) | 8825.9648, 6261 | 2081.227, 59 |
 
 The board is seeded with entries the maintainers made with AI assistance (each record names the tools),
-each proved and scored like any entry: they are ordinary entries and can be beaten. There are no outside
-entries yet. Par's records are the first
+each proved and scored like any entry: they are ordinary entries and can be beaten. Outside entries come in by
+pull request; the first came on 2026-11-24. Par's records are the first
 records (`svgolf-reference`,
 `assisted_by` `["Claude (Anthropic)"]`, notes `reference solution`;
 `leaderboard.py seed-references` records them again, par's design only, and only it records under that handle

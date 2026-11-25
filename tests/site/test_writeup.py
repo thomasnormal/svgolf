@@ -177,7 +177,10 @@ class SiteWriteupTest(unittest.TestCase):
                         title = self.lb.writeup_title(fh.read())
                     self.assertEqual(h1, html.escape(title))
                     self.assertIn("The writeup", card.group(1))
-                    self.assertIn("Writeup by the maintainers, from the design and proof files.", card.group(1))
+                    if rec["player"] in self.build.OUTSIDE_PLAYERS:     # a player's own writeup (since 2026-11-24)
+                        self.assertNotIn("Writeup by the maintainers", card.group(1))
+                    else:
+                        self.assertIn("Writeup by the maintainers, from the design and proof files.", card.group(1))
                     seen += 1
                 else:
                     self.assertIn("No writeup yet", card.group(1))

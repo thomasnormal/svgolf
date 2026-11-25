@@ -1,0 +1,23 @@
+<h1>Pre-aligned six-stage radix-4 SRT divider</h1>
+
+<p>A parametric IEEE-754 floating-point divider for all <code>W, P &gt;= 2</code> derived from record <code>9aa52640fe80</code> (<code>fdivp_srt</code>). Pre-aligning the normalized significands removes one entire radix-4 SRT stage (6 stages instead of 7 at binary16), moves exponent calculation off the SRT critical path, and narrows the denormalizer shifter.</p>
+
+<h2>The idea</h2>
+
+<p>In <code>fdivp_srt</code>, normalized significands <code>ma, mb in [2^(P-1), 2^P)</code> have ratio <code>ma / mb in (1/2, 2)</code>, so the core computes <code>P + 2 = 13</code> quotient bits in <code>H + 1 = 7</code> radix-4 stages and only afterwards checks <code>qq[P+1]</code> to decide <code>adj</code> and discard <code>qq[0]</code> into sticky when <code>ma &gt;= mb</code>.</p>
+
+<p>Instead, this design compares and subtracts upfront in parallel: <code>d0 = {1'b0, ma} - {1'b0, mb}</code> and <code>d1 = {ma, 1'b0} - {1'b0, mb}</code>. The sign bit <code>adj = d0[P]</code> equals <code>(ma &lt; mb)</code>, and <code>r0 = adj ? d1[P-1:0] : d0[P-1:0]</code> is the exact initial residual <code>ma_eff - mb in [0, mb)</code> after fixing the leading quotient bit <code>qm[P] = 1</code>. Because only <code>P</code> remaining bits of <code>floor(2^P * r0 / mb)</code> are needed, <code>NS = P / 2 + 1</code> radix-4 stages suffice—6 stages instead of 7 at <code>P = 11</code>—with parity pre-shift <code>XS2 = 2 * NS - P in {1, 2}</code> keeping <code>ws[0] &lt; 2 * dv &lt;= (8/3) * dv</code> inside the Wally SRT convergence bound for both odd and even <code>P</code>.</p>
+
+<p>Two further savings follow immediately: (1) since <code>adj</code> is known before stage 0, the exponent <code>E</code>, overflow flag <code>ovf</code>, and denormalization shift <code>dsh</code> compute in parallel with the 6 SRT stages; (2) the denormalizer clamps <code>dsh</code> to <code>DL = $clog2(P + 2)</code> bits (4 bits at binary16) with a <code>dsh_big = (dsh &gt;= P + 1)</code> guard, replacing two 17-bit barrel shifters with 4-bit ones.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At (W, P) = (5, 11), dropping one SRT stage and narrowing the denormalizer trims cell count from 2012 to 1909 and unit depth from 189 to 174. On the rating build (sky130 A0') it measures 11566.0928 µm² x 26780 ps = 309739.97 µm²·ns (0.908 x <code>9aa52640fe80</code>'s 340950.24), and on ASAP7 it drops from 974.1619 to 852.2908 µm²·ns (-12.5%).</p>
+
+<h2>The proof</h2>
+
+<p>The proof stays on the <code>sv_structure</code> / <code>sv_equations</code> tactic route and reuses <code>fdivp_srt.lean</code>'s IEEE-754 certificate, normalizer, and Wally radix-4 selection table/invariant (<code>SrCore</code>). New lemmas <code>srt_r0_pre</code>, <code>srt_final_pre</code>, and <code>srt_pre</code> show that <code>NS = P / 2 + 1</code> stages starting from <code>r0</code> produce the exact normalized quotient <code>qm = {1'b1, ql}</code> and sticky <code>rnz</code> of <code>fdivp_srt</code> for every odd and even <code>P &gt;= 2</code>, and <code>g_qs_clamped</code> / <code>g_inc_clamped</code> verify equivalence of the clamped <code>DL</code>-bit denormalizer.</p>
+
+<h2>What did not work</h2>
+
+<p>Initializing <code>ws[0], wc[0]</code> in carry-save form without the initial subtraction saved area on odd <code>P</code>, but for even <code>P</code> (<code>XS2 = 2</code>) the carry-in bit landed at bit 2 and collided with the SRT stage-0 carry truncation at <code>cy[0][RW-4:3]</code>; parallel <code>d0</code>/<code>d1</code> subtraction stays clean and exact for all <code>P &gt;= 2</code>. A 64-entry LUT 1-iteration Newton-Raphson core was also tested, but its four multipliers cost ~17,000 µm² and scored worse than 6-stage SRT.</p>

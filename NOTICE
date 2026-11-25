@@ -98,6 +98,7 @@ and its terms. A file that came with a notice keeps it.
 - tests/fdivp/attacks/srt_stages_m1.sv
 - tests/fdivp/attacks/srt_sticky_sign.sv
 - leaderboard/data/fdivp/eaef556c295d7c214890217904914e0324c60cee4f7c4f4bd5ca1e652ac3db2a.sv
+- leaderboard/data/fdivp/0f04df325a62234c6cf0164a2156b3a588e18901c1baf66c9aebcb6ae865b89f.sv
     The radix-4 SRT core of fdivp_srt.sv (the rest of that design is svGolf's) is
     adapted from CORE-V Wally (https://github.com/openhwgroup/cvw), commit
     c1e386b5d1155e92e21593a7986999274f086729: src/fpu/fdivsqrt/fdivsqrtiter.sv,
@@ -109,7 +110,9 @@ and its terms. A file that came with a notice keeps it.
     Solderpad Hardware License v2.1 exception); the license texts are in
     tasks/fdivp/reference/LICENSES/ (Apache-2.0.txt, SHL-2.1.txt). The ten attacks
     are copies of the design with one change each; the record eaef556c295d's .sv is a
-    byte-identical copy of fdivp_srt.sv. Every file keeps the notice and
+    byte-identical copy of fdivp_srt.sv. The record 0f04df325a62's .sv is a player's
+    design derived from fdivp_srt.sv (a pre-aligned core of fewer stages): its header
+    keeps the notice and lists the changes. Every file keeps the notice and
     lists the changes made. The selection constants that fdivp_srt.lean and
     tests/fdivp/results/srt_model.py restate are Wally's.
 

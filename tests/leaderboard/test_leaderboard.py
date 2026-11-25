@@ -3937,7 +3937,8 @@ class Asap7PnrTest(Tmp):
             fh.write(json.dumps(short, indent=1, sort_keys=True) + "\n")
         rc, out, err = quiet(lb.main, ["asap7pnr", "--asap7pnr-dir", tdir])
         self.assertEqual(rc, 0, out + err)
-        self.assertIn("[ok] sorter: 3 designs: 1 bound, 2 pending", out)    # 2026-11-24: e23da644c53e pending too
+        # 2026-11-24: e23da644c53e pending too; 2026-11-25: and casper-hansen's 88399a512bf7
+        self.assertIn("[ok] sorter: 4 designs: 1 bound, 3 pending", out)
         self.assertIn(f"{', '.join(gone['of'])}: {lb.PNR_PENDING}", out)
         self.assertRegex(out, rf"(?m)^total: {bound - 1} bound, {waiting + 1} pending$")
         rc, out, err = quiet(lb.main, ["board", "--task", "sorter", "--pdk", "asap7pnr", "--format", "json"])
@@ -3975,7 +3976,7 @@ class Asap7PnrRequestTest(Tmp):
             fh.write(self.short)
         self.sv = os.path.join(lb.DEFAULT_DATA, "sorter", self.gone["record"] + ".sv")
         self.assertEqual(lb.sha256_file(self.sv), self.gone["sv_sha256"])
-        self.routed = data["designs"][0]
+        self.routed = next(e for e in data["designs"] if e["status"] == "measured")    # a routed one (not by index)
         self.routed_sv = os.path.join(lb.DEFAULT_DATA, "sorter", self.routed["record"] + ".sv")
         self.assertEqual(lb.sha256_file(self.routed_sv), self.routed["sv_sha256"])
 
@@ -4016,7 +4017,8 @@ class Asap7PnrRequestTest(Tmp):
             self.assertEqual(e[k], self.gone[k], k)
         rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "sorter", "--asap7pnr-dir", self.dir])
         self.assertEqual(rc, 0, out + err)
-        self.assertIn("[ok] sorter: 3 designs: 1 bound, 2 pending", out)    # 2026-11-24: e23da644c53e pending too
+        # 2026-11-24: e23da644c53e pending too; 2026-11-25: and casper-hansen's 88399a512bf7
+        self.assertIn("[ok] sorter: 4 designs: 1 bound, 3 pending", out)
         self.assertIn(lb.PNR_PENDING, out)
 
     def test_a_drawn_seed(self):
@@ -4117,7 +4119,7 @@ class VerifyRoutedTest(Tmp):
         self.assertEqual(rc, 0, out + err)
         n = len([f for f in os.listdir(lb.ASAP7PNR_DIR) if f.endswith(".json")])
         self.assertRegex(out, rf"(?m)^verify \(offline\): \d+ records, 0 failed, 0 stale; {n} routed tables, 0 failed$")
-        self.assertIn("[ok] asap7pnr/sorter: 3 entries well-formed, every picture its file", out)   # 2026-11-24: 3
+        self.assertIn("[ok] asap7pnr/sorter: 4 entries well-formed, every picture its file", out)   # 2026-11-25: 4
         rc, out, err = self.verify()
         self.assertEqual(rc, 0, out + err)
         self.assertIn("; 1 routed tables, 0 failed", out)
@@ -4147,12 +4149,15 @@ class VerifyRoutedTest(Tmp):
         self.assertIn("not in its written form", out)
 
     def test_a_picture_that_is_not_its_file_fails(self):
+        def drawn(d):                       # the routed entries, which have pictures (a pending one has none)
+            return [e for e in d["designs"] if e["layout"] is not None]
+
         def other_sha(d):
-            L = d["designs"][0]["layout"]
+            L = drawn(d)[0]["layout"]
             L["image_sha256"] = L["thumb_sha256"]
 
         def other_size(d):
-            d["designs"][1]["layout"]["thumb_bytes"] += 1
+            drawn(d)[1]["layout"]["thumb_bytes"] += 1
 
         for fn in (other_sha, other_size):
             with self.subTest(fn.__name__):
@@ -4210,7 +4215,10 @@ class CommittedAsap7PnrTest(unittest.TestCase):
         # 2026-11-24: and ember-stoat's sorter record e23da644c53e, and clockwork-otter's matmul record bb4dc85a2929;
         # and, the rating build having changed their ASAP7 netlists, three fdivp designs pending again at their seeds
         # (par's, tidereckon's Newton divider, loamstep's D2: `asap7pnr --rebind`)
-        self.assertEqual(totals, {"bound": 49, "pending": 19})
+        # 2026-11-25: and casper-hansen's eight records from the outside pull requests (add ee7c8f05d406 and
+        # 185c226912f6, aes_sbox 14a3b0ab13a9, clmul 3e6635e1b9df, arbiter bda2aaeda86e, sorter 88399a512bf7, fdivp
+        # 0f04df325a62, mul 5ac6c27f98fb)
+        self.assertEqual(totals, {"bound": 49, "pending": 27})
 
 
 def git(cwd, *args):
@@ -4357,10 +4365,11 @@ class SubmitTest(Tmp):
         rc, _, err = self.submit("--record", tmpl["record_hash"], *dry)
         self.assertEqual(rc, 1)
         self.assertIn("still holds TEMPLATE.html's text", err)
-        nums = self.record("nums", writeup=GOOD_WRITEUP + b"<p>On ASAP7: 9.28746 um^2 x 345 ps.</p>\n")
+        # a number no record holds (9.28746 um^2, the first example, is a record's ASAP7 area since 2026-11-25)
+        nums = self.record("nums", writeup=GOOD_WRITEUP + b"<p>On ASAP7: 9.87654 um^2 x 345 ps.</p>\n")
         rc, _, err = self.submit("--record", nums["record_hash"], *dry)
         self.assertEqual(rc, 1)
-        self.assertIn("line 8: `9.28746 um^2` is no measurement the tree holds", err)
+        self.assertIn("line 8: `9.87654 um^2` is no measurement the tree holds", err)
         # the toy record's own sky130 numbers are measurements: they may be given
         own = self.record("own", writeup=GOOD_WRITEUP + b"<p>460.4416 um^2 at 2,487 ps.</p>\n")
         rc, out, err = self.submit("--record", own["record_hash"], *dry)
@@ -4782,8 +4791,9 @@ class PrCheckTest(Tmp):
         cases = [
             ("no writeup", dict(writeup=None), "no writeup: a record goes in with its writeup"),
             ("numbers in the notes", dict(notes="a tree, 460.4416 um^2 x 2487 ps"), "the notes carry a score number"),
-            ("numbers in a writeup", dict(writeup=GOOD_WRITEUP + b"<p>9.28746 um^2.</p>\n"),
-             "line 8: `9.28746 um^2` is no measurement the tree holds"),
+            # (9.28746 um^2, an outside record's ASAP7 area before its record was made, is one since 2026-11-25)
+            ("numbers in a writeup", dict(writeup=GOOD_WRITEUP + b"<p>9.87654 um^2.</p>\n"),
+             "line 8: `9.87654 um^2` is no measurement the tree holds"),
             ("alice's design and proof, unnamed", dict(sv=SV_TEXT + b"// bob\n", lean=LEAN_TEXT),
              f"the design is built on record `{a12}` (alice) (100% of its code), which the record does not name"),
         ]

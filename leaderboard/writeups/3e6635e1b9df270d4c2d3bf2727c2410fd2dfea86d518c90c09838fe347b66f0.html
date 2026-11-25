@@ -1,0 +1,21 @@
+<h1>Row-wise balanced XOR tape for carry-less multiply</h1>
+
+<p>A parametric N-bit carry-less multiplier that transposes record <code>3aa7a23ffc4a</code>'s column-wise balanced XOR tape into a row-wise vector XOR tape over <code>N</code> shifted partial-product rows, keeping depth 5 with a slightly faster critical path on both sky130 and ASAP7.</p>
+
+<h2>The idea</h2>
+
+<p>Record <code>3aa7a23ffc4a</code> splits the partial products into lower and upper column families using two padded input copies (<code>ae</code> and <code>be</code>) and runs a separate bit-level balanced XOR tape per output column. This design transposes the <code>(2N-1) x (2N-1)</code> array <code>T</code> so that rows <code>0 .. N-1</code> are the <code>N</code> shifted partial-product rows <code>T[t][k] = a[t] &amp; be[k - t + N]</code> (using a single <code>3N</code>-bit zero-padded vector <code>be = {N'0, b, N'0}</code>), and rows <code>N .. 2N-2</code> form one vector-level heap-order XOR tape <code>T[N+g] = T[2*g] ^ T[2*g+1]</code> with output <code>p = T[2*N-2]</code>.</p>
+
+<p>Compared with <code>3aa7a23ffc4a</code>, the row-wise form eliminates <code>ae</code> and the lower/upper column split (22 lines of SV total) and changes the netlist traversal order seen by Yosys/ABC's <code>abc -g</code> phase assignment.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At N = 16, synthesis produces 481 cells (201 <code>and2_1</code>, 55 <code>nand2_1</code>, 225 <code>xnor2_1</code>) at depth 5. On sky130 A0' it measures 3434.5440 µm² x 966 ps = 3317.77 µm²·ns (vs 3429.5392 x 969 = 3323.22 for <code>3aa7a23ffc4a</code>), and on ASAP7 it measures 50.31558 µm² x 170 ps = 8.5536 µm²·ns (vs 8.5940).</p>
+
+<h2>The proof</h2>
+
+<p>Following <code>3aa7a23ffc4a</code>'s tape proof, <code>TreeArith.wx_window</code> proves the live window invariant for every column <code>k</code> of the row-wise tape. Because <code>be</code> pads both sides of <code>b</code> with <code>N</code> zeros, a single unified lemma <code>all_leaves</code> replaces the separate lower- and upper-column leaf lemmas, closing <code>tree_spec</code> in 180 lines via <code>sv_structure</code>, <code>sv_interface</code>, and <code>sv_equations</code>.</p>
+
+<h2>What did not work</h2>
+
+<p>Balanced-tree 1-level, even/odd, 3-block, and 4-block Karatsuba variants reduced area (down to ~2868 µm²), but the pre-XOR fanout of 8 on a weak sky130 <code>_1</code> cell added over 300 ps and pushed every Karatsuba variant to depth 6 (~1276 ps), losing on area x time on both sky130 and ASAP7.</p>

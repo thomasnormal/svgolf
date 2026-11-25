@@ -400,6 +400,101 @@
    "proved": true,
    "sha256": "0cc4457548ad64997b461152c637a16fd3a1f8136b50ee64e3aeb75120309ed6",
    "src": "tests/clmul/baselines/kara_lv.sv"
+  },
+  {
+   "at": {
+    "N=16": {
+     "area_e4um2": 34345440,
+     "area_ge": 772.933,
+     "area_mge": 772933,
+     "area_um2": 3434.544,
+     "buffers": 0,
+     "cells": 481,
+     "delay_ps": 966,
+     "depth": 5,
+     "gates": {
+      "AND": 201,
+      "NAND": 55,
+      "XNOR": 225
+     },
+     "netlist_sha256": "f14be4f01ff000b6515760bcba03e6ac2cabd87a7dea5bf31761fcee31dd1fbf",
+     "num_gates": 481,
+     "repaired_sha256": "69ebd6d292f2159c9d182e734d9f5efd1b51439bcc208b84904e6e79b440797d",
+     "rtlil_sha256": "6b30d2dde5d29c866f0fafb236cc8e5098f50921b115a3f5078cee4ff1f54a3d",
+     "time_ps": 966,
+     "unit_depth": 5
+    },
+    "N=32": {
+     "area_e4um2": 143349984,
+     "area_ge": 3222.057,
+     "area_mge": 3222057,
+     "area_um2": 14334.9984,
+     "buffers": 0,
+     "cells": 1985,
+     "delay_ps": 1146,
+     "depth": 6,
+     "gates": {
+      "AND": 829,
+      "NAND": 195,
+      "XNOR": 961
+     },
+     "netlist_sha256": "39b1e9d5d6ecb928eb16ff8e5f740f763640aa90129663945acc255cf5d68600",
+     "num_gates": 1985,
+     "repaired_sha256": "aad5ca30072b733e7cd0cddc4ef6ed6dc1e9bc25eab61256098d968252b5a041",
+     "rtlil_sha256": "ea2d0e689faffb720e5079b82399431f28f23e5e177998dbaa0d710b6ae7828b",
+     "time_ps": 1146,
+     "unit_depth": 6
+    },
+    "N=4": {
+     "area_e4um2": 1714144,
+     "area_ge": 38.329,
+     "area_mge": 38329,
+     "area_um2": 171.4144,
+     "buffers": 0,
+     "cells": 25,
+     "delay_ps": 645,
+     "depth": 3,
+     "gates": {
+      "AND": 13,
+      "NAND": 3,
+      "XNOR": 9
+     },
+     "netlist_sha256": "289c605904ef3f23d6472159d4fc4abea33d084a0e5fe2e96bb290535541247e",
+     "num_gates": 25,
+     "repaired_sha256": "b44ffb00c6181d79661307d648163d8f9c8063abd09106fca7fd68c4a765d098",
+     "rtlil_sha256": "7c96efb57cccd563965efc81946e0c03881c7b401015adeb43b31e9fe18d66ac",
+     "time_ps": 645,
+     "unit_depth": 3
+    },
+    "N=8": {
+     "area_e4um2": 8020192,
+     "area_ge": 179.649,
+     "area_mge": 179649,
+     "area_um2": 802.0192,
+     "buffers": 0,
+     "cells": 113,
+     "delay_ps": 805,
+     "depth": 4,
+     "gates": {
+      "AND": 53,
+      "NAND": 11,
+      "XNOR": 49
+     },
+     "netlist_sha256": "2b740d25541f8d270971c01eaa5d6d90a8e4d36894b183466a12ba6c876b2395",
+     "num_gates": 113,
+     "repaired_sha256": "141dceeb11317130c5bb2b47afaef9668cfb70a691f82bc7e215fa39cfd216b2",
+     "rtlil_sha256": "98969a799948457c04f81d93f25b99b58ab0182a0bf85308add53b4c9e31d040",
+     "time_ps": 805,
+     "unit_depth": 4
+    }
+   },
+   "banned": false,
+   "family": "casper-hansen",
+   "id": "3e6635e1b9df270d4c2d3bf2727c2410fd2dfea86d518c90c09838fe347b66f0",
+   "kind": "record",
+   "name": "casper-hansen",
+   "sha256": "5b2e09e6f06f8e54f62f427faa4e66fc43cc0bc0dffda40a746201e925c17287",
+   "src": "leaderboard/data/clmul/3e6635e1b9df270d4c2d3bf2727c2410fd2dfea86d518c90c09838fe347b66f0.sv"
   }
  ],
  "flow": {

@@ -1,0 +1,21 @@
+<h1>Ripple-carry adder with NAND-majority low carries</h1>
+
+<p>A parametric N-bit ripple-carry adder that replaces the XOR-based carry formula on bits 0 and 1 with a direct NAND-majority expression. On sky130 A0' at N = 16 it improves on the previous best record while staying within 2.5 µm² of the ripple-carry area floor.</p>
+
+<h2>The idea</h2>
+
+<p>In the reference ripple-carry adder (<code>add_n</code>), every bit computes <code>p[i] = a[i] ^ b[i]</code> and <code>c[i+1] = g[i] | (p[i] &amp; c[i])</code>. Under the sky130 A0' mapping, <code>xor2_1</code> is substantially slower than <code>or2_1</code> or <code>nand2_1</code>, so the critical path starts at <code>b[0]</code> through <code>xor2_1</code> before entering the 15-bit <code>nand2_1</code> carry chain.</p>
+
+<p>Using <code>c[i+1] = ~(~(a[i] &amp; b[i]) &amp; ~((a[i] &amp; c[i]) | (b[i] &amp; c[i])))</code> on bits 0 and 1 removes the initial <code>xor2_1</code> from the carry launch: carries <code>c[1]</code> and <code>c[2]</code> emerge via fast <code>or2_1</code>/<code>nand2_1</code> gates before <code>p[2] = a[2] ^ b[2]</code> is even needed, while bits <code>i &gt;= 2</code> keep the compact <code>g[i] | (p[i] &amp; c[i])</code> form.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At N = 16 on sky130 A0', the netlist has 82 cells (50 <code>nand2_1</code>, 28 <code>xor2_1</code>, 2 <code>xnor2_1</code>, 2 <code>or2_1</code>) totaling 462.94 µm² (+2.50 µm² over par's 460.44 µm²) and 2449 ps delay (-162 ps vs par's 2611 ps), giving 1133.75 µm²·ns (0.943 x par, 0.964 x the previous best <code>9e0b4286ba44</code>).</p>
+
+<h2>The proof</h2>
+
+<p>The Lean proof follows <code>tasks/add/reference/add_n.lean</code> directly: <code>sv_structure</code> with a simple ripple rank closes <code>CombDesign</code> and <code>Acyclic</code>, <code>sv_interface</code> checks the ports, <code>sv_equations</code> extracts the split low/high carry equations, and a single 8-case lemma <code>maj_eq_carry</code> bridges bits 0 and 1 into <code>CombLib.AddView</code> and <code>add_spec</code>.</p>
+
+<h2>What did not work</h2>
+
+<p>Applying the majority form to 3 or more low bits added area faster than it reduced delay (bits 2 and above already wait for the incoming carry rather than <code>a[i] ^ b[i]</code>), and full prefix trees lost on sky130 A0' area x time despite lower delay because of higher cell area (though they win on ASAP7).</p>

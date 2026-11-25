@@ -106,6 +106,102 @@
   {
    "at": {
     "N=16,W=8": {
+     "area_e4um2": 87020960,
+     "area_ge": 2023.075,
+     "area_mge": 2023075,
+     "area_um2": 8702.096,
+     "buffers": 0,
+     "cells": 963,
+     "cycles": 31,
+     "depth": 15,
+     "ffs": 144,
+     "gates": {
+      "AND": 136,
+      "ANDNOT": 31,
+      "DFF_P": 144,
+      "MUX": 226,
+      "NAND": 160,
+      "NOT": 14,
+      "OR": 2,
+      "ORNOT": 250
+     },
+     "netlist_sha256": "d7b9296d0f596ca89031a254c3c6bb6dca91849cb259aa04f2c7a66efaa58bbf",
+     "num_gates": 963,
+     "period_ps": 2126,
+     "repaired_sha256": "3db4c6dcafaf1527e04c7f7ed8f3812d52167c212b05384a1a1e1907c0a9c883",
+     "rtlil_sha256": "4a197f2baecec3f17e82f8542e3794083af90cc33429d608d8a1786a6a14faeb",
+     "time_ps": 65906,
+     "unit_depth": 15
+    },
+    "N=4,W=8": {
+     "area_e4um2": 20970112,
+     "area_ge": 488.603,
+     "area_mge": 488603,
+     "area_um2": 2097.0112,
+     "buffers": 0,
+     "cells": 228,
+     "cycles": 7,
+     "depth": 14,
+     "ffs": 36,
+     "gates": {
+      "AND": 32,
+      "ANDNOT": 9,
+      "DFF_P": 36,
+      "MUX": 53,
+      "NAND": 35,
+      "NOT": 1,
+      "OR": 2,
+      "ORNOT": 60
+     },
+     "netlist_sha256": "2e0e13daf5d0ca58999560dfaa6fe4a2cbe4e360eb4ff254df1546e11250a5e3",
+     "num_gates": 228,
+     "period_ps": 2051,
+     "repaired_sha256": "10848c45df7aa562488b2c1bcadb230335e3001f0b97c00ce6892a07a1d83a02",
+     "rtlil_sha256": "2f8901cc0b38723e1a804a896a94e54a226c6d9805af3546ec662736b33f9872",
+     "time_ps": 14357,
+     "unit_depth": 14
+    },
+    "N=8,W=8": {
+     "area_e4um2": 42816064,
+     "area_ge": 995.871,
+     "area_mge": 995871,
+     "area_um2": 4281.6064,
+     "buffers": 0,
+     "cells": 466,
+     "cycles": 15,
+     "depth": 15,
+     "ffs": 72,
+     "gates": {
+      "AND": 67,
+      "ANDNOT": 15,
+      "DFF_P": 72,
+      "MUX": 113,
+      "NAND": 73,
+      "NOT": 3,
+      "OR": 1,
+      "ORNOT": 122
+     },
+     "netlist_sha256": "23c3310b2b9897064057416f36252926c16b9235fe9aab3dee9b451f73a7acd7",
+     "num_gates": 466,
+     "period_ps": 2076,
+     "repaired_sha256": "e95e74593a89a9569eae72460d027fb0b49246356f08e00c3d993749b7f061b7",
+     "rtlil_sha256": "35f68707b73a55b4c3dab8ab0141b95c724d146798b04cbc685f78ccae999dde",
+     "time_ps": 31140,
+     "unit_depth": 15
+    }
+   },
+   "banned": false,
+   "family": "casper-hansen",
+   "id": "88399a512bf73c86c6af1bb20e58bbdc36fdeb59d89a507a3b5ca31b5a85f23d",
+   "kind": "record",
+   "latency": "def lat (N _W : Nat) : Nat := 2 * N - 1",
+   "name": "casper-hansen",
+   "sha256": "bb671c0389ade9f12c2c3a0f50e0ceedc577e806f3ad29210d3fdb48bdb5c241",
+   "src": "leaderboard/data/sorter/88399a512bf73c86c6af1bb20e58bbdc36fdeb59d89a507a3b5ca31b5a85f23d.sv"
+  },
+  {
+   "at": {
+    "N=16,W=8": {
      "area_e4um2": 85944928,
      "area_ge": 2106.772,
      "area_mge": 2106772,

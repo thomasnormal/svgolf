@@ -477,6 +477,7 @@ proof (or, where that no longer compiles, a maintainers' port of it, marked as s
 `check.py ... --json RESULT.json`, then `leaderboard.py remake --task TASK --record HASH --check RESULT.json [--lean
 PORT.lean] --reason "..."`, which carries the scores, says so in the record (`remade`), removes the old record and
 re-points its writeup and the derived tables (leaderboard/README.md, "Re-making a record"). With the first record of a player outside the maintainers,
-update the line on who made the records so far: `FIRST_ENTRIES_MD` in `site/build.py` and the same sentence in
-README.md, "Leaderboard", and the board's provenance beside it in `site/build.py` (`provenance_front_html`, the front
-page's sentence, and `provenance_md`, About's "Who made the records"; their counts come from the records).
+add the handle to `OUTSIDE_PLAYERS` in `site/build.py`: the board's provenance (`provenance_front_html`, the front
+page's sentence, and `provenance_md`, About's "Who made the records") counts their records, its counts coming from the
+records. The line on who made the records, `FIRST_ENTRIES_MD` in `site/build.py` and the same sentence in README.md,
+"Leaderboard", says since the first outside records (2026-11-24) that outside entries come in by pull request.

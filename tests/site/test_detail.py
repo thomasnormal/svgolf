@@ -1102,7 +1102,17 @@ class DetailTest(unittest.TestCase):
             sv = (rec and rec["files"]["sv"]["name"]) or f"{stem}.sv"
             src = section(h, "sources")
             if "fdivp_srt" not in sv:
-                self.assertNotIn('class="licence"', src)
+                text = build.read_text(f"svgolf/leaderboard/data/fdivp/{rec['record_hash']}.sv" if rec else
+                                       f"svgolf/tasks/fdivp/reference/{stem}.sv")
+                if not build.licence_ids(text):
+                    self.assertNotIn('class="licence"', src)
+                    continue
+                # a player's design built on fdivp_srt.sv that keeps its notice (casper-hansen's 0f04df325a62, since
+                # 2026-11-25): its card claims the notice only, and the design file shown holds it
+                with self.subTest(page=path):
+                    self.assertIn("Adapted from licensed code (Apache-2.0 WITH SHL-2.1): its licence notice is in the "
+                                  "design file, shown in full below.", norm(text_of(src)))
+                    self.assertIn("Copyright (C) 2021-26 Harvey Mudd College", text_of(src))
                 continue
             with self.subTest(page=path):
                 self.assertIn("Apache-2.0 WITH SHL-2.1", text_of(src))

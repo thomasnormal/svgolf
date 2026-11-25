@@ -1,0 +1,17 @@
+<h1>Padded sparse-6 Kogge-Stone adder for ASAP7</h1>
+
+<p>A parametric N-bit sparse parallel-prefix adder using 6-bit blocks, a Kogge-Stone block-carry tree, and late-carry local ripple. It is tailored for ASAP7, where shallow carry depth pays off strongly against area.</p>
+
+<h2>The idea</h2>
+
+<p>On ASAP7, ripple-carry adders suffer from a 33-level carry chain (563 ps), whereas full bit-level Kogge-Stone trees pay a large area overhead across all N columns. Grouping bits into 6-bit blocks (<code>Q = (N + 5) / 6</code>, with <code>a</code> and <code>b</code> zero-padded to <code>M = 6 * Q</code> bits) shrinks the Kogge-Stone prefix tree to just <code>Q + 1</code> positions (4 positions and 2 prefix levels at N = 16).</p>
+
+<p>Within each block, <code>gg</code> and <code>pp</code> compute the 6-bit group generate and propagate signals, the Kogge-Stone tree produces every block carry-in <code>bg[L][j]</code>, and a local late-carry chain <code>cc[j][t+1] = x[6*j+t] ? cc[j][t] : ap[6*j+t]</code> fans out carries to the sum XORs. Padding <code>ap</code> and <code>bp</code> to <code>M + 1</code> keeps the padding generate loop non-empty at every N, including multiples of 6.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At N = 16, the scored netlist has 113 cells and unit depth 20 (down from 33 for ripple and 28 for the previous ASAP7 leader <code>2387ec6053e6</code>). On ASAP7 it measures 9.28746 µm² x 345 ps = 3.2042 µm²·ns (0.817 x the previous best 3.9195). On sky130 A0' it reaches 1911 ps at 629.35 µm² (1202.69 µm²·ns), trading area for delay.</p>
+
+<h2>The proof</h2>
+
+<p><code>SparseAddArith</code> uses <code>LeanModels.Sv.Lib.Prefix</code> (<code>pgOp</code>, <code>pgBlock</code>) to prove the Kogge-Stone recurrence <code>ksRec_block</code> on the 6-bit block pairs, then shows every local carry <code>c_all[i]</code> equals the canonical ripple carry of the padded inputs. <code>sv_structure</code> with a lexicographic rank, <code>sv_interface</code>, and <code>sv_equations</code> connect the netlist to <code>CombLib.AddView</code> and <code>add_spec</code> for all <code>1 &lt;= N &lt; 2^20</code>.</p>

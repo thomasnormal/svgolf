@@ -62,6 +62,34 @@
  "designs": [
   {
    "a0_asap7": {
+    "area_e5um2": 12455694,
+    "delay_ps": 825,
+    "time_ps": 825
+   },
+   "cycles": null,
+   "layout": null,
+   "netlist_sha256": "2ac6d70bd060af7ebbf8b091386854f3d478a13941cbfcf7be12604a6511ef4e",
+   "of": [
+    "record:5ac6c27f98fbc44c9a84b5e97f36ab56641549e738b086e0c7a6e5ed040bf31f"
+   ],
+   "record": "5ac6c27f98fbc44c9a84b5e97f36ab56641549e738b086e0c7a6e5ed040bf31f",
+   "request": {
+    "seed": 822504294,
+    "settings": {},
+    "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "source": "drawn"
+   },
+   "runs": [],
+   "scored_netlist_sha256": "0f3f0d44e288b1b248581d97a3412b25274b160a9601ab8c225042741d5dcdb8",
+   "scores": {
+    "v_median": null,
+    "v_owner": null
+   },
+   "status": "pending",
+   "sv_sha256": "19ddf3abd2d9e8cce30d96769af46e5e1077daa11a9dc1a2a96d503c6af85b3e"
+  },
+  {
+   "a0_asap7": {
     "area_e5um2": 13391730,
     "delay_ps": 1186,
     "time_ps": 1186

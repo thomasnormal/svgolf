@@ -91,6 +91,34 @@
   },
   {
    "a0_asap7": {
+    "area_e5um2": 17337078,
+    "delay_ps": 4916,
+    "time_ps": 4916
+   },
+   "cycles": null,
+   "layout": null,
+   "netlist_sha256": "5743b8f16b2db238335fc87cb76b8aa90f39b742753cfaa6a47f13c6097b9d6d",
+   "of": [
+    "record:0f04df325a62234c6cf0164a2156b3a588e18901c1baf66c9aebcb6ae865b89f"
+   ],
+   "record": "0f04df325a62234c6cf0164a2156b3a588e18901c1baf66c9aebcb6ae865b89f",
+   "request": {
+    "seed": 1391967559,
+    "settings": {},
+    "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "source": "drawn"
+   },
+   "runs": [],
+   "scored_netlist_sha256": "d971894dc1ee6a1de7e6eba186cd97e3210960518795a869267033b0c177fe31",
+   "scores": {
+    "v_median": null,
+    "v_owner": null
+   },
+   "status": "pending",
+   "sv_sha256": "4b3c5e79d834bb2862c27dfd1a730104ff5cb54938f9fda6700865d16a5a67c2"
+  },
+  {
+   "a0_asap7": {
     "area_e5um2": 14563962,
     "delay_ps": 7056,
     "time_ps": 7056

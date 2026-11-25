@@ -411,12 +411,15 @@ ROUTE_FILES = ("svgolf/leaderboard/leaderboard.py", "svgolf/leaderboard/pr_check
 # front page, whose block over the task cards is its heading alone); a test compares the words and checks the claim
 # against the records
 FIRST_ENTRIES_MD = ("The board is seeded with entries the maintainers made with AI assistance (each record names the "
-                    "tools), each proved and scored like any entry: they are ordinary entries and can be beaten. There "
-                    "are no outside entries yet.")
+                    "tools), each proved and scored like any entry: they are ordinary entries and can be beaten. Outside "
+                    "entries come in by pull request; the first came on 2026-11-24.")
 # the board's provenance, said plainly (decided 2026-11-17): one sentence on the front page under the task cards, and
-# About's section "Who made the records" (`provenance_md`), each count computed from the records (`provenance`); like
-# FIRST_ENTRIES_MD, the maintainers' to change with the first record of a player outside the maintainers
+# About's section "Who made the records" (`provenance_md`), each count computed from the records (`provenance`)
 PROVENANCE_ANCHOR = "who-made-the-records"          # about.md's "## Who made the records"
+# the handles of the players outside the maintainers (their records came in by pull request, and the maintainers made
+# each again on the rating machine under the player's handle: CONTRIBUTING.md section 11); the maintainers add a handle
+# with that player's first record. The provenance sentences count their records (first: casper-hansen, 2026-11-24).
+OUTSIDE_PLAYERS = ("casper-hansen",)
 PROVENANCE_PLACEHOLDER = "{{provenance}}"           # in about.md: that section's text
 
 
@@ -450,10 +453,22 @@ def provenance(site, tasks):
     players' entries are a reference design byte for byte (`reference_designs`)."""
     recs = [r for t in tasks for r in t.records]
     entries = [r for r in recs if r["player"] != site.config["reference_player"]]
+    outside = [r for r in recs if r["player"] in OUTSIDE_PLAYERS]
     return {"records": len(recs), "assisted": sum(1 for r in recs if r.get("assisted_by")),
             "ported": sum(1 for r in recs if (r.get(lb.REMADE_KEY) or {}).get("proof") == "maintainer port"),
             "entries": len(entries),
-            "copies": sum(1 for r in entries if r["files"]["sv"]["sha256"] in site.reference_designs)}
+            "copies": sum(1 for r in entries if r["files"]["sv"]["sha256"] in site.reference_designs),
+            "outside": len(outside), "outside_players": sorted({r["player"] for r in outside})}
+
+
+def outside_words(p):
+    """'8 of the 73 records come from a player outside the maintainers' (or players, when there are several), or None
+    while there is none."""
+    if not p.get("outside"):
+        return None
+    k = len(p["outside_players"])
+    return (f"{p['outside']} of the {p['records']} records come from "
+            + ("a player" if k == 1 else f"{k} players") + " outside the maintainers")
 
 
 def assisted_words(p):
@@ -466,7 +481,10 @@ def assisted_words(p):
 
 def provenance_front_html(p, here):
     """The front page's one sentence under the task cards."""
-    return (f'<p class="board-note">The board so far was seeded by the maintainers: {esc(assisted_words(p))}, each '
+    out = outside_words(p)
+    head = (f"The board was seeded by the maintainers, and {out}" if out else
+            "The board so far was seeded by the maintainers")
+    return (f'<p class="board-note">{esc(head)}: {esc(assisted_words(p))}, each '
             "naming its assistant (" + page.link(rel_link(here, f"about.html#{PROVENANCE_ANCHOR}"),
                                                  "who made the records") + ").</p>")
 
@@ -478,7 +496,12 @@ def provenance_md(p):
     copies = (f"{p['copies']} of the {p['entries']} entries carry the mark \"reference design\": their design file "
               "is byte for byte one of the reference designs under `tasks/<task>/reference/` (the mark names it). "
               "They are entries like any other and are ranked as usual." if p["copies"] else "")
-    return (f"The board so far was seeded by the maintainers. {words[:1].upper()}{words[1:]}: each record's page "
+    out = outside_words(p)
+    outside = (f"The board was seeded by the maintainers. {out[:1].upper()}{out[1:]} "
+               f"({', '.join('`' + h + '`' for h in p['outside_players'])}): handed in by pull request, each was made "
+               "again by the maintainers on the rating machine under the player's handle, with the player's design, "
+               "proof, notes and writeup. " if out else "The board so far was seeded by the maintainers. ")
+    return (f"{outside}{words[:1].upper()}{words[1:]}: each record's page "
             "names the systems that helped, under \"assisted by\". Several came from a newcomer study run by the "
             "maintainers; those records' notes say so.\n\n"
             f"{p['ported']} of the {p['records']} proofs are marked as ported: the maintainers re-made them, porting "

@@ -1,0 +1,17 @@
+<h1>Binary-pointer round-robin arbiter</h1>
+
+<p>A parametric fair N-client round-robin arbiter that stores only a 1-bit <code>valid</code> flag and a <code>max(1, $clog2(N))</code>-bit binary grant index <code>gid</code> (4 flip-flops at N = 8 instead of 8 or 16), with descending cyclic priority and no reset logic on <code>gid</code>.</p>
+
+<h2>The idea</h2>
+
+<p>Existing round-robin entries store either both <code>gnt</code> and <code>mask</code> (2N flops) or a thermometer <code>mask</code> plus <code>valid</code> (N flops). Encoding the granted client as a binary index <code>gid</code> cuts state to <code>1 + ceil(log2 N)</code> flops—the information-theoretic minimum for N + 1 grant states—while keeping Moore outputs via <code>oh = one &lt;&lt; gid</code> and <code>gnt = valid ? oh : '0</code>.</p>
+
+<p>Switching to descending round-robin priority (granting the highest requesting index strictly below <code>gid</code>, else the highest requester) simplifies the mask formula to <code>mask = oh - 1'b1</code> (a single subtraction with no extra OR/NOT). Two short procedural loops over shifted bits <code>((req &gt;&gt; k) &amp; one) != '0</code> and <code>((rm &gt;&gt; k) &amp; one) != '0</code> avoid dynamic bit-indexing and compute <code>ngid</code>. Only <code>valid</code> is reset on <code>rst</code>: because <code>gnt = valid ? oh : '0</code>, clearing <code>valid</code> guarantees <code>gnt == 0</code> regardless of <code>gid</code>'s power-up value, and the first cycle immediately writes a valid index <code>&lt; N</code> into <code>gid</code>.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At N = 8, synthesis uses only 4 <code>dfxtp_1</code> flops (saving 80 µm² of flop area vs 8 flops) and 62 small 2-input gates: 392.8768 µm² x 1222 ps = 480.10 µm²·ns on sky130 A0' (0.706 x the previous best <code>142a9737465b</code> and 0.221 x par), and 5.96322 µm² x 233 ps = 1.3894 µm²·ns on ASAP7 (0.758 x the previous best).</p>
+
+<h2>The proof</h2>
+
+<p>The proof establishes <code>design.sem N = arbD N</code> for all <code>1 &lt;= N</code>, <code>N * N &lt; 2^31</code> (unrolling both procedural <code>for</code> loops with <code>Loop2.forValues2_upto</code>), proves schedule-independent combinational convergence across the 6-process DAG <code>one -&gt; oh -&gt; {gnt, mask} -&gt; rm -&gt; ngid</code> in 5 depth stages, and shows <code>ngid &lt; N</code> holds from any arbitrary power-up state (including <code>gid &gt;= N</code> for non-power-of-two N). Fairness within N cycles follows from <code>ReactTask.satisfiedAt_of_rank</code> using descending cyclic distance <code>(gid + N - 1 - i) % N</code>.</p>

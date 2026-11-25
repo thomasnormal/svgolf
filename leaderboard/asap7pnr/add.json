@@ -840,6 +840,34 @@
   },
   {
    "a0_asap7": {
+    "area_e5um2": 928746,
+    "delay_ps": 345,
+    "time_ps": 345
+   },
+   "cycles": null,
+   "layout": null,
+   "netlist_sha256": "4d0eb807d02ef2e61742aabdf3cad90993da3c3233ae3b0d4ea8b99eea5661ab",
+   "of": [
+    "record:185c226912f6690f06d8e642749c5bd396e22be80d3c56c88cef903901bb5cc0"
+   ],
+   "record": "185c226912f6690f06d8e642749c5bd396e22be80d3c56c88cef903901bb5cc0",
+   "request": {
+    "seed": 443456994,
+    "settings": {},
+    "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "source": "drawn"
+   },
+   "runs": [],
+   "scored_netlist_sha256": "31e86a1139608e4a0f3c205bcb8c157b2c4f14cf13aeb2fff4d92bdf60b01b9c",
+   "scores": {
+    "v_median": null,
+    "v_owner": null
+   },
+   "status": "pending",
+   "sv_sha256": "7abd6af97df9480d9a76328c02b5d40b0221fdd272a12ab0d55f71657816ce2c"
+  },
+  {
+   "a0_asap7": {
     "area_e5um2": 699840,
     "delay_ps": 563,
     "time_ps": 563
@@ -1095,6 +1123,34 @@
    },
    "status": "measured",
    "sv_sha256": "c69f27263a9122680a53e711956c20d415259ce22d0699e2d2257f0e946ed062"
+  },
+  {
+   "a0_asap7": {
+    "area_e5um2": 702756,
+    "delay_ps": 560,
+    "time_ps": 560
+   },
+   "cycles": null,
+   "layout": null,
+   "netlist_sha256": "95622186499d00cae8a59148a06f634e9498a7fe77720aa5cc01d9383101a764",
+   "of": [
+    "record:ee7c8f05d40648a3684a863170692a451628e08870fdbb26d9726999d72058e2"
+   ],
+   "record": "ee7c8f05d40648a3684a863170692a451628e08870fdbb26d9726999d72058e2",
+   "request": {
+    "seed": 158996284,
+    "settings": {},
+    "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "source": "drawn"
+   },
+   "runs": [],
+   "scored_netlist_sha256": "2c5f81845d014eeddd28944f9625a9ef95868efac5148f52ccd076d4f2e6c424",
+   "scores": {
+    "v_median": null,
+    "v_owner": null
+   },
+   "status": "pending",
+   "sv_sha256": "d71891abb22d2eef5bb14e59e978251ca8d22b13ab0ca9f69f52d11562319803"
   },
   {
    "a0_asap7": {

@@ -1,0 +1,15 @@
+<h1>Depth-15 bitwise tower-field AES S-box</h1>
+
+<p>An 84-assign pure-bitwise (<code>&amp;</code>, <code>|</code>, <code>^</code>, <code>~</code>) combinational netlist for the AES S-box, resynthesized from record <code>bc1c50aceaa7</code> with ABC <code>&amp;deepsyn</code>, single-fanout inlining, and statement-order search, and proved by exhaustive kernel evaluation.</p>
+
+<h2>The idea</h2>
+
+<p>Starting from the composite-field GF(((2^2)^2)^2) netlist of <code>bc1c50aceaa7</code>, we ran multi-seed ABC <code>&amp;deepsyn</code> and <code>dch -f; map</code> passes against a pure-bitwise genlib (omitting <code>MUX</code> so every output expression remains inside the <code>sv_exhaustive</code> bitwise fragment). Single-fanout internal nets were iteratively inlined to keep the assign count at 84, and statement orderings were searched directly against the pinned sky130 A0' score so Yosys's downstream <code>abc -g</code> mapping chooses a shallower critical path.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>On sky130 A0' the netlist maps to 125 cells (55 <code>xnor2_1</code>, 20 <code>nand2_1</code>, 17 <code>xor2_1</code>, 11 <code>and2_1</code>, 8 <code>nand2b_1</code>, 4 <code>nor2b_1</code>, 4 <code>or2_1</code>, 3 <code>nor2_1</code>, 2 <code>mux2_1</code>, 1 <code>inv_1</code>) with unit depth 15 (down from 16 in <code>bc1c50aceaa7</code>). Area rises slightly from 890.85 to 912.12 µm² (+2.4%) while delay drops from 3208 to 2693 ps (-16.1%), giving 2456.35 µm²·ns (0.860 x the previous best). The same netlist also lowers ASAP7 from 7.4580 to 6.4483 µm²·ns (-13.5%).</p>
+
+<h2>The proof</h2>
+
+<p>Because every assign uses only <code>&amp;</code>, <code>|</code>, <code>^</code>, and <code>~</code> over 1-bit nets and the assign count stays at 84, <code>sv_exhaustive</code> compiles the flat netlist into a packed gate program and decides all 256 inputs against <code>SvGolf.Tasks.AesSbox.Statement</code> in a 9-line proof.</p>

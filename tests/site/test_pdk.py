@@ -431,15 +431,18 @@ class PdkTest(unittest.TestCase):
                 # the sky130 view keeps the sky130 numbers
                 self.assertNotIn(flat(f"{combined.fmt(combined.um2ns(exact, R))} µm²·ns {stem}"),
                                  text_of(section(self.view(f"tasks/{t}/index.html", "sky130"), "numbers")))
-        # add: the two courses name different records. On sky130 it is select-six; on the routed course (every add
-        # design routed since 2026-11-13) fernladder's Sklansky adder, 2% under par add_n (select-six is 1.6% over it)
+        # add: the two courses name different records. On sky130 it is casper-hansen's ee7c8f05d406 (since 2026-11-25;
+        # select-six's before); on the routed course (its two add records wait for their runs) fernladder's Sklansky
+        # adder, 2% under par add_n (select-six is 1.6% over it)
         h7 = text_of(section(self.view("tasks/add/index.html", R), "numbers"))
         h1 = text_of(section(self.view("tasks/add/index.html", "sky130"), "numbers"))
         self.assertIn("fernladder", h7)
         self.assertIn("Under par 2%", h7)
         self.assertNotIn("select-six", h7)
+        self.assertNotIn("casper-hansen", h7)
         self.assertEqual(h7.count("add_n"), 1)            # par only
-        self.assertIn("select-six", h1)
+        self.assertIn("casper-hansen", h1)
+        self.assertIn("Under par 6%", h1)
 
     def test_the_routed_explorer_and_score_chart_draw_the_routed_numbers(self):
         for t in self.listed:

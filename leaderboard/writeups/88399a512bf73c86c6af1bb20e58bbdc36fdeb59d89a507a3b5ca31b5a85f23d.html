@@ -1,0 +1,21 @@
+<h1>Direct-output insertion sorter at latency 2N - 1</h1>
+
+<p>A parametric N-element, W-bit streaming insertion-cell sorter that drops latency from <code>2N</code> to <code>2N - 1</code> cycles by exposing cell 0 directly as Moore outputs, eliminates reset and zero-clearing on all <code>N * W</code> data flip-flops, and switches to unsigned <code>&gt;=</code> comparisons.</p>
+
+<h2>The idea</h2>
+
+<p>The reference insertion-cell array (<code>sorter_ins</code> and record <code>3b1ec4b16d7a</code>) registers <code>out_valid &lt;= tok[0]</code> and <code>out_data &lt;= data[0 +: W]</code> in an extra output stage, adding <code>W + 1</code> flip-flops and 1 cycle of latency (<code>2N = 16</code> at N = 8). Because <code>tok[0]</code> and <code>data[0 +: W]</code> are already flip-flop outputs, wiring <code>assign out_valid = tok[0]</code> and <code>assign out_data = data[0 +: W]</code> preserves the Moore output rule while removing 9 flops and reaching latency <code>2N - 1 = 15</code> (the Nth input is sampled on edge <code>s + N</code> and immediately appears on cell 0 at snapshot <code>s + N</code>).</p>
+
+<p>Second, instead of resetting and zero-clearing all <code>N * W</code> data flops so that empty slots compare smaller than inputs, each cell guards its comparison with <code>!tok[k] || (in_data &gt;= data[k*W +: W])</code>. Unoccupied slots (<code>tok[k] = 0</code>) unconditionally accept shifts/insertions regardless of power-up garbage, removing reset logic from all 64 data flops and restricting reset to the <code>N</code> token bits <code>tok[k] &lt;= (~rst) &amp; tok[k+1]</code>.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At (N, W) = (8, 8) on sky130 A0', the circuit uses 72 flops (down from 81) and 466 cells, measuring 4281.6064 µm² and 2076 ps over 15 cycles (31140 ps total) for 133329.22 µm²·ns (0.583 x par, 0.849 x <code>3b1ec4b16d7a</code>). On ASAP7 it measures 68.23440 µm² x 15 x 372 ps = 380.7480 µm²·ns.</p>
+
+<h2>The proof</h2>
+
+<p><code>sv_mirror</code> and <code>sv_cycle</code> (with pairwise write-window disjointness <code>soG_disj</code>) establish agreement with <code>design.sem N W</code>, one-pass settling of the two output wires, and the closed-form state step <code>soG.next</code> across the full range <code>1 &lt;= N, 1 &lt;= W, N * W &lt; 2^31</code>. The key invariant <code>DataOK</code> constrains only valid slots (<code>N &lt;= j + k &lt; 2 * N</code>) to <code>(sortAsc ys).getD (j + k - N) 0</code>, so uninitialized cells with <code>tok[k] = 0</code> never enter the proof. <code>getD_insertAsc</code> relates the <code>in_data &gt;= data[k]</code> cell updates to <code>Tasks.Sorter.insertAsc</code>, and <code>StreamTask.PhaseModel</code> with <code>lat N W := 2 * N - 1</code> (including back-to-back starts at <code>j = 2 * N - 1</code>) closes <code>Submission.solution</code>.</p>
+
+<h2>What did not work</h2>
+
+<p>A log-depth binary-tree comparator per cell reached slightly lower score at (8, 8), but its <code>[N-1:0][L:0][M:0]</code> packed arrays overflowed 32-bit <code>int</code> width bounds at the extreme in-range corner <code>(N, W) = (1, 2^30 + 1)</code> and <code>(2, 2^30 - 1)</code>, making the design unprovable over the full task range.</p>

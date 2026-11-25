@@ -2154,10 +2154,15 @@ class SiteTest(unittest.TestCase):
             for row in ("notes", "assisted by"):
                 m = re.search(rf"<dt>{row}</dt><dd>(.*?)</dd>", page_html, re.S)
                 parts.append((row, f"<dd>{m.group(1)}</dd>"))
+            # (1) is the maintainers' rule for their own text: a player outside the maintainers (build.OUTSIDE_PLAYERS,
+            # since 2026-11-24) wrote its writeup, notes and assisted-by itself, and the maintainers do not rewrite a
+            # player's text; (2) is the site's own marking of a link and holds on every page
+            own_text = rec["player"] not in build.OUTSIDE_PLAYERS
             for where, part in parts:
                 for blk in _Blocks.of(part):
                     targets = [_link_target(here, a, repo_url) for a in blk["links"]]
-                    for name in _names_in(blk["text"], rec, recs, refs, players, self.config["reference_player"]):
+                    for name in (_names_in(blk["text"], rec, recs, refs, players, self.config["reference_player"])
+                                 if own_text else ()):
                         if not _named_linked(name, rec, recs, refs, par, targets):
                             problems.append(f"{rec['task']} {h[:12]} {where}: {name} unlinked in: "
                                             f"{norm(blk['text'])[:120]}")
@@ -2227,8 +2232,15 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(head, '<div class="section-head" id="tasks"><h2>Tasks</h2></div>')
         rules = norm(text_of(self.files["rules.html"]))
         self.assertIn(norm(build.FIRST_ENTRIES_MD), rules)
-        self.assertEqual(home.count("There are no outside entries yet."), 0)
-        self.assertEqual(rules.count("There are no outside entries yet."), 1)
+        first = "Outside entries come in by pull request; the first came on 2026-11-24."
+        self.assertEqual(home.count(first), 0)
+        self.assertEqual(rules.count(first), 1)
+        self.assertNotIn("There are no outside entries yet.", rules)
+        # the claim holds against the records (decided 2026-11-25, with the first outside records): the earliest
+        # record of a player outside the maintainers is dated 2026-11-24
+        outside = [r for r in recs if r["player"] in build.OUTSIDE_PLAYERS]
+        self.assertTrue(outside)
+        self.assertEqual(min(str(r["submitted_at"])[:10] for r in outside), "2026-11-24")
 
     def test_shown_paths_are_the_public_repositorys(self):
         """Decided 2026-11-11: the public repository is svGolf's own tree, so a path of it is shown as that repository
@@ -2827,10 +2839,11 @@ class SiteTest(unittest.TestCase):
         for stale in ("open decision", "possible hand-off", "CI re-verifies"):
             self.assertNotIn(stale, rules)
         first = norm(build.FIRST_ENTRIES_MD)                    # README's Leaderboard words (test_the_claims_...)
-        # decided 2026-11-13: the maintainers' records are entries like any, seeded with AI assistance
+        # decided 2026-11-13: the maintainers' records are entries like any, seeded with AI assistance; since the first
+        # outside records (2026-11-24) the line says how outside entries come in
         self.assertEqual(first, "The board is seeded with entries the maintainers made with AI assistance (each record "
                          "names the tools), each proved and scored like any entry: they are ordinary entries and can "
-                         "be beaten. There are no outside entries yet.")
+                         "be beaten. Outside entries come in by pull request; the first came on 2026-11-24.")
         self.assertNotIn("trial design", norm(text_of(self.files["index.html"])))
         self.assertIn(first, norm(read_text_file("README.md")))
         self.assertIn(first, norm(rules))
@@ -3194,22 +3207,45 @@ class SiteTest(unittest.TestCase):
         ported = [r for r in recs if (r.get("remade") or {}).get("proof") == "maintainer port"]
         words = (f"all {len(recs)} records were made with AI assistance" if len(assisted) == len(recs) else
                  f"{len(assisted)} of the {len(recs)} records name the AI systems or tools that helped")
+        # since 2026-11-24 the board also holds records of players outside the maintainers (build.OUTSIDE_PLAYERS, each
+        # handle a player of the board): both places count them
+        outside = [r for r in recs if r["player"] in build.OUTSIDE_PLAYERS]
+        players = {r["player"] for r in recs}
+        for h in build.OUTSIDE_PLAYERS:
+            self.assertIn(h, players)
+            self.assertNotEqual(h, ref_player)
+        self.assertTrue(outside)
+        k = len({r["player"] for r in outside})
+        out = f"{len(outside)} of the {len(recs)} records come from " + ("a player" if k == 1 else f"{k} players") \
+            + " outside the maintainers"
         home = self.files["index.html"].decode("utf-8")
         cards_end = home.index("</ul>", home.index('<ul class="task-cards">'))
         note = re.match(r'</ul><p class="board-note">(.*?)</p></section>', home[cards_end:], re.S)
         self.assertIsNotNone(note, home[cards_end:cards_end + 300])
-        self.assertEqual(norm(text_of(note.group(1))), f"The board so far was seeded by the maintainers: {words}, each "
-                         "naming its assistant (who made the records).")
+        self.assertEqual(norm(text_of(note.group(1))), f"The board was seeded by the maintainers, and {out}: {words}, "
+                         "each naming its assistant (who made the records).")
         self.assertIn('href="about.html#who-made-the-records"', note.group(1))
         about = self.files["about.html"].decode("utf-8")
         sec = about[about.index('id="who-made-the-records"'):]
         sec = norm(text_of(sec[:sec.index("<h2")]))
-        for said in ("The board so far was seeded by the maintainers.", words[:1].upper() + words[1:],
+        self.assertNotIn("The board so far was seeded by the maintainers.", sec)
+        for said in ("The board was seeded by the maintainers.", out[:1].upper() + out[1:],
+                     ", ".join(sorted({r["player"] for r in outside})) + "): handed in by pull request, each was made "
+                     "again by the maintainers on the rating machine under the player's handle",
+                     words[:1].upper() + words[1:],
                      "Several came from a newcomer study run by the maintainers",
                      f"{len(ported)} of the {len(recs)} proofs are marked as ported: the maintainers re-made them",
                      f'{len(copies)} of the {len(entries)} entries carry the mark "reference design"',
                      "They are entries like any other and are ranked as usual."):
             self.assertIn(said, sec)
+        # the words without an outside record (the board before 2026-11-24) and with several outside players
+        p0 = {"records": 5, "assisted": 5, "ported": 0, "entries": 4, "copies": 0, "outside": 0, "outside_players": []}
+        self.assertIsNone(build.outside_words(p0))
+        self.assertIn("The board so far was seeded by the maintainers: all 5 records", build.provenance_front_html(p0, ""))
+        self.assertTrue(build.provenance_md(p0).startswith("The board so far was seeded by the maintainers. All 5"))
+        p2 = dict(p0, outside=3, outside_players=["a-player", "b-player"])
+        self.assertEqual(build.outside_words(p2), "3 of the 5 records come from 2 players outside the maintainers")
+        self.assertIn("(`a-player`, `b-player`): handed in by pull request", build.provenance_md(p2))
         self.assertEqual(norm(text_of(about)).count("made with AI assistance"), 1)       # said once on the page
         mark = re.compile(r'<span class="badge badge-reference" title="byte for byte ([^"]+)">reference design</span>')
         for t in self.ranked:

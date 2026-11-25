@@ -1,0 +1,315 @@
+{
+ "cell_area_e4um2": {
+  "and2_1": 62560,
+  "nand2_1": 37536,
+  "or2_1": 62560,
+  "xnor2_1": 87584,
+  "xor2_1": 87584
+ },
+ "display": {
+  "area_e4um2_sky130": 1151104,
+  "cell_hist_sky130": {
+   "nand2_1": 12,
+   "xor2_1": 8
+  },
+  "cells_sky130": 20,
+  "critical": {
+   "cells": 8,
+   "edge": "r",
+   "output": "s[3]"
+  },
+  "delay_ps_sky130": 970,
+  "drawn": null,
+  "params": {
+   "N": 4
+  },
+  "path": [
+   {
+    "arrival_ps": 114.4,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[0]",
+    "slew_ps": 22.5
+   },
+   {
+    "arrival_ps": 302.4,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_79_",
+    "net": "_64_",
+    "slew_ps": 190.5
+   },
+   {
+    "arrival_ps": 374.2,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_80_",
+    "net": "_65_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 461.4,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_81_",
+    "net": "_66_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 511.0,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_83_",
+    "net": "_68_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 598.2,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_84_",
+    "net": "_69_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 647.7,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_86_",
+    "net": "_71_",
+    "slew_ps": 45.9
+   },
+   {
+    "arrival_ps": 734.9,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_87_",
+    "net": "_72_",
+    "slew_ps": 80.1
+   },
+   {
+    "arrival_ps": 970.2,
+    "cell": "xor2_1",
+    "edge": "r",
+    "inst": "_94_",
+    "net": "_59_",
+    "slew_ps": 247.2
+   }
+  ],
+  "reason": "the drawing (15,230 bytes) would pass the total size budget of the committed schematics",
+  "repaired_sha256": "71a1464ce608e3e30b4a4dde3a1c86211775b6756c3aac3e57d13c4c4853b9b7"
+ },
+ "schema": "svgolf-schematic/1",
+ "scored": {
+  "area_e4um2_sky130": 6293536,
+  "cell_hist_sky130": {
+   "and2_1": 26,
+   "nand2_1": 52,
+   "or2_1": 14,
+   "xnor2_1": 11,
+   "xor2_1": 10
+  },
+  "cells_sky130": 113,
+  "critical": {
+   "cells": 18,
+   "edge": "r",
+   "output": "s[11]"
+  },
+  "delay_ps_sky130": 1911,
+  "legality": {
+   "cells_outside_tables": 0,
+   "over_max_capacitance": 0,
+   "over_max_transition": 0,
+   "table_reads_outside": 0,
+   "worst_load_ratio": 0.144,
+   "worst_transition_ratio": 0.178
+  },
+  "liberty_sha256": "ef34f999d582044cad9c1f4d5422504ae99702ad42baa432d75215476e5d23d5",
+  "netlist_sha256": "31e86a1139608e4a0f3c205bcb8c157b2c4f14cf13aeb2fff4d92bdf60b01b9c",
+  "params": {
+   "N": 16
+  },
+  "path": [
+   {
+    "arrival_ps": 111.2,
+    "cell": null,
+    "edge": "f",
+    "inst": null,
+    "net": "b[1]",
+    "slew_ps": 20.3
+   },
+   {
+    "arrival_ps": 337.5,
+    "cell": "or2_1",
+    "edge": "f",
+    "inst": "_274_",
+    "net": "_225_",
+    "slew_ps": 60.6
+   },
+   {
+    "arrival_ps": 491.2,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_275_",
+    "net": "_226_",
+    "slew_ps": 33.7
+   },
+   {
+    "arrival_ps": 547.7,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_288_",
+    "net": "_239_",
+    "slew_ps": 54.6
+   },
+   {
+    "arrival_ps": 607.5,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_289_",
+    "net": "_240_",
+    "slew_ps": 42.4
+   },
+   {
+    "arrival_ps": 657.3,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_293_",
+    "net": "_244_",
+    "slew_ps": 40.7
+   },
+   {
+    "arrival_ps": 696.7,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_297_",
+    "net": "_248_",
+    "slew_ps": 28.0
+   },
+   {
+    "arrival_ps": 786.3,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_298_",
+    "net": "_249_",
+    "slew_ps": 94.7
+   },
+   {
+    "arrival_ps": 833.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_355_",
+    "net": "_203_",
+    "slew_ps": 44.7
+   },
+   {
+    "arrival_ps": 1000.4,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_357_",
+    "net": "_204_",
+    "slew_ps": 51.5
+   },
+   {
+    "arrival_ps": 1056.5,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_359_",
+    "net": "_205_",
+    "slew_ps": 34.2
+   },
+   {
+    "arrival_ps": 1197.7,
+    "cell": "and2_1",
+    "edge": "r",
+    "inst": "_360_",
+    "net": "_206_",
+    "slew_ps": 85.8
+   },
+   {
+    "arrival_ps": 1252.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_361_",
+    "net": "_207_",
+    "slew_ps": 38.2
+   },
+   {
+    "arrival_ps": 1337.1,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_363_",
+    "net": "_208_",
+    "slew_ps": 81.5
+   },
+   {
+    "arrival_ps": 1390.7,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_364_",
+    "net": "_209_",
+    "slew_ps": 38.4
+   },
+   {
+    "arrival_ps": 1475.5,
+    "cell": "nand2_1",
+    "edge": "r",
+    "inst": "_367_",
+    "net": "_211_",
+    "slew_ps": 81.5
+   },
+   {
+    "arrival_ps": 1524.3,
+    "cell": "nand2_1",
+    "edge": "f",
+    "inst": "_368_",
+    "net": "_212_",
+    "slew_ps": 31.1
+   },
+   {
+    "arrival_ps": 1676.7,
+    "cell": "and2_1",
+    "edge": "f",
+    "inst": "_371_",
+    "net": "_214_",
+    "slew_ps": 43.3
+   },
+   {
+    "arrival_ps": 1911.3,
+    "cell": "xnor2_1",
+    "edge": "r",
+    "inst": "_372_",
+    "net": "_163_",
+    "slew_ps": 264.6
+   }
+  ],
+  "ppa_pins_sha256": "d66a6086a37a97f5985266057051979fb6a8a3c557d3ef9c42acc1b5e41502d8",
+  "ppa_version": "sky130_a0_v3",
+  "repair": {
+   "buffers": 0,
+   "cells_before": 113,
+   "method": "buffer_trees_v1",
+   "netlist_sha256": "67f442369c4406f7dc97954957b167c5022f15dc5234ba91a302d92b7bbd5a92",
+   "nets_buffered": 0,
+   "rounds": 1,
+   "tie_cells": 0
+  },
+  "setup": {
+   "input_drive": "sky130_fd_sc_hd__buf_8",
+   "pi_slew_ps": 50,
+   "po_load_ff": 10,
+   "tables": "no extrapolation",
+   "wires": "none"
+  },
+  "unit_depth": 20
+ },
+ "sv_sha256": "7abd6af97df9480d9a76328c02b5d40b0221fdd272a12ab0d55f71657816ce2c",
+ "task": "add",
+ "tools": {
+  "elkjs": "0.3.0",
+  "netlistsvg": "1.0.2",
+  "skin_sha256": "de50376718060bd4c77b5c0006949db9e633966e0ff18c5d5866276f5379fb99",
+  "yosys": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+ }
+}

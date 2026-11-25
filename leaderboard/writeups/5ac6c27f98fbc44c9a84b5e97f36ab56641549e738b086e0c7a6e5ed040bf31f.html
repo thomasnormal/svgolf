@@ -1,0 +1,17 @@
+<h1>4:2 compressor heap with hybrid sparse-5 Kogge-Stone adder</h1>
+
+<p>A parametric N-bit unsigned multiplier that keeps record <code>7d6d9bd9da7a</code>'s two-row-leaf 4:2 compressor heap and replaces its 2N-bit ripple-carry final adder with a hybrid low-bit ripple and upper sparse-5 Kogge-Stone prefix adder, cutting delay substantially for modest extra area on both sky130 and ASAP7.</p>
+
+<h2>The idea</h2>
+
+<p>In record <code>7d6d9bd9da7a</code>, three levels of 4:2 compressors reduce the 16 partial-product rows to two 32-bit rows <code>(S[0], C[0])</code> in ~10 gate levels, but the 32-bit ripple-carry final adder stretches total unit depth to 60 (5342 ps on sky130, 1088 ps on ASAP7). Moreover, the low columns of <code>(S[0], C[0])</code> emerge from the compressor tree much earlier than the middle and upper columns, so placing prefix logic on the low bits wastes area without shortening the critical path.</p>
+
+<p>The hybrid final adder splits the <code>2N</code> columns at <code>M = (3 * N) / 4</code> (bit 12 at N = 16): bits <code>0 .. M-1</code> use the compact late-carry ripple adder, while the upper <code>U = 2N - M</code> bits are divided into <code>FQ = (U - 1) / 5</code> 5-bit blocks plus a guaranteed non-empty tail of <code>FR = U - 5 * FQ</code> bits (3 blocks of 5 + 5-bit tail at N = 16). Each block computes group <code>(G, P)</code>, an <code>L = $clog2(FQ + 1)</code> Kogge-Stone prefix tree distributes block carry-ins, and local carries within each block and the tail use late-carry mux cells <code>fp ? c : S[0]</code>.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>At N = 16, replacing the upper ripple chain drops unit depth from 60 to 41. On sky130 A0', area rises by only +3.4% (8232.90 vs 7961.39 µm² for <code>7d6d9bd9da7a</code>, 1484 vs 1431 cells) while delay falls by -15.6% (4508 vs 5342 ps), yielding 37113.90 µm²·ns (0.873 x the previous best, 0.410 x par). On ASAP7 the gain is even larger: 124.55694 µm² x 825 ps = 102.7595 µm²·ns (0.781 x the previous best 131.4887).</p>
+
+<h2>The proof</h2>
+
+<p>The proof reuses <code>7d6d9bd9da7a</code>'s 4:2 compressor heap reduction (<code>heap_mul0</code>) unchanged and adds a standalone arithmetic theorem <code>HeapArith.hybrid_adder_bits</code> (using <code>LeanModels.Sv.Lib.Prefix</code>) proving that the low ripple, 5-bit block <code>(G, P)</code>, <code>L</code>-level Kogge-Stone prefix, local late-carry ripple, and tail late-carry ripple produce the exact sum bits of a canonical <code>2N</code>-bit ripple-carry adder on <code>(S[0], C[0])</code>. <code>sv_structure</code> with a lexicographic rank, <code>sv_interface</code>, and <code>sv_equations</code> close <code>Submission.solution</code> for all <code>1 &lt;= N &lt; 2^20</code>.</p>
