@@ -1,0 +1,23 @@
+<h1>Mask round-robin with no grant register</h1>
+
+<p>A registered round-robin arbiter with the mask policy of the reference design <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html"><code>rr_mask</code></a> (par, record <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html">d354b82fb1ab</a>) and another state: it registers no grant.</p>
+
+<h2>The idea</h2>
+
+<p>Its state is a flag valid (someone requested at the last entry) and the thermometer mask of the clients above the last grant; mask[0] is always 0, so the scored netlist keeps N flops, 8 at N = 8 against <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html">par's</a> 16. The grant is decoded from that state alone, gnt = ext[N:1] &amp; ~ext[N-1:0] with ext = {valid, mask}: the one client just below the mask's edge, or none when valid is 0 (Moore: no path from req to gnt). The next mask is ~(x ^ (x - 1)), the clients strictly above the lowest set bit of x, where x is the masked requests if there are any, else all requests; it is 0 when nobody requests.</p>
+
+<p>One behaviour differs from <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html">par's</a>: after an entry with no request at all, par keeps its mask and this design clears it, so the next pick starts again from client 0. Until the first such entry of a segment the grants are par's, and a request held at N entries is still granted within them (the statement's fairness, G4); a requester that asks only at some entries may be served in another order than par's, which the statement leaves open.</p>
+
+<p>The design is parametric in N.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 412.8960 µm² × 1 cycle × 1,648 ps = 680.45 µm²·ns, 0.313 × par. In the ASAP7 view (the cells only): 6.50268 µm² × 1 cycle × 282 ps = 1.8338 µm²·ns, 0.325 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The design and the proof are the player's files, byte for byte, both written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, in one commit. The proof file has 721 lines (636 of code, the board's count).</p>
+
+<p>It follows the route and the skeleton of par's proof <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html"><code>rr_mask.lean</code></a> (the rank model with the thermometer invariant and the cyclic-distance rank of the SvGolf.RoundRobin library): 79 of its 495 lines longer than 25 characters are lines of par's proof. The rest is its own: this design's closed-form clock cycle, the lemma that ~(x ^ (x - 1)) is the thermometer above the lowest set bit, the grant decoding, and their bridges to the library's pick and next. The maintainers wrote none of its lines.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

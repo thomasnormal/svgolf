@@ -1,0 +1,23 @@
+<h1>Four multiply-accumulate steps per cycle, an 8-bit counter</h1>
+
+<p>Four multiply-accumulate steps per cell per cycle, as in record <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">65342538360f</a>: start captures A and B into two registers with three spare (zero) entries and rows and clears C and a step counter k; in each busy cycle every cell (i, j) adds A[i][k..k+3] . B[k..k+3][j] (sign-extended, wrapping at AccW; entries past N read as 0), A shifts by four entries, B by four rows and k grows by 4; done rises after ceil(N/4) busy cycles (latency (N+3)/4, 1 at the scoring point).</p>
+
+<h2>What it was built on</h2>
+
+<p>The design is that record's design with five lines changed: k is 8 bits wide instead of 32 (enough for N &lt;= 256: while busy, k is a multiple of 4 below N), and the completion test k + 4 &gt;= N is written (N &lt;= 4) || (k &gt;= N-4). At N = 4 that test is constant, so nothing reads the counter and synthesis removes it (770 flops against 800).</p>
+
+<p>The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 239,698.6400 µm² × 1 cycle × 9,290 ps = 2,226,800.37 µm²·ns, 0.597 × par. In the ASAP7 view (the cells only): 3,627.89766 µm² × 1 cycle × 1,629 ps = 5,909.8453 µm²·ns, 0.719 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 1029 lines (798 of code, the board's count). 871 of them are the player's: its port of that record's first proof (the board's copy is the maintainers' later port of it) to this design, with the counter's width in the mirror and the queues, a lemma on the 8-bit test and the range N &lt;= 256 carried to the busy step; 1054 of the 1114 lines of the player's file when it asked for help were lines of that proof, in its order.</p>
+
+<p>Lines 2 to 4 are the header of record <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">65342538360f</a>'s proof, copied by the player; they describe that record's port, not this file.</p>
+
+<p>The other 158 come from the answer a maintainers' helper, Claude Opus, gave to the player's help request (151 as handed over, 7 re-wrapped or edited by the player): the generated mirror's agreement (sv_mirror, mmG_D, mm_sem_eq) with the 32-bit range Rng32 threaded through the lemmas and the clock guard of termination, taken from record <a href="7162033b554f4b36ef5ac0d9f7848b8d8f12661d05650233fe7ce816c780ed9c.html">65342538360f</a>'s proof (102 of the lines are lines of it), and the completion test as the instantiation writes it (gE, irreducible), its evaluation (eval_gE, gV, gV_known) and their uses.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

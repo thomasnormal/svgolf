@@ -25,7 +25,8 @@
    "output": "D:_06_"
   },
   "delay_ps_sky130": 934,
-  "drawn": null,
+  "drawn": "full",
+  "drawn_cells": 24,
   "params": {
    "N": 4
   },
@@ -79,8 +80,9 @@
     "slew_ps": 31.0
    }
   ],
-  "reason": "the drawing (17,276 bytes) would pass the total size budget of the committed schematics",
-  "repaired_sha256": "0025f24125e212aeab51c411ace677da0bb43bcf73b377250219d11993fd2d4e"
+  "repaired_sha256": "0025f24125e212aeab51c411ace677da0bb43bcf73b377250219d11993fd2d4e",
+  "svg_bytes": 17276,
+  "svg_sha256": "3e6cb0fa627c2e311893ed86fc9e0dd9335d23c97f9e03006fe9b607bec1b603"
  },
  "schema": "svgolf-schematic/1",
  "scored": {

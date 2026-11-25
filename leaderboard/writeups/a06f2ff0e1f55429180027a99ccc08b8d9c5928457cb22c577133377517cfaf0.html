@@ -1,0 +1,23 @@
+<h1>Registered 3D cube of partial sums</h1>
+
+<p>A registered 3D cube of partial sums: N layers of N x N accumulators, layer d for the d-th term of every dot product.</p>
+
+<h2>The idea</h2>
+
+<p>Start captures A and B into two operand registers, loads every cell (d, i, j) of the cube with the product A[i][d]*B[d][j] straight from the inputs (both sign-extended, wrapping at AccW), and clears C and a 32-bit step counter k; in each busy cycle every layer d &gt;= 1 takes the cell of layer d-1 below it plus its own product, from the captured operands, so the partial sums move one layer deeper per cycle and after N - 1 cycles the last layer holds the whole dot products.</p>
+
+<p>In the N-th busy cycle C takes the last layer, and the controller drops busy and raises done (latency N). It has N*N*N multipliers and N*N*N accumulators where the reference design <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html"><code>matmul_g1</code></a> (par) has N*N of each.</p>
+
+<p>The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 409,719.2032 µm² × 4 cycles × 10,953 ps = 17,950,617.73 µm²·ns, 4.813 × par. In the ASAP7 view (the cells only): 6,216.35796 µm² × 4 cycles × 1,557 ps = 38,715.4774 µm²·ns, 4.712 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 848 lines (773 of code, the board's count). Twelve of them are the player's: the header with the latency comment, the imports and the <code>sv_mirror</code> declaration.</p>
+
+<p>The other 836 were written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, with the finished proofs of the records <a href="e6ea15dde7198d99bdebf2888017f01d1cccc9d11f8156eda92423fbba25568b.html">2b625ce36431</a>, <a href="78a6d7c36fd2a422185a2b4e3e236e83249709ec7a4291aaa3ebfee6dd163065.html">f14f8e008cc0</a> and <a href="0ac23825c686d65703b6ef2bae1a23d7103e9d32cdeb9d8453abaf1eb7a75f8d.html">ddc2d1b271db</a> available as patterns (it shares the most lines with that of <a href="e6ea15dde7198d99bdebf2888017f01d1cccc9d11f8156eda92423fbba25568b.html">2b625ce36431</a>, the same agent's earlier proof): the generated processes' disjointness and the clock cycle, the cube's invariant and the layer arithmetic, the next state for each kind of cycle, the phase model, the interface, discipline and x-safety lemmas, termination and the <code>solution</code> theorem. The maintainers wrote none of its lines.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

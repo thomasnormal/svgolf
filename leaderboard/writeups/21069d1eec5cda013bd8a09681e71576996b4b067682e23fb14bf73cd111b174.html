@@ -1,0 +1,25 @@
+<h1>Output cores with operand registers of their own</h1>
+
+<p>An array of output cores, each with operand registers of its own (its comment: a Cerebras-style wafer of small cores).</p>
+
+<h2>The idea</h2>
+
+<p>Start clears C and a 32-bit step counter k, captures A into a shift register and B, one row ahead, into a feeder register, and loads the two operand registers of every core (i, j) with A[i][0] and B[0][j]; in the first busy cycle every core adds the product of its two operand registers, in each later one the product of A[i][k], read from the shifted A register, and its B register, B[k][j] (both sign-extended, wrapping at AccW); in every busy cycle the operand registers take their next values from the A register and the feeder, A shifts by one entry and the feeder by one row.</p>
+
+<p>After N steps the controller drops busy and raises done (latency N). Reset clears the operand, shift and feeder registers, C and the controller.</p>
+
+<p>The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>What it was built on</h2>
+
+<p>It is record <a href="431ce19a4fd556b450b28a49a5eadd48d7b2906b3197c49c1b32fe29b8b08e41.html">80aea08acec2</a>'s design (the same player's) with an A operand register in every core besides its B register, the A register's value used in the first step, and more registers cleared on reset; like it, it differs from the reference design <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html"><code>matmul_g1</code></a> (par) in keeping per-core copies of operands.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 134,585.3280 µm² × 4 cycles × 10,052 ps = 5,411,406.87 µm²·ns, 1.451 × par. In the ASAP7 view (the cells only): 2,039.84406 µm² × 4 cycles × 1,581 ps = 12,899.9738 µm²·ns, 1.570 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 719 lines (654 of code, the board's count), all written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, in one commit (the player had no proof file for it), with the finished proofs of the records <a href="431ce19a4fd556b450b28a49a5eadd48d7b2906b3197c49c1b32fe29b8b08e41.html">80aea08acec2</a>, <a href="e6ea15dde7198d99bdebf2888017f01d1cccc9d11f8156eda92423fbba25568b.html">2b625ce36431</a>, <a href="82e70e4a9004b822d74a90729a44ef7db14111f8d0ccbd4c3cbf0c3ec7a8f04d.html">5bff489cc2ef</a> and <a href="a06f2ff0e1f55429180027a99ccc08b8d9c5928457cb22c577133377517cfaf0.html">1136031894d5</a> available as patterns (it shares the most lines with that of <a href="431ce19a4fd556b450b28a49a5eadd48d7b2906b3197c49c1b32fe29b8b08e41.html">80aea08acec2</a>, the same agent's earlier proof): the sv_mirror instantiation, the generated processes' disjointness and the clock cycle, the arithmetic and packing lemmas, the next state for each kind of cycle, the phase model, the interface, discipline and x-safety lemmas, termination and the solution theorem. The maintainers wrote none of its lines.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

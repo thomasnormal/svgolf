@@ -1,0 +1,21 @@
+<h1>Spatial broadcast timetable: a row and a column bus</h1>
+
+<p>A spatial broadcast timetable.</p>
+
+<h2>The idea</h2>
+
+<p>Two bus registers of N words each, a row bus and a column bus, carry one outer-product slice per cycle: start loads column 0 of A and row 0 of B onto them straight from the inputs and puts the rest of A and B into two shift registers (A &gt;&gt; W, B &gt;&gt; N*W); in each busy cycle the buses take the next column of A and the next row of B from those registers.</p>
+
+<p>An N x N array of stationary output cells reads the buses: in each of the N busy cycles cell (i, j) adds row-bus word i times column-bus word j (both sign-extended, wrapping at AccW) to its accumulator, which start clears. A 32-bit step counter ends the busy phase after N steps and raises done (latency N).</p>
+
+<p>It differs from <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the shift-register reference</a> in that the cells read registered row and column buses, loaded from the inputs at start, not the heads of the shift registers. The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 88,006.9056 µm² × 4 cycles × 10,893 ps = 3,834,636.89 µm²·ns, 1.028 × par. In the ASAP7 view (the cells only): 1,343.02212 µm² × 4 cycles × 1,533 ps = 8,235.4116 µm²·ns, 1.002 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof is the player's file with parts the maintainers wrote and handed over, roughly half of its lines: the cell step arithmetic, the queues' names and shape, the commit, bus and busy-step lemmas, reset and start, and the whole last part (the protocol phases, the x-safety lemmas and the <code>solution</code> theorem, under the comment that marks it as the maintainers' reserve).</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

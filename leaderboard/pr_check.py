@@ -26,7 +26,13 @@ on, the branch it goes to) and checks, in order:
      reference design names it; (d) a licence notice of what the design is built on is kept; (e) the header comment
      is the design's own;
   4. `leaderboard.py verify --full` on the added records alone: check.py runs again on each pair, the whole check,
-     with `--sandbox` as given (not run when step 1 failed: the pull request would bring the checker it runs).
+     with `--sandbox` as given (not run when step 1 failed: the pull request would bring the checker it runs);
+  5. the ASAP7 columns of each added record (decided 2026-11-25: every record is measured on both libraries):
+     the five pinned ASAP7 liberty files fetched (score/ppa.py --pdk asap7 --fetch-liberty, each file's size and
+     sha256 checked), the record's design measured on ASAP7 as `leaderboard.py add` measures it (`lb.bind_asap7`,
+     nothing written), and the numbers it gives are measurements a writeup's numbers are compared with in step 3 (a
+     writeup may give its record's own ASAP7 numbers); where the tree already has an ASAP7 entry for the same design
+     file, the measurement must reproduce it. A fetch that fails is a failed check, with the reason (run it again).
 
 It prints the result in Markdown, short first (what to fix, then one line per check saying what was compared: whether
 the full check compared each record's scores, and the tool versions it ran with), then each added record with its
@@ -81,6 +87,8 @@ RECORD_EXTS = ("json", "sv", "lean")
 # a record's writeup (decided 2026-11-13), as a path relative to svGolf's directory: (record_hash)
 WRITEUP_FILE_RE = re.compile(r"leaderboard/writeups/([0-9a-f]{64})\.html")
 WRITEUP_MD_RE = re.compile(r"leaderboard/writeups/([0-9a-f]{64})\.md")      # the old format (until 2026-11-16)
+# a task's ASAP7 table, which `add` changes in the player's own tree (it binds the new record's ASAP7 columns there)
+ASAP7_TABLE_RE = re.compile(r"leaderboard/asap7/[^/]+\.json")
 STATUS_WORDS = {"A": "added", "M": "changed", "D": "deleted", "T": "changed in type"}
 RATING_NOTE = ("Once the checks pass, the maintainers make the record again on the rating machine, under its "
                "handle and with its files and writeup, publish it, and merge or close the pull request with a link to it (CONTRIBUTING.md, "
@@ -145,6 +153,11 @@ def classify(changed):
         elif WRITEUP_MD_RE.fullmatch(path) and status in ("A", "M"):
             problems.append(f"`{path}` is {STATUS_WORDS.get(status, status)}: writeups are HTML since 2026-11-16, so "
                             "name it `<record_hash>.html` and write it in HTML (README.md, \"Writeups\")")
+        elif ASAP7_TABLE_RE.fullmatch(path):
+            problems.append(f"`{path}` is {STATUS_WORDS.get(status, status)}: `leaderboard.py add` binds a record's "
+                            "ASAP7 columns in your own tree; leave that table out of the pull request (`submit` "
+                            "leaves it out): this check measures the added records' ASAP7 columns itself, and the "
+                            "maintainers bind them when they make the record")
         else:
             problems.append(f"`{path}` is {STATUS_WORDS.get(status, status)}: it is not a record's file, and a pull "
                             "request of records changes nothing else (it would bring the checker it runs)")
@@ -195,12 +208,15 @@ def changed_writeups(changed):
     return sorted(set(out))
 
 
-def rule_problems(added, writeups, *, data_dir, tasks_dir, writeups_dir):
+def rule_problems(added, writeups, *, data_dir, tasks_dir, writeups_dir, extra=()):
     """Step 3: the rules for a record (lb.record_rule_problems) of each added record, against the base's records of its
     task submitted no later than it and the task's reference designs, and the score numbers of every writeup the pull
-    request adds or changes (`writeups`: record hashes). [problem], each naming its record."""
+    request adds or changes (`writeups`: record hashes), compared with the tree's measurements and `extra` (the ASAP7
+    entries step 5 measured). [problem], each naming its record."""
     out = []
     meas = lb.tree_measurements([data_dir])
+    for e in extra:
+        lb._measure_walk(e, meas)
     done = set()
     added_hashes = {h for _, h in added}
     for task_name, h in sorted(added):
@@ -232,6 +248,47 @@ def rule_problems(added, writeups, *, data_dir, tasks_dir, writeups_dir):
         except OSError:
             continue
         out += [f"writeup `{h[:12]}`: {p}" for p in lb.writeup_number_problems(text, meas)]
+    return out
+
+
+def asap7_measure(added, *, data_dir, tasks_dir, ppa_py=lb.PPA_PY, asap7_dir=lb.ASAP7_DIR):
+    """Step 5: the ASAP7 columns of each added record, measured as `add` measures them (`lb.bind_asap7`, nothing
+    written): ({(task, hash): the entry}, [problem]). A problem: the pinned liberty could not be fetched (said once),
+    a design that cannot be measured, or a measurement that does not reproduce the tree's entry for the same design
+    file."""
+    entries, problems = {}, []
+    why = lb.fetch_asap7_liberty(ppa_py)
+    if why:
+        return entries, [f"the ASAP7 columns of the records it adds were not measured: {why}"]
+    for task_name, h in sorted(added):
+        who = f"record `{task_name}/{h[:12]}`"
+        try:
+            task = lb.load_task(tasks_dir, task_name)
+            with open(lb.record_paths(data_dir, task_name, h)[0], encoding="utf-8") as fh:
+                rec = json.load(fh)
+            entry, _, why = lb.bind_asap7(task, rec, data_dir=data_dir, tasks_dir=tasks_dir, ppa_py=ppa_py,
+                                          write=False)
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            entry, why = None, str(e)
+        if entry is None:
+            problems.append(f"{who}: its ASAP7 columns could not be measured: {why}")
+            continue
+        entries[(task_name, h)] = entry
+        have = lb.asap7_entry(lb.load_asap7(task_name, asap7_dir), entry["sv_sha256"])
+        diff = [k for k in lb.ASAP7_COMPARED if have is not None and have.get(k) != entry.get(k)]
+        if diff:
+            problems.append(f"{who}: the tree's ASAP7 entry for its design file is not what a measurement gives now "
+                            f"({', '.join(diff)} differ)")
+    return entries, problems
+
+
+def asap7_lines(added, entries):
+    """What step 5 measured, one line per added record (pure)."""
+    out = []
+    for task_name, h in sorted(added):
+        e = entries.get((task_name, h))
+        out.append(f"record `{task_name}/{h[:12]}`: ASAP7 " + (lb.asap7_entry_text(e) if e is not None
+                                                               else "not measured (above)"))
     return out
 
 
@@ -282,13 +339,15 @@ def tool_versions(flows_now, svgolf=SVGOLF):
 
 
 def report(*, added, problems, lines, offline, full, sandbox, note, rules=None, compared=None, tools=None,
-           writeups=()):
+           writeups=(), asap7=None):
     """The Markdown text of the check, short first: the verdict and the board lines, what to fix, what was compared
     (one line per check), then the outputs. `lines`: {(task, hash): board line}; `offline`, `full`: (exit status,
     output) of the two verify runs, or None when it did not run; `rules`: step 3's problems (None: not run);
-    `compared`: `compared_lines`; `tools`: `tool_versions`. Pure."""
+    `compared`: `compared_lines`; `tools`: `tool_versions`; `asap7`: step 5's (problems, `asap7_lines`), or None
+    when it did not run. Pure."""
     ran_rules, rules = rules is not None, rules or []
-    passed = (not problems and not rules and offline is not None and offline[0] == 0
+    a7_problems, a7_lines = asap7 if asap7 is not None else ([], [])
+    passed = (not problems and not rules and not a7_problems and offline is not None and offline[0] == 0
               and (full is None or full[0] == 0))
     n = len(added)
     out = ["## The records this pull request adds", ""]
@@ -298,7 +357,7 @@ def report(*, added, problems, lines, offline, full, sandbox, note, rules=None, 
     out += [f"- {lines[k]}" for k in sorted(lines)]
     if lines:
         out.append("")
-    fix = list(problems) + list(rules)
+    fix = list(problems) + list(rules) + list(a7_problems)
     if offline is not None and offline[0] != 0:
         fix.append("`verify --offline` failed: its output is below")
     if full is not None and full[0] != 0:
@@ -318,6 +377,11 @@ def report(*, added, problems, lines, offline, full, sandbox, note, rules=None, 
                              ("ok" if not rules else f"{len(rules)} problem{'s' if len(rules) != 1 else ''}")),
             f"- the full check of the records it adds (`verify --full --sandbox {sandbox}`): {state(full)}"]
     out += [f"- {c}" for c in (compared or [])]
+    out.append("- the ASAP7 columns of the records it adds (A0' on ASAP7, the cells only; the five pinned liberty "
+               "files fetched, each checked by its sha256): " + ("not run" if asap7 is None else "ok" if not a7_problems
+                                                           else f"{len(a7_problems)} problem"
+                                                           f"{'s' if len(a7_problems) != 1 else ''}"))
+    out += [f"- {c}" for c in a7_lines]
     if tools:
         out.append(f"- tools: {tools}")
     out += ["", RATING_NOTE + " " + note, ""]
@@ -378,6 +442,7 @@ def main(argv=None):
     ap.add_argument("--repo", default=SVGOLF, help=argparse.SUPPRESS)          # svGolf's directory (tests)
     ap.add_argument("--tasks-dir", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--check-py", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--ppa-py", default=None, help=argparse.SUPPRESS)                # tests: a fake ppa.py
     args = ap.parse_args(argv)
     repo = os.path.abspath(args.repo)
     data_dir = os.path.join(repo, "leaderboard", "data")
@@ -419,8 +484,15 @@ def main(argv=None):
             problems.append(f"record `{task_name}/{h[:12]}`: {e}")
     offline = run_leaderboard(["verify", "--offline"], data_dir=data_dir, tasks_dir=tasks_dir,
                               writeups_dir=writeups_dir)
-    rules = rule_problems(added, writeups, data_dir=data_dir, tasks_dir=tasks_dir, writeups_dir=writeups_dir) \
-        if (added or writeups) and not problems else None
+    # step 5 before step 3: a writeup may give its record's own ASAP7 numbers, which are compared with this measurement
+    a7_entries, asap7 = {}, None
+    if added and not problems:
+        a7_entries, a7_problems = asap7_measure(added, data_dir=data_dir, tasks_dir=tasks_dir,
+                                                ppa_py=args.ppa_py or lb.PPA_PY,
+                                                asap7_dir=os.path.join(repo, "leaderboard", "asap7"))
+        asap7 = (a7_problems, asap7_lines(added, a7_entries))
+    rules = rule_problems(added, writeups, data_dir=data_dir, tasks_dir=tasks_dir, writeups_dir=writeups_dir,
+                          extra=list(a7_entries.values())) if (added or writeups) and not problems else None
     full = None
     stale = {}
     if added and not problems:
@@ -437,7 +509,7 @@ def main(argv=None):
     text, passed = report(added=added, problems=problems, lines=lines, offline=offline, full=full,
                           sandbox=args.sandbox, note=flow_note(flows_now, pinned), rules=rules,
                           compared=compared_lines(added, stale, machine_ok, full), tools=tool_versions(flows_now),
-                          writeups=writeups)
+                          writeups=writeups, asap7=asap7)
     print(text)
     if args.summary:
         with open(args.summary, "a", encoding="utf-8") as fh:

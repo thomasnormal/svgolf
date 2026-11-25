@@ -1,7 +1,8 @@
 {
  "_comment": "The display instance of each listed task, for the schematics of the record pages (site/gen_schematics.py; PLAN4 3c, ruled 11/04: draw a SMALL instance, not the scored one, so that a reader can see what is going on). `params` are the task's parameters at which the design is drawn (the same design through the same pinned flow, score/ppa.py with --param); the page says so and keeps the scored numbers. `draw`: `auto` draws the whole repaired netlist up to `max_full_cells` cells and above that the critical path with the nets that touch it; `critical` always draws the path (aes_sbox: a fixed size, so no smaller instance exists). A design that does not elaborate at its task's display instance gets no picture, with the reason: it is never refused for that. Untrusted: nothing here is scored or ranked.",
  "max_full_cells": 1000,
- "max_total_bytes": 5000000,
+ "max_total_bytes": 5500000,
+ "_max_total_bytes_why": "5 MB until 2026-11-25, when it was spent and the first outside records got no drawing; 5.5 MB draws every design of the seven tasks other than matmul (their ten undrawn drawings are 463,310 bytes), and matmul's twenty undrawn designs (7,490,790 bytes at N = 2) stay without one",
  "tasks": {
   "_example": {"params": {"N": 4}, "draw": "auto"},
   "add": {"params": {"N": 4}, "draw": "auto"},

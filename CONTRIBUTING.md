@@ -29,6 +29,10 @@ repository svGolf requires as the Lake package `lean-models` (in a clone of svGo
   `python3.12 score/yosys_wasm.py --self-check` prints the module's sha256 against the pin, the package versions
   and the version line, and exits 0 only when all are the pinned ones; `add` stops with the same reason when they
   are not, and the pull request's check prints the versions it ran with.
+* **The liberty of both libraries**, fetched at pinned hashes and never vendored: `python3.12 score/ppa.py
+  --fetch-liberty` (sky130, the ranked score) and `python3.12 score/ppa.py --pdk asap7 --fetch-liberty` (the five
+  ASAP7 files of the ASAP7 view). `add` measures every record on both and fetches the ASAP7 files itself when they are
+  missing (decided 2026-11-25).
 * **Lean** through elan, toolchain `leanprover/lean4:v4.35.0` (`lean-toolchain`). Build the trusted part
   once: `lake build SvGolf tasks svgolf-eval` (`check.py` does this itself in its `trusted` stage unless
   you pass `--no-trusted-build`). No Mathlib is built; a solution that imports it needs the Mathlib build
@@ -88,6 +92,7 @@ Run from the repository's root. The module header, port names, order and widths 
 | `... --postsynth full` (or `SVGOLF_POSTSYNTH=full`) | the post-synthesis stage on the task's whole vector budget: what verification and the leaderboard run | longer, per task |
 | `... --keep` / `--stage-dir DIR` | the result's `dev_hint` is the command that recompiles only your `Solution.lean`: the fast inner loop for the proof | |
 | `python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped [--path]` | the golfing inner loop: the ranked numbers alone (sky130 um^2 and ps, whose product is ranked, with the GE columns; `--path` the critical path; the source gate and Yosys, no banlist, no ls-sv, no Lean; needs the pinned liberty, `--fetch-liberty`) | about 2 s |
+| `... --pdk asap7` | the same design on ASAP7, the ASAP7 view's numbers (`area_um2_asap7`, `delay_ps_asap7`), which `leaderboard.py add` measures and binds for every record: weigh a design on both; needs the five pinned files, `python3.12 score/ppa.py --pdk asap7 --fetch-liberty` | about 2 s |
 | `python3.12 score/score.py solution.sv --task tasks/add` | the GE columns alone (Yosys, no Lean) | seconds |
 | `python3.12 check/postsynth.py --task tasks/add solution.sv` | the post-synthesis check alone, at any `--point N=32` | needs `svgolf-eval` built |
 
@@ -258,9 +263,9 @@ request of its own, naming the older record as what it was built on.
 ### The rules for a record
 
 Decided 2026-11-25. Each rule closes a gap the first outside records showed; `add` refuses a record that breaks
-the second, fourth or fifth rule before its check runs and asks for the first and the third, and `submit` and the
-pull request's check refuse a record that breaks any of them (README.md, "The rules for a record", says what the
-check measures).
+the second, fourth, fifth or eighth rule before its check runs and asks for the first and the third, `submit` and the
+pull request's check refuse a record that breaks any of them, and the seventh is how all three measure a record
+(README.md, "The rules for a record", says what the check measures).
 
 * **A writeup with every record.** A record goes in with its writeup, `leaderboard/writeups/<record_hash>.html`,
   copied from `leaderboard/writeups/TEMPLATE.html`: the idea, why it scores as it does, how the proof goes, what did
@@ -281,6 +286,20 @@ check measures).
 * **The pinned tools, one command.** `python3.12 score/yosys_wasm.py --self-check` checks the rating build of
   Yosys, the same program on every machine, so the numbers you make are the board's; `add` stops when it is not the
   pinned one, and the pull request's check prints the versions it ran with.
+* **Measure both libraries.** `add` measures every record on sky130 and on ASAP7 (the cells only, flow A0'),
+  fetching the five pinned ASAP7 liberty files first (`python3.12 score/ppa.py --pdk asap7 --fetch-liberty`, each
+  checked by its hash), and binds its ASAP7 columns in `leaderboard/asap7/<task>.json`; `submit` measures them where
+  they are missing, and the pull request's check measures them again, so a writeup may give its record's ASAP7
+  numbers. In the golfing loop, weigh a design on both: `score/ppa.py` with and without `--pdk asap7`.
+* **Short notes, the story in the writeup.** The notes say in one line what the design is, in at most 300
+  characters: `add`, `submit` and the pull request's check refuse a longer note on a record submitted from
+  2026-11-25 on. The idea, the proof and the dead ends go in the writeup.
+
+The pull request carries the record's three files and its writeup, nothing else: `add` also binds the record's ASAP7
+columns in your own tree (`leaderboard/asap7/<task>.json`), and that table stays out of the pull request (`submit`
+leaves it out; the check measures the columns itself, and the maintainers bind them when they make the record).
+Without network access, `add --no-asap7` leaves the measurement out; `leaderboard.py asap7 --write --task T`, or
+`submit`, makes it later.
 
 A good header comment, for a design built on a record: its first line says what the design is ("A carry-save tree
 of 4:2 compressors with a sparse Kogge-Stone final adder"), the next ones how it works and what it was built on
@@ -455,9 +474,10 @@ python3.12 -c 'import json, sys; r = json.load(open(sys.argv[1])); print(r["play
 cp "$D/HASH.sv" "$D/SV_NAME"; cp "$D/HASH.lean" "$D/LEAN_NAME"
 # then in the source tree, committed and clean:
 python3.12 leaderboard/leaderboard.py add --task TASK --player PLAYER --date DATE --assisted-by "TOOL" \
-    --notes "NOTES" --sv "$D/SV_NAME" --lean "$D/LEAN_NAME" --require-clean   # the full check, sandboxed
+    --notes "NOTES" --sv "$D/SV_NAME" --lean "$D/LEAN_NAME" --require-clean   # the full check, sandboxed;
+                                                # it binds the record's ASAP7 columns too (leaderboard/asap7/TASK.json)
 cp "$D/HASH.html" leaderboard/writeups/NEW_HASH.html                          # the writeup, under the new hash
-python3.12 leaderboard/leaderboard.py asap7 --write --task TASK      # the record's ASAP7 columns
+python3.12 leaderboard/leaderboard.py asap7 --task TASK              # the ASAP7 view bound to every design (a check)
 python3.12 leaderboard/leaderboard.py asap7pnr --request --task TASK --design leaderboard/data/TASK/NEW_HASH.sv --write
 git add leaderboard/data/TASK leaderboard/asap7/TASK.json leaderboard/asap7pnr/TASK.json leaderboard/writeups
 git commit -m "leaderboard: TASK: PLAYER's record made on the rating machine"

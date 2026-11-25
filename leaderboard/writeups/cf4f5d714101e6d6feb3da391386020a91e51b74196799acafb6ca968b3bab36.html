@@ -1,0 +1,25 @@
+<h1>Output memory bank, processing-in-memory style</h1>
+
+<p>An output memory bank in the processing-in-memory style (the player's description): C is a continuous copy of an N*N-word accumulator register, each word with its own multiply-accumulate.</p>
+
+<h2>The idea</h2>
+
+<p>Reset clears the words, the two operand banks and the controller; start clears the words and a 32-bit step counter k and captures A and B into the operand banks; in each busy cycle every word (i, j) adds A[i][k]*B[k][j], read at fixed places of the shifted banks (both sign-extended, wrapping at AccW), the A bank shifts by one entry and the B bank by one row, and busy and done are registered from k (done after the N-th step: latency N).</p>
+
+<p>The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>What it was built on</h2>
+
+<p>Its datapath is that of the reference design <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html"><code>matmul_g1</code></a> (par): N*N multiply-accumulate cells fed by two shift registers; it differs in keeping the sums in a register of its own that drives C, in clearing it and the operand banks on reset, and in setting busy and done from k in every busy cycle.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 94,033.9360 µm² × 4 cycles × 10,768 ps = 4,050,229.69 µm²·ns, 1.086 × par. In the ASAP7 view (the cells only): 1,424.07234 µm² × 4 cycles × 1,521 ps = 8,664.0561 µm²·ns, 1.054 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 857 lines (785 of code, the board's count). 105 of them are the player's, kept from its earlier proof file, written for another design: the header with the latency comment, imports, blank lines and a few definitions and steps, among them the partial sums psum and accC (each of their longer lines is also a line of <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">par's</a> proof).</p>
+
+<p>The other 752 were written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, with the finished proofs of the records <a href="2ca5fe4fe656cebf452cf12fcbcc8eab490e9a3d0bc5560a1275b2b6a4c54942.html">4d9952fba7ea</a>, <a href="a06f2ff0e1f55429180027a99ccc08b8d9c5928457cb22c577133377517cfaf0.html">1136031894d5</a>, <a href="0ac23825c686d65703b6ef2bae1a23d7103e9d32cdeb9d8453abaf1eb7a75f8d.html">ddc2d1b271db</a> and <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">a248c56b42a9</a> available as patterns (it shares the most lines with that of <a href="2ca5fe4fe656cebf452cf12fcbcc8eab490e9a3d0bc5560a1275b2b6a4c54942.html">4d9952fba7ea</a>, the same agent's earlier proof): the sv_mirror instantiation, the generated processes' disjointness and the clock cycle, the accumulator arithmetic, the next state for each kind of cycle, the phase model, the interface, discipline and x-safety lemmas, termination and the solution theorem. The maintainers wrote none of its lines.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

@@ -1,0 +1,17 @@
+<h1>Par's mask arbiter, the pick's AND operands swapped</h1>
+
+<p>A registered round-robin arbiter in the mask form: mask marks the clients above the last grant; the lowest masked requester wins, else the lowest requester (the wrap); gnt is a register, and the one combinational block computes the pick from req and mask.</p>
+
+<h2>What it was built on</h2>
+
+<p>The design is the reference design <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html"><code>rr_mask</code></a> (par's, record <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html">d354b82fb1ab</a>) with one line changed: in the pick, the two ANDs have their operands swapped, (~mreq + 1'b1) &amp; mreq for mreq &amp; (~mreq + 1'b1) and likewise for req; every other byte, its comments included, is par's. The design is parametric in N. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 769.4880 µm² × 1 cycle × 2,826 ps = 2,174.57 µm²·ns, 1.000 × par. In the ASAP7 view (the cells only): 12.15972 µm² × 1 cycle × 464 ps = 5.6421 µm²·ns, 1.000 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 589 lines (430 of code, the board's count). It is par's proof <a href="1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99.html"><code>rr_mask.lean</code></a>, which the maintainers wrote with Claude, with five lines changed (the mirror's two pick expressions and the pick function's two lines, their operands swapped, and BitVec.and_comm added to one simp step) and four comment lines and one blank line of it left out: 584 of its lines are par's, in par's order. 556 lines are the player's, its file of 2026-11-11: par's proof as it was then, with those five lines changed. The other 33 were written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, in one commit that ported the file to the current checker (the sv_mirror instantiation and a 32-bit range hypothesis, as in par's current proof); each of them is a line of par's current proof.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

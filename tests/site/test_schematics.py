@@ -82,8 +82,22 @@ class CommittedTest(unittest.TestCase):
     def test_total_size_is_within_the_budget(self):
         total = sum(os.path.getsize(os.path.join(OUT, t, f)) for t in self.tasks
                     for f in os.listdir(os.path.join(OUT, t)) if f.endswith(".svg"))
-        self.assertLessEqual(total, 5_000_000)
-        self.assertEqual(self.display["max_total_bytes"], 5_000_000)
+        # 5 MB until 2026-11-25, raised to 5.5 MB so that every design of the tasks but matmul has its drawing (the
+        # first outside records had none); a published site of a reasonable size, matmul's undrawn designs left so
+        self.assertLessEqual(total, 5_500_000)
+        self.assertEqual(self.display["max_total_bytes"], 5_500_000)
+
+    def test_every_design_outside_matmul_is_drawn(self):
+        """Decided 2026-11-25 (with the budget at 5.5 MB): every design of a task other than matmul has its drawing,
+        the outside records' included; a matmul design may still say why it has none."""
+        for t in self.tasks:
+            if t == "matmul":
+                continue
+            for f in sorted(os.listdir(os.path.join(OUT, t))):
+                if f.endswith(".json"):
+                    with self.subTest(task=t, design=f[:-5]):
+                        disp = read_json(os.path.join(OUT, t, f))["display"]
+                        self.assertTrue(disp.get("drawn"), disp.get("reason"))
 
     def test_drawings_read_the_page_colours_and_carry_nothing_of_the_machine(self):
         """A drawing is inline on its page: its style is scoped to svg.sch and every colour is a site token (a light

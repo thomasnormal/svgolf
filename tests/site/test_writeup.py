@@ -179,6 +179,12 @@ class SiteWriteupTest(unittest.TestCase):
                     self.assertIn("The writeup", card.group(1))
                     if rec["player"] in self.build.OUTSIDE_PLAYERS:     # a player's own writeup (since 2026-11-24)
                         self.assertNotIn("Writeup by the maintainers", card.group(1))
+                    elif len((rec.get("notes") or "").strip()) > self.lb.NOTES_SHORT_MAX and \
+                            "from the record's notes" in html.unescape(card.group(1)):
+                        # decided 2026-11-25: a writeup the maintainers made from a long note, which says so
+                        self.assertIn("Writeup by the maintainers, from the record's notes (their sentences, in the "
+                                      "sections of a writeup) and the numbers the record and the ASAP7 view measured.",
+                                      html.unescape(card.group(1)))
                     else:
                         self.assertIn("Writeup by the maintainers, from the design and proof files.", card.group(1))
                     seen += 1

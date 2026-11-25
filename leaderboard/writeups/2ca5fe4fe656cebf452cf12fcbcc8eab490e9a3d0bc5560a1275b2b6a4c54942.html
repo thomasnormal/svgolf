@@ -1,0 +1,25 @@
+<h1>Schoolbook multiply-accumulate; Strassen only at N = 2</h1>
+
+<p>At the scored size, N = 4, this design is a schoolbook multiply-accumulate schedule, the structure of <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">par's</a> design; its seven-product (Strassen) tile applies only at N = 2.</p>
+
+<h2>The idea</h2>
+
+<p>A 2 x 2 Strassen tile with a shift-register fallback, chosen by N at elaboration.</p>
+
+<p>At every other N, the scoring point N = 4 included, the design is the fallback: an N x N array of multiply-accumulate cells fed by two shift registers that start loads with A and B, shifted by one word of A and one row of B per busy cycle, the structure of the reference design <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html"><code>matmul_g1</code></a> (par), so its score there is close to par's.</p>
+
+<p>At N = 2, start stores the seven Strassen products of the operands (sums and differences of entries of A and of B, sign-extended, wrapping at AccW), and in each of the two busy cycles C takes Strassen's four recombinations of them.</p>
+
+<p>A 32-bit step counter k ends the busy phase after N steps and raises done (latency N). The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 88,060.7072 µm² × 4 cycles × 10,607 ps = 3,736,239.69 µm²·ns, 1.002 × par. In the ASAP7 view (the cells only): 1,344.26142 µm² × 4 cycles × 1,529 ps = 8,221.5028 µm²·ns, 1.001 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 1314 lines (1215 of code, the board's count). Ten of them are the player's: the header with the latency comment, the imports, the namespace and <code>end</code>, with their blank lines.</p>
+
+<p>The other 1304 were written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, with the finished proofs of the records <a href="a06f2ff0e1f55429180027a99ccc08b8d9c5928457cb22c577133377517cfaf0.html">1136031894d5</a>, <a href="82e70e4a9004b822d74a90729a44ef7db14111f8d0ccbd4c3cbf0c3ec7a8f04d.html">5bff489cc2ef</a>, <a href="e6ea15dde7198d99bdebf2888017f01d1cccc9d11f8156eda92423fbba25568b.html">2b625ce36431</a>, <a href="78a6d7c36fd2a422185a2b4e3e236e83249709ec7a4291aaa3ebfee6dd163065.html">f14f8e008cc0</a> and <a href="0ac23825c686d65703b6ef2bae1a23d7103e9d32cdeb9d8453abaf1eb7a75f8d.html">ddc2d1b271db</a> available as patterns (it shares the most lines with those of <a href="a06f2ff0e1f55429180027a99ccc08b8d9c5928457cb22c577133377517cfaf0.html">1136031894d5</a> and <a href="82e70e4a9004b822d74a90729a44ef7db14111f8d0ccbd4c3cbf0c3ec7a8f04d.html">5bff489cc2ef</a>, the same agent's earlier proofs): two mirrors of the design, one for N = 2 and one for every other N, each with its processes' disjointness, the clock cycle, the next state for each kind of cycle, the phase model, the interface, discipline and x-safety lemmas and termination; the Strassen recombination arithmetic; and the <code>solution</code> theorem joining the two cases. The maintainers wrote none of its lines.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

@@ -1997,8 +1997,10 @@ class SiteTest(unittest.TestCase):
                     self.assertLess(walk, html_.index('id="score"'))                  # the steps before the chart
                     self.assertEqual(re.findall(r'<section class="card" id="submit">', html_), [])
                     continue
-                self.assertEqual(len(lines), 4, lines)
+                # (since 2026-11-25 the golfing loop weighs the design on ASAP7 too: five lines)
+                self.assertEqual(len(lines), 5, lines)
                 for ln, start in zip(lines, (f"python3.12 score/ppa.py solution.sv --task tasks/{t} ",
+                                             f"python3.12 score/ppa.py --pdk asap7 solution.sv --task tasks/{t} ",
                                              f"python3.12 check.py tasks/{t} solution.sv --unproved",
                                              f"python3.12 check.py tasks/{t} solution.sv Solution.lean",
                                              f"python3.12 leaderboard/leaderboard.py add --task {t} ")):
@@ -2177,6 +2179,107 @@ class SiteTest(unittest.TestCase):
                             problems.append(f"{rec['task']} {h[:12]} {where}: links the later record "
                                             f"{m.group(1)[:12]} ({date}) without \"on the board since\"")
         self.assertEqual(problems, [], "\n".join(problems))
+
+    def test_a_record_with_a_writeup_shows_its_notes_first_sentence(self):
+        """Decided 2026-11-25 (the owner, of a record page with a note of about 2000 characters and no writeup: "That
+        could probably be moved"): a record page whose record has a writeup shows its note's first sentence and a link
+        to the Writeup tab, the whole note folded under them (the note stays: it is part of the record's hash); a
+        record without a writeup shows its whole note, as before. Every note longer than 300 characters now has a
+        writeup."""
+        wdir = os.path.join(SVGOLF, "leaderboard", "writeups")
+        folded = long_ = 0
+        for r in records():
+            h = r["record_hash"]
+            notes = (r.get("notes") or "").strip()
+            with self.subTest(record=h[:12]):
+                page_html = self.files[f"tasks/{r['task']}/records/{h}.html"].decode("utf-8")
+                dd = re.search(r"<dt>notes</dt><dd>(.*?)</dd>", page_html, re.S).group(1)
+                if not notes:
+                    self.assertEqual(norm(text_of(dd)), "none")
+                    continue
+                if not os.path.isfile(os.path.join(wdir, h + ".html")):
+                    self.assertLessEqual(len(notes), 300)
+                    self.assertNotIn('href="#writeup"', dd)
+                    self.assertNotIn("<details", dd)
+                    self.assertEqual(norm(text_of(dd)), norm(notes))
+                    continue
+                long_ += len(notes) > 300
+                first, rest = build.note_parts(notes)
+                lead = dd.split("<details", 1)[0]
+                if h in build.NOTE_LEADS:                # re-labelled (below): the maintainers' words, marked
+                    first, rest = build.NOTE_LEADS[h] + " " + build.NOTE_LEAD_MARK, rest or notes
+                self.assertEqual(norm(text_of(lead)), norm(first + " More in the writeup."))
+                self.assertIn('<span class="note-more">More in <a href="#writeup">the writeup</a>.</span>', lead)
+                if rest:
+                    folded += 1
+                    fold = dd[len(lead):]
+                    self.assertTrue(fold.startswith('<details class="reveal note-whole"><summary>the whole note'
+                                                    '</summary>'), fold[:120])
+                    self.assertEqual(norm(text_of(fold.split("</summary>", 1)[1])), norm(notes))
+                else:
+                    self.assertNotIn("<details", dd)
+        self.assertEqual(long_, 33)
+        self.assertGreaterEqual(folded, 33)
+        # the sentence rule: a sentence ends after a word, not at a dot product's " . "
+        self.assertEqual(build.note_parts("Adds A[i][k] . B[k][j] per cycle. Then C."),
+                         ("Adds A[i][k] . B[k][j] per cycle.", "Then C."))
+        self.assertEqual(build.note_parts("one line, latency ceil(N/2) = 2 at N=4"),
+                         ("one line, latency ceil(N/2) = 2 at N=4", ""))
+
+    def test_the_seven_product_tile_is_named_for_its_scored_size(self):
+        """Decided 2026-11-25 (the owner agreed to re-label it as what it is at the scored size): record 2ca5fe4fe656
+        stores the seven Strassen products only at N = 2 and is par's schoolbook multiply-accumulate schedule at every
+        other N, the scoring point N = 4 included, so wherever the site names its architecture (its title: the record
+        page's heading, the board's row, the charts) it says so; its record and design file are unchanged. Record
+        43b794c93301, one level of Strassen at every N with schoolbook block engines, says "one level"."""
+        title = "Schoolbook multiply-accumulate; Strassen only at N = 2"
+        h = next(r["record_hash"] for r in records() if r["record_hash"].startswith("2ca5fe4fe656"))
+        page_html = self.files[f"tasks/matmul/records/{h}.html"].decode("utf-8")
+        self.assertEqual(text_of(re.search(r"<h1\b[^>]*>(.*?)</h1>", page_html, re.S).group(1)), title)
+        writeup_ = norm(text_of(page_html[page_html.index('class="writeup-body"'):]))
+        self.assertIn("At the scored size, N = 4, this design is a schoolbook multiply-accumulate schedule, the "
+                      "structure of par's design; its seven-product (Strassen) tile applies only at N = 2.", writeup_)
+        # its notes row leads with the maintainers' words, marked as theirs; the record's own note is under the fold
+        self.assertEqual(list(build.NOTE_LEADS), [h])
+        dd = re.search(r"<dt>notes</dt><dd>(.*?)</dd>", page_html, re.S).group(1)
+        lead, fold = dd.split("<details", 1)
+        self.assertEqual(norm(text_of(lead)), "At the scored size, N = 4, a schoolbook multiply-accumulate schedule; "
+                         "its seven-product (Strassen) tile applies only at N = 2. (the maintainers' summary; the "
+                         "record's note is below) More in the writeup.")
+        rec = next(r for r in records() if r["record_hash"] == h)
+        self.assertEqual(norm(text_of(fold.split("</summary>", 1)[1])), norm(rec["notes"]))
+        board = self.files["tasks/matmul/index.html"].decode("utf-8")
+        row = re.search(rf'href="records/{h}\.html">[^<]*</a><span class="board-title">([^<]*)</span>', board)
+        self.assertEqual(html.unescape(row.group(1)), title)
+        self.assertIn(f'aria-label="{html.escape(title)}"', board)
+        g = next(r["record_hash"] for r in records() if r["record_hash"].startswith("43b794c93301"))
+        other = self.files[f"tasks/matmul/records/{g}.html"].decode("utf-8")
+        self.assertIn("one level", text_of(re.search(r"<h1\b[^>]*>(.*?)</h1>", other, re.S).group(1)))
+
+    def test_every_guide_says_to_measure_both_libraries(self):
+        """Decided 2026-11-25 (the owner: "I would like all agents to run asap7 as well as sky130"): Step 0 fetches the
+        five pinned ASAP7 files, the golfing loop weighs a design on ASAP7 too, and step 3 says `add` measures both;
+        in How to submit, llms.txt and README's Quick start."""
+        fetch = "python3.12 score/ppa.py --pdk asap7 --fetch-liberty"
+        unwrap = lambda x: x.replace(" \\\n    ", " ")                     # noqa: E731  (build.wrap_command)
+        for t in ("add", "matmul"):
+            with self.subTest(task=t):
+                part = unwrap(text_of(section(self.files[f"tasks/{t}/index.html"].decode("utf-8"), "submit")))
+                self.assertIn(fetch, part)
+                flag = "--seq" if t == "matmul" else "--no-mapped"
+                self.assertIn(f"python3.12 score/ppa.py --pdk asap7 solution.sv --task tasks/{t} {flag}", part)
+                self.assertIn("then the ASAP7 columns too (both libraries)", part)
+                self.assertIn("--notes is one optional line (at most 300 characters since 2026-11-25", norm(part))
+        llms = self.files["llms.txt"].decode("utf-8")
+        self.assertIn(fetch, llms)
+        self.assertIn("python3.12 score/ppa.py --pdk asap7 solution.sv --task tasks/add --no-mapped", llms)
+        readme = read_text_file("README.md")
+        quick = readme[readme.index("## Quick start"):readme.index("## Rules")]
+        self.assertIn(fetch, quick)
+        self.assertIn("python3.12 score/ppa.py --pdk asap7 solution.sv --task tasks/add --no-mapped", quick)
+        self.assertIn("It measures both libraries", quick)
+        contributing = read_text_file("CONTRIBUTING.md")
+        self.assertIn(fetch, contributing)
 
     def test_home_defines_under_par_and_the_clocked_time(self):
         html_ = self.files["index.html"].decode("utf-8")
@@ -3376,7 +3479,9 @@ class SiteTest(unittest.TestCase):
         markers = [e for e in self.config["denylist"] if isinstance(e, dict)]
         players = set()
         for r in records():
-            players.update([r["player"], *r["assisted_by"], r.get("notes") or ""])
+            # the notes, and their first sentence, which a record page with a writeup shows alone (2026-11-25)
+            players.update([r["player"], *r["assisted_by"], r.get("notes") or "",
+                            build.note_parts(r.get("notes") or "")[0]])
         for path, data in sorted(self.files.items()):
             if not (path.endswith(".html") or path.startswith("data/") or path == "llms.txt"):
                 continue
@@ -3585,6 +3690,8 @@ class GuardTest(unittest.TestCase):
         self.assertIn("# the golfing loop, no Lean: area, delay and the critical\n"
                       "#    path, about a second\n"
                       "python3.12 score/ppa.py solution.sv --task tasks/add \\\n    --no-mapped --path\n"
+                      "# ... and the same design on ASAP7 (Step 0's five files)\n"
+                      "python3.12 score/ppa.py --pdk asap7 solution.sv \\\n    --task tasks/add --no-mapped\n"
                       "# 1. no proof needed; ", build.submit_commands(add, card))
         cases = ((lambda s: s.replace("**The route: the `sv_comb`", "**A route: the `sv_comb`"), "no route paragraph"),
                  (lambda s: s.replace("--unproved --tactics --stage-dir stage\n",
@@ -3909,7 +4016,7 @@ class GuardTest(unittest.TestCase):
         site = self.build(config=config)
         llms = site.files["llms.txt"].decode("utf-8")
         rules_html = site.files["rules.html"].decode("utf-8")
-        self.assertEqual(len(build.RECORD_RULES), 6)
+        self.assertEqual(len(build.RECORD_RULES), 8)       # 2026-11-25 (asap1): both libraries, short notes
         for rel in ("README.md", "CONTRIBUTING.md"):
             with self.subTest(doc=rel):
                 text = norm(read_text_file(rel))

@@ -401,6 +401,17 @@ RECORD_RULES = (
     "**The pinned tools, one command.** `python3.12 score/yosys_wasm.py --self-check` checks the rating build of "
     "Yosys, the same program on every machine, so the numbers you make are the board's; `add` stops when it is not "
     "the pinned one, and the pull request's check prints the versions it ran with.",
+    # decided 2026-11-25, the owner: "I would like all agents to run asap7 as well as sky130"
+    "**Measure both libraries.** `add` measures every record on sky130 and on ASAP7 (the cells only, flow A0'), "
+    "fetching the five pinned ASAP7 liberty files first (`python3.12 score/ppa.py --pdk asap7 --fetch-liberty`, each "
+    "checked by its hash), and binds its ASAP7 columns in `leaderboard/asap7/<task>.json`; `submit` measures them "
+    "where they are missing, and the pull request's check measures them again, so a writeup may give its record's "
+    "ASAP7 numbers. In the golfing loop, weigh a design on both: `score/ppa.py` with and without `--pdk asap7`.",
+    # decided 2026-11-25, the owner, of a record with a note of about 2000 characters and no writeup: "That could
+    # probably be moved"
+    f"**Short notes, the story in the writeup.** The notes say in one line what the design is, in at most "
+    f"{lb.NOTES_SHORT_MAX} characters: `add`, `submit` and the pull request's check refuse a longer note on a record "
+    f"submitted from {lb.NOTES_SHORT_FROM} on. The idea, the proof and the dead ends go in the writeup.",
 )
 HANDOFF_UNPUBLISHED_MD = ("Public submissions open when the svGolf repository is published; until then you check and "
                           "record on your own machine.")
@@ -943,7 +954,9 @@ def collect_task(site, name, task, listing, expected, records):
     t.full_board = lb.build_board(task, t.records, flow=t.flow, identity=site.ppa_identity, input_drive=t.drive,
                                   statement=t.statement)
     for r in t.records:
-        site.player_text.update([r["player"], *r.get("assisted_by", []), r.get("notes") or ""])
+        # the notes, and their first sentence, which a record page with a writeup shows alone (`notes_html`)
+        site.player_text.update([r["player"], *r.get("assisted_by", []), r.get("notes") or "",
+                                 note_parts(r.get("notes") or "")[0]])
     # PAR (decided 2026-11-12): one design per task, the simplest algorithm, named in leaderboard/par.json; the page
     # shows the task.json references that are that design file (par and every other proof of it). Each is scored by
     # expected.json and matched to the reference player's record of it by the sha256 of its design AND of its proof,
@@ -1355,6 +1368,54 @@ def record_title(site, rec):
     """A record's short title: its writeup's, else its design file's stem (`writeup.fallback_title`)."""
     w = getattr(site, "writeups", {}).get(rec["record_hash"])
     return w[0] if w else writeup.fallback_title(rec["files"]["sv"]["name"])
+
+
+# a sentence ends at `.`, `!` or `?` right after a word (not " . ", a dot product), before a capital or an opening mark
+_SENTENCE_END_RE = re.compile(r"(?<=\S[.!?])\s+(?=[A-Z(\"'`])")
+NOTE_MORE = "the whole note"                      # the disclosure's summary on a record page
+# A record whose note's first sentence names an architecture the design does not have at the scored size: its notes
+# row leads with the maintainers' words instead, marked as theirs, and the whole note stays under the fold (decided
+# 2026-11-25: the owner agreed to re-label record 2ca5fe4fe656, which stores the seven Strassen products only at N = 2
+# and is the shift-register multiply-accumulate schedule at every other N, as what it is at the scored size; its title
+# is its writeup's). Site text only: the record and its design file are unchanged.
+NOTE_LEADS = {
+    "2ca5fe4fe656cebf452cf12fcbcc8eab490e9a3d0bc5560a1275b2b6a4c54942":
+        "At the scored size, N = 4, a schoolbook multiply-accumulate schedule; its seven-product (Strassen) tile "
+        "applies only at N = 2.",
+}
+NOTE_LEAD_MARK = "(the maintainers' summary; the record's note is below)"
+
+
+def note_parts(text):
+    """(the first sentence, the rest) of a record's note (`_SENTENCE_END_RE`); the rest is "" for a note of one
+    sentence. Pure."""
+    parts = _SENTENCE_END_RE.split((text or "").strip(), maxsplit=1)
+    return parts[0], (parts[1] if len(parts) > 1 else "")
+
+
+def notes_html(site, t, rec, here):
+    """The record page's notes row (decided 2026-11-25; the owner, of a record page with a note of about 2000 characters
+    and no writeup: "That could probably be moved"): when the record has a writeup, its note's first sentence and a link
+    to the Writeup tab, the whole note folded under them (records are append-only and the notes are part of the hash,
+    so the note itself stays); without a writeup, the whole note, as before. Player text, linked as `linked_text`
+    links it."""
+    notes = (rec.get("notes") or "").strip()
+    if not notes:
+        return '<span class="muted">none</span>'
+    if rec["record_hash"] not in getattr(site, "writeups", {}):
+        return linked_text(site, t, rec, notes, here)
+    first, rest = note_parts(notes)
+    more = ' <span class="note-more">More in ' + page.link("#writeup", "the writeup") + ".</span>"
+    if rec["record_hash"] in NOTE_LEADS:
+        lead = (f'{esc(NOTE_LEADS[rec["record_hash"]])} <span class="note-lead-mark">{esc(NOTE_LEAD_MARK)}</span>'
+                + more)
+        return lead + page.details(esc(NOTE_MORE), f'<p class="note-full">{linked_text(site, t, rec, notes, here)}'
+                                   "</p>", cls="reveal note-whole")
+    lead = linked_text(site, t, rec, first, here) + more
+    if not rest:
+        return lead
+    return lead + page.details(esc(NOTE_MORE), f'<p class="note-full">{linked_text(site, t, rec, notes, here)}</p>',
+                               cls="reveal note-whole")
 
 
 # ---------------------------------------------------------------------------
@@ -3767,6 +3828,7 @@ def clone_commands(repo_url):
 
 
 YOSYS_RECIPE = "check-yosys"            # the id of Step 0's fold with the rating build's check (a link opens it: site.js)
+ASAP7_FETCH = lb.ASAP7_FETCH_CMD        # Step 0's last command: the five pinned ASAP7 files (`add` measures both)
 
 
 def yosys_recipe(site):
@@ -3822,7 +3884,10 @@ def step0_html(site, here, id_=None):
             "# the trusted Lean and the checker's evaluator\n"
             "lake build\n"
             "# the pinned sky130 liberty, checked by its hash\n"
-            "python3.12 score/ppa.py --fetch-liberty\n")
+            "python3.12 score/ppa.py --fetch-liberty\n"
+            # decided 2026-11-25 (the owner: "I would like all agents to run asap7 as well as sky130")
+            "# the five pinned ASAP7 files: add measures both libraries\n"
+            f"{ASAP7_FETCH}\n")
     anchor = f' id="{esc(id_)}"' if id_ else ""
     return (f"<p{anchor}><strong>Step 0, once per machine.</strong> svGolf runs on macOS and Linux; Windows is not "
             "supported. Install:</p>" + tools
@@ -4060,7 +4125,8 @@ def submit_commands(t, card=None):
             "#    leaderboard.py add runs the full check itself\":\n"
             "#    expected, step 3 is that command\n"
             f"python3.12 check.py tasks/{name} solution.sv Solution.lean\n")
-    record = ("# record it: the whole check again, full and sandboxed\n"
+    record = ("# record it: the whole check again, full and sandboxed,\n"
+              "#    then the ASAP7 columns too (both libraries)\n"
               f"python3.12 leaderboard/leaderboard.py add --task {name} \\\n"
               "    --player YOUR_HANDLE --assisted-by \"TOOL OR MODEL\" \\\n"
               "    --sv solution.sv --lean Solution.lean \\\n"
@@ -4090,6 +4156,11 @@ def submit_commands(t, card=None):
         step1 = (f"python3.12 check.py tasks/{name} solution.sv --unproved\n" if n is None else
                  f"python3.12 check.py tasks/{name} solution.sv --unproved \\\n    --latency {n}\n")
         note = ""
+    # decided 2026-11-25 (the owner: "I would like all agents to run asap7 as well as sky130"): the same weighing on
+    # ASAP7, the numbers `add` binds in the ASAP7 view
+    golf += ("# ... and the same design on ASAP7 (Step 0's five files)\n"
+             f"python3.12 score/ppa.py --pdk asap7 solution.sv \\\n    --task tasks/{name} "
+             + ("--seq\n" if metrics.is_clocked(t.task) else "--no-mapped\n"))
     return (golf
             + "# 1. no proof needed; never accepts; exits 0 when every\n"
             + ("#    stage passed, ending with area x time and par\n" if n is None else
@@ -4117,7 +4188,9 @@ def ppa_loop_html(t, step="step 1"):
     seq = " (with <code>--seq</code>, the clocked flow, the register-to-register period)" if metrics.is_clocked(t.task) \
         else ""
     return ("<p><code>score/ppa.py</code> is the inner loop of golfing: it runs the source gate and the pinned flow and "
-            f"prints the ranked numbers, <code>area_um2_sky130</code> and <code>delay_ps_sky130</code>{seq}. It does "
+            f"prints the ranked numbers, <code>area_um2_sky130</code> and <code>delay_ps_sky130</code>{seq}; with "
+            "<code>--pdk asap7</code>, the ASAP7 view's <code>area_um2_asap7</code> and <code>delay_ps_asap7</code>, "
+            "which <code>leaderboard.py add</code> measures too. It does "
             "not check the banlist, the 4-state rules, whether ls-sv can read the design, the post-synthesis simulation "
             f"or the task's function, and needs no proof: run {step} before you prove.</p>")
 
@@ -4125,7 +4198,9 @@ def ppa_loop_html(t, step="step 1"):
 # the same facts under the "Proving a new design" card's text on its two commands (which How to submit shows first;
 # that text says what the first one prints, and step 1's comment what the second ends with)
 NEW_DESIGN_PPA = ("<code>score/ppa.py</code> is the inner loop of golfing; its ranked numbers are "
-                  "<code>area_um2_sky130</code> and <code>delay_ps_sky130</code> in what it prints. It runs only the "
+                  "<code>area_um2_sky130</code> and <code>delay_ps_sky130</code> in what it prints (with "
+                  "<code>--pdk asap7</code>, the ASAP7 view's, which <code>leaderboard.py add</code> measures too: "
+                  "weigh a design on both). It runs only the "
                   "source gate and the pinned flow: it does not check the banlist, the 4-state rules, whether ls-sv can "
                   "read the design, the post-synthesis simulation or the task's function. Step 1 does, still without a "
                   "proof.")
@@ -4224,7 +4299,8 @@ def submit_html(site, t, repo_url, card=None, skeleton=None, checks="", fresh=""
              f"<p><code>YOUR_HANDLE</code> is your public name on the board and the record's page. It is 1 to "
              f"{handle_max()} characters: the letters a to z and A to Z, the digits, <code>.</code> <code>_</code> or "
              "<code>-</code>, the first a letter or a digit. <code>--notes</code> is one optional line (at most "
-             f"{lb.MAX_NOTES} characters) shown on the record's page."
+             f"{lb.NOTES_SHORT_MAX} characters since {lb.NOTES_SHORT_FROM}: what the design is; the story goes in the "
+             "writeup) shown on the record's page."
              # leaderboard.py add_submission: --from-check only outside leaderboard/data; README "Official records"
              + (" In a private trial (<code>--data-dir DIR</code>), <code>add --from-check RESULT.json</code> records "
                 "the JSON that a <code>check.py … --postsynth full --ppa require</code> run printed instead of "
@@ -6270,7 +6346,7 @@ def record_page(site, t, rec, ge_tables):
         ("assisted by", linked_text(site, t, rec, "; ".join(rec["assisted_by"]), here, names=False)
          or "none (an unassisted claim)"),
         ("submitted", esc(rec["submitted_at"])),
-        ("notes", linked_text(site, t, rec, rec.get("notes") or "", here) or '<span class="muted">none</span>'),
+        ("notes", notes_html(site, t, rec, here)),
         *remade_rows(rec),
         ("scoring point", esc(point_text(sc["scoring_point"]))),
         ("downloads", " ".join(page.link(rel_link(here, base + ext), code(h[:12] + ext)) for ext in (".sv", ".lean", ".json"))),
@@ -7342,12 +7418,15 @@ def llms_txt(site, tasks):
              "python3.12 -m pip install -r requirements.txt   # " + v["pyslang"] + " and the rating build of Yosys",
              "lake build                                      # the trusted Lean and the checker's evaluator",
              "python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty, checked by its hash",
+             f"{ASAP7_FETCH}   # the five pinned ASAP7 files: add measures both libraries",
              "```", "",
              f"`lake build` takes {lake_build_cost(site.config)}.", "",
              "## The commands (task `add`; any task: tasks/<name>)", "",
              "```bash",
              "# the golfing inner loop: the ranked area and delay in about 2 s, no Lean (--path: the critical path)",
              "python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped --path",
+             "# ... and the same design on ASAP7 (add measures both libraries and binds the ASAP7 columns)",
+             "python3.12 score/ppa.py --pdk asap7 solution.sv --task tasks/add --no-mapped",
              *clocked_lines,
              "# 1. no proof needed: every stage but the proof; never accepts; exits 0 when every stage passed",
              "python3.12 check.py tasks/add solution.sv --unproved",
@@ -7356,7 +7435,8 @@ def llms_txt(site, tasks):
              "of the vectors, for local feedback), so stderr also says \"accepted, but the check was INCOMPLETE ... "
              "leaderboard.py add runs the full check itself\": expected, step 3 is that command",
              "python3.12 check.py tasks/add solution.sv Solution.lean",
-             "# 3. record it (the whole check again, full mode, OS sandbox); --data-dir DIR for a private trial",
+             "# 3. record it (the whole check again, full mode, OS sandbox; then its ASAP7 columns, bound in "
+             "leaderboard/asap7/<task>.json; --no-asap7 offline); --data-dir DIR for a private trial",
              "python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by \"TOOL OR MODEL\" "
              "--sv solution.sv --lean Solution.lean",
              "```", "",

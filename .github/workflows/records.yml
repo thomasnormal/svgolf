@@ -1,13 +1,14 @@
 # The check of a pull request that adds records (leaderboard/pr_check.py; README.md, "Leaderboard"): it may change
 # nothing but added records and added or improved writeups, every record and writeup is verified offline, the rules
 # for a record are checked on the records it adds (README.md, "The rules for a record"), they get the full check again
-# (leaderboard.py verify --full: check.py on each pair), and the outcome with each record's board line goes to the job
-# summary. It informs the player and the maintainers and ranks nothing: it runs the pull request's own files, with
-# no secret and a read-only token, and the ranked number is re-made on the rating build by a maintainer when the pull
-# request is merged (CONTRIBUTING.md, "For the maintainers"). A push to main that changes the toolchain only builds,
-# so that pull requests find the caches. Run by hand (Actions > records > Run workflow), it checks a pull request
-# by its number (its merge commit, as the pull request's own run does) or a branch, tag or commit of this
-# repository (what it adds to main since their merge base); with neither, it only builds.
+# (leaderboard.py verify --full: check.py on each pair), their ASAP7 columns are measured with the five pinned ASAP7
+# liberty files (a writeup's ASAP7 numbers are compared with that measurement), and the outcome with each record's
+# board line goes to the job summary. It informs the player and the maintainers and ranks nothing: it runs the pull
+# request's own files, with no secret and a read-only token, and the ranked number is re-made on the rating build by a
+# maintainer when the pull request is merged (CONTRIBUTING.md, "For the maintainers"). A push to main that changes the
+# toolchain only builds, so that pull requests find the caches. Run by hand (Actions > records > Run workflow), it
+# checks a pull request by its number (its merge commit, as the pull request's own run does) or a branch, tag or commit
+# of this repository (what it adds to main since their merge base); with neither, it only builds.
 # Pinned: Verilator by version and sha256, the Lean toolchain by lean-toolchain and its packages by lake-manifest.json,
 # the Python packages by requirements.txt (pyslang and the rating build of Yosys, whose module the launcher checks by its
 # sha256 before every run, so the full check here makes the board's numbers and compares the scores too), the actions
@@ -125,12 +126,13 @@ jobs:
         with:
           path: .lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.toml') }}
-      - name: The extractor's frontend and the rating build of Yosys, the Lean build and the pinned liberty (README.md, "Quick start")
+      - name: The extractor's frontend, the rating build of Yosys, the Lean build, both liberties (README.md, "Quick start")
         run: |
           python3 -m pip install -r requirements.txt
           python3 score/yosys_wasm.py --self-check
           lake build
           python3 score/ppa.py --fetch-liberty
+          python3 score/ppa.py --pdk asap7 --fetch-liberty
       # --sandbox off, and why: this runner is a fresh virtual machine for this one job, holding no secret, with a
       # read-only token; Ubuntu 24.04 restricts the unprivileged user namespaces that the Linux sandbox (bubblewrap)
       # needs, and Lean has not been run inside that sandbox yet (README.md, "Sandbox")

@@ -1,0 +1,25 @@
+<h1>Static timetable of operand words</h1>
+
+<p>A static timetable of operand words.</p>
+
+<h2>The idea</h2>
+
+<p>Generated continuous assignments lay out, at elaboration, a private window of N words for every output cell (i, j) in two N*N*N*W-bit timetables: word t of the cell's window is A[i][t] in the A timetable and B[t][j] in the B timetable.</p>
+
+<p>Start copies both timetables into two stream registers and clears a 32-bit step counter k; in each of the N busy cycles the controller shifts both whole streams right by one word, and every cell of an N x N array, each with its own accumulator (cleared on reset or start), adds the product of the first words of its two windows (both sign-extended, wrapping at AccW). After N steps the controller drops busy and raises done (latency N). Nothing selects an operand at run time.</p>
+
+<p>It differs from <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the shift-register reference</a> in that every cell has its own copy of its row of A and its column of B, N*N*N words per operand where the reference shifts N*N.</p>
+
+<p>The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 125,978.3232 µm² × 4 cycles × 10,470 ps = 5,275,972.18 µm²·ns, 1.415 × par. In the ASAP7 view (the cells only): 1,925.09946 µm² × 4 cycles × 1,459 ps = 11,234.8804 µm²·ns, 1.367 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 806 lines (739 of code, the board's count). Twelve of them are the player's: the header with the latency comment, the imports and the <code>sv_mirror</code> declaration.</p>
+
+<p>The other 794 were written by Google Antigravity CLI with the model Gemini 4 Neon, working on its own as an autonomous agent, with the finished proofs of the records <a href="78a6d7c36fd2a422185a2b4e3e236e83249709ec7a4291aaa3ebfee6dd163065.html">f14f8e008cc0</a> and <a href="0ac23825c686d65703b6ef2bae1a23d7103e9d32cdeb9d8453abaf1eb7a75f8d.html">ddc2d1b271db</a> available as patterns: the generated processes' disjointness and the clock cycle, the timetable packing and the accumulator arithmetic, the next state for each kind of cycle, the phase model, the interface, discipline and x-safety lemmas, termination and the <code>solution</code> theorem. The maintainers wrote none of its lines.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

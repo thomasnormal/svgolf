@@ -1227,6 +1227,10 @@ class CliEnv:
         with open(self.fake, "w") as fh:
             fh.write(FAKE_CHECK.replace("@TEMPLATE@", json.dumps(fake_result()))
                      .replace("@IDENT@", json.dumps(lb.ppa_identity() or {})))
+        # the ASAP7 columns `add` measures (decided 2026-11-25): a fake ppa.py, and a table of the test's own, never
+        # the board's leaderboard/asap7/
+        self.fake_ppa = write_fake_ppa(self.tmp)
+        self.asap7 = os.path.join(self.tmp, "asap7")
         self.n = 0
 
     def write_result(self, res):
@@ -1264,7 +1268,8 @@ class CliEnv:
 
     def run(self, *argv):
         return quiet(lb.main, list(argv[:1]) + ["--data-dir", self.data, "--tasks-dir", self.tasks,
-                                                 "--check-py", self.fake] + list(argv[1:]))
+                                                 "--check-py", self.fake, "--ppa-py", self.fake_ppa,
+                                                 "--asap7-dir", self.asap7] + list(argv[1:]))
 
     def add(self, player, *, tag=None, assisted=(), from_check=None, date="2026-10-29", extra=(), distinct=False):
         sv, lean = self.files(tag or player, distinct=distinct)
@@ -1336,6 +1341,53 @@ if mode == "infra":
     sys.exit(2)
 print(json.dumps(res))
 '''
+
+
+# A FAKE score/ppa.py for the ASAP7 columns `add`, `submit` and the pull request's check measure (decided 2026-11-25):
+# `--fetch-liberty` succeeds (FAKE_A7_FETCH=fail: fails as a download does), and a weighing of a record's design (the
+# file beside its JSON in a data directory) prints the columns bound to that record, FAKE_A7_AREA (1e-5 um^2) and
+# FAKE_A7_DELAY ps, under the pins' ASAP7 identity (FAKE_A7=fail: the flow fails). Every call is logged to
+# FAKE_PPA_LOG when it is set.
+FAKE_PPA = '''import json, os, sys
+argv = sys.argv[1:]
+if os.environ.get("FAKE_PPA_LOG"):
+    with open(os.environ["FAKE_PPA_LOG"], "a") as fh:
+        fh.write(" ".join(argv) + "\\n")
+if "--fetch-liberty" in argv:
+    if os.environ.get("FAKE_A7_FETCH") == "fail":
+        print(json.dumps({"error": "cannot fetch the liberty: <urlopen error [Errno 8] nodename nor servname "
+                                   "provided>"}))
+        sys.exit(1)
+    print(json.dumps({"liberty": "score/lib/asap7"}))
+    sys.exit(0)
+if os.environ.get("FAKE_A7") == "fail":
+    print(json.dumps({"error": "the pinned flow failed: yosys failed (exit 1)"}))
+    sys.exit(1)
+sv = argv[0]
+rec = json.load(open(sv[:-len(".sv")] + ".json"))
+task = json.load(open(os.path.join(argv[argv.index("--task") + 1], "task.json")))
+ident = json.loads(r"""@A7IDENT@""")
+sc, pb = rec["score"], rec.get("ppa") or {}
+delay = int(os.environ.get("FAKE_A7_DELAY", "600"))
+print(json.dumps({
+    "score": {"params": {k: int(v) for k, v in task["scoring"]["params"].items()},
+              "sources": [{"canonical_sha256": rec["canonical_sha256"]}], "rtlil_sha256": sc.get("rtlil_sha256"),
+              "area_mge": sc["area_mge"], "depth": sc["depth"]},
+    "ppa": {"pdk": "asap7", "area_e5um2_asap7": int(os.environ.get("FAKE_A7_AREA", "700000")), "delay_ps_asap7": delay,
+            "netlist_sha256": pb.get("netlist_sha256") if pb.get("available") else "8" * 64, "cells_asap7": 10,
+            "flops": None, "repair": {"buffers": 0, "tie_cells": 0, "netlist_sha256": "9" * 64},
+            "legality": {"table_reads_floored": 3}, "ppa_version": ident["ppa_version"],
+            "ppa_pins_sha256": ident["ppa_pins_sha256"], "liberty_sha256": ident["liberty_sha256"],
+            "setup": {"input_drive": ident["input_drive"]}, "ppa_script_sha256": "3" * 64}}))
+'''
+
+
+def write_fake_ppa(tmp):
+    """FAKE_PPA in `tmp`, with the pins' ASAP7 identity; returns its path."""
+    path = os.path.join(tmp, "fake_ppa.py")
+    with open(path, "w") as fh:
+        fh.write(FAKE_PPA.replace("@A7IDENT@", json.dumps(lb.asap7_identity() or {})))
+    return path
 
 
 class CliTest(Tmp):
@@ -3180,8 +3232,11 @@ class ClockedRecordTest(Tmp):
             with open(paths[name], "wb") as fh:
                 fh.write(data_)
 
+        fake_ppa, a7dir = write_fake_ppa(self.tmp), os.path.join(self.tmp, "asap7")
+
         def run(*argv):
-            return quiet(lb.main, list(argv[:1]) + ["--data-dir", data, "--tasks-dir", tasks] + list(argv[1:]))
+            return quiet(lb.main, list(argv[:1]) + ["--data-dir", data, "--tasks-dir", tasks, "--ppa-py", fake_ppa,
+                                                     "--asap7-dir", a7dir] + list(argv[1:]))
         # (the reference handle is refused here since 2026-11-12: `seed-references` alone records under it)
         rc, _, err = run("add", "--task", "arbiter", "--player", lb.REFERENCE_PLAYER, "--sv", paths["rr_mask.sv"],
                          "--lean", paths["rr_mask.lean"], "--date", "2026-11-07", "--from-check", paths["check.json"],
@@ -4574,6 +4629,7 @@ class PrCheckTest(Tmp):
         with open(self.fake, "w") as fh:
             fh.write(FAKE_CHECK.replace("@TEMPLATE@", json.dumps(fake_result()))
                      .replace("@IDENT@", json.dumps(lb.ppa_identity() or {})))
+        self.fake_ppa = write_fake_ppa(self.tmp)            # step 5's ASAP7 measurement (decided 2026-11-25)
         self.summary = os.path.join(self.tmp, "summary.md")
         with open(self.summary, "w") as fh:
             fh.write("an earlier step's summary\n")
@@ -4602,8 +4658,8 @@ class PrCheckTest(Tmp):
             fh.write(data)
 
     def check(self, *argv):
-        rc, out, err = quiet(pc.main, ["--repo", self.repo, "--check-py", self.fake, "--sandbox", "off",
-                                       "--summary", self.summary, *argv])
+        rc, out, err = quiet(pc.main, ["--repo", self.repo, "--check-py", self.fake, "--ppa-py", self.fake_ppa,
+                                       "--sandbox", "off", "--summary", self.summary, *argv])
         with open(self.summary, encoding="utf-8") as fh:
             return rc, out, err, fh.read()
 
@@ -4825,6 +4881,60 @@ class PrCheckTest(Tmp):
         rc, out, err, summary = self.check()
         self.assertEqual(rc, 1, out)
         self.assertIn(f"- writeup `{a12}`: line 8: `123,457 GE` is no measurement the tree holds", out)
+
+    def test_the_asap7_columns_of_the_added_records(self):
+        """Decided 2026-11-25 (step 5): the check fetches the pinned ASAP7 files, measures each added record's ASAP7
+        columns as `add` does and says so per record; a writeup may give its record's own ASAP7 numbers (compared with
+        that measurement), not others; a fetch that fails, or a measurement that does not reproduce the tree's entry
+        for the same design file, fails the check; a pull request that carries an ASAP7 table is told to leave it
+        out."""
+        plog = os.path.join(self.tmp, "ppa.log")
+        own = GOOD_WRITEUP + "<p>On ASAP7: 7.00000 µm² × 600 ps = 4.2000 µm²·ns.</p>\n".encode()
+        b = self.add_record(writeup=own)
+        self.commit("a record whose writeup gives its ASAP7 numbers")
+        with mock.patch.dict(os.environ, {"FAKE_PPA_LOG": plog}):
+            rc, out, err, summary = self.check()
+        self.assertEqual(rc, 0, out)
+        h12 = b["record_hash"][:12]
+        self.assertIn("- the ASAP7 columns of the records it adds (A0' on ASAP7, the cells only; the five pinned "
+                      "liberty files fetched, each checked by its sha256): ok", out)
+        self.assertIn(f"- record `toy/{h12}`: ASAP7 7.00000 um^2, 600 ps (area x time 4.2000 um2*ns)", out)
+        with open(plog) as fh:
+            calls = fh.read().splitlines()
+        self.assertEqual(calls[0], "--pdk asap7 --fetch-liberty")
+        self.assertTrue(any(b["record_hash"] in c and "--pdk asap7" in c for c in calls[1:]), calls)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "leaderboard", "asap7")))      # nothing written
+        # another ASAP7 number than the measurement: refused
+        with mock.patch.dict(os.environ, {"FAKE_A7_AREA": "710000"}):
+            rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(f"- record `toy/{h12}`: line 8: `7.00000 µm²` is no measurement the tree holds", out)
+        # the liberty cannot be fetched: a failed check that says why
+        with mock.patch.dict(os.environ, {"FAKE_A7_FETCH": "fail"}):
+            rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1, out)
+        fix = out.split("### What to fix", 1)[1].split("###", 1)[0]
+        self.assertIn("- the ASAP7 columns of the records it adds were not measured: the pinned ASAP7 liberty could "
+                      "not be fetched", fix)
+        self.assertIn("(A0' on ASAP7, the cells only; the five pinned liberty files fetched, each checked by its "
+                      "sha256): 1 problem", out)
+        # the tree's own entry for the same design file must be reproduced
+        a7 = os.path.join(self.repo, "leaderboard", "asap7")
+        os.makedirs(a7)
+        entry = asap7_entry_of(b, 690000, 600)
+        with open(os.path.join(a7, "toy.json"), "w") as fh:
+            json.dump(asap7_table(toy_task(), [entry]), fh)
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(f"- record `toy/{h12}`: the tree's ASAP7 entry for its design file is not what a measurement "
+                      "gives now (", out)
+        self.assertIn("area_e5um2", out.split("is not what a measurement gives now (", 1)[1].split(")", 1)[0])
+        # and a pull request that carries the table: told to leave it out
+        self.commit("the ASAP7 table too")
+        rc, out, err, summary = self.check()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("`leaderboard/asap7/toy.json` is added: `leaderboard.py add` binds a record's ASAP7 columns in "
+                      "your own tree; leave that table out of the pull request", out)
 
     def test_set_aside_for_the_unit_tests(self):
         """`--set-aside DIR` (the unit workflow's, decided 2026-11-25): a records-only pull request's records and
@@ -5303,6 +5413,158 @@ def with_line(sv, line=b"  wire [N-1:0] extra_wire = a;\n"):
     return sv.replace(b"endmodule", line + b"endmodule", 1)
 
 
+class Asap7InTheFlowTest(Tmp):
+    """Decided 2026-11-25 (the owner: "I would like all agents to run asap7 as well as sky130"): `add` measures a new
+    record's ASAP7 columns and binds them in its task's table itself, after fetching the five pinned liberty files;
+    `--no-asap7` leaves it out (offline) and a fetch that fails says so plainly, the record written all the same; a
+    `--data-dir` trial is measured and shown, never written into the board's table; `submit` measures the columns
+    where they are missing, refuses a record whose columns cannot be measured, puts its ASAP7 board line in the pull
+    request's text, and compares a writeup's ASAP7 numbers with them."""
+
+    def setUp(self):
+        super().setUp()
+        self.env = CliEnv(self)
+        self.log = os.path.join(self.tmp, "ppa.log")
+        p = mock.patch.dict(os.environ, {"FAKE_PPA_LOG": self.log})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def calls(self):
+        if not os.path.exists(self.log):
+            return []
+        with open(self.log) as fh:
+            return fh.read().splitlines()
+
+    def table(self):
+        with open(os.path.join(self.env.asap7, "toy.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def rec(self, player):
+        return next(r for _, r, _ in lb.load_records(self.env.data, "toy") if r["player"] == player)
+
+    def test_add_measures_and_binds_the_asap7_columns(self):
+        rc, out, err = self.env.add("alice", distinct=True)
+        self.assertEqual(rc, 0, err)
+        a = self.rec("alice")
+        self.assertIn("the ASAP7 view (A0' on ASAP7, asap7_a0_v1: the cells only, not placed and routed): "
+                      "7.00000 um^2, 600 ps (area x time 4.2000 um2*ns); bound in ", out)
+        self.assertNotIn("NOTE: the ASAP7", out)
+        calls = self.calls()
+        self.assertEqual(calls[0], "--pdk asap7 --fetch-liberty")                 # the pinned files first
+        self.assertEqual(len(calls), 2)
+        self.assertIn("--pdk asap7 --no-mapped", calls[1])
+        table = self.table()
+        self.assertEqual(lb.asap7_file_problems(table, "toy"), [])
+        self.assertEqual(lb.asap7_columns(a, table)["area_e5um2"], 700000)
+        self.assertEqual(table["designs"][0]["of"], [f"record:{a['record_hash']}"])
+        # a second record: the table gains its entry, the first is not weighed again
+        open(self.log, "w").close()
+        with mock.patch.dict(os.environ, {"FAKE_A7_AREA": "650000"}):
+            rc, out, err = self.env.add("bob", distinct=True)
+        self.assertEqual(rc, 0, err)
+        self.assertEqual([c for c in self.calls() if "--no-mapped" in c and a["record_hash"] in c], [])
+        self.assertEqual(len(self.calls()), 2)
+        table = self.table()
+        b = self.rec("bob")
+        self.assertEqual(len(table["designs"]), 2)
+        self.assertEqual((lb.asap7_columns(a, table)["area_e5um2"], lb.asap7_columns(b, table)["area_e5um2"]),
+                         (700000, 650000))
+        designs = lb.asap7_designs(lb.load_task(self.env.tasks, "toy"), [a, b], {"tasks": {}}, tasks_dir=self.env.tasks,
+                                   data_dir=self.env.data)
+        self.assertEqual(lb.asap7_check(lb.load_task(self.env.tasks, "toy"), table, designs,
+                                        identity=lb.asap7_identity())[0], [])
+        # the ASAP7 board ranks both (bob's 6.5 x 600 under alice's 7 x 600)
+        rc, md, _ = self.env.run("board", "--task", "toy", "--pdk", "asap7", "--all-flows", "--format", "json")
+        self.assertEqual([r["player"] for r in json.loads(md)["ranking"]], ["bob", "alice"])
+
+    def test_offline_and_a_fetch_that_fails(self):
+        rc, out, err = self.env.add("carol", distinct=True, extra=["--no-asap7"])
+        self.assertEqual(rc, 0, err)
+        self.assertEqual(self.calls(), [])                                          # nothing fetched or weighed
+        self.assertIn("NOTE: the ASAP7 columns were not measured (--no-asap7): `leaderboard.py asap7 --write --task "
+                      "toy` measures them (the five pinned liberty files first: `python3.12 score/ppa.py --pdk asap7 "
+                      "--fetch-liberty`), and `submit` measures them before it hands the record in", out)
+        self.assertFalse(os.path.exists(os.path.join(self.env.asap7, "toy.json")))
+        with mock.patch.dict(os.environ, {"FAKE_A7_FETCH": "fail"}):
+            rc, out, err = self.env.add("dave", distinct=True)
+        self.assertEqual(rc, 0, err)                                                # the record is written
+        self.assertTrue(self.rec("dave"))
+        self.assertIn("NOTE: the ASAP7 columns were NOT measured: the pinned ASAP7 liberty could not be fetched "
+                      "(`python3.12 score/ppa.py --pdk asap7 --fetch-liberty`: cannot fetch the liberty: ", out)
+        self.assertIn("check the network connection to raw.githubusercontent.com and run it again", out)
+        self.assertEqual(self.calls(), ["--pdk asap7 --fetch-liberty"])
+        with mock.patch.dict(os.environ, {"FAKE_A7": "fail"}):
+            rc, out, err = self.env.add("erin", distinct=True)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("NOTE: the ASAP7 columns were NOT measured: ppa.py --pdk asap7: the pinned flow failed", out)
+
+    def test_a_trial_is_measured_and_not_written(self):
+        """A --data-dir trial (no --asap7-dir): the board's own table is never written."""
+        board_table = os.path.join(lb.ASAP7_DIR, "toy.json")
+        sv, lean = self.env.files("trial", distinct=True)
+        rc, out, err = quiet(lb.main, ["add", "--data-dir", self.env.data, "--tasks-dir", self.env.tasks,
+                                       "--check-py", self.env.fake, "--ppa-py", self.env.fake_ppa, "--task", "toy",
+                                       "--player", "trial", "--sv", sv, "--lean", lean, "--date", "2026-11-25"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("7.00000 um^2, 600 ps (area x time 4.2000 um2*ns); a --data-dir trial: not written into the "
+                      "board's ASAP7 table", out)
+        self.assertFalse(os.path.exists(board_table))
+
+    def test_submit_measures_what_is_missing_and_compares_the_writeup(self):
+        p = mock.patch.object(lb, "DEFAULT_DATA", self.env.data)          # the CliEnv's data directory is the board's
+        p.start()
+        self.addCleanup(p.stop)
+        wdir = os.path.join(self.tmp, "writeups")
+        os.makedirs(wdir)
+        shutil.copy(os.path.join(lb.WRITEUPS_DIR, lb.WRITEUP_TEMPLATE), wdir)
+        p = mock.patch.object(lb, "WRITEUPS_DIR", wdir)
+        p.start()
+        self.addCleanup(p.stop)
+        rc, out, err = self.env.add("frank", distinct=True, extra=["--no-asap7"])
+        self.assertEqual(rc, 0, err)
+        h = self.rec("frank")["record_hash"]
+        own = GOOD_WRITEUP + "<p>On ASAP7 it is 7.00000 µm² × 600 ps = 4.2000 µm²·ns.</p>\n".encode()
+        with open(os.path.join(wdir, h + ".html"), "wb") as fh:
+            fh.write(own)
+        gh = mock.patch.object(lb.shutil, "which", lambda name, which=shutil.which: "/x/gh" if name == "gh"
+                               else which(name))
+        # a fetch that fails: refused, with the reason and the commands
+        with mock.patch.dict(os.environ, {"FAKE_A7_FETCH": "fail"}), gh:
+            rc, out, err = self.env.run("submit", "--task", "toy", "--record", h, "--repo", SubmitTest.REPO,
+                                        "--dry-run")
+        self.assertEqual(rc, 1)
+        self.assertIn("its ASAP7 columns are not measured (the pinned ASAP7 liberty could not be fetched", err)
+        self.assertIn("every record is measured on both libraries", err)
+        # measured now, bound, and in the pull request's text; the writeup's ASAP7 numbers are its own: accepted
+        with gh:
+            rc, out, err = self.env.run("submit", "--task", "toy", "--record", h, "--repo", SubmitTest.REPO,
+                                        "--dry-run")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("the ASAP7 view: measured 7.00000 um^2, 600 ps (area x time 4.2000 um2*ns); bound in ", out)
+        # the ASAP7 board line, as the site ranks it (under the pinned flow: where this machine has no rating build,
+        # as in the public unit job, the toy record is "not ranked: checked under another flow", on both boards)
+        self.assertIn(f"ASAP7 view: `toy` record `{h[:12]}` by `frank`: ", out)
+        a7_line = out.split(f"ASAP7 view: `toy` record `{h[:12]}` by `frank`: ", 1)[1].split("\n", 1)[0]
+        if lb.current_flow(lb.SVGOLF)["yosys"] != lb.pinned_flows()[lb.COMB_FLOW]["yosys"]:
+            self.assertEqual(a7_line, "not ranked: checked under another flow (yosys differ)")
+        else:
+            self.assertTrue(a7_line.startswith("7.00000 um^2 x 600 ps = 4.2000 um2*ns, rank 1 of 1"), a7_line)
+        text = out.split(f"<<'{lb.PR_TEXT_END}'\n", 1)[1]
+        self.assertIn(f"ASAP7 view: `toy` record `{h[:12]}`", text)
+        self.assertIn("measures their ASAP7 columns with the five pinned liberty files", text)
+        self.assertIsNotNone(lb.asap7_columns(self.rec("frank"), self.table()))
+        # bound already: nothing measured again; a number of another design is still refused
+        open(self.log, "w").close()
+        with open(os.path.join(wdir, h + ".html"), "wb") as fh:
+            fh.write(GOOD_WRITEUP + "<p>A variant was 6.91234 µm².</p>\n".encode())
+        with gh:
+            rc, out, err = self.env.run("submit", "--task", "toy", "--record", h, "--repo", SubmitTest.REPO,
+                                        "--dry-run")
+        self.assertEqual(rc, 1)
+        self.assertEqual(self.calls(), [])
+        self.assertIn("`6.91234 µm²` is no measurement the tree holds", err)
+
+
 class RecordRulesTest(Tmp):
     """The rules for a record (decided 2026-11-25; README.md, "The rules for a record"): what the first outside records
     got wrong, checked where the tool can: (a) the writeup, (b) no score number typed where the tool cannot verify it,
@@ -5456,6 +5718,45 @@ class RecordRulesTest(Tmp):
         self.assertNotIn("ASK:", out)
         self.assertIn("NEXT: the writeup", out)
 
+    def test_short_notes_from_the_rule_on(self):
+        """Decided 2026-11-25 (the owner, of a record with a note of about 2000 characters and no writeup: "That could
+        probably be moved"): a record submitted from NOTES_SHORT_FROM on has notes of at most NOTES_SHORT_MAX
+        characters, as the record stores them (stripped); an older record keeps its notes; `add` refuses a longer note
+        before its check runs, pointing to the writeup, and takes it for an older date."""
+        self.assertEqual((lb.NOTES_SHORT_MAX, lb.NOTES_SHORT_FROM), (300, "2026-11-25"))
+        ok, long = "x" * 300, "A long note. " + "y" * 288
+        self.assertEqual(len(long), 301)
+        self.assertEqual(lb.notes_problems(ok, "2026-11-25"), [])
+        self.assertEqual(lb.notes_problems("  " + ok + "\n", "2026-11-25"), [])          # stripped, as stored
+        p = lb.notes_problems(long, "2026-11-25T10:00:00Z")
+        self.assertEqual(len(p), 1)
+        self.assertIn("the notes are 301 characters, more than 300 (the rule since 2026-11-25): the notes say in one "
+                      "line what the design is, and the rest goes in the record's writeup, "
+                      "leaderboard/writeups/<record_hash>.html", p[0])
+        self.assertEqual(lb.notes_problems(long, "2026-11-24"), [])                     # an older record: exempt
+        self.assertEqual(len(lb.notes_problems(long)), 1)                               # no date: today's rule
+        rec = make_record(notes=long, date="2026-11-25")
+        self.assertTrue(any("more than 300" in x for x in lb.record_rule_problems(
+            rec, distinct_sv("n").decode(), distinct_lean("n").decode(), [], writeups_dir=self.tmp,
+            measurements={})))
+        old = make_record(notes=long, date="2026-11-24")
+        self.assertFalse(any("more than 300" in x for x in lb.record_rule_problems(
+            old, distinct_sv("n").decode(), distinct_lean("n").decode(), [], writeups_dir=self.tmp,
+            measurements={})))
+        env = CliEnv(self)
+        log = os.path.join(self.tmp, "argv.log")
+        sv, lean = env.files("talker", distinct=True)
+        with mock.patch.dict(os.environ, {"FAKE_ARGV_LOG": log}):
+            rc, out, err = env.run("add", "--task", "toy", "--player", "talker", "--sv", sv, "--lean", lean,
+                                   "--date", "2026-11-25", "--notes", long)
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("the notes are 301 characters, more than 300", err)
+        self.assertFalse(os.path.exists(log))                                           # check.py never ran
+        with mock.patch.dict(os.environ, {"FAKE_ARGV_LOG": log}):
+            rc, out, err = env.run("add", "--task", "toy", "--player", "talker", "--sv", sv, "--lean", lean,
+                                   "--date", "2026-11-24", "--notes", long, "--no-asap7")
+        self.assertEqual(rc, 0, err)
+
 
 class RecordRulesCommittedTest(unittest.TestCase):
     """The rules for a record on the committed tree (decided 2026-11-25)."""
@@ -5483,6 +5784,30 @@ class RecordRulesCommittedTest(unittest.TestCase):
             if str(rec.get("submitted_at", ""))[:10] >= "2026-11-25":
                 with self.subTest(record=rec["record_hash"][:12]):
                     self.assertEqual(lb.writeup_required_problems(rec["record_hash"], lb.WRITEUPS_DIR), [])
+
+    def test_long_notes_are_older_records_and_each_has_a_writeup(self):
+        """Decided 2026-11-25: every board record whose notes are longer than NOTES_SHORT_MAX was submitted before
+        NOTES_SHORT_FROM (the rule leaves it its notes: records are append-only and the notes are in the hash; this
+        pins that the board's older long notes are exempt) and has a writeup, so its page shows the note's first
+        sentence and links the writeup; a writeup the maintainers made from a record's notes says so in its last
+        line, and only such a record's does."""
+        n = 0
+        for path, rec, _ in lb.load_records(lb.DEFAULT_DATA):
+            long = len((rec.get("notes") or "").strip()) > lb.NOTES_SHORT_MAX
+            with self.subTest(record=rec["record_hash"][:12]):
+                if long:
+                    n += 1
+                    self.assertLess(rec["submitted_at"][:10], lb.NOTES_SHORT_FROM)
+                    self.assertEqual(lb.notes_problems(rec["notes"], rec["submitted_at"]), [])
+                    self.assertEqual(lb.writeup_required_problems(rec["record_hash"], lb.WRITEUPS_DIR), [])
+                w = os.path.join(lb.WRITEUPS_DIR, rec["record_hash"] + ".html")
+                if os.path.isfile(w):
+                    with open(w, encoding="utf-8") as fh:
+                        last = fh.read().rstrip().rsplit("\n", 1)[-1]
+                    if "from the record's notes" in last:
+                        self.assertTrue(long)
+                        self.assertIn("Writeup by the maintainers", last)
+        self.assertGreaterEqual(n, 33)
 
     def test_a_copy_of_a_reference_keeps_its_notice_and_names_it(self):
         """fdivp_srt.sv, adapted from licensed code (NOTICE): a copy that drops the notice, or keeps its header word for

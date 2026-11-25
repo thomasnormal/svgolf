@@ -1,0 +1,25 @@
+<h1>Timetable of output cells over fixed operand banks</h1>
+
+<p>A timetable of output cells.</p>
+
+<h2>The idea</h2>
+
+<p>Start captures the whole of A and B once, into two operand banks, and clears a 32-bit step counter k; the banks do not move afterwards. The counter is the timetable's address: for each cell (i, j) two generated continuous assignments pick the cell's operands of step k straight out of the banks, A[i][k] (the A bank shifted right by (i*N + k)*W) and B[k][j] (the B bank shifted right by (k*N + j)*W), each into the cell's own W-bit window.</p>
+
+<p>An N x N array of output cells, each with its own accumulator, clears on reset or start, and in each of the N busy cycles adds the product of its two picks (both sign-extended, wrapping at AccW). After N steps the controller drops busy and raises done (latency N).</p>
+
+<p>It differs from <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the shift-register reference</a> in that no operand moves between edges: every cell reads the fixed banks through its own k-indexed selection.</p>
+
+<p>The design is parametric in N, W and AccW. The design is the player's file, byte for byte.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 93,823.7344 µm² × 4 cycles × 13,634 ps = 5,116,771.18 µm²·ns, 1.372 × par. In the ASAP7 view (the cells only): 1,423.95570 µm² × 4 cycles × 1,939 ps = 11,044.2004 µm²·ns, 1.344 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof file has 1536 lines (1327 of code, the board's count). 483 of them are the player's: the header and the design's mirror, the skeleton of the drivers' lemma, the accumulator arithmetic, the picks on known values, the cell's accumulator step and the phase shapes with their invariant (the maintainers corrected one of these lines and removed two of the player's lemmas, one of them false).</p>
+
+<p>The maintainers wrote the other 1053 lines and handed them over: parts of the drivers' lemma and six small lemmas, the clock-cycle lemma (the pick family settles to the same state in every schedule order, then the clock edge), and everything after the player's last lemma: the next state register by register, one lemma per kind of cycle, the phase model, the x-safety lemmas, termination and the <code>solution</code> theorem.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

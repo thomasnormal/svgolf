@@ -1,0 +1,19 @@
+<h1>Local-core output-stationary matmul</h1>
+
+<p>Local-core output-stationary matmul.</p>
+
+<h2>The idea</h2>
+
+<p>Each generated core owns a current B weight and a C accumulator. A rows and a shared next-weight feeder advance one matrix term per busy cycle, so the core performs its MAC beside its local weight.</p>
+
+<p>This is a small model of a spatial wafer of independent cores and differs from <a href="f7d4eb2c6982e4d7391df8000090e2d7060bae2cef5421bed9867e094435b904.html">the global operand shift reference</a> by making the weight state per core. The design is parametric in N, W and AccW.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>As the record measured it, on sky130 (flow A0'): 91,311.3248 µm² × 4 cycles × 10,965 ps = 4,004,914.71 µm²·ns, 1.074 × par. In the ASAP7 view (the cells only): 1,387.57860 µm² × 4 cycles × 1,568 ps = 8,702.8930 µm²·ns, 1.059 × par.</p>
+
+<h2>The proof</h2>
+
+<p>The proof is the maintainers' port of the player's proof to the current checker (its first lines say what changed); the design is the player's, byte for byte.</p>
+
+<p>Writeup by the maintainers, from the record's notes (their sentences, in the sections of a writeup) and the numbers the record and the ASAP7 view measured.</p>

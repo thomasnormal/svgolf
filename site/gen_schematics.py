@@ -48,7 +48,8 @@ skin's style replaced by one that reads the site's colour tokens, so that it fol
 themes; netlistsvg's own attributes, the per-cell classes and its black junction dots dropped; every coordinate
 rounded to 0.1), the JSON has sorted keys and no wall time, and two runs give the same bytes (tested:
 tests/site/test_schematics.py). The total size of the committed SVGs is bounded by display.json's
-`max_total_bytes` (5 MB); a design whose drawing would pass it is skipped, with the reason in its JSON.
+`max_total_bytes` (5.5 MB since 2026-11-25, 5 MB before); a design whose drawing would pass it is skipped, with the
+reason in its JSON.
 
 Exit status: 0 done (or --check passed), 1 a run or the check failed, 2 usage error.
 """

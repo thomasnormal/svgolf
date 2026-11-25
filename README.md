@@ -72,6 +72,7 @@ research only. Then:
 python3.12 -m pip install -r requirements.txt   # pyslang 11.0.0, the extractor's SystemVerilog frontend
 lake build                                      # the trusted Lean and the checker's evaluator ("Building")
 python3.12 score/ppa.py --fetch-liberty         # the pinned sky130 liberty (12.8 MB, checked by its hash)
+python3.12 score/ppa.py --pdk asap7 --fetch-liberty   # the five pinned ASAP7 files (46 MB, each checked by its hash)
 ```
 
 Where the system marks its Python externally managed (`pip` refuses to install), make a virtual environment
@@ -105,7 +106,8 @@ python3.12 check.py tasks/add solution.sv --unproved
 #    its post-synthesis stage runs LIGHT by default, a few seconds: local feedback, see "Checking")
 python3.12 check.py tasks/add solution.sv Solution.lean
 # 3. record it (re-runs the check IN FULL MODE, in the OS sandbox: the leaderboard's artifacts are never light).
-#    It writes leaderboard/data/add/, the directory a pull request adds; add --data-dir DIR for a private trial
+#    It writes leaderboard/data/add/, the directory a pull request adds; add --data-dir DIR for a private trial.
+#    It measures both libraries: sky130 in the check, then ASAP7 (leaderboard/asap7/add.json; --no-asap7: offline)
 python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
     --sv solution.sv --lean Solution.lean
 ```
@@ -124,11 +126,14 @@ steps for doing by hand).
 ```bash
 python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped          # the ranked area and delay
 python3.12 score/ppa.py solution.sv --task tasks/add --no-mapped --path   # ... and the critical path, net by net
+python3.12 score/ppa.py --pdk asap7 solution.sv --task tasks/add --no-mapped   # the same design on ASAP7
 ```
 
 It runs the source gate and the pinned flow and prints `ppa.area_um2_sky130` and `ppa.delay_ps_sky130`, whose
 product is the ranked number (`--no-mapped` leaves out the extra flow A1'); its last line on stderr says them in one
-line, `ppa (sky130 A0'): area 460.4416 um^2, delay 2611 ps; area x delay = 1202.21 um2*ns` for the adder's par. A
+line, `ppa (sky130 A0'): area 460.4416 um^2, delay 2611 ps; area x delay = 1202.21 um2*ns` for the adder's par.
+With `--pdk asap7` the same run weighs the design on ASAP7 (`ppa.area_um2_asap7`, `ppa.delay_ps_asap7`; the five
+pinned files of Step 0), the numbers `add` binds in the ASAP7 view: weigh a design on both. A
 clocked task's run (`--seq`) gives the period instead, and with `--latency n` the ranked score, area x n cycles x
 period. It does not check the banlist,
 the 4-state rules, whether ls-sv can read the design, the post-synthesis simulation or the task's function,
@@ -2044,8 +2049,10 @@ does on the `add` and `mul` boards.
 **Where the numbers live.** Not in the records, whose hash and address would change for a column that is a pure
 function of the netlist they already pin: in `leaderboard/asap7/<task>.json`, one entry per design file a task's pages
 show or will show (every record, proved reference and baseline), bound to its record by the canonical text, the canonical RTLIL, the
-GE columns, the cycles and the scored netlist. `leaderboard.py asap7 --write` measures them (a new or re-seeded record
-needs it), `leaderboard.py asap7` checks them, and `asap7 --rescore` and `verify` weigh them again and require the same
+GE columns, the cycles and the scored netlist. `leaderboard.py add` measures a new record's entry and binds it there
+itself (decided 2026-11-25: every record is measured on both libraries; `add --no-asap7` leaves it out, offline),
+`leaderboard.py asap7 --write` measures a whole task (a re-seeded record, a new version of the pins),
+`leaderboard.py asap7` checks them, and `asap7 --rescore` and `verify` weigh them again and require the same
 numbers, bit for bit. A design the ASAP7 view would show without a bound entry is "not ranked" or "–" there, never a
 sky130 number, and the site build warns about it (fatal under `--strict`, so a published site has the whole view)
 ([leaderboard/README.md](leaderboard/README.md), "The ASAP7 view"; [score/PPA.md](score/PPA.md), "ASAP7: an alternative
@@ -2229,7 +2236,8 @@ GE area and depth, and `pareto` lists their frontier, also for exploring.
 
 ```bash
 # record it: runs check.py on the pair and writes the record only if it is ACCEPTED, into
-# leaderboard/data/add/, the directory a pull request adds (--data-dir DIR: a private trial elsewhere)
+# leaderboard/data/add/, the directory a pull request adds (--data-dir DIR: a private trial elsewhere);
+# then measures it on ASAP7 too and binds those columns in leaderboard/asap7/add.json (--no-asap7: offline)
 python3.12 leaderboard/leaderboard.py add --task add --player YOUR_HANDLE --assisted-by "TOOL OR MODEL" \
     --sv solution.sv --lean Solution.lean
 # hand it in: the pull request that adds the record's three files (--dry-run: the steps, nothing sent)
@@ -2255,9 +2263,12 @@ python3.12 leaderboard/leaderboard.py export --out LEADERBOARD.md   # all tasks,
   it), in the parts of `.github/pull_request_template.md`. The check is `leaderboard/pr_check.py`, which the
   repository's `records` workflow runs on every pull request that touches `leaderboard/data/` or
   `leaderboard/writeups/`: it refuses one that changes anything but added records and added or improved writeups
-  ("Writeups" below), checks the rules for a record, and writes a short account to the job summary (what to fix,
-  then one line per check saying what it compared, the tools it ran with), each added record's board line and the
-  outputs. The `unit` workflow sets the added records aside on such a pull request (`pr_check.py --set-aside`) and
+  ("Writeups" below), checks the rules for a record, measures each added record's ASAP7 columns with the five
+  pinned liberty files (and compares its writeup's numbers with them), and writes a short account to the job summary
+  (what to fix, then one line per check saying what it compared, the tools it ran with), each added record's board
+  line and the outputs. `add` binds the record's ASAP7 columns in your own tree, but that table stays out of the
+  pull request (`submit` leaves it out): the check measures them itself. The `unit` workflow sets the added
+  records aside on such a pull request (`pr_check.py --set-aside`) and
   runs its tests on the board the pull request goes to: a record's derived tables (the ASAP7 view, the routed
   course, the other sizes, the schematics) are made by the maintainers when they make the record, so a pull
   request of records does not carry them. A record is what `leaderboard.py add` writes: to change its notes,
@@ -2412,10 +2423,11 @@ every record was re-made (`leaderboard.py remake`): each proof checked again at 
 ### The rules for a record
 
 Decided 2026-11-25, from what the first outside records got wrong: each mistake was a gap in this guide or in the
-tools, so the tools now check what they can. `add` refuses a record that breaks the second, fourth or fifth rule
-before its check runs, and asks for the first and the third (the writeup, named by the hash `add` makes, may hold
-the credit); `submit` and the pull request's check refuse a record that breaks any of them (`leaderboard.py`,
-"THE RULES FOR A RECORD"). Records already on the board are not judged again: records are append-only.
+tools, so the tools now check what they can. `add` refuses a record that breaks the second, fourth, fifth or eighth
+rule before its check runs, and asks for the first and the third (the writeup, named by the hash `add` makes, may
+hold the credit); `submit` and the pull request's check refuse a record that breaks any of them (`leaderboard.py`,
+"THE RULES FOR A RECORD"), and the seventh is how `add`, `submit` and the check measure a record. Records already on
+the board are not judged again: records are append-only.
 
 * **A writeup with every record.** A record goes in with its writeup, `leaderboard/writeups/<record_hash>.html`,
   copied from `leaderboard/writeups/TEMPLATE.html`: the idea, why it scores as it does, how the proof goes, what did
@@ -2436,6 +2448,14 @@ the credit); `submit` and the pull request's check refuse a record that breaks a
 * **The pinned tools, one command.** `python3.12 score/yosys_wasm.py --self-check` checks the rating build of
   Yosys, the same program on every machine, so the numbers you make are the board's; `add` stops when it is not the
   pinned one, and the pull request's check prints the versions it ran with.
+* **Measure both libraries.** `add` measures every record on sky130 and on ASAP7 (the cells only, flow A0'),
+  fetching the five pinned ASAP7 liberty files first (`python3.12 score/ppa.py --pdk asap7 --fetch-liberty`, each
+  checked by its hash), and binds its ASAP7 columns in `leaderboard/asap7/<task>.json`; `submit` measures them where
+  they are missing, and the pull request's check measures them again, so a writeup may give its record's ASAP7
+  numbers. In the golfing loop, weigh a design on both: `score/ppa.py` with and without `--pdk asap7`.
+* **Short notes, the story in the writeup.** The notes say in one line what the design is, in at most 300
+  characters: `add`, `submit` and the pull request's check refuse a longer note on a record submitted from
+  2026-11-25 on. The idea, the proof and the dead ends go in the writeup.
 
 What "built on" means to the check: the share of a file's own code (its runs of eight tokens, comments left out,
 less what most designs of the task share, such as the module header) that is found in another file. A third or
@@ -2445,8 +2465,16 @@ Measured on the first outside records: the designs their reviews found built on 
 shared 41 % to 72 % of their code, the others 23 % or less. The leading comment of a design is compared with every
 other design's, and a header of at least 120 characters that is another design's word for word, over code that is
 not, is refused. Score numbers are numbers with a unit of area (um^2 and its spellings), time (ps, ns), area x time
-or GE; an integer's trailing zeros may be rounding ("about 137,100 um^2"). A new record's own ASAP7 and routed
-numbers are measured when the maintainers make it, so until then its writeup gives them as ratios.
+or GE; an integer's trailing zeros may be rounding ("about 137,100 um^2"). A new record's own ASAP7 numbers are
+measured by `add` on your machine and again by the pull request's check, which compares the writeup's numbers with
+its measurement, so a writeup may give them (decided 2026-11-25); its routed numbers are measured when the
+maintainers make it on the course host, so until then its writeup gives them as ratios.
+
+The notes of a record from before 2026-11-25 stay as they are, however long (records are append-only, and the
+notes are part of the record's hash). Where such a record has a writeup, its page shows the note's first sentence
+and a link to the writeup, the whole note folded under them; the maintainers made a writeup for each board record
+whose note was longer than 300 characters and that had none, from the note's own sentences, sorted into a writeup's
+sections, with the numbers the record and the ASAP7 view measured (each says so in its last line).
 
 ### Writeups
 
