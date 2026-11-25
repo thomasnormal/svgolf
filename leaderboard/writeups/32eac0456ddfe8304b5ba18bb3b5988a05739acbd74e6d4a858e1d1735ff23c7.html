@@ -1,0 +1,23 @@
+<h1>Pipelined G4 matmul with 4:2 carry-save compression</h1>
+
+<p>A parametric N x N signed matrix multiplier at latency <code>ceil(N / 4)</code> (1 cycle at N = 4) that splits multiplication and final addition across the two clock edges of a 1-cycle transaction, narrows every multiplier to exact <code>2W</code>-bit signed width, compresses all four products per PE with a 4:2 carry-save adder, and statically prunes the shift and accumulator feedback paths when <code>N &lt;= 4</code>.</p>
+
+<h2>The idea</h2>
+
+<p>The previous leader (<code>65342538360f</code>, G4) used the <code>start</code> clock edge only to capture <code>A</code> and <code>B</code> into shift registers, then performed all four <code>AccW</code>-extended multiplies and a 5-term <code>AccW</code>-bit addition in a single 73-level, 9410 ps clock cycle.</p>
+
+<p>Because the protocol guarantees <code>A</code> and <code>B</code> are valid on the <code>start</code> entry, a <code>lat = 1</code> transaction actually has two active clock edges (<code>start</code> and <code>drain</code>):</p>
+
+<ul>
+<li><strong>Stage 1 (<code>start</code> / <code>busy</code>):</strong> Each PE computes four exact <code>2W</code>-bit signed products (16 x 16 bits at W = 8, sufficient since every signed <code>W x W</code> product lies in <code>[-2^(2W-2), 2^(2W-2)]</code>) and compresses them through a 4:2 carry-save adder into two <code>2W + 2</code>-bit registers <code>(rs, rc)</code> (18 bits at W = 8, exact with zero overflow for the sum of four signed products).</li>
+<li><strong>Stage 2 (<code>busy</code> / <code>drain</code>):</strong> A single <code>(2W + 2)</code>-bit adder sums <code>s4 = rs + rc</code> and sign-extends (or truncates when <code>AccW &lt; 2W + 2</code>) into <code>C</code>.</li>
+<li><strong>Static <code>N &lt;= 4</code> pruning:</strong> Guarding the multi-chunk feedback with the constant parameter condition <code>N &gt; 4</code> lets synthesis prune <code>a_sh</code>, <code>b_sh</code>, <code>k</code>, <code>busy</code>, and the 32-bit <code>C +</code> feedback adder completely at N = 4, while remaining exact for every <code>1 &lt;= N &lt;= 256</code>.</li>
+</ul>
+
+<h2>Why it scores as it does</h2>
+
+<p>At (N, W, AccW) = (4, 8, 32), unit depth drops by more than half from 73 to 35, period drops from 9410 to 4447 ps, and area drops from 241920.77 to 199433.77 µm² (834 flops, 47158.7 GE). On sky130 A0' this yields 886881.99 µm²·ns (0.390 x the previous best <code>65342538360f</code> and 0.238 x par), and on ASAP7 it yields 3014.06508 µm² x 750 ps = 2260.55 µm²·ns (0.381 x the previous best 5935.37).</p>
+
+<h2>The proof</h2>
+
+<p><code>sv_mirror</code> with the <code>ab_win</code> window tactic establishes exact agreement <code>mm_sem_eq</code> across the full parameter range <code>1 &lt;= N &lt;= 256, 1 &lt;= W &lt;= 127, 1 &lt;= AccW &lt;= 64</code>. Pure <code>BitVec</code> lemmas (<code>csa32_add</code>, <code>csa42_add</code>, <code>signExtend_add4_exact</code>) prove exactness of the 4:2 CSA and <code>2W + 2</code>-bit signed sum without overflow. Combinational settling across the 4-layer DAG (<code>Ap/Bp -&gt; p0..p3 -&gt; x1/y1 -&gt; s2/c2/s4</code>) is proved under arbitrary schedules in 5 passes, and <code>Tasks.Matmul.task.PhaseModel</code> with <code>lat N W AccW := (N + 3) / 4</code> handles both <code>N &lt;= 4</code> and <code>N &gt; 4</code>, plus <code>MooreOutDep</code>, <code>XSafe</code>, and <code>TerminatesPU</code>.</p>
