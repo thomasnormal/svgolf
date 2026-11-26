@@ -379,6 +379,12 @@
       "declare": "reference/fip_row_csa.json",
       "player": "clockwork-otter",
       "note": "fip_row_csa: a player's entry, the files as submitted (no generator writes them). fip_sign with the weight correction's signed 16 x 16 products written in the same sign-row form and the row's 48-bit accumulator add as six 8-bit carry-select slices; the rest of the design and the declaration are fip_sign's."
+    },
+    {
+      "sv": "reference/fip_row_csa4.sv",
+      "declare": "reference/fip_row_csa4.json",
+      "player": "clockwork-otter",
+      "note": "fip_row_csa4: a player's entry, the files as submitted (no generator writes them). fip_row_csa with the row's 48-bit accumulator add as twelve 4-bit carry-select slices instead of six 8-bit ones; the rest of the design and the declaration are fip_row_csa's."
     }
   ]
 }

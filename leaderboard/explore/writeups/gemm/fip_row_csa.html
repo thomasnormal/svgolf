@@ -1,6 +1,6 @@
 <h1>fip_sign with a carry-select accumulator adder</h1>
 
-<p>The same player's <a href="fip_sign.sv"><code>fip_sign</code></a> with two more changes, in two modules: the weight-correction unit's signed 16 x 16 products are written as unsigned cores and sign rows, as fip_sign's cell product is, and the row's 48-bit accumulator add is split into six 8-bit carry-select slices. The row stays the slowest module, but its period falls from 1,809 to 1,735 ps, and the score goes from 0.685 to 0.657 × <a href="par.sv">par</a>, the board's best.</p>
+<p>The same player's <a href="fip_sign.sv"><code>fip_sign</code></a> with two more changes, in two modules: the weight-correction unit's signed 16 x 16 products are written as unsigned cores and sign rows, as fip_sign's cell product is, and the row's 48-bit accumulator add is split into six 8-bit carry-select slices. The row stays the slowest module, but its period falls from 1,809 to 1,735 ps, and the score goes from 0.685 to 0.657 × <a href="par.sv">par</a>, the board's best when it was entered.</p>
 
 <h2>What it was built on</h2>
 

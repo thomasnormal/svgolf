@@ -52,7 +52,11 @@ product written as an unsigned core and sign rows. The cell grows 0.14 % and its
 
 The same player's second entry, `fip_row_csa`, builds on it: the weight-correction unit's 16 x 16 products are
 written the same way, and the row's 48-bit accumulator add becomes six 8-bit carry-select slices. The row grows
-4.6 % and its own period drops from 1,809 to 1,735 ps; the row still sets the clock: 0.657 x par, the board's best.
+4.6 % and its own period drops from 1,809 to 1,735 ps; the row still sets the clock: 0.657 x par.
+
+Its third, `fip_row_csa4`, is the same idea at a finer granularity: twelve 4-bit carry-select slices instead of six
+8-bit ones (eight 6-bit slices measured slower in the player's own run). The row's own period drops to 1,704 ps, only
+5 ps above the cell's 1,699: 0.645 x par, the board's best.
 
 ## The interface
 

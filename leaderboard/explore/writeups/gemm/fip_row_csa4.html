@@ -1,0 +1,72 @@
+<h1>fip_row_csa with 4-bit carry-select slices</h1>
+
+<p>The same player's <a href="fip_row_csa.sv"><code>fip_row_csa</code></a> with its accumulator adder cut finer: the row's 48-bit add is twelve 4-bit carry-select slices instead of six 8-bit ones. It is the same idea at a different granularity, and nothing else changes. The row stays the slowest module, but its period falls from 1,735 to 1,704 ps, and the score goes from 0.657 to 0.645 × <a href="par.sv">par</a>, the board's best when it was entered.</p>
+
+<h2>What it was built on</h2>
+
+<p>The design file is fip_row_csa's (<a href="fip_row_csa.sv"><code>tasks/gemm/reference/fip_row_csa.sv</code></a>, the same player's entry: fip_sign with its weight-correction products in sign-row form and its row's add in six 8-bit carry-select slices) with 7 lines of the row module <code>gemm_rowf</code> replaced by 7: the carry vector widens from 7 to 13 bits, and the slices go from six of 8 bits to twelve of 4. The other 690 lines are fip_row_csa's, and the declaration is fip_row_csa's byte for byte (which is fip_sign's). The file keeps fip's header comment, which still names fip and its generator.</p>
+
+<pre><code>--- reference/fip_row_csa.sv
++++ reference/fip_row_csa4.sv
+@@ -537,7 +537,7 @@
+   logic        r_sel;
+   logic [SW-1:0] ip;                                  // the slice's inner product modulo 2^SW
+   logic [47:0] d0, d1, wd, add_a, add_b, csa_sum;
+-  logic [6:0]  csa_c;
++  logic [12:0] csa_c;
+   logic        rd0, rd1, wr0, wr1;
+   logic [7:0]  ad0, ad1;
+   assign ip  = s[SW*H +: SW] - cx_in;
+@@ -549,13 +549,13 @@
+   assign ad1 = wr1 ? 8'(a_v_o[LGE:1]) : a_rd ? 8'(a_v[LGE:1]) : 8'(r_v[LGE:1]);
+   assign add_a = a_first_o ? 48'd0 : (a_v_o[0] ? d1 : d0);
+   assign add_b = {{(48-SW){ip[SW-1]}}, ip};
+-  assign {csa_c[1], csa_sum[7:0]} = add_a[7:0] + add_b[7:0];
+-  for (genvar g = 1; g &lt; 6; g++) begin : g_csa
+-    logic [8:0] s0, s1;
+-    assign s0 = add_a[8*g +: 8] + add_b[8*g +: 8];
+-    assign s1 = add_a[8*g +: 8] + add_b[8*g +: 8] + 9'd1;
+-    assign csa_sum[8*g +: 8] = csa_c[g] ? s1[7:0] : s0[7:0];
+-    assign csa_c[g+1] = csa_c[g] ? s1[8] : s0[8];
++  assign {csa_c[1], csa_sum[3:0]} = add_a[3:0] + add_b[3:0];
++  for (genvar g = 1; g &lt; 12; g++) begin : g_csa
++    logic [4:0] s0, s1;
++    assign s0 = add_a[4*g +: 4] + add_b[4*g +: 4];
++    assign s1 = add_a[4*g +: 4] + add_b[4*g +: 4] + 5'd1;
++    assign csa_sum[4*g +: 4] = csa_c[g] ? s1[3:0] : s0[3:0];
++    assign csa_c[g+1] = csa_c[g] ? s1[4] : s0[4];
+   end
+   assign wd = csa_sum;
+   srambank_64x4x48_6t122 m0 (.clk(clk), .ADDRESS(ad0), .wd(wd), .banksel(rd0 | wr0), .read(rd0 &amp; ~wr0),</code></pre>
+
+<h2>Why it scores as it does</h2>
+
+<p>The machine is fip_row_csa's, so the cycles are too: 4,573,825 per job, measured on the scored job and equal to the declared formula. What changes is the row, of which there are 128:</p>
+
+<table>
+<thead><tr><th>row <code>gemm_rowf</code></th><th class="al-right">fip_row_csa</th><th class="al-right">fip_row_csa4</th></tr></thead>
+<tbody>
+<tr><td>area, µm² (own cells)</td><td class="al-right">124.44</td><td class="al-right">123.26</td></tr>
+<tr><td>period, ps (own register-to-register)</td><td class="al-right">1,735</td><td class="al-right">1,704</td></tr>
+</tbody>
+</table>
+
+<p>The finer slices cost less area: each row is 1.18 µm² smaller (&minus;0.9 %), &minus;151 µm² over the 128 rows. The whole design goes from 3.3420 to 3.3413 mm² (&minus;0.02 %): every other module's text is fip_row_csa's, but synthesized again in this check they come out 575 µm² smaller in all, &minus;571 µm² of it in the rows' output stage <code>gemm_scale</code>. Most of the design's change is that resynthesis, not the slicing.</p>
+
+<p>The period is the row module's own register-to-register path: 1,735 ps in fip_row_csa, 1,704 ps with the 4-bit slices (the slicing is the design's only change), 1.8 % less. The row is still the slowest module, now only 5 ps above the next, <code>gemm_cellf</code> at 1,699 ps (the cell, whose text is fip_row_csa's): a faster row alone can now gain at most 5 ps more.</p>
+
+<p>Score: 3.3413 mm² × 4,573,825 cycles × 1,704 ps = 26.04 mm²·ms per job, 0.645 × par and 0.982 × fip_row_csa.</p>
+
+<h2>Why the sum is exact</h2>
+
+<p>As in fip_row_csa, with slices of 4 bits instead of 8. fip_sign writes <code>wd = add_a + add_b</code> at 48 bits, with <code>add_a</code> the accumulator word read from memory (0 when a sum starts) and <code>add_b</code> the sign-extended inner product. The low slice adds bits 3:0 into five bits, its fifth bit the carry into the next slice; each further slice g (bits 4g + 3 to 4g) computes both a<sub>g</sub> + b<sub>g</sub> and a<sub>g</sub> + b<sub>g</sub> + 1 in five bits, which cannot overflow (15 + 15 + 1 = 31), and takes the one its incoming carry c<sub>g</sub> selects, the low four bits as its part of the sum and the fifth as the carry into slice g + 1. So slice g's bits are (a<sub>g</sub> + b<sub>g</sub> + c<sub>g</sub>) mod 2<sup>4</sup> and its carry out is the quotient, which is schoolbook addition in base 2<sup>4</sup>; by induction over the twelve slices the 48 bits are (add_a + add_b) mod 2<sup>48</sup>, the same sum as fip_row_csa's and fip_sign's for every input. The carry out of bit 47 is computed and not read, as the plain add drops it. The check's simulations agree (every result right at the four check points, the gate netlist at LGE = 2, the scored job twice); the argument is what covers every input.</p>
+
+<h2>What did not work</h2>
+
+<p>The player also tried the granularity between the two: eight 6-bit carry-select slices. It passed the check's simulations, but in the player's own measurement (on its own build, not the rating machine) its row was slower than both neighbours: 1,779 ps, against 1,735 ps for six 8-bit slices and 1,704 ps for twelve 4-bit ones. It was set aside. The earlier attempts on the row and the cell are on <a href="fip_row_csa.html">fip_row_csa's page</a>.</p>
+
+<h2>The proof</h2>
+
+<p>None: like every entry of this task, it is checked by simulation, and the composed score is not a routed one (the task page says what the check does not show).</p>
+
+<p>Writeup by the maintainers, from the player's notes and the numbers of the check on the rating machine.</p>
