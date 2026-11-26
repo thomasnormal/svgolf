@@ -1,0 +1,92 @@
+<h1>fip_sign with a carry-select accumulator adder</h1>
+
+<p>The same player's <a href="fip_sign.sv"><code>fip_sign</code></a> with two more changes, in two modules: the weight-correction unit's signed 16 x 16 products are written as unsigned cores and sign rows, as fip_sign's cell product is, and the row's 48-bit accumulator add is split into six 8-bit carry-select slices. The row stays the slowest module, but its period falls from 1,809 to 1,735 ps, and the score goes from 0.685 to 0.657 × <a href="par.sv">par</a>, the board's best.</p>
+
+<h2>What it was built on</h2>
+
+<p>The design file is fip_sign's (<a href="fip_sign.sv"><code>tasks/gemm/reference/fip_sign.sv</code></a>, the same player's entry: fip with its cell's product written as an unsigned core and sign rows) with 3 lines replaced by 21: one line of the weight-correction unit <code>gemm_wcorr</code> by eight, and two lines of the row module <code>gemm_rowf</code>, a declaration and the accumulator add, by thirteen. The other 676 lines are fip_sign's. The declaration is fip_sign's, byte for byte. The file keeps fip's header comment, which still names fip and its generator. The player made the two changes one after the other: the weight-correction products first, then the adder.</p>
+
+<pre><code>--- reference/fip_sign.sv
++++ reference/fip_row_csa.sv
+@@ -396,8 +396,15 @@
+   localparam int SW = 33 + LGE;
+   logic [SW*H-1:0] pe;
+   for (genvar t = 0; t &lt; H; t++) begin : g_p
++    logic [31:0] core;
++    logic signed [32:0] prod;
+     logic signed [31:0] p;
+-    always_ff @(posedge clk) p &lt;= -($signed(w[32*t +: 16]) * $signed(w[32*t+16 +: 16]));
++    assign core = $unsigned(w[32*t +: 16]) * $unsigned(w[32*t+16 +: 16]);
++    assign prod = $signed({1'b0, core})
++                - (w[32*t + 15] ? $signed({1'b0, w[32*t+16 +: 16], 16'b0}) : 33'sd0)
++                - (w[32*t+16 + 15] ? $signed({1'b0, w[32*t +: 16], 16'b0}) : 33'sd0)
++                + ((w[32*t + 15] &amp;&amp; w[32*t+16 + 15]) ? 33'sh100000000 : 33'sd0);
++    always_ff @(posedge clk) p &lt;= -prod[31:0];
+     assign pe[SW*t +: SW] = {{(SW-32){p[31]}}, p};
+   end
+   gemm_sum #(.LGE(LGE), .W(SW)) tree (.clk(clk), .d(pe), .q(ncw));
+@@ -529,7 +536,8 @@
+ 
+   logic        r_sel;
+   logic [SW-1:0] ip;                                  // the slice's inner product modulo 2^SW
+-  logic [47:0] d0, d1, wd;
++  logic [47:0] d0, d1, wd, add_a, add_b, csa_sum;
++  logic [6:0]  csa_c;
+   logic        rd0, rd1, wr0, wr1;
+   logic [7:0]  ad0, ad1;
+   assign ip  = s[SW*H +: SW] - cx_in;
+@@ -539,7 +547,17 @@
+   assign rd1 = (a_rd &amp;  a_v[0]) | (r_rd &amp;  r_v[0]);
+   assign ad0 = wr0 ? 8'(a_v_o[LGE:1]) : a_rd ? 8'(a_v[LGE:1]) : 8'(r_v[LGE:1]);
+   assign ad1 = wr1 ? 8'(a_v_o[LGE:1]) : a_rd ? 8'(a_v[LGE:1]) : 8'(r_v[LGE:1]);
+-  assign wd  = (a_first_o ? 48'd0 : (a_v_o[0] ? d1 : d0)) + {{(48-SW){ip[SW-1]}}, ip};
++  assign add_a = a_first_o ? 48'd0 : (a_v_o[0] ? d1 : d0);
++  assign add_b = {{(48-SW){ip[SW-1]}}, ip};
++  assign {csa_c[1], csa_sum[7:0]} = add_a[7:0] + add_b[7:0];
++  for (genvar g = 1; g &lt; 6; g++) begin : g_csa
++    logic [8:0] s0, s1;
++    assign s0 = add_a[8*g +: 8] + add_b[8*g +: 8];
++    assign s1 = add_a[8*g +: 8] + add_b[8*g +: 8] + 9'd1;
++    assign csa_sum[8*g +: 8] = csa_c[g] ? s1[7:0] : s0[7:0];
++    assign csa_c[g+1] = csa_c[g] ? s1[8] : s0[8];
++  end
++  assign wd = csa_sum;
+   srambank_64x4x48_6t122 m0 (.clk(clk), .ADDRESS(ad0), .wd(wd), .banksel(rd0 | wr0), .read(rd0 &amp; ~wr0),
+                              .write(wr0), .dataout(d0));
+   srambank_64x4x48_6t122 m1 (.clk(clk), .ADDRESS(ad1), .wd(wd), .banksel(rd1 | wr1), .read(rd1 &amp; ~wr1),</code></pre>
+
+<h2>Why it scores as it does</h2>
+
+<p>The machine is fip_sign's, so the cycles are too: 4,573,825 per job, measured on the scored job and equal to the declared formula. What changes are the row, of which there are 128, and the weight-correction unit, of which there is one:</p>
+
+<table>
+<thead><tr><th>module</th><th class="al-right">fip_sign</th><th class="al-right">fip_row_csa</th></tr></thead>
+<tbody>
+<tr><td>row <code>gemm_rowf</code>: area, µm² (own cells)</td><td class="al-right">118.91</td><td class="al-right">124.44</td></tr>
+<tr><td>row <code>gemm_rowf</code>: period, ps (own register-to-register)</td><td class="al-right">1,809</td><td class="al-right">1,735</td></tr>
+<tr><td>weight correction <code>gemm_wcorr</code>: area, µm²</td><td class="al-right">10,271.83</td><td class="al-right">10,099.11</td></tr>
+<tr><td>weight correction <code>gemm_wcorr</code>: period, ps</td><td class="al-right">1,110</td><td class="al-right">1,121</td></tr>
+</tbody>
+</table>
+
+<p>The adder costs area: each row grows by 5.53 µm² (+4.6 %), 707 µm² over the 128 rows. The weight-correction products save 173 µm² (&minus;1.7 %) in their unit. The whole design goes from 3.3411 to 3.3420 mm² (+0.03 %): the on-chip memory, 0.753 mm², and every other module's text are fip_sign's, but synthesized again in this check they come out 359 µm² larger in all, 304 of it in the rows' output stage <code>gemm_scale</code>.</p>
+
+<p>The period is the row module's own register-to-register path: 1,809 ps in fip_sign, 1,735 ps with the carry-select add (the add is the row's only change), 4.1 % less. The row is still the slowest module; the next is <code>gemm_cellf</code> at 1,699 ps (the cell, whose text is fip_sign's).</p>
+
+<p>Score: 3.3420 mm² × 4,573,825 cycles × 1,735 ps = 26.52 mm²·ms per job, 0.657 × par and 0.959 × fip_sign.</p>
+
+<h2>Why the sum and the products are exact</h2>
+
+<p>The adder. fip_sign writes <code>wd = add_a + add_b</code> at 48 bits, with <code>add_a</code> the accumulator word read from memory (0 when a sum starts) and <code>add_b</code> the sign-extended inner product. The new add takes the operands byte by byte: the low slice adds bytes 0 into nine bits, its ninth bit the carry into byte 1; each further slice g computes both a<sub>g</sub> + b<sub>g</sub> and a<sub>g</sub> + b<sub>g</sub> + 1 in nine bits and takes the one its incoming carry c<sub>g</sub> selects, the low eight bits as byte g of the sum and the ninth as the carry into byte g + 1. So byte g of the sum is (a<sub>g</sub> + b<sub>g</sub> + c<sub>g</sub>) mod 2<sup>8</sup> and its carry out is the quotient, which is schoolbook addition in base 2<sup>8</sup>; by induction over the six slices the 48 bits are (add_a + add_b) mod 2<sup>48</sup>, fip_sign's sum for every input. The carry out of bit 47, which fip_sign's 48-bit add drops, is dropped too (it is computed and not read).</p>
+
+<p>The weight-correction products, as fip_sign's cell product. Read the 16 bits of the two weights as unsigned numbers u<sub>a</sub> and u<sub>b</sub>; in two's complement a = u<sub>a</sub> &minus; 2<sup>16</sup>&middot;a[15] and b = u<sub>b</sub> &minus; 2<sup>16</sup>&middot;b[15], so a&middot;b = u<sub>a</sub>u<sub>b</sub> &minus; 2<sup>16</sup>&middot;a[15]&middot;u<sub>b</sub> &minus; 2<sup>16</sup>&middot;b[15]&middot;u<sub>a</sub> + 2<sup>32</sup>&middot;a[15]&middot;b[15]. The core is the first term, exactly (32 bits); <code>{1'b0, w[32*t+16 +: 16], 16'b0}</code> is 2<sup>16</sup>&middot;u<sub>b</sub>, subtracted when a is negative, the other row is 2<sup>16</sup>&middot;u<sub>a</sub>, subtracted when b is, and <code>33'sh100000000</code> is 2<sup>32</sup>, added when both are. The sum is taken at 33 bits, so <code>prod</code> is a&middot;b modulo 2<sup>33</sup>, its low 32 bits are a&middot;b modulo 2<sup>32</sup>, and <code>p = -prod[31:0]</code> is &minus;a&middot;b modulo 2<sup>32</sup>: bit for bit fip_sign's <code>-($signed(a) * $signed(b))</code> at 32 bits, for every one of the 2<sup>32</sup> weight pairs. The check's simulations agree (every result right at the four check points, the gate netlist at LGE = 2, the scored job twice); the arguments are what cover every input.</p>
+
+<h2>What did not work</h2>
+
+<p>Before the carry-select adder the player tried four other ways to shorten the row's or the cell's path, all set aside (the player's notes): registering the row's memory operands, with two more drain cycles, and registering the row's write value with its control both gave wrong results in the check; computing the sum with both memory blocks' words before choosing between them passed the check's simulations but made the row slower (1,973 ps on the player's machine); and a two-stage cell, tried in seven variants, gave wrong results in every one.</p>
+
+<h2>The proof</h2>
+
+<p>None: like every entry of this task, it is checked by simulation, and the composed score is not a routed one (the task page says what the check does not show).</p>
+
+<p>Writeup by the maintainers, from the player's notes and the numbers of the check on the rating machine.</p>

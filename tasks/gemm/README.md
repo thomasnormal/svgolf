@@ -48,7 +48,11 @@ read-out pass idles the array, its result FIFO is flip-flops, and its accumulate
 
 The first player's entry, `fip_sign`, takes the cheaper product: the inner-product form with its cell's 18 x 18
 product written as an unsigned core and sign rows. The cell grows 0.14 % and its own period drops from 1,880 to
-1,699 ps, so the row module's 1,809 ps now sets the clock: 0.685 x par, the board's best.
+1,699 ps, so the row module's 1,809 ps now sets the clock: 0.685 x par.
+
+The same player's second entry, `fip_row_csa`, builds on it: the weight-correction unit's 16 x 16 products are
+written the same way, and the row's 48-bit accumulator add becomes six 8-bit carry-select slices. The row grows
+4.6 % and its own period drops from 1,809 to 1,735 ps; the row still sets the clock: 0.657 x par, the board's best.
 
 ## The interface
 
