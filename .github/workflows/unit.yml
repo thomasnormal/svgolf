@@ -39,6 +39,14 @@ jobs:
           python3 tests/checker/test_layout.py
           python3 -m unittest discover -s tests/site
           python3 tests/leaderboard/test_leaderboard.py
+      - name: The exploration task (its board, its oracle, its reference files, the composed score, the check's own tests)
+        run: |
+          python3 leaderboard/exploreboard.py verify
+          python3 tests/leaderboard/test_exploreboard.py
+          python3 tasks/gemm/oracle.py
+          python3 tasks/gemm/reference/gen.py --check
+          python3 score/test_hier.py
+          python3 tests/gemm/test_gemm.py
       - name: The site builds with the records the pull request adds put back
         if: github.event_name == 'pull_request'
         run: |

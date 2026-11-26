@@ -2873,3 +2873,59 @@ outside `nightly/`.
 | `arbiter` | a fair N-client arbiter, CLOCKED and REACTIVE (`ReactTask`, kind `react-family`): per cycle at most one grant, only to a requester, someone whenever anyone requests (G1 to G3), no grant out of reset (G0), and a client that requests `N` cycles in a row granted within them (G4, `K = N - 1`, tight), from every power-up state, Moore outputs, no environment assumption; every `N >= 1` with `N*N < 2^31`; bans `/ % **` | a registered mask round-robin (own code), **proved** for every `N` through `ReactTask.satisfiedAt_of_rank` (an invariant and a rank: `PROVING.md` section 20); the adapted OpenTitan `prim_arbiter_tree` behind an output register and a rotating priority by simulation (`tests/arbiter/designs`); 17 attacks (`tests/arbiter/attacks`); listed and ranked, par the reference's record (`tasks/arbiter/README.md`) | 769.488 um^2, 2826 ps (the register-to-register period, one decision per cycle; 16 flops); 188.979 GE, depth 17 at `N = 8`. OpenTitan tree 668.1 um^2, 1454 ps (an earlier flow version, not proved) |
 | `matmul` | N x N signed matrix multiplication, CLOCKED with a declared latency (`TxTask`, kind `tx-family`): `C = A * B` over `W`-bit two's-complement entries, every sum wrapping at `AccW` bits, behind a start/done handshake, from every power-up state, Moore outputs; every `1 <= N <= 256`, `1 <= W <= 127`, `1 <= AccW <= 64`; bans `/ % **` | `N*N` parallel multiply-accumulate units and one step counter (own code), latency `N`, **proved** for every point through `TxTask.satisfiedAtV2_of_phases` (a phase model: `PROVING.md` section 19); 7 attacks (`tests/matmul/attacks`); listed and ranked (decided 2026-11-08), par the reference's record (`tasks/matmul/README.md`) | 87173.6064 um^2, 4 x 10696 ps = 42784 ps (the latency in cycles x the register-to-register period; 802 flops); 20783.15 GE, depth 61 at `(N, W, AccW) = (4, 8, 32)` |
 | `sorter` | a streaming sorter of N unsigned W-bit values, CLOCKED with a declared latency (`StreamTask`, kind `stream-family`): the values in on `N` consecutive `in_valid` cycles, the same values out ascending (duplicates kept) on `N` `out_valid` cycles, from every power-up state, Moore outputs; every `N, W >= 1` with `N*W < 2^31`; bans `/ % **` | an insertion-cell array adapted from andrewpeck/cell-sort (MIT), latency `2N`, **proved** for every point through `StreamTask.satisfiedAtV2_of_phases` (`PROVING.md` section 19); 8 attacks (`tests/sorter/attacks`); listed and ranked (decided 2026-11-08), par the reference's record (`tasks/sorter/README.md`) | 5512.7872 um^2, 16 x 2523 ps = 40368 ps (81 flops); 1288.819 GE, depth 15 at `(N, W) = (8, 8)` |
+
+## Exploration tasks
+
+An exploration task has no trusted statement yet, so nothing of it is proved: its kind is `explore-stream`, its
+status `exploration`, and it is not a task of the leaderboard (no record, no par of a ranked board, nothing in the
+latest records or the charts). `gemm` is the first ([tasks/gemm/README.md](tasks/gemm/README.md): a streamed
+inference layer beside an external memory, scored as throughput per area on ASAP7). Its entries are UNPROVED and
+are shown on an exploration board, apart from every proved record.
+
+**The check** takes the design and its declaration (the steady-state cycle formula, and the memory layout when it is
+not the canonical one); a proof is refused, because there is nothing to prove it against:
+
+```bash
+python3.12 check.py tasks/gemm design.sv --unproved --declare design.json
+```
+
+| stage | what |
+|---|---|
+| `source` | the source gate with the clocked rules |
+| `declare` | the declaration: the cycle formula's grammar, the layout |
+| `extract` | the pinned extractor at every check point; the top's parameters and ports |
+| `banlist`, `fourstate`, `clocked_rules` | as for the clocked tasks, at the check points; the two stages that flatten the design in Yosys (the banlist's backstop, `fourstate`) at the small points only, not at the scored parameters |
+| `hier` | the pinned passes on every module at the scored parameters, hierarchy kept ([score/hier.py](score/hier.py)): the hierarchy rule, the composed area, the modules' periods; then the same passes at the check points marked `netlist`, for the simulated netlist |
+| `explore` | the simulations ([check/explore.py](check/explore.py)): results against the task's `oracle.py` from random power-up states under random pauses, the same schedule on data of another kind, the declared cycles, the result runs again on the gate netlist, and the scored job itself, run twice with identity weights: its results, and its measured cycles against the declared formula |
+| `score` | the composed score |
+
+A clean run stops at the pseudo-stage `unproved` (`unproved_ok`, `exploration`, exit status 0) and is never accepted.
+The Lean stages do not run: ls-sv has not loaded the design. `--no-score` skips `hier`, the netlist runs, the
+scored job's run and the score. A clean run is a simulation's verdict, not a proof: the task's README lists what
+it does not show.
+
+**The composed score.** A design of the scored size (16,384 multiply-accumulate cells in the plain array) cannot be
+flattened by the rating build, so every distinct module is synthesized once and the score is composed
+(`composed_asap7_v1`, the ASAP7 cells-only view of [The ASAP7 view](#the-asap7-view)):
+
+- area = sum over the modules of instances x the module's own cells, plus the blocks of the SRAM catalogue
+  ([score/sram_asap7.json](score/sram_asap7.json)) at their table areas;
+- period = the longest of the modules' own register-to-register periods at the scored parameters (each module
+  alone, its child instances cut at their pins);
+- cycles = the declared formula at the scored job, which must equal the count measured by running that job;
+- score = area x cycles x period, lower is better.
+
+The flow is the pinned one with two lines changed, each in a file of its own so that no pinned file moves:
+`score/canon_hier.ys` is `canon.ys` with `setattr -mod -set keep_hierarchy 1 *` in place of `flatten`, and
+`score/svgolf_seq_hier.ys` is `svgolf_seq.ys` without `ltp`. The HIERARCHY RULE makes the composition meaningful and
+is checked on the netlist: below the top, every module output is a register output, a child's output or a module
+input, and every child input is driven by a register, a child output, a module input or a constant (a catalogue
+block's inputs are exempt). The composed score leaves out wires, the clock tree, the delay of nets that fan out
+across module boundaries (a module without cells of its own weighs nothing), the clock-to-output time of a register
+whose path continues in another module, and a catalogue block's own clock-to-output and setup times. It is labelled `composed` everywhere and is never compared with a flat or routed
+score.
+
+**The exploration board** is `leaderboard/explore/<task>.json` ([leaderboard/exploreboard.py](leaderboard/exploreboard.py):
+`add` a clean run's result, `verify`, `show`). It is not a leaderboard: its entries are unproved, ordered by composed
+score, the task's plain design marked as its reference point. An entry moves to a ranked board only with a
+kernel-checked proof of the statement the task will get.

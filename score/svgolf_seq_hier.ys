@@ -1,0 +1,17 @@
+# svGolf scoring flow of the COMPOSED score (score/hier.py), stage 2 of 2: SYNTHESIS, every module kept.
+# svgolf_seq.ys with one line removed: `ltp -noff` (the longest topological path of a FLAT netlist; on a
+# hierarchical one it walks through the child instances and does not finish at the scored sizes). Every other line
+# is svgolf_seq.ys's, in its order, so each module is synthesized by the passes of the pinned clocked flow.
+# svgolf_seq.ys, its hash and every score made with it are untouched. hier.py records this file's sha256.
+#
+#   @RTLIL@    the canonical RTLIL from stage 1 (canon_hier.ys)
+#   @TOP@      the task's top module
+#   @STAT@     output file for `stat -json` (cell counts by type, per module)
+#   @NETLIST@  output file: the hierarchical netlist (gates, $_DFF_P_ flops, module and SRAM block instances)
+read_rtlil @RTLIL@
+synth -flatten -nofsm -top @TOP@
+dfflegalize -cell $_DFF_P_ x
+abc -g AND,NAND,OR,NOR,XOR,XNOR,ANDNOT,ORNOT,MUX
+opt_clean -purge
+tee -q -o @STAT@ stat -json
+write_verilog -noattr -noexpr @NETLIST@

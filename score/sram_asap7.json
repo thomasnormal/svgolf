@@ -1,0 +1,275 @@
+{
+ "_comment": "The open ASAP7 SRAM catalogue as svGolf prices it: The-OpenROAD-Project/asap7_sram_0p0 at commit c578d6cf358145705c6dda52320cec1668ce1f0c (BSD 3-Clause, Copyright (c) 2023, The OpenROAD Project; the licence text is kept in score/sram_asap7.LICENSE). `area_um2` is the footprint of the block's 1x layout abstract in um^2 (the 512-word blocks at the corrected width 16.524 um; their abstracts say 16.0). Each block is one bank: `words` words of `width` bits, address `addr_bits` bits. Pins: clk, ADDRESS, wd, dataout, banksel, read, write. One port; at a rising clock edge with banksel = 1: write = 1 stores wd at ADDRESS (dataout unchanged); write = 0 and read = 1 puts the word at ADDRESS on dataout, which holds it until the next read; no reset. A read and a write of one block in the same cycle are forbidden.",
+ "source": {
+  "repository": "The-OpenROAD-Project/asap7_sram_0p0",
+  "commit": "c578d6cf358145705c6dda52320cec1668ce1f0c",
+  "licence": "BSD-3-Clause"
+ },
+ "pins": {
+  "inputs": [
+   "clk",
+   "ADDRESS",
+   "wd",
+   "banksel",
+   "read",
+   "write"
+  ],
+  "outputs": [
+   "dataout"
+  ]
+ },
+ "blocks": [
+  {
+   "name": "srambank_64x4x16_6t122",
+   "words": 256,
+   "width": 16,
+   "addr_bits": 8,
+   "area_um2": "249.14304"
+  },
+  {
+   "name": "srambank_64x4x18_6t122",
+   "words": 256,
+   "width": 18,
+   "addr_bits": 8,
+   "area_um2": "269.90496"
+  },
+  {
+   "name": "srambank_64x4x20_6t122",
+   "words": 256,
+   "width": 20,
+   "addr_bits": 8,
+   "area_um2": "290.66688"
+  },
+  {
+   "name": "srambank_64x4x32_6t122",
+   "words": 256,
+   "width": 32,
+   "addr_bits": 8,
+   "area_um2": "415.2384"
+  },
+  {
+   "name": "srambank_64x4x34_6t122",
+   "words": 256,
+   "width": 34,
+   "addr_bits": 8,
+   "area_um2": "436.00032"
+  },
+  {
+   "name": "srambank_64x4x36_6t122",
+   "words": 256,
+   "width": 36,
+   "addr_bits": 8,
+   "area_um2": "456.76224"
+  },
+  {
+   "name": "srambank_64x4x40_6t122",
+   "words": 256,
+   "width": 40,
+   "addr_bits": 8,
+   "area_um2": "498.28608"
+  },
+  {
+   "name": "srambank_64x4x48_6t122",
+   "words": 256,
+   "width": 48,
+   "addr_bits": 8,
+   "area_um2": "581.33376"
+  },
+  {
+   "name": "srambank_64x4x64_6t122",
+   "words": 256,
+   "width": 64,
+   "addr_bits": 8,
+   "area_um2": "747.42912"
+  },
+  {
+   "name": "srambank_64x4x72_6t122",
+   "words": 256,
+   "width": 72,
+   "addr_bits": 8,
+   "area_um2": "830.4768"
+  },
+  {
+   "name": "srambank_64x4x74_6t122",
+   "words": 256,
+   "width": 74,
+   "addr_bits": 8,
+   "area_um2": "851.23872"
+  },
+  {
+   "name": "srambank_64x4x80_6t122",
+   "words": 256,
+   "width": 80,
+   "addr_bits": 8,
+   "area_um2": "913.52448"
+  },
+  {
+   "name": "srambank_128x4x16_6t122",
+   "words": 512,
+   "width": 16,
+   "addr_bits": 9,
+   "area_um2": "428.30208"
+  },
+  {
+   "name": "srambank_128x4x18_6t122",
+   "words": 512,
+   "width": 18,
+   "addr_bits": 9,
+   "area_um2": "463.99392"
+  },
+  {
+   "name": "srambank_128x4x20_6t122",
+   "words": 512,
+   "width": 20,
+   "addr_bits": 9,
+   "area_um2": "499.68576"
+  },
+  {
+   "name": "srambank_128x4x32_6t122",
+   "words": 512,
+   "width": 32,
+   "addr_bits": 9,
+   "area_um2": "713.8368"
+  },
+  {
+   "name": "srambank_128x4x34_6t122",
+   "words": 512,
+   "width": 34,
+   "addr_bits": 9,
+   "area_um2": "749.52864"
+  },
+  {
+   "name": "srambank_128x4x36_6t122",
+   "words": 512,
+   "width": 36,
+   "addr_bits": 9,
+   "area_um2": "785.22048"
+  },
+  {
+   "name": "srambank_128x4x40_6t122",
+   "words": 512,
+   "width": 40,
+   "addr_bits": 9,
+   "area_um2": "856.60416"
+  },
+  {
+   "name": "srambank_128x4x48_6t122",
+   "words": 512,
+   "width": 48,
+   "addr_bits": 9,
+   "area_um2": "999.37152"
+  },
+  {
+   "name": "srambank_128x4x64_6t122",
+   "words": 512,
+   "width": 64,
+   "addr_bits": 9,
+   "area_um2": "1284.90624"
+  },
+  {
+   "name": "srambank_128x4x72_6t122",
+   "words": 512,
+   "width": 72,
+   "addr_bits": 9,
+   "area_um2": "1427.6736"
+  },
+  {
+   "name": "srambank_128x4x74_6t122",
+   "words": 512,
+   "width": 74,
+   "addr_bits": 9,
+   "area_um2": "1463.36544"
+  },
+  {
+   "name": "srambank_128x4x80_6t122",
+   "words": 512,
+   "width": 80,
+   "addr_bits": 9,
+   "area_um2": "1570.44096"
+  },
+  {
+   "name": "srambank_256x4x16_6t122",
+   "words": 1024,
+   "width": 16,
+   "addr_bits": 10,
+   "area_um2": "786.62016"
+  },
+  {
+   "name": "srambank_256x4x18_6t122",
+   "words": 1024,
+   "width": 18,
+   "addr_bits": 10,
+   "area_um2": "852.17184"
+  },
+  {
+   "name": "srambank_256x4x20_6t122",
+   "words": 1024,
+   "width": 20,
+   "addr_bits": 10,
+   "area_um2": "917.72352"
+  },
+  {
+   "name": "srambank_256x4x32_6t122",
+   "words": 1024,
+   "width": 32,
+   "addr_bits": 10,
+   "area_um2": "1311.0336"
+  },
+  {
+   "name": "srambank_256x4x34_6t122",
+   "words": 1024,
+   "width": 34,
+   "addr_bits": 10,
+   "area_um2": "1376.58528"
+  },
+  {
+   "name": "srambank_256x4x36_6t122",
+   "words": 1024,
+   "width": 36,
+   "addr_bits": 10,
+   "area_um2": "1442.13696"
+  },
+  {
+   "name": "srambank_256x4x40_6t122",
+   "words": 1024,
+   "width": 40,
+   "addr_bits": 10,
+   "area_um2": "1573.24032"
+  },
+  {
+   "name": "srambank_256x4x48_6t122",
+   "words": 1024,
+   "width": 48,
+   "addr_bits": 10,
+   "area_um2": "1835.44704"
+  },
+  {
+   "name": "srambank_256x4x64_6t122",
+   "words": 1024,
+   "width": 64,
+   "addr_bits": 10,
+   "area_um2": "2359.86048"
+  },
+  {
+   "name": "srambank_256x4x72_6t122",
+   "words": 1024,
+   "width": 72,
+   "addr_bits": 10,
+   "area_um2": "2622.0672"
+  },
+  {
+   "name": "srambank_256x4x74_6t122",
+   "words": 1024,
+   "width": 74,
+   "addr_bits": 10,
+   "area_um2": "2687.61888"
+  },
+  {
+   "name": "srambank_256x4x80_6t122",
+   "words": 1024,
+   "width": 80,
+   "addr_bits": 10,
+   "area_um2": "2884.27392"
+  }
+ ]
+}

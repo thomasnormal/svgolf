@@ -1,0 +1,4 @@
+{
+ "cycles": "(batch//(2*e))*(max((2*e)*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((2*e)+1,(e+max(lat+2,4,e)))+((n//e)-1)*max(2*(2*e)+2*e+5,(e+max(lat+2,4,e)))+2*(2*e)+2*e+13)+min(batch%(2*e),1)*(max((batch%(2*e))*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((batch%(2*e))+1,(e+max(lat+2,4,e)))+((n//e)-1)*max(2*(batch%(2*e))+2*e+5,(e+max(lat+2,4,e)))+2*(batch%(2*e))+2*e+13)+1",
+ "layout": null
+}

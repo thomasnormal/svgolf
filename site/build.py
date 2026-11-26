@@ -166,6 +166,7 @@ import md                                         # noqa: E402
 import metrics                                    # noqa: E402
 import page                                       # noqa: E402
 import pixelart                                   # noqa: E402
+import explorepage                                # noqa: E402  (the pages of an exploration task)
 import props                                      # noqa: E402
 import standing                                   # noqa: E402
 import svgplot                                    # noqa: E402
@@ -234,6 +235,18 @@ def load_leaderboard():
 
 
 lb = load_leaderboard()
+
+
+def load_exploreboard():
+    """leaderboard/exploreboard.py as a module: the exploration boards (unproved entries; never a leaderboard)."""
+    path = os.path.join(SVGOLF, "leaderboard", "exploreboard.py")
+    spec = importlib.util.spec_from_file_location("svgolf_exploreboard", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+lbx = load_exploreboard()
 
 
 class BuildError(Exception):
@@ -631,6 +644,7 @@ class Site:
         self.stages = []                          # the checker's stages, in order (the refusal register)
         self.reference_designs = {}               # sha256 -> every tasks/*/reference/*.sv (`reference_designs`)
         self.provenance = None                    # the records' counts on who made them (`provenance`)
+        self.explore_tasks = []                   # the exploration tasks (explorepage.ExploreTask): no statement yet
         self._sky = None
 
     def warn(self, msg):
@@ -1148,6 +1162,14 @@ def collect(site, offline):
     listing = site.config["tasks"]                 # (task names may start with `_`: `_example`)
     tasks_dir = os.path.join(SVGOLF, "tasks")
     on_disk = lb.all_task_names(tasks_dir)
+    # the exploration tasks (no statement yet): pages of their own kind (explorepage.py), never among `tasks`
+    exploring = lbx.task_names(tasks_dir)
+    xlisting = site.config.get("explore_tasks") or {}
+    gone = sorted(set(xlisting) - set(exploring))
+    if gone:
+        raise BuildError(f"config.json `explore_tasks` lists tasks that are not exploration tasks: {', '.join(gone)}")
+    site.explore_tasks = explorepage.collect(site, lbx, [n for n in xlisting] + [n for n in exploring if n not in xlisting],
+                                             tasks_dir, xlisting, BuildError)
     unknown = sorted(set(listing) - set(on_disk))
     if unknown:
         raise BuildError(f"config.json lists tasks that do not exist: {', '.join(unknown)}")
@@ -6982,6 +7004,9 @@ def home_page(site, tasks):
                   f'{how_body}</section>')
     shown = tut + listed
     cards = "".join(task_card(t, here) for t in shown + previews)
+    # the exploration tasks (no statement yet, unproved entries): a block of their own, under the ranked tasks' cards
+    # and "Try it without Lean" (which a test holds directly under the cards), above the newest records
+    exploring = explorepage.home_html(lbx, site.explore_tasks, here, rel_link)
     # decided 2026-11-13 (the owner's UI feedback, item 5): the course chooser is the top bar's, as on every other page,
     # and the block over the cards is the heading alone; the courses' lines and the note on par, record and under par
     # are the rules page's ("The courses", "Par, record and under par"), linked from every footer ("How it is scored")
@@ -6992,7 +7017,7 @@ def home_page(site, tasks):
     parts = [hero,
              f'<section class="course"><div class="section-head" id="tasks">{head}</div>'
              + f'<ul class="task-cards">{cards}</ul>{provenance_front_html(site.provenance, here)}</section>',
-             try_html(site, tasks, here), latest_strip_html(site, tasks, here), steps_html]
+             try_html(site, tasks, here), exploring, latest_strip_html(site, tasks, here), steps_html]
     # the rest of home.md: a section that is a numbered list as cards, any other as a card
     for level, sec_title, s0, s1 in secs:
         if level != 2 or (level, sec_title, s0, s1) == how:
@@ -7756,6 +7781,8 @@ def build_site(*, offline=False, strict=False, revision=None, config=None, denyl
             if not ref["record_hash"] and not t.preview:      # a preview has no detail pages (reference_page)
                 reference_detail_page(site, t, ref, ge_tables)
         licence_texts(site, t)
+    for t in site.explore_tasks:
+        explorepage.task_page(site, lbx, t, rel_link, read_text, BuildError)
     trusted_pages(site, tasks)
     rules_page(site, refusals, tasks)
     reproduce_page(site, tasks)

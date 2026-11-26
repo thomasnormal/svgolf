@@ -1,0 +1,22 @@
+# svGolf scoring flow of the COMPOSED score (score/hier.py), stage 1 of 2: CANONICALIZATION WITH THE HIERARCHY KEPT.
+# canon.ys with one line changed: instead of `flatten -noscopeinfo`, every module is marked `keep_hierarchy`, so
+# that stage 2 (svgolf_seq.ys, unchanged) synthesizes every distinct module once and writes a hierarchical netlist.
+# Used only for a design too large to flatten (a task of kind `explore-stream`); canon.ys, svgolf.ys and
+# svgolf_seq.ys, their hashes and every score made with them are untouched. hier.py records this file's sha256.
+#
+#   @SOURCES@  read_verilog -sv lines, one per (source-gated) source file, and the SRAM catalogue's black boxes
+#   @TOP@      the task's top module
+#   @CHPARAM@  " -chparam <name> <value>" per parameter override (may be empty)
+#   @RTLIL@    output file: the canonical RTLIL that stage 2 reads
+@SOURCES@
+hierarchy -check -top @TOP@@CHPARAM@
+proc
+setattr -mod -set keep_hierarchy 1 *
+hierarchy -top @TOP@
+setattr -unset src
+setattr -mod -unset src
+setattr -unset hdlname
+setattr -mod -unset hdlname
+rename -hide
+rename -enumerate
+write_rtlil @RTLIL@

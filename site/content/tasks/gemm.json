@@ -1,0 +1,7 @@
+{
+  "title": "A streamed inference layer",
+  "subtitle": "Weights read from an external memory, activation vectors in, results out; exact 16-bit arithmetic, scored as throughput per area on ASAP7.",
+  "sections": ["The first entries", "The interface", "Scoring", "What the check does not show"],
+  "folded": ["What a design may use", "Checking an entry", "What a proof will have to show"],
+  "files": ["task.json", "oracle.py", "env/tb.sv", "env/sram_asap7.sv", "reference/gen.py", "reference/gen_fip.py", "reference/gen_strassen.py", "svgolf/score/sram_asap7.json", "svgolf/score/hier.py"]
+}

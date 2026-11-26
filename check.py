@@ -4,6 +4,8 @@
     python3.12 check.py TASK_DIR solution.sv Solution.lean [--json OUT]
     python3.12 check.py TASK_DIR solution.sv --unproved      # every check but the proof
     python3.12 check.py TASK_DIR solution.sv --unproved --tactics   # ... and can the tactics read it?
+    python3.12 check.py tasks/gemm design.sv --unproved --declare design.json   # an exploration task (no statement
+                                                             # yet: `check_explore`, README.md "Exploration tasks")
 
 (The file names and paths are free; what is fixed is the Lean file's content: the checker stages it as the
 module `Submission.Solution`, which must `import Submission.Design` and prove the theorem below.)
@@ -1400,8 +1402,14 @@ def task_kind(task):
     """The task's kind, checked against the task.json fields it needs (infrastructure: the task
     files are the organizer's)."""
     kind = task.get("kind")
+    if kind in EXPLORE_KINDS:
+        if not (isinstance(task.get("clock"), str) and isinstance(task.get("explore"), dict)
+                and task["explore"].get("points") and isinstance((task.get("scoring") or {}).get("job"), dict)):
+            raise RuntimeError(f"task.json: a {kind} task names its clock port (`clock`), its check points "
+                               "(`explore.points`) and its scored job (`scoring.job`)")
+        return kind
     if kind not in KINDS:
-        raise RuntimeError(f"task.json: kind {kind!r} is not one of {KINDS}")
+        raise RuntimeError(f"task.json: kind {kind!r} is not one of {KINDS + EXPLORE_KINDS}")
     if kind in CLOCKED_KINDS and not (isinstance(task.get("clock"), str) and task["clock"]):
         raise RuntimeError(f"task.json: a {kind} task names its clock port (`clock`)")
     if kind in LATENCY_KINDS and not task.get("parameters"):
@@ -1848,9 +1856,225 @@ def lifted_sentence(lifted, unproved=False):
                    "; the task's banlist passes this design: check it without --lift-banlist to make an entry")
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# The EXPLORATION kind (`explore-stream`: tasks/gemm, 2026-11-25): a task that has no trusted statement yet. Only
+# `--unproved` runs exist for it; nothing of it is ever accepted, and its entries are shown on an exploration board,
+# apart from proved records. The stages, in order (README.md, "Exploration tasks"):
+#   source         the source gate, with the clocked rules (one clock, rising edge, synchronous reset)
+#   declare        the entry's declaration (`--declare`): the steady-state cycle formula and the memory layout
+#   extract        the pinned extractor at every check point; the top's parameters and ports against task.json
+#   banlist        run-time / % ** (front at every check point; the backstop at the points Yosys can flatten)
+#   fourstate      no x or z value can arise, at the check points Yosys can flatten (not the scored parameters)
+#   clocked_rules  the Python twins of the clocked statements' rules, at the check points
+#   hier           (with the score) the pinned passes on every module at the SCORED parameters, hierarchy kept
+#                  (score/hier.py): the hierarchy rule, then the composed ASAP7 area and the modules' periods; and
+#                  the same passes at the check points marked `netlist`, for the netlist the simulations run
+#   explore        the simulations (check/explore.py): results against the oracle from random power-up states under
+#                  random pauses, data-independence of the schedule, the declared cycle formula, at every check point;
+#                  the same result runs on the gate NETLIST the pinned passes write (hierarchy kept, as scored) at
+#                  the points marked `netlist`; and at the scored parameters the SCORED JOB itself, twice, with
+#                  identity weights: its results, and its measured cycles against the declared formula
+#   score          the composed score: area x cycles x period (labelled `composed`)
+# NOT run for this kind: the Lean stages (trusted, design, solution, verify, axioms). ls-sv has not loaded the design.
+EXPLORE_KINDS = ("explore-stream",)
+EXPLORE_NOTE = ("--unproved: every check of an exploration task passed (source, declare, extract, banlist, fourstate, "
+                "clocked_rules{score}); the task has no statement yet, so nothing is proved and the design is not "
+                "accepted")
+
+
+def explore_points(task):
+    return [dict(p["params"]) for p in task["explore"]["points"]]
+
+
+def explore_ports_task(task, point):
+    """task.json's ports with every width evaluated at `point` (a width of this kind may use `2**NAME`)."""
+    import explore
+
+    def at(ports):
+        return [{"name": p["name"], "width": str(explore.width_at(p["width"], point))} for p in ports]
+    return {"ports": {"inputs": at(task["ports"]["inputs"]), "outputs": at(task["ports"]["outputs"])}}
+
+
+def check_explore(res, st, task_dir, task, sv_path, stage, unproved, do_score, keep, declare_path, ps_work):
+    """Check one design of an exploration task (above). Fills `res`; raises Reject (the design) or RuntimeError."""
+    import explore
+    import hier
+    top = task["top"]
+    pnames = [p["name"] for p in task.get("parameters", [])]
+    st["task"] = {"top": top, "parameters": pnames, "kind": task["kind"], "statement": None}
+    if not unproved:
+        raise RuntimeError(f"task {task['name']} is an exploration task: it has no trusted statement yet, so a proof "
+                           "cannot be checked against it; run with --unproved (and --declare)")
+    # source gate
+    sv = os.path.join(stage, "design.sv")
+    shown = os.path.basename(sv_path)
+    try:
+        canon, findings = envelope.gate(sv_path, name=shown, clock=task["clock"])
+    except envelope.InfraError as e:
+        raise RuntimeError(str(e))
+    st["source"] = {"sha256": sha256_file(sv_path), "findings": findings}
+    if findings:
+        raise Reject("source", "the design text is refused:\n" + "\n".join(findings[:8]))
+    with open(sv, "w", newline="") as fh:
+        fh.write(canon)
+    st["source"]["canonical_sha256"] = sha256_file(sv)
+    # the declaration
+    try:
+        oracle = explore.load_oracle(task_dir, task)
+    except Exception as e:   # noqa: BLE001  (the task's file)
+        raise RuntimeError(f"the task's oracle does not load: {type(e).__name__}: {e}")
+    declare, why = explore.load_declare(declare_path, oracle)
+    if declare is None:
+        raise Reject("declare", why)
+    st["declare"] = {"sha256": sha256_file(declare_path) if declare_path else None, "cycles": declare["cycles"],
+                     "layout": "declared" if declare["layout"] else "canonical"}
+    if do_score and declare["cycles"] is None:
+        raise Reject("declare", "no cycle formula is declared (`--declare FILE` with \"cycles\": the steady-state cycles "
+                     "per job in n, batch, e, lat); the score needs it. Without a score (--no-score) the simulations "
+                     "report the measured cycles")
+    sram = os.path.join(stage, "sram_blackbox.sv")
+    with open(sram, "w") as fh:
+        fh.write(explore.sram_models("blackbox"))
+    points = explore_points(task)
+    # extract, ports, clocked rules: at every check point
+    st["extract"] = {"extractor": os.path.relpath(EXTRACTOR, LS_ROOT), "extractor_sha256": envelope.extractor_sha256(),
+                     "points": [point_str(p) for p in points]}
+    st["clocked_rules"] = {"passed": True, "points": []}
+    for k, pt in enumerate(points):
+        env_path = os.path.join(stage, f"design_{k}.sv.json")
+        stage_start("extract", "the pinned extractor at " + point_str(pt))
+        try:
+            proc, _ = envelope.run_extractor(sv, top, [pt], env_path)
+        except envelope.InfraError as e:
+            raise RuntimeError(str(e))
+        if proc.returncode != 0 or not os.path.exists(env_path):
+            raise Reject("extract", f"the extractor refused the design at {point_str(pt)}:\n{tail(proc.stderr + proc.stdout)}")
+        with open(env_path) as fh:
+            envl = json.load(fh)
+        mods = [m for m in envl["design"]["modules"] if m.get("name") == top]
+        got = [p.get("name") for p in mods[0].get("params", []) if p.get("kind") == "ParameterDecl"] if mods else None
+        st["extract"]["parameters"] = got
+        if got != pnames:
+            raise Reject("extract", f"top module `{top}` must have exactly the parameters {pnames}; it has {got}")
+        bad, _ = port_problems(explore_ports_task(task, pt), top, envl, envelope.sidecar_path(env_path))
+        if bad:
+            raise Reject("extract", f"top module `{top}`: its ports are not the task's (task.json `ports`: the input "
+                         "ports in declaration order with their widths, then the output ports likewise, and no other "
+                         "port):\n" + "\n".join(bad[:8]))
+        cr = clocked_rules.check(env_path)
+        st["clocked_rules"]["points"].append({"point": point_str(pt), "advisories": cr["advisories"]})
+        if not cr["passed"]:
+            st["clocked_rules"]["passed"] = False
+            raise Reject("clocked_rules", f"refused by a twin of the clocked statements' rules at {point_str(pt)}:\n"
+                         + "\n".join(cr["findings"][:8]))
+    # banlist and fourstate (Yosys: the rating build)
+    if score.is_rating_build(score.yosys_bin()):
+        try:
+            score.wasm()
+        except score.ScoreError as e:
+            raise RuntimeError(f"the rating build of Yosys cannot run (infrastructure): {e}")
+    # the stages that flatten the design in Yosys (the banlist's backstop, the 4-state rules) run at the points that
+    # can be flattened: a point marked `"static": false` (the scored parameters: 16,384 cells and more) is left to
+    # the extractor, the banlist's front check, the simulation and the hierarchy-kept synthesis
+    small = [p for p, pt in zip(points, task["explore"]["points"]) if pt.get("static", True)]
+    ops, _ = banlist.task_banlist(dict(task, scoring={"params": points[0]}))
+    front, diags = banlist.front_check([sv, sram], top, ops, points)
+    back = banlist.backstop_check([sv, sram], top, ops, small)
+    front, back, diags = ([f.replace(sv, shown) for f in xs] for xs in (front, back, diags))
+    st["banlist"] = {"operators": ops, "front": front, "backstop": back, "diagnostics": diags}
+    if front or back or diags:
+        raise Reject("banlist", f"banned run-time operators (or the design does not elaborate): {(front + back + diags)[:6]}")
+    stage_start("fourstate", "the 4-state rules at " + " ".join(point_str(p) for p in small))
+    try:
+        fs = fourstate.check_points([sv, sram], top, small)
+    except fourstate.InfraError as e:
+        raise RuntimeError(f"fourstate: {e}")
+    fs["findings"] = [f.replace(os.path.realpath(sv), shown).replace(sv, shown) for f in fs["findings"]]
+    fs["diagnostics"] = [f.replace(os.path.realpath(sv), shown).replace(sv, shown) for f in fs["diagnostics"]]
+    st["fourstate"] = fs
+    if not fs["passed"]:
+        raise Reject("fourstate", "an x or z value can arise in the design, or slang reports it illegal:\n"
+                     + "\n".join((fs["findings"] + fs["diagnostics"])[:8]))
+    ps_work["dir"] = work = tempfile.mkdtemp(prefix="svgolf-explore-")
+    netlists = {}
+    if do_score:
+        # the scored parameters, hierarchy kept: the rule, the composed area and the modules' periods
+        sparams = dict(task["scoring"]["params"])
+        stage_start("hier", "the pinned passes on every module at " + point_str(sparams) + ", hierarchy kept "
+                    "(minutes)")
+        try:
+            cols = hier.score_design([sv], top, sparams, os.path.join(work, "hier"), progress=log)
+        except hier.RuleError as e:
+            st["hier"] = {"rule": "fails", "findings": e.findings[:20]}
+            raise Reject("hier", str(e) + " (README.md, \"Exploration tasks\": the hierarchy rule)")
+        except hier.HierError as e:
+            raise Reject("hier", str(e))
+        st["hier"] = dict(cols, rule="holds")
+        # the netlists of the check points marked `netlist` (the same passes, hierarchy kept): simulated below
+        st["hier"]["netlists"] = []
+        for k, pt in enumerate(task["explore"]["points"]):
+            if not pt.get("netlist"):
+                continue
+            p = dict(pt["params"])
+            stage_start("hier", "the pinned passes, hierarchy kept, at " + point_str(p) + " (the simulated netlist)")
+            try:
+                nl, facts = hier.synthesize([sv], top, p, os.path.join(work, f"net_{k}"))
+            except hier.HierError as e:
+                raise Reject("hier", f"at {point_str(p)}: {e}")
+            netlists[explore.point_text(p)] = nl
+            st["hier"]["netlists"].append({"params": p, "netlist_sha256": facts["netlist_sha256"]})
+    # the simulations
+    stage_start("explore", f"simulation against the oracle at {len(points)} point(s)")
+    try:
+        st["explore"] = explore.run(task_dir, task, sv, declare, work, netlists if do_score else None, log=log,
+                                    scored_job=do_score)
+    except explore.Reject as r:
+        st["explore"] = r.record
+        raise Reject("explore", r.msg)
+    except (explore.InfraError, postsynth.InfraError) as e:
+        raise RuntimeError(f"explore: {e}")
+    if do_score:
+        marked = [p for p, pt in zip(st["explore"]["points"], task["explore"]["points"]) if pt.get("netlist")]
+        if not marked or any("seeds" not in (p.get("netlist") or {}) for p in marked):
+            raise RuntimeError("explore: a point marked `netlist` was not simulated on its netlist (infrastructure)")
+        job = task["scoring"]["job"]
+        cycles = explore.cycles_at(declare, sparams, job["lgn"], job["batch"])
+        # the scored job itself was simulated at the point marked `scored_job` (explore.scored_job_run refuses a
+        # formula that is not the measured count there): the score's cycles are a measured number
+        ran = [p["scored_job"] for p in st["explore"]["points"] if "measured" in (p.get("scored_job") or {})]
+        if (len(ran) != 1 or ran[0].get("measured") != [cycles]
+                or (ran[0]["lgn"], ran[0]["batch"]) != (job["lgn"], job["batch"])):
+            raise RuntimeError("explore: the scored job was not simulated at the scored parameters (task.json: one "
+                               "point of `explore.points` is marked `scored_job`), or its measured cycles are not the "
+                               "score's (infrastructure)")
+        period = cols["module_period_ps"]
+        res["score"] = {"label": "composed", "version": hier.VERSION, "area_um2": cols["area_um2"],
+                        "area_e5um2": cols["area_e5um2"], "period_ps": period, "cycles": cycles,
+                        "cycles_measured": ran[0]["measured"][0], "time_ps": cycles * period, "params": sparams, "job": dict(job),
+                        "module_period_ps": cols["module_period_ps"], "slowest_module": cols["slowest_module"],
+                        "sram_area_um2": cols["sram_area_e5um2"] / 100000, "sram_bits": cols["sram_bits"],
+                        "flops": cols["flops"], "cells": cols["cells"],
+                        "area_x_time_um2s": cols["area_e5um2"] * cycles * period / 1e5 / 1e12,
+                        "ranked": []}
+    res["stage"] = "unproved"
+    res.setdefault("notes", []).append(EXPLORE_NOTE.format(score=", hier, explore, score" if do_score else ", explore"))
+    res["unproved_ok"] = True
+    res["exploration"] = True
+    return res
+
+
+def explore_headline(res):
+    """The stderr line of an exploration run that scored: the composed number (never `ranked`)."""
+    sc = res.get("score") or {}
+    if sc.get("label") != "composed":
+        return None
+    return (f"composed (asap7 cells only, unproved): {sc['area_um2'] / 1e6:.4f} mm^2 x {sc['cycles']} cycles x "
+            f"{sc['period_ps']} ps = {sc['area_x_time_um2s'] * 1e3 / 1e6:.3f} mm2*ms per job")
+
+
 def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=True,
           build_trusted=True, unproved=False, keep=False, tactics=False, postsynth_mode=None,
-          ppa_mode="auto", latency=None, latency_at=None, lift_banlist=False):
+          ppa_mode="auto", latency=None, latency_at=None, lift_banlist=False, declare=None):
     """Check one submission. With `unproved` (and `lean_path` None), run every
     stage that needs no proof and stop at the pseudo-stage `unproved`, never
     accepting; with `tactics` (only then), also run the advisory fragment
@@ -1904,6 +2128,10 @@ def check(task_dir, sv_path, lean_path, stage, wrap, time_limit=None, do_score=T
         limit = time_limit or task.get("time_limit_s", 600)
         vlimit = task.get("verify_time_limit_s", VERIFY_TIME_LIMIT_S)
         kind = task_kind(task)
+        if kind in EXPLORE_KINDS:      # no statement yet: its own stages (check_explore), never the Lean ones
+            return check_explore(res, st, task_dir, task, sv_path, stage, unproved, do_score, keep, declare, ps_work)
+        if declare is not None:
+            raise RuntimeError("--declare is for an exploration task (kind explore-stream)")
         st["task"] = {"top": top, "parameters": pnames, "time_limit_s": limit,
                       "verify_time_limit_s": vlimit,
                       "statement": task["statement"]["constant"]}
@@ -3051,6 +3279,9 @@ def main(argv=None):
                     "post-synthesis check, e.g. N=3,W=4:6; a point not named is checked against --latency (a proved "
                     "run asks the kernel for the solution's `Submission.lat` at every point)")
     ap.add_argument("--no-score", action="store_true")
+    ap.add_argument("--declare", metavar="FILE",
+                    help="an exploration task's entry (with --unproved): the JSON declaration beside the design, "
+                    "{\"cycles\": formula, \"layout\": null or the memory layout} (README.md, \"Exploration tasks\")")
     ap.add_argument("--no-trusted-build", action="store_true",
                     help="skip `lake build SvGolf tasks svgolf-eval` (when it is known to be "
                     "up to date)")
@@ -3075,7 +3306,7 @@ def main(argv=None):
     except ValueError as e:
         ap.error(str(e))
     for p in (args.task_dir, args.solution_sv) + ((args.solution_lean,) if args.solution_lean
-                                                  else ()):
+                                                  else ()) + ((args.declare,) if args.declare else ()):
         if not os.path.exists(p):
             ap.error(f"no such file or directory: {p}")
     if not os.path.isfile(os.path.join(args.task_dir, "task.json")):
@@ -3117,7 +3348,8 @@ def main(argv=None):
                     args.solution_lean and os.path.abspath(args.solution_lean), stage,
                     wrap, args.time_limit, not args.no_score,
                     not args.no_trusted_build, args.unproved, args.keep or bool(args.stage_dir),
-                    args.tactics, pmode, args.ppa, args.latency, latency_at, args.lift_banlist)
+                    args.tactics, pmode, args.ppa, args.latency, latency_at, args.lift_banlist,
+                    args.declare and os.path.abspath(args.declare))
     except RuntimeError as e:
         print(json.dumps({"accepted": False, "stage": "infrastructure", "errors": [str(e)]},
                          indent=2))
@@ -3144,6 +3376,8 @@ def main(argv=None):
         headline = f"ranked: not computed: {type(e).__name__}: {e}"
     if headline:
         log(headline)     # the LAST line on stderr (contract: the ranked headline)
+    elif explore_headline(res):
+        log(explore_headline(res))     # an exploration run: its composed number, labelled, last
     # 0: accepted, or a clean `--unproved` or `--lift-banlist` run (every stage it runs passed); 1: a stage failed
     return 0 if res["accepted"] or res.get("unproved_ok") or res.get("lifted_ok") else 1
 

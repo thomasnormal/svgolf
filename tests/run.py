@@ -434,9 +434,25 @@ def load_json(path):
         return json.load(fh)
 
 
+EXPLORE_KIND = "explore-stream"      # a task without a statement yet (README.md, "Exploration tasks")
+
+
+def is_explore_task(t):
+    path = os.path.join(SVGOLF, "tasks", t, "task.json")
+    return os.path.isfile(path) and load_json(path).get("kind") == EXPLORE_KIND
+
+
 def tasks_on_disk():
+    """The tasks with a statement: every step below is about these. An exploration task has no Spec, no proof and
+    no expected.json entry; the layout step checks its directory (`step_layout_explore`) and the unit step runs its
+    tests (tests/gemm/test_gemm.py)."""
     d = os.path.join(SVGOLF, "tasks")
-    return sorted(t for t in os.listdir(d) if os.path.isfile(os.path.join(d, t, "task.json")))
+    return sorted(t for t in os.listdir(d) if os.path.isfile(os.path.join(d, t, "task.json")) and not is_explore_task(t))
+
+
+def explore_tasks_on_disk():
+    d = os.path.join(SVGOLF, "tasks")
+    return sorted(t for t in os.listdir(d) if is_explore_task(t))
 
 
 def task_json(t):
@@ -630,6 +646,72 @@ def _dev_only():
 
 
 dev_only = _dev_only()
+
+
+EXPLORE_TASK_KEYS = {"name", "title", "status", "kind", "top", "parameters", "ports", "banlist", "scoring", "explore",
+                     "oracle", "entries", "clock", "reset", "protocol"}
+
+
+def step_layout_explore():
+    """The directory of every exploration task: task.json's keys, status `exploration`, the files a player needs
+    and no other (README.md, task.json, oracle.py, env/, reference/), no Spec.lean (there is no statement), every
+    entry a design and its declaration, nothing in reference/ but the entries and their generators, the generator's
+    --check, and a sound exploration board whose entries are the task's."""
+    good = True
+    for t in explore_tasks_on_disk():
+        task = task_json(t)
+        tdir = os.path.join(SVGOLF, "tasks", t)
+        errs = []
+        unknown = sorted(k for k in task if k not in EXPLORE_TASK_KEYS and not k.startswith("_"))
+        if unknown:
+            errs.append(f"unknown keys {unknown}")
+        if task.get("name") != t:
+            errs.append(f"name {task.get('name')!r} is not the directory name")
+        if task.get("status") != "exploration":
+            errs.append(f"status {task.get('status')!r}: an exploration task's status is `exploration`")
+        missing_ops = [op for op in banlist.ALWAYS_BANNED if op not in task.get("banlist", {}).get("operators", [])]
+        if missing_ops:
+            errs.append(f"banlist.operators lacks {missing_ops}")
+        try:
+            checkpy().task_kind(task)
+        except RuntimeError as e:
+            errs.append(str(e))
+        extra = sorted(set(os.listdir(tdir)) - {"task.json", "README.md", "oracle.py", "env", "reference", "__pycache__"})
+        if extra:
+            errs.append(f"files a player does not need in tasks/{t}/: {extra}")
+        entries = task.get("entries") or []
+        if not entries:
+            errs.append("an exploration task lists its reference entries (`entries`)")
+        files = set()
+        for e in entries:
+            sv, declare = e.get("sv", ""), e.get("declare", "")
+            if not (sv.startswith("reference/") and sv.endswith(".sv") and declare == sv[:-3] + ".json"):
+                errs.append(f"entry {e} is not a pair reference/<stem>.sv + <stem>.json")
+            files |= {sv, declare}
+        for f in sorted(files):
+            if not os.path.isfile(os.path.join(tdir, f)):
+                errs.append(f"missing {f}")
+        stray = sorted(f for f in os.listdir(os.path.join(tdir, "reference"))
+                       if f"reference/{f}" not in files and not re.fullmatch(r"gen\w*\.py|__pycache__", f))
+        if stray:
+            errs.append(f"reference/ holds files task.json does not list: {stray}")
+        gen = os.path.join(tdir, "reference", "gen.py")
+        if os.path.isfile(gen):
+            proc = subprocess.run([PY, gen, "--check"], cwd=SVGOLF, capture_output=True, text=True)
+            if proc.returncode != 0:
+                errs.append((proc.stderr or proc.stdout).strip().splitlines()[-1])
+        spec = importlib.util.spec_from_file_location("svgolf_exploreboard_layout",
+                                                      os.path.join(SVGOLF, "leaderboard", "exploreboard.py"))
+        xb = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(xb)
+        errs += xb.problems(t)
+        on_board = {(e["sv"], e["declare"]) for e in xb.load(t)["entries"]}
+        want = {(f"tasks/{t}/{e.get('sv')}", f"tasks/{t}/{e.get('declare')}") for e in entries}
+        if on_board != want:
+            errs.append(f"the exploration board's entries {sorted(on_board)} are not task.json's {sorted(want)}")
+        good &= record("layout", f"tasks/{t}/task.json", not errs,
+                       "; ".join(errs) or f"exploration, {len(entries)} entries, no statement")
+    return good
 
 
 def step_layout(tasks, expected):
@@ -967,6 +1049,16 @@ def step_unit():
                        # real-library tests skip when the five pinned files are absent (SVGOLF_ASAP7_LIB, or
                        # `python3.12 score/ppa.py --pdk asap7 --fetch-liberty`; SVGOLF_PPA_REQUIRE_ASAP7=1: no skip)
                        ("score/test_ppa_asap7.py", [PY, "score/test_ppa_asap7.py"]),
+                       # the composed score of an exploration task (score/hier.py): the netlist reader, the cut, the
+                       # hierarchy rule; the flow tests skip without the asap7 files
+                       ("score/test_hier.py", [PY, "score/test_hier.py"]),
+                       # the exploration task gemm (no Lean): the oracle, the generator, the declaration, and the
+                       # simulation check on the reference and on wrong designs (Verilator)
+                       ("tests/gemm/test_gemm.py", [PY, "tests/gemm/test_gemm.py"]),
+                       # check.py on an exploration task: the stages, the result, what it refuses
+                       ("tests/checker/test_explore.py", [PY, "tests/checker/test_explore.py"]),
+                       # the exploration boards: what `add` takes, and that they are no leaderboard
+                       ("tests/leaderboard/test_exploreboard.py", [PY, "tests/leaderboard/test_exploreboard.py"]),
                        # the routed course's run tools (score/pnr/) offline on stored run data: the job files of
                        # every committed run, the container command, the collector reproducing a committed table
                        ("tests/pnr/test_pnr_tools.py", [PY, "tests/pnr/test_pnr_tools.py"]),
@@ -3018,6 +3110,7 @@ def main():
           flush=True)
     if "layout" not in skip:
         step_layout(tasks_on_disk(), expected)
+        step_layout_explore()
     if "build" not in skip:
         if not step_build():
             print("the build failed: the check.py steps need it, stopping", flush=True)

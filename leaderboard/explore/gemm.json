@@ -1,0 +1,366 @@
+{
+ "entries": [
+  {
+   "checked": {
+    "flow": {
+     "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",
+     "rating_build": true,
+     "script_sha256": "f455fa11a461f4a42d8ecf9dabd978880f9a41aae32bd2dfeb34c14e56cdd67e",
+     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "hier_rule": "holds",
+    "hier_script_sha256": "c7a6b7dc7109b1f0d268d61b18c99a1b2a2d4d5410caa5fcd18ebea12837ac70",
+    "netlist_points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     }
+    ],
+    "points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     },
+     {
+      "LAT": 1,
+      "LGE": 2
+     },
+     {
+      "LAT": 2,
+      "LGE": 3
+     },
+     {
+      "LAT": 32,
+      "LGE": 7
+     }
+    ],
+    "ppa_version": "asap7_a0_v1"
+   },
+   "cycles_formula": "(batch//(2*e))*(max((2*e)*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((2*e)+1,(e+max(lat+2,4,e//2)))+((n//e)-1)*max(2*(2*e)+(e+e//2+1)+5,(e+max(lat+2,4,e//2)))+2*(2*e)+(e+e//2+1)+13)+min(batch%(2*e),1)*(max((batch%(2*e))*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((batch%(2*e))+1,(e+max(lat+2,4,e//2)))+((n//e)-1)*max(2*(batch%(2*e))+(e+e//2+1)+5,(e+max(lat+2,4,e//2)))+2*(batch%(2*e))+(e+e//2+1)+13)+1",
+   "declare": "tasks/gemm/reference/fip.json",
+   "declare_sha256": "2cf332cbe19bccb482d0667b578f3c9760151db9329fa14ee3812d1fec67a758",
+   "layout": "canonical",
+   "name": "fip",
+   "note": "Half the multipliers per row on operands two bits wider; the weight term once per loaded tile row, the activation term once per slice. The rest is the plain array's machine.",
+   "par": false,
+   "proved": false,
+   "score": {
+    "area_e5um2": 333768751308,
+    "area_um2": 3337687.51308,
+    "cells": 26794043,
+    "cycles": 4573825,
+    "cycles_measured": 4573825,
+    "flops": 1573007,
+    "job": {
+     "batch": 4096,
+     "lgn": 12
+    },
+    "label": "composed",
+    "module_period_ps": 1880,
+    "params": {
+     "LAT": 32,
+     "LGE": 7
+    },
+    "period_ps": 1880,
+    "slowest_module": "gemm_cellf",
+    "sram_area_um2": 752945.72544,
+    "sram_bits": 19922944,
+    "time_ps": 8598791000,
+    "version": "composed_asap7_v1"
+   },
+   "sv": "tasks/gemm/reference/fip.sv",
+   "sv_sha256": "40d15808c8a070ad807f010fe00d96d5a133178743b84ab99a7850687dca3940",
+   "title": "The inner-product form"
+  },
+  {
+   "checked": {
+    "flow": {
+     "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",
+     "rating_build": true,
+     "script_sha256": "f455fa11a461f4a42d8ecf9dabd978880f9a41aae32bd2dfeb34c14e56cdd67e",
+     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "hier_rule": "holds",
+    "hier_script_sha256": "c7a6b7dc7109b1f0d268d61b18c99a1b2a2d4d5410caa5fcd18ebea12837ac70",
+    "netlist_points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     }
+    ],
+    "points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     },
+     {
+      "LAT": 1,
+      "LGE": 2
+     },
+     {
+      "LAT": 2,
+      "LGE": 3
+     },
+     {
+      "LAT": 32,
+      "LGE": 7
+     }
+    ],
+    "ppa_version": "asap7_a0_v1"
+   },
+   "cycles_formula": "(batch//(2*e))*(max((2*e)*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((2*e)+1,(e+max(lat+2,4,e)))+((n//e)-1)*max(2*(2*e)+2*e+5,(e+max(lat+2,4,e)))+2*(2*e)+2*e+13)+min(batch%(2*e),1)*(max((batch%(2*e))*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((batch%(2*e))+1,(e+max(lat+2,4,e)))+((n//e)-1)*max(2*(batch%(2*e))+2*e+5,(e+max(lat+2,4,e)))+2*(batch%(2*e))+2*e+13)+1",
+   "declare": "tasks/gemm/reference/par.json",
+   "declare_sha256": "605f8d6e36a0dbf0ea2cf31fe8c09cb7e2f7657e391386627e6639c7383f885a",
+   "layout": "canonical",
+   "name": "par",
+   "note": "E x E multiply-accumulate cells, one tile row per memory beat, weight tiles double-buffered in the cells, an on-chip buffer of 2 E activation vectors, a two-block accumulator memory and an output stage per row.",
+   "par": true,
+   "proved": false,
+   "score": {
+    "area_e5um2": 413348280876,
+    "area_um2": 4133482.80876,
+    "cells": 35212242,
+    "cycles": 4606081,
+    "cycles_measured": 4606081,
+    "flops": 1787181,
+    "job": {
+     "batch": 4096,
+     "lgn": 12
+    },
+    "label": "composed",
+    "module_period_ps": 2119,
+    "params": {
+     "LAT": 32,
+     "LGE": 7
+    },
+    "period_ps": 2119,
+    "slowest_module": "gemm_row",
+    "sram_area_um2": 752945.72544,
+    "sram_bits": 19922944,
+    "time_ps": 9760285639,
+    "version": "composed_asap7_v1"
+   },
+   "sv": "tasks/gemm/reference/par.sv",
+   "sv_sha256": "7ea42291c6449ecc0ba3da02362fb10419d8454a80627bb58ea34e0ab20f5a78",
+   "title": "The plain classical array"
+  },
+  {
+   "checked": {
+    "flow": {
+     "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",
+     "rating_build": true,
+     "script_sha256": "f455fa11a461f4a42d8ecf9dabd978880f9a41aae32bd2dfeb34c14e56cdd67e",
+     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "hier_rule": "holds",
+    "hier_script_sha256": "c7a6b7dc7109b1f0d268d61b18c99a1b2a2d4d5410caa5fcd18ebea12837ac70",
+    "netlist_points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     }
+    ],
+    "points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     },
+     {
+      "LAT": 1,
+      "LGE": 2
+     },
+     {
+      "LAT": 2,
+      "LGE": 3
+     },
+     {
+      "LAT": 32,
+      "LGE": 7
+     }
+    ],
+    "ppa_version": "asap7_a0_v1"
+   },
+   "cycles_formula": "(batch//(4*e))*(max((4*e)*(n//e)+1,max(lat+2,4)+(e+max(1,1*e//16)))+((n//e)//min((n//e),2))*((5*min((n//e),2)-3)*((n//e)//min((n//e),2))-1)*max(2*e+1,((e+max(1,1*e//16))+max(lat+2,4,e)))+(((n//e)//min((n//e),2))-1)*max(2*e+2*e+5+min((n//e),2)*2*2*e,((e+max(1,1*e//16))+max(lat+2,4,e)))+2*e+2*e+min((n//e),2)*2*2*e+7+6)+min((batch%(4*e)),1)*(max((batch%(4*e))*(n//e)+1,max(lat+2,4)+(e+max(1,1*e//16)))+((n//e)//min((n//e),2))*((5*min((n//e),2)-3)*((n//e)//min((n//e),2))-1)*max(ceil_div((batch%(4*e)),2)+1,((e+max(1,1*e//16))+max(lat+2,4,e)))+(((n//e)//min((n//e),2))-1)*max(ceil_div((batch%(4*e)),2)+2*e+5+min((n//e),2)*2*ceil_div((batch%(4*e)),2),((e+max(1,1*e//16))+max(lat+2,4,e)))+ceil_div((batch%(4*e)),2)+2*e+min((n//e),2)*2*ceil_div((batch%(4*e)),2)+max(0,7-2*ceil_div((batch%(4*e)),2)+(batch%(4*e)))+6)+1",
+   "declare": "tasks/gemm/reference/s1.json",
+   "declare_sha256": "3752fe2848dc1c6df3bf4fc8ce5d31496c38e1f11d930244cccd41ac266508a4",
+   "layout": "declared",
+   "name": "s1",
+   "note": "Seven half-size products instead of eight on one array of wider cells; the seven weight combinations are stored in memory at 17 bits (a declared layout), the activation sums are formed from a four-bank buffer, and each product is added with its signs into the result blocks it feeds.",
+   "par": false,
+   "proved": false,
+   "score": {
+    "area_e5um2": 581531025942,
+    "area_um2": 5815310.25942,
+    "cells": 44249576,
+    "cycles": 4079305,
+    "cycles_measured": 4079305,
+    "flops": 1871233,
+    "job": {
+     "batch": 4096,
+     "lgn": 12
+    },
+    "label": "composed",
+    "module_period_ps": 2070,
+    "params": {
+     "LAT": 32,
+     "LGE": 7
+    },
+    "period_ps": 2070,
+    "slowest_module": "gemm_cell",
+    "sram_area_um2": 1654712.89344,
+    "sram_bits": 42991616,
+    "time_ps": 8444161350,
+    "version": "composed_asap7_v1"
+   },
+   "sv": "tasks/gemm/reference/s1.sv",
+   "sv_sha256": "a61ff30b4a52aaa0bd763f22daba47d26fb809f7ab75cb1b37b3664ecfae13f5",
+   "title": "One level of Strassen, one shared array"
+  },
+  {
+   "checked": {
+    "flow": {
+     "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",
+     "rating_build": true,
+     "script_sha256": "f455fa11a461f4a42d8ecf9dabd978880f9a41aae32bd2dfeb34c14e56cdd67e",
+     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "hier_rule": "holds",
+    "hier_script_sha256": "c7a6b7dc7109b1f0d268d61b18c99a1b2a2d4d5410caa5fcd18ebea12837ac70",
+    "netlist_points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     }
+    ],
+    "points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     },
+     {
+      "LAT": 1,
+      "LGE": 2
+     },
+     {
+      "LAT": 2,
+      "LGE": 3
+     },
+     {
+      "LAT": 32,
+      "LGE": 7
+     }
+    ],
+    "ppa_version": "asap7_a0_v1"
+   },
+   "cycles_formula": "(batch//(16*e))*(max((16*e)*(n//e)+1,max(lat+2,4)+(e+max(1,e//8))+2*(min((n//e),4)//4)*((e+max(1,e//8))+max(lat+1,3)))+((n//e)//min((n//e),4))*((9*((n//e)//min((n//e),4))-1)*(min((n//e),4)//4)*max(4*e+1,((e+max(1,e//8))+max(lat+2,4,e))+2*((e+max(1,e//8))+max(lat+1,3)))+7*((n//e)//min((n//e),4))*(min((n//e),4)//4)*max(4*e+1,((e+max(1,e//8))+max(lat+2,4,e))+((e+max(1,e//8))+max(lat+1,3)))+((4+10*min(min((n//e),4)-1,2)-16*(min((n//e),4)//4))*((n//e)//min((n//e),4))-1+(min((n//e),4)//4))*max(4*e+1,((e+max(1,e//8))+max(lat+2,4,e))))+(((n//e)//min((n//e),4))-1)*max(4*e+2*e+5+min((n//e),4)*4*4*e,((e+max(1,e//8))+max(lat+2,4,e))+2*(min((n//e),4)//4)*((e+max(1,e//8))+max(lat+1,3)))+4*e+2*e+min((n//e),4)*4*4*e+9+6)+min((batch%(16*e)),1)*(max((batch%(16*e))*(n//e)+1,max(lat+2,4)+(e+max(1,e//8))+2*(min((n//e),4)//4)*((e+max(1,e//8))+max(lat+1,3)))+((n//e)//min((n//e),4))*((9*((n//e)//min((n//e),4))-1)*(min((n//e),4)//4)*max(ceil_div((batch%(16*e)),4)+1,((e+max(1,e//8))+max(lat+2,4,e))+2*((e+max(1,e//8))+max(lat+1,3)))+7*((n//e)//min((n//e),4))*(min((n//e),4)//4)*max(ceil_div((batch%(16*e)),4)+1,((e+max(1,e//8))+max(lat+2,4,e))+((e+max(1,e//8))+max(lat+1,3)))+((4+10*min(min((n//e),4)-1,2)-16*(min((n//e),4)//4))*((n//e)//min((n//e),4))-1+(min((n//e),4)//4))*max(ceil_div((batch%(16*e)),4)+1,((e+max(1,e//8))+max(lat+2,4,e))))+(((n//e)//min((n//e),4))-1)*max(ceil_div((batch%(16*e)),4)+2*e+5+min((n//e),4)*4*ceil_div((batch%(16*e)),4),((e+max(1,e//8))+max(lat+2,4,e))+2*(min((n//e),4)//4)*((e+max(1,e//8))+max(lat+1,3)))+ceil_div((batch%(16*e)),4)+2*e+min((n//e),4)*4*ceil_div((batch%(16*e)),4)+max(0,9-4*ceil_div((batch%(16*e)),4)+(batch%(16*e)))+6)+1",
+   "declare": "tasks/gemm/reference/s2.json",
+   "declare_sha256": "06edecf54dfb81ffeb9b5ef18faa50ba89f2c237ad7ea9d17fd8bf03cf16276f",
+   "layout": "declared",
+   "name": "s2",
+   "note": "49 quarter-size products on three arrays, one per class of product (which operand is a sum of how many blocks), running the same schedule side by side; the weight combinations are stored in memory at 18 bits.",
+   "par": false,
+   "proved": false,
+   "score": {
+    "area_e5um2": 2220094541304,
+    "area_um2": 22200945.41304,
+    "cells": 134084244,
+    "cycles": 1970631,
+    "cycles_measured": 1970631,
+    "flops": 5586734,
+    "job": {
+     "batch": 4096,
+     "lgn": 12
+    },
+    "label": "composed",
+    "module_period_ps": 2089,
+    "params": {
+     "LAT": 32,
+     "LGE": 7
+    },
+    "period_ps": 2089,
+    "slowest_module": "gemm_cell_b",
+    "sram_area_um2": 9605313.3312,
+    "sram_bits": 247463936,
+    "time_ps": 4116648159,
+    "version": "composed_asap7_v1"
+   },
+   "sv": "tasks/gemm/reference/s2.sv",
+   "sv_sha256": "f2954317bd11881e0a7df6863d5160390b1b9a60d4dd560eb53f0766e575da55",
+   "title": "Two levels of Strassen, three arrays"
+  },
+  {
+   "checked": {
+    "flow": {
+     "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",
+     "rating_build": true,
+     "script_sha256": "f455fa11a461f4a42d8ecf9dabd978880f9a41aae32bd2dfeb34c14e56cdd67e",
+     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "hier_rule": "holds",
+    "hier_script_sha256": "c7a6b7dc7109b1f0d268d61b18c99a1b2a2d4d5410caa5fcd18ebea12837ac70",
+    "netlist_points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     }
+    ],
+    "points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     },
+     {
+      "LAT": 1,
+      "LGE": 2
+     },
+     {
+      "LAT": 2,
+      "LGE": 3
+     },
+     {
+      "LAT": 32,
+      "LGE": 7
+     }
+    ],
+    "ppa_version": "asap7_a0_v1"
+   },
+   "cycles_formula": "(batch//(8*e))*(max((8*e)*(n//e)+1,max(lat+2,4)+(e+max(1,2*e//16)))+((n//e)//min((n//e),4))*(((5*min((n//e),4)*min((n//e),4)+5*min((n//e),4)-2)//2)*((n//e)//min((n//e),4))-1)*max(2*e+1,((e+max(1,2*e//16))+max(lat+2,4,e)))+(((n//e)//min((n//e),4))-1)*max(2*e+2*e+5+min((n//e),4)*4*2*e,((e+max(1,2*e//16))+max(lat+2,4,e)))+2*e+2*e+min((n//e),4)*4*2*e+7+6)+min((batch%(8*e)),1)*(max((batch%(8*e))*(n//e)+1,max(lat+2,4)+(e+max(1,2*e//16)))+((n//e)//min((n//e),4))*(((5*min((n//e),4)*min((n//e),4)+5*min((n//e),4)-2)//2)*((n//e)//min((n//e),4))-1)*max(ceil_div((batch%(8*e)),4)+1,((e+max(1,2*e//16))+max(lat+2,4,e)))+(((n//e)//min((n//e),4))-1)*max(ceil_div((batch%(8*e)),4)+2*e+5+min((n//e),4)*4*ceil_div((batch%(8*e)),4),((e+max(1,2*e//16))+max(lat+2,4,e)))+ceil_div((batch%(8*e)),4)+2*e+min((n//e),4)*4*ceil_div((batch%(8*e)),4)+max(0,7-4*ceil_div((batch%(8*e)),4)+(batch%(8*e)))+6)+1",
+   "declare": "tasks/gemm/reference/s2s.json",
+   "declare_sha256": "12a6b72dd92081b4d74113a5c88841cb5db1378a49aa25b35a2ff5b883a58057",
+   "layout": "declared",
+   "name": "s2s",
+   "note": "49 quarter-size products instead of 64 on one array of wider cells; the 49 weight combinations are stored in memory at 18 bits, the activation operands are sums of up to four buffer blocks, and each product is added into the up to four result blocks it feeds.",
+   "par": false,
+   "proved": false,
+   "score": {
+    "area_e5um2": 845784530082,
+    "area_um2": 8457845.30082,
+    "cells": 49247019,
+    "cycles": 3681989,
+    "cycles_measured": 3681989,
+    "flops": 1933554,
+    "job": {
+     "batch": 4096,
+     "lgn": 12
+    },
+    "label": "composed",
+    "module_period_ps": 2086,
+    "params": {
+     "LAT": 32,
+     "LGE": 7
+    },
+    "period_ps": 2086,
+    "slowest_module": "gemm_cell",
+    "sram_area_um2": 3862907.78112,
+    "sram_bits": 98566144,
+    "time_ps": 7680629054,
+    "version": "composed_asap7_v1"
+   },
+   "sv": "tasks/gemm/reference/s2s.sv",
+   "sv_sha256": "43187b3660af55af7b1b32da0f227495757f5a8dbd47e96d97645ca3d63da927",
+   "title": "Two levels of Strassen, one shared array"
+  }
+ ],
+ "task": "gemm",
+ "version": 1
+}

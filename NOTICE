@@ -140,3 +140,13 @@ and its terms. A file that came with a notice keeps it.
     header, and lists every change made. It is a modified translation, not Gemmini itself, and is
     not endorsed by the Regents or by Gemmini's authors. The record's proof (its .lean) is a
     proof about the translated design.
+
+- score/sram_asap7.json
+- score/sram_asap7.LICENSE
+    The names, sizes, pins and layout-abstract areas of the 36 memory blocks of
+    The-OpenROAD-Project/asap7_sram_0p0 (https://github.com/The-OpenROAD-Project/asap7_sram_0p0),
+    commit c578d6cf358145705c6dda52320cec1668ce1f0c, as a table (the 512-word blocks at the
+    corrected width; the table says so). Copyright (c) 2023, The OpenROAD Project. BSD 3-Clause
+    License; its text is score/sram_asap7.LICENSE. No file of the package is copied, and
+    this use is not endorsed by its authors. The behavioural models tasks/gemm/env/sram_asap7.sv
+    are generated from the table (check/explore.py).

@@ -697,3 +697,23 @@ time, product, area and cycles arithmetic, a missing or extra size or design, th
 not-measured entry, the sizes or series against sizes.json, the par flag and records list, the deterministic form),
 stale pins are a note that skips the control; the configuration against the tasks' ranges; the run watchdog's time and
 memory limits over a process tree whose child is in a session of its own. No Lean, no Yosys.
+
+## Exploration boards (2026-11-25)
+
+A task without a statement (kind `explore-stream`: `gemm`) is not a task of this leaderboard: `all_task_names`
+leaves it out, and it has no record, no par and no board here. Its UNPROVED entries are on an exploration board,
+`leaderboard/explore/<task>.json`, kept by `leaderboard/exploreboard.py`:
+
+```bash
+python3.12 check.py tasks/gemm design.sv --unproved --declare design.json --json result.json
+python3.12 leaderboard/exploreboard.py add --task gemm --name NAME --sv design.sv --declare design.json \
+    --result result.json --title "..." [--note "..."] [--par]
+python3.12 leaderboard/exploreboard.py verify        # every entry's files are the ones it was checked on
+python3.12 leaderboard/exploreboard.py show --task gemm
+```
+
+`add` takes only a clean exploration run with a composed score, of exactly these files. An entry holds the files'
+hashes, the composed columns (area, period, cycles; README.md, "Exploration tasks") and where it was simulated. Its
+cycles are the count measured by running the scored job (`cycles_measured`, equal to the declared formula there);
+`add` and `verify` refuse an entry without it. It says `proved: false`, and the site shows it apart from every
+proved record. Tests: `tests/leaderboard/test_exploreboard.py`.

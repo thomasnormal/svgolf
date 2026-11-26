@@ -79,6 +79,11 @@ an advisory check, not trusted). `task.json` fields are documented in README.md,
 the task README's score tables list par's design, the maintainers' other proved designs (prefix adders, multiplier
 trees: entries, on the board under handles of their own since 2026-11-12) and the banned-operator baselines.
 
+One task is an EXPLORATION task: `gemm` has no statement yet, so there is nothing to prove. Its entries are checked
+by simulation (`python3.12 check.py tasks/gemm design.sv --unproved --declare design.json`), scored by composition
+and shown on an exploration board, apart from the records (README.md, "Exploration tasks"; the task's README says
+what a design declares and what a proof will have to show).
+
 ## 3. The edit-check loop with `check.py`
 
 Run from the repository's root. The module header, port names, order and widths must be the task's exactly.

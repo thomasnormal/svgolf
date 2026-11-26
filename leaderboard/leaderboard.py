@@ -4379,9 +4379,23 @@ def load_task(tasks_dir, name):
     return task
 
 
+# A task of this kind has no trusted statement yet (README.md, "Exploration tasks"): it has no records, no par and
+# no board here. Its unproved entries are on an exploration board of their own (leaderboard/exploreboard.py).
+EXPLORE_KIND = "explore-stream"
+
+
+def is_explore_task(tasks_dir, name):
+    try:
+        with open(os.path.join(tasks_dir, name, "task.json")) as fh:
+            return json.load(fh).get("kind") == EXPLORE_KIND
+    except (OSError, ValueError):
+        return False
+
+
 def all_task_names(tasks_dir):
+    """The tasks with a statement (every board, record and par is of one of these); an exploration task is not one."""
     return sorted(t for t in os.listdir(tasks_dir)
-                  if os.path.isfile(os.path.join(tasks_dir, t, "task.json")))
+                  if os.path.isfile(os.path.join(tasks_dir, t, "task.json")) and not is_explore_task(tasks_dir, t))
 
 
 RESERVED_HANDLE = (f"the handle `{REFERENCE_PLAYER}` is par's own (its records are par, not entries; "
