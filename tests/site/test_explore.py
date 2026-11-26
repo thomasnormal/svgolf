@@ -130,6 +130,31 @@ class ExplorePages(unittest.TestCase):
                 with open(os.path.join(SVGOLF, "tasks", t, rel), "rb") as fh:
                     self.assertEqual(self.read(f"explore/{t}/{rel}", binary=True), fh.read())
 
+    def test_a_players_entry_shows_its_player_and_its_writeup_on_a_page_of_its_own(self):
+        for t in self.tasks:
+            board = xb.load(t)
+            index = self.read(f"explore/{t}/index.html")
+            for e in board["entries"]:
+                path = os.path.join(self.out, "explore", t, "entries", f"{e['name']}.html")
+                with self.subTest(entry=e["name"]):
+                    if "player" not in e:
+                        self.assertFalse(os.path.exists(path))         # the maintainers' entries: no page, no player
+                        continue
+                    self.assertIn(f'href="entries/{e["name"]}.html"', index)
+                    self.assertIn(f"by {e['player']}", text_of(index))
+                    page = self.read(f"explore/{t}/entries/{e['name']}.html")
+                    text = text_of(page)
+                    with open(xb.writeup_path(t, e["name"]), encoding="utf-8") as fh:
+                        title = build.lb.writeup_title(fh.read())
+                    self.assertIn(title, text)
+                    self.assertIn('class="writeup-body"', page)
+                    self.assertIn("exploration: unproved entries", text)
+                    self.assertIn(f"player {e['player']}", text)
+                    self.assertIn("assisted by " + "; ".join(e["assisted_by"]), text)
+                    self.assertIn(f"{xb.mm2ms(e):.2f}", text)
+                    self.assertIn("none: the entry is unproved", text)
+                    self.assertIn(f'href="{e["name"]}.sv"', page)
+
     def test_the_home_page_lists_it_in_a_block_of_its_own(self):
         home = self.read("index.html")
         ranked = re.findall(r'<li class="task-card">(.*?)</li>', home, re.S)

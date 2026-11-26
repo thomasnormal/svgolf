@@ -9,6 +9,11 @@ home page lists it in a block of its own under the ranked tasks' cards, headed "
 build.py calls `collect` (the tasks), `home_html` (the home page's block) and `task_page` (the page and the files
 it offers). The texts come from the task's README.md; site/content/tasks/<t>.json gives the display title and
 subtitle, and which README sections the page shows open (`sections`) or folded (`folded`).
+
+A player's entry (2026-11-26; leaderboard/exploreboard.py, "A PLAYER'S ENTRY") shows its player on the board, and
+its writeup on a page of its own, explore/<t>/entries/<name>.html, with the entry's numbers and who helped: the
+writeup rendered as a record's is (site/writeup.py, through site/safehtml.py's allowlists), the page of the
+exploration kind (unproved, composed).
 """
 import html
 import json
@@ -17,6 +22,7 @@ import posixpath
 
 import md
 import page
+import writeup
 
 esc = html.escape
 code = page.code
@@ -117,8 +123,13 @@ def numbers_html(lbx, t):
         page.Stat("Unproved", f"{n} {'entry' if n == 1 else 'entries'}", title="No entry of this task has a proof")])
 
 
-def board_html(lbx, t, here, rel_link):
-    """The exploration board: the entries by composed score, par marked, every row unproved."""
+def entry_page_path(t, e):
+    return f"explore/{t.name}/entries/{e['name']}.html"
+
+
+def board_html(lbx, t, here, rel_link, writeups=()):
+    """The exploration board: the entries by composed score, par marked, every row unproved; a player's entry with
+    its player, its title linking its page (`writeups`: the names of the entries that have one)."""
     rows = lbx.ordered(t.board)
     if not rows:
         return "<p>No entry yet.</p>"
@@ -129,12 +140,54 @@ def board_html(lbx, t, here, rel_link):
         rel = f"{lbx.score_value(e) / lbx.score_value(par):.3f}" if par else ""
         name = (page.link(rel_link(here, f"explore/{t.name}/entries/{e['name']}.sv"), code(e["name"]))
                 + (" " + page.badge("par", "par") if e.get("par") else ""))
-        body.append([f'{name}<br><span class="small muted">{esc(e["title"])}</span>',
+        title = esc(e["title"])
+        if e["name"] in writeups:
+            title = page.link(rel_link(here, entry_page_path(t, e)), title)
+        by = f" · by {esc(e['player'])}" if "player" in e else ""
+        body.append([f'{name}<br><span class="small muted">{title}{by}</span>',
                      f"<strong>{score_text(lbx, e)}</strong>", rel, fmt_area(s["area_um2"]), fmt_int(s["cycles"]),
                      fmt_int(s["period_ps"])])
     table = page.table(["entry", "score, mm²·ms per job", "× par", "area, mm²", "cycles per job", "period, ps"], body,
                        numeric=(1, 2, 3, 4, 5), stack=True)
     return table
+
+
+def entry_page(site, lbx, t, e, w, rel_link):
+    """explore/<t>/entries/<name>.html, a player's entry: the writeup `w` (title, body HTML, source path) as a
+    record page's writeup card, beside the entry's player, who helped, its note and its composed numbers."""
+    here = entry_page_path(t, e)
+    title, body_html, src = w
+    s, par = e["score"], lbx.par_entry(t.board)
+    rel = f"{lbx.score_value(e) / lbx.score_value(par):.3f}" if par else ""
+    head = page.page_head(
+        crumbs_html=(f'<a href="{rel_link(here, "index.html")}"><span class="back" aria-hidden="true">‹</span>'
+                     f'Tasks</a> / {page.link(rel_link(here, t.page), esc(t.name))} / {esc(e["name"])}'),
+        title_html=f'{esc(title)} <span class="task-id">{code(e["name"])}</span>',
+        sub_html=esc(e["title"]),
+        tags_html=" ".join([status_badge(), page.badge("ASAP7 · composed score", "plain")]),
+        aside_html=page.stats([
+            page.Stat("Score", score_text(lbx, e), unit="mm²·ms", title="The entry's composed score, unproved: area × "
+                      "cycles per job × period"),
+            *([page.Stat("× par", rel, title="The score over the plain classical array's")] if par else [])]))
+    pairs = [("entry", f'{code(e["name"])} on the {page.link(rel_link(here, t.page) + "#board", "exploration board")}'),
+             ("player", esc(e["player"])),
+             ("assisted by", esc("; ".join(e.get("assisted_by") or [])) or '<span class="muted">none</span>'),
+             ("note", esc(e.get("note") or "")),
+             ("area", f"{fmt_area(s['area_um2'])} mm², of which on-chip memory {fmt_area(s['sram_area_um2'])} mm²"),
+             ("cycles per job", f"{fmt_int(s['cycles'])}, measured on the scored job"),
+             ("period", f"{fmt_int(s['period_ps'])} ps, the slowest module's ({code(s['slowest_module'])})"),
+             ("proof", "none: the entry is unproved")]
+    files = '<div class="btn-row">' + "".join(
+        page.button(rel_link(here, f"explore/{t.name}/entries/{e['name']}{ext}"), esc(f"{e['name']}{ext}"),
+                    "quiet sm", download=True) for ext in (".sv", ".json")) + "</div>"
+    entry = page.card(page.dl(pairs) + files, id_="entry", label_html="This entry")
+    wcard = page.card(f'<div class="writeup-body">{body_html}</div>', tag="section", id_="writeup",
+                      title_html="The writeup", cls="writeup",
+                      foot_html=f'<p class="fine">From {code(page.shown_path(src))}, kept beside the board.</p>')
+    site.page(here, f"{title} ({t.name}: {e['name']})",
+              head + f'<div class="split"><div class="col">{wcard}</div><div class="col">{entry}</div></div>',
+              description=f"svGolf exploration task {t.name}, the entry {e['name']} by {e['player']}: {e['title']}. "
+                          "Unproved; composed score.")
 
 
 def facts_html(t):
@@ -165,11 +218,23 @@ def task_page(site, lbx, t, rel_link, read_text, build_error):
         site.copy(dest, src)
         site.task_pages[src] = dest
         offered.append((rel, dest))
+    writeups = {}
     for e in t.board["entries"]:
         for key, ext in (("sv", ".sv"), ("declare", ".json")):
             dest = f"explore/{t.name}/entries/{e['name']}{ext}"
             site.copy(dest, "svgolf/" + e[key])
             site.task_pages.setdefault("svgolf/" + e[key], dest)
+        if "player" in e:
+            # what the player wrote stays exempt from the internal markers, as a record's fields are
+            site.player_text.update([e["player"], *e.get("assisted_by", []), e.get("note") or ""])
+            path = lbx.writeup_path(t.name, e["name"])
+            src = "svgolf/" + os.path.relpath(path, lbx.SVGOLF).replace(os.sep, "/")
+            try:
+                w_title, w_body = writeup.render(read_text(src), source=src)
+            except ValueError as err:          # (collect's `problems` refuses a missing or malformed one first)
+                raise build_error(f"{src}: {err}") from None
+            writeups[e["name"]] = (w_title, w_body, src)
+            entry_page(site, lbx, t, e, writeups[e["name"]], rel_link)
     site.task_pages[readme] = here
     text = read_text(readme)
     lines = text.split("\n")
@@ -204,7 +269,7 @@ def task_page(site, lbx, t, rel_link, read_text, build_error):
                      for title in t.info.get("folded", []))
     task_card = page.card(lead() + open_secs + folded, tag="article", id_="task", label_html="This task")
     board = page.card(
-        board_html(lbx, t, here, rel_link), tag="section", id_="board",
+        board_html(lbx, t, here, rel_link, writeups), tag="section", id_="board",
         title_html="Exploration board", flush=True,
         actions_html='<span class="label">unproved · composed · lower is better</span>',
         foot_html=('<p class="small">Not a leaderboard: no entry here has a proof. Each passed the simulation check, '

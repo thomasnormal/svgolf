@@ -707,7 +707,7 @@ leaves it out, and it has no record, no par and no board here. Its UNPROVED entr
 ```bash
 python3.12 check.py tasks/gemm design.sv --unproved --declare design.json --json result.json
 python3.12 leaderboard/exploreboard.py add --task gemm --name NAME --sv design.sv --declare design.json \
-    --result result.json --title "..." [--note "..."] [--par]
+    --result result.json --title "..." [--note "..."] [--par] [--player HANDLE --assisted-by "..." ...]
 python3.12 leaderboard/exploreboard.py verify        # every entry's files are the ones it was checked on
 python3.12 leaderboard/exploreboard.py show --task gemm
 ```
@@ -716,4 +716,8 @@ python3.12 leaderboard/exploreboard.py show --task gemm
 hashes, the composed columns (area, period, cycles; README.md, "Exploration tasks") and where it was simulated. Its
 cycles are the count measured by running the scored job (`cycles_measured`, equal to the declared formula there);
 `add` and `verify` refuse an entry without it. It says `proved: false`, and the site shows it apart from every
-proved record. Tests: `tests/leaderboard/test_exploreboard.py`.
+proved record. A player's entry (2026-11-26) names its `player` and what helped (`assisted_by`, as a record does),
+and keeps the records' rules: a note of at most 300 characters and a writeup,
+`leaderboard/explore/writeups/<task>/<name>.html`, of a record's writeup's form, which the site shows on the entry's
+own page. Its files sit in the task's `reference/` beside the maintainers' entries, marked `player` in `task.json`,
+as submitted (the generators leave them alone). Tests: `tests/leaderboard/test_exploreboard.py`.

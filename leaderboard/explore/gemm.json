@@ -73,6 +73,84 @@
    "title": "The inner-product form"
   },
   {
+   "assisted_by": [
+    "OpenAI Codex CLI, model gpt-6.2-sol, autonomous agent (the design)",
+    "fip's design (tasks/gemm/reference/fip.sv) with 1 line replaced by 7: 672 of the design's 679 lines are fip's; the declaration has fip's formula and layout",
+    "fip's design was written by the maintainers with Claude"
+   ],
+   "checked": {
+    "flow": {
+     "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",
+     "rating_build": true,
+     "script_sha256": "f455fa11a461f4a42d8ecf9dabd978880f9a41aae32bd2dfeb34c14e56cdd67e",
+     "yosys_version": "Yosys 0.53 (git sha1 53c22ab7c, ccache clang 18.1.3 -O3 -flto -flto)"
+    },
+    "hier_rule": "holds",
+    "hier_script_sha256": "c7a6b7dc7109b1f0d268d61b18c99a1b2a2d4d5410caa5fcd18ebea12837ac70",
+    "netlist_points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     }
+    ],
+    "points": [
+     {
+      "LAT": 3,
+      "LGE": 2
+     },
+     {
+      "LAT": 1,
+      "LGE": 2
+     },
+     {
+      "LAT": 2,
+      "LGE": 3
+     },
+     {
+      "LAT": 32,
+      "LGE": 7
+     }
+    ],
+    "ppa_version": "asap7_a0_v1"
+   },
+   "cycles_formula": "(batch//(2*e))*(max((2*e)*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((2*e)+1,(e+max(lat+2,4,e//2)))+((n//e)-1)*max(2*(2*e)+(e+e//2+1)+5,(e+max(lat+2,4,e//2)))+2*(2*e)+(e+e//2+1)+13)+min(batch%(2*e),1)*(max((batch%(2*e))*(n//e),max(lat+1,3)+e)+(n//e)*((n//e)-1)*max((batch%(2*e))+1,(e+max(lat+2,4,e//2)))+((n//e)-1)*max(2*(batch%(2*e))+(e+e//2+1)+5,(e+max(lat+2,4,e//2)))+2*(batch%(2*e))+(e+e//2+1)+13)+1",
+   "declare": "tasks/gemm/reference/fip_sign.json",
+   "declare_sha256": "d02868a8785907a37780c63a4c45cb2b955c67308f47bb3fd3c1843936e0f281",
+   "layout": "canonical",
+   "name": "fip_sign",
+   "note": "fip with the cell's signed 18 x 18 product written as one unsigned 18 x 18 product, two conditional sign rows and a corner term. The cell's own period falls from 1,880 to 1,699 ps, under the row module's 1,809 ps, which now sets the clock. The rest is fip's.",
+   "par": false,
+   "player": "clockwork-otter",
+   "proved": false,
+   "score": {
+    "area_e5um2": 334114774074,
+    "area_um2": 3341147.74074,
+    "cells": 26605673,
+    "cycles": 4573825,
+    "cycles_measured": 4573825,
+    "flops": 1573007,
+    "job": {
+     "batch": 4096,
+     "lgn": 12
+    },
+    "label": "composed",
+    "module_period_ps": 1809,
+    "params": {
+     "LAT": 32,
+     "LGE": 7
+    },
+    "period_ps": 1809,
+    "slowest_module": "gemm_rowf",
+    "sram_area_um2": 752945.72544,
+    "sram_bits": 19922944,
+    "time_ps": 8274049425,
+    "version": "composed_asap7_v1"
+   },
+   "sv": "tasks/gemm/reference/fip_sign.sv",
+   "sv_sha256": "9c5b8296376826d98954eba1da332348203a7510b7c13fedd2ea52bc15702a9b",
+   "title": "The inner-product form with a sign-row product"
+  },
+  {
    "checked": {
     "flow": {
      "canon_script_sha256": "3db437348d472b451d94c0ed4bcae3b40219e6a54a84cafdcb1f4e1bb99bd1ee",

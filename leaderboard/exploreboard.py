@@ -8,16 +8,24 @@ records, every number labelled `composed` and `unproved`. The entry named in the
 reference point (the plain design), shown first.
 
     python3.12 leaderboard/exploreboard.py add --task gemm --name par --sv tasks/gemm/reference/par.sv \\
-        --declare tasks/gemm/reference/par.json --result RESULT.json --title "..." --note "..." [--par]
+        --declare tasks/gemm/reference/par.json --result RESULT.json --title "..." --note "..." [--par] \\
+        [--player HANDLE --assisted-by "TOOL OR MODEL" ...]
     python3.12 leaderboard/exploreboard.py verify [--task gemm]      # the files are the ones the entries were checked on
     python3.12 leaderboard/exploreboard.py show --task gemm
 
 `add` takes the result JSON of `python3.12 check.py tasks/<task> DESIGN.sv --unproved --declare DECLARE.json
 --json RESULT.json` and refuses anything but a clean exploration run (stage `unproved`, `exploration`, a composed
 score) of exactly these files. An entry with the same name is replaced.
+
+A PLAYER'S ENTRY (2026-11-26) names its player (`player`, a handle) and the tools or AI systems that helped
+(`assisted_by`, as a record does; `--assisted-by` once for each), and is held to the records' rules: a note of at
+most NOTES_MAX characters, and a writeup, `leaderboard/explore/writeups/<task>/<name>.html`, of a record's writeup's
+form (leaderboard.py `writeup_text_problems`: the title line `<h1>title</h1>`, then an HTML fragment the site renders
+safely, site/writeup.py). The maintainers' own entries (no `player`) need neither.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import sys
@@ -27,6 +35,7 @@ SVGOLF = os.path.dirname(HERE)
 BOARD_DIR = os.path.join(HERE, "explore")
 KIND = "explore-stream"
 VERSION = 1
+NOTES_MAX = 300                       # characters, a player's entry (leaderboard.py NOTES_SHORT_MAX, the records' rule)
 SCORE_KEYS = ("label", "version", "area_um2", "area_e5um2", "period_ps", "cycles", "cycles_measured", "time_ps",
               "params", "job",
               "module_period_ps", "slowest_module", "flat_period_ps", "flat_period_at", "sram_area_um2", "sram_bits",
@@ -57,6 +66,45 @@ def task_names(tasks_dir=None):
 
 def board_path(task, board_dir=None):
     return os.path.join(board_dir or BOARD_DIR, f"{task}.json")
+
+
+def writeup_path(task, name, board_dir=None):
+    """Where the writeup of the entry `name` of `task`'s board is (it may not exist: the maintainers' entries have
+    none)."""
+    return os.path.join(board_dir or BOARD_DIR, "writeups", task, f"{name}.html")
+
+
+def _leaderboard():
+    """leaderboard.py as a module (its writeup checks), loaded by path as the tests load it."""
+    spec = importlib.util.spec_from_file_location("svgolf_leaderboard_for_exploreboard",
+                                                  os.path.join(HERE, "leaderboard.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def player_problems(task, e, board_dir=None, root=None):
+    """What is wrong with a player's entry `e` beyond what every entry needs: its assisted-by list, its note's length,
+    its writeup (missing, or not of a record's writeup's form). [] for one of the maintainers' entries."""
+    if "player" not in e:
+        return []
+    bad, where = [], f"{task}: entry {e['name']}"
+    if not (isinstance(e["player"], str) and e["player"].strip() == e["player"] and e["player"]):
+        bad.append(f"{where}: its player is not a handle")
+    if not (isinstance(e.get("assisted_by"), list) and all(isinstance(a, str) and a for a in e["assisted_by"])):
+        bad.append(f"{where}: `assisted_by` is not a list of the tools or AI systems that helped")
+    if len(e.get("note") or "") > NOTES_MAX:
+        bad.append(f"{where}: its note has {len(e['note'])} characters, over the cap of {NOTES_MAX} (the story goes "
+                   "in the writeup)")
+    path = writeup_path(task, e["name"], board_dir)
+    if not os.path.isfile(path):
+        return bad + [f"{where}: a player's entry needs its writeup, {os.path.relpath(path, root or SVGOLF)}"]
+    lb = _leaderboard()
+    with open(path, "rb") as fh:
+        data = fh.read(lb.WRITEUP_SIZE_MAX + 1)
+    bad += [f"{where}: writeup: {p}" for p in lb.writeup_text_problems(
+        data, lb.site_denylist(root or SVGOLF), lb.writeup_renderer(root or SVGOLF))]
+    return bad
 
 
 def load(task, board_dir=None):
@@ -91,10 +139,16 @@ def par_entry(board):
     return next((e for e in board["entries"] if e.get("par")), None)
 
 
-def entry_from_result(task, name, sv, declare, result, title, note, par=False, root=None):
+def entry_from_result(task, name, sv, declare, result, title, note, par=False, root=None, player=None,
+                      assisted_by=()):
     """The board entry of a clean exploration run `result` (check.py's JSON) on the files `sv` and `declare`
-    (paths relative to the svGolf root `root`). Raises BoardError when the run is not one."""
+    (paths relative to the svGolf root `root`); with `player`, a player's entry, which also names `assisted_by`.
+    Raises BoardError when the run is not one."""
     root = root or SVGOLF
+    if player is None and assisted_by:
+        raise BoardError("`assisted_by` belongs to a player's entry: name the player")
+    if player is not None and par:
+        raise BoardError("par is the maintainers' plain design, never a player's entry")
     if result.get("task") != task:
         raise BoardError(f"the result is of task {result.get('task')!r}, not {task}")
     if not (result.get("exploration") and result.get("unproved_ok") and result.get("stage") == "unproved"):
@@ -111,7 +165,9 @@ def entry_from_result(task, name, sv, declare, result, title, note, par=False, r
     netlist = [p for p in (st.get("explore") or {}).get("points") or [] if "seeds" in (p.get("netlist") or {})]
     if sc.get("cycles_measured") != sc.get("cycles"):
         raise BoardError("the result's cycles are not a measured count of the scored job (a run of an older check)")
+    who = {} if player is None else {"player": player, "assisted_by": list(assisted_by)}
     return {
+        **who,
         "name": name, "title": title, "note": note, "par": bool(par), "proved": False,
         "sv": sv, "declare": declare,
         "sv_sha256": st["source"]["sha256"], "declare_sha256": st["declare"]["sha256"],
@@ -143,7 +199,8 @@ def add(task, entry, board_dir=None):
 
 def problems(task, board_dir=None, root=None):
     """What is wrong with a board, in words: an entry whose files are missing or changed, a board without its par,
-    a name twice, an entry that claims a proof, an entry whose cycle count was not measured on the scored job."""
+    a name twice, an entry that claims a proof, an entry whose cycle count was not measured on the scored job, a
+    player's entry that breaks the records' rules (`player_problems`), a writeup of no entry."""
     root = root or SVGOLF
     try:
         board = load(task, board_dir)
@@ -166,8 +223,16 @@ def problems(task, board_dir=None, root=None):
             elif sha256_file(path) != e[f"{key}_sha256"]:
                 bad.append(f"{task}: entry {e['name']}: {e[key]} is not the file the entry was checked on "
                            "(check it again and `add` the new result)")
+        if e.get("par") and "player" in e:
+            bad.append(f"{task}: entry {e['name']}: par is the maintainers' plain design, never a player's entry")
+        bad += player_problems(task, e, board_dir, root)
     if board["entries"] and len([e for e in board["entries"] if e.get("par")]) != 1:
         bad.append(f"{task}: the board needs exactly one par entry")
+    wdir = os.path.dirname(writeup_path(task, "x", board_dir))
+    if os.path.isdir(wdir):
+        for f in sorted(os.listdir(wdir)):
+            if not f.startswith(".") and not any(f == f"{e['name']}.html" and "player" in e for e in board["entries"]):
+                bad.append(f"{task}: writeups/{task}/{f} is the writeup of no player's entry")
     return bad
 
 
@@ -183,6 +248,8 @@ def main(argv=None):
     a.add_argument("--title", required=True)
     a.add_argument("--note", default="")
     a.add_argument("--par", action="store_true")
+    a.add_argument("--player", help="a player's entry: the player's handle")
+    a.add_argument("--assisted-by", action="append", default=[], help="a tool or AI system that helped (once each)")
     v = sub.add_parser("verify")
     v.add_argument("--task")
     s = sub.add_parser("show")
@@ -193,9 +260,12 @@ def main(argv=None):
             with open(args.result) as fh:
                 result = json.load(fh)
             rel = [os.path.relpath(os.path.abspath(p), SVGOLF) for p in (args.sv, args.declare)]
-            entry = entry_from_result(args.task, args.name, rel[0], rel[1], result, args.title, args.note, args.par)
+            entry = entry_from_result(args.task, args.name, rel[0], rel[1], result, args.title, args.note, args.par,
+                                      player=args.player, assisted_by=args.assisted_by)
             add(args.task, entry)
             print(f"[ok] {args.task}: {args.name}: {mm2ms(entry):.3f} mm2*ms per job (composed, unproved)")
+            for p in player_problems(args.task, entry):
+                print(f"[todo] {p}")
             return 0
         if args.cmd == "verify":
             names = [args.task] if args.task else task_names()
@@ -210,7 +280,8 @@ def main(argv=None):
         for e in ordered(board):
             rel = f"  {score_value(e) / score_value(par):.3f} x par" if par else ""
             print(f"{e['name']:10s} {e['score']['area_um2'] / 1e6:8.4f} mm2  {e['score']['cycles']:>9d} cycles  "
-                  f"{e['score']['period_ps']:5d} ps  {mm2ms(e):8.3f} mm2*ms{rel}{'  (par)' if e.get('par') else ''}")
+                  f"{e['score']['period_ps']:5d} ps  {mm2ms(e):8.3f} mm2*ms{rel}{'  (par)' if e.get('par') else ''}"
+                  + (f"  by {e['player']}" if "player" in e else ""))
         return 0
     except (BoardError, OSError, ValueError) as e:
         print(f"[FAIL] {e}", file=sys.stderr)

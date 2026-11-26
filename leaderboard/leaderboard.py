@@ -3267,6 +3267,14 @@ def writeup_problems(name, data, known, deny=(), render=None):
     out = []
     if m.group(1) not in known:
         out.append("names no record (a writeup is named by the hash of a record in leaderboard/data/)")
+    return out + writeup_text_problems(data, deny, render)
+
+
+def writeup_text_problems(data, deny=(), render=None):
+    """The problems of a writeup's bytes `data`, whatever its name (pure; `writeup_problems` without the name's rules,
+    and the check of an exploration entry's writeup, leaderboard/exploreboard.py): its size, UTF-8, its characters,
+    the title line, the denylist's markers, and whether the site can render it. [] when it is a good writeup."""
+    out = []
     if len(data) > WRITEUP_SIZE_MAX:
         out.append(f"{len(data)} bytes, over the cap of {WRITEUP_SIZE_MAX}")
     try:

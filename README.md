@@ -2927,5 +2927,6 @@ score.
 
 **The exploration board** is `leaderboard/explore/<task>.json` ([leaderboard/exploreboard.py](leaderboard/exploreboard.py):
 `add` a clean run's result, `verify`, `show`). It is not a leaderboard: its entries are unproved, ordered by composed
-score, the task's plain design marked as its reference point. An entry moves to a ranked board only with a
-kernel-checked proof of the statement the task will get.
+score, the task's plain design marked as its reference point. A player's entry names its player and what helped,
+and has a short note and a writeup, as a record does; the site shows the writeup on the entry's own page. An entry
+moves to a ranked board only with a kernel-checked proof of the statement the task will get.

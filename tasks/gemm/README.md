@@ -24,7 +24,7 @@ other tasks. A simulation shows less than a proof: [what the check does not show
 | [`env/tb.sv`](env/tb.sv) | the environment: the external memory, the activation source, the result sink |
 | [`env/sram_asap7.sv`](env/sram_asap7.sv) | behavioural models of the SRAM catalogue blocks, for simulation |
 | [`reference/par.sv`](reference/par.sv), [`par.json`](reference/par.json) | par: the plain classical array, and its declaration |
-| `reference/<name>.sv`, `<name>.json` | the other reference entries (`task.json` lists them), each with its declaration |
+| `reference/<name>.sv`, `<name>.json` | the other entries (`task.json` lists them), each with its declaration: the maintainers' made by the generators, a player's as submitted |
 | [`reference/gen.py`](reference/gen.py) | the generator of the reference designs (`gen_*.py` beside it: the designs that build on par) |
 
 ## The first entries
@@ -45,6 +45,10 @@ written as an unsigned core plus separate sign rows measured about 5 % per extra
 14 % for the plain operator.) So the open moves are forming the block sums in the stream instead of storing them,
 sharing accumulators between result blocks, and a cheaper wide product. The plain array has slack of its own: its
 read-out pass idles the array, its result FIFO is flip-flops, and its accumulate add sets the period.
+
+The first player's entry, `fip_sign`, takes the cheaper product: the inner-product form with its cell's 18 x 18
+product written as an unsigned core and sign rows. The cell grows 0.14 % and its own period drops from 1,880 to
+1,699 ps, so the row module's 1,809 ps now sets the clock: 0.685 x par, the board's best.
 
 ## The interface
 

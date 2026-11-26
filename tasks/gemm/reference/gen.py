@@ -19,7 +19,8 @@ every child input is driven by a register, a child output, a module input or a c
   s2s   two levels of Strassen on one shared array (gen_strassen.py).
 
 `--write` and `--check` cover the designs task.json lists (`entries`); a design that is generated but not listed is
-printed by name only.
+printed by name only. A player's entry (an entry with a `player`) is the player's file as submitted, beside these and
+written by none of them, so `--write` and `--check` leave it out.
 """
 import argparse
 import json
@@ -672,7 +673,7 @@ def main(argv=None):
     if args.write or args.check:
         bad = []
         with open(os.path.join(os.path.dirname(HERE), "task.json")) as fh:
-            listed = [os.path.basename(e["sv"])[:-3] for e in json.load(fh)["entries"]]
+            listed = [os.path.basename(e["sv"])[:-3] for e in json.load(fh)["entries"] if "player" not in e]
         for name, text in sorted(files(listed).items()):
             path = os.path.join(HERE, name)
             if args.write:

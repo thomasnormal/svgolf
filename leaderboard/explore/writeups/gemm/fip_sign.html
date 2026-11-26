@@ -1,0 +1,58 @@
+<h1>fip with its product as an unsigned core and sign rows</h1>
+
+<p>The inner-product form <a href="fip.sv"><code>fip</code></a> with one change in its cell: the signed 18 x 18 product is written as one unsigned 18 x 18 product, two conditional sign rows and a corner term. The cell stops being the slowest module, the period falls to the row's 1,809 ps, and the score goes from 0.711 to 0.685 × <a href="par.sv">par</a>, the board's best.</p>
+
+<h2>What it was built on</h2>
+
+<p>The design file is fip's (<a href="fip.sv"><code>tasks/gemm/reference/fip.sv</code></a>, the maintainers' reference entry) with one line of the cell module <code>gemm_cellf</code> replaced by seven; every other line is fip's. The declaration has fip's cycle formula and layout (the canonical one), indented differently. The file keeps fip's header comment, which still names fip and its generator.</p>
+
+<pre><code>--- reference/fip.sv
++++ reference/fip_sign.sv
+@@ -573,8 +573,14 @@
+ );
+   logic [31:0]        w_sh, w_act;
+   logic signed [17:0] a, b;
++  logic [35:0]        core;
+   logic signed [47:0] p;
+-  assign p = a * b;                                         // exact: |a|, |b| &lt; 2^17
++  // Signed product from one unsigned 18x18 core plus two sign rows and the corner term.
++  assign core = $unsigned(a) * $unsigned(b);
++  assign p = $signed({12'b0, core})
++           - (a[17] ? $signed({12'b0, b, 18'b0}) : 48'sd0)
++           - (b[17] ? $signed({12'b0, a, 18'b0}) : 48'sd0)
++           + ((a[17] &amp;&amp; b[17]) ? 48'sh001000000000 : 48'sd0);
+   always_ff @(posedge clk) begin
+     if (ld) w_sh &lt;= w_d;
+     if (swap_in) w_act &lt;= w_sh;</code></pre>
+
+<h2>Why it scores as it does</h2>
+
+<p>The machine is fip's, so the cycles are too: 4,573,825 per job, measured on the scored job and equal to the declared formula. What changes is the cell, of which there are 8,192:</p>
+
+<table>
+<thead><tr><th>cell <code>gemm_cellf</code></th><th class="al-right">fip</th><th class="al-right">fip_sign</th></tr></thead>
+<tbody>
+<tr><td>area, µm² (own cells)</td><td class="al-right">295.87</td><td class="al-right">296.29</td></tr>
+<tr><td>period, ps (own register-to-register)</td><td class="al-right">1,880</td><td class="al-right">1,699</td></tr>
+</tbody>
+</table>
+
+<p>The cell grows by 0.42 µm² (0.14 %), 3,464 µm² over the 8,192 cells, and the whole design from 3.3377 to 3.3411 mm² (+0.10 %); the on-chip memory, 0.753 mm², and every other module's text are fip's (synthesized again in this check, they come out 3.5 µm² smaller in all).</p>
+
+<p>The period falls more: the cell's own path, 1,880 ps in fip and its slowest module, is now 1,699 ps, and the slowest module is the row, <code>gemm_rowf</code>, at 1,809 ps (unchanged; it was fip's second slowest): the period is 3.8 % below fip's. A faster cell alone buys nothing more now: the row's path sets the clock.</p>
+
+<p>Score: 3.3411 mm² × 4,573,825 cycles × 1,809 ps = 27.64 mm²·ms per job, 0.685 × par and 0.963 × fip.</p>
+
+<h2>Why the product is exact</h2>
+
+<p>Read the 18 bits of <code>a</code> and <code>b</code> as unsigned numbers u<sub>a</sub> and u<sub>b</sub>. In two's complement a = u<sub>a</sub> &minus; 2<sup>18</sup>&middot;a[17] and b = u<sub>b</sub> &minus; 2<sup>18</sup>&middot;b[17], so a&middot;b = u<sub>a</sub>u<sub>b</sub> &minus; 2<sup>18</sup>&middot;a[17]&middot;u<sub>b</sub> &minus; 2<sup>18</sup>&middot;b[17]&middot;u<sub>a</sub> + 2<sup>36</sup>&middot;a[17]&middot;b[17]. The core is the first term, exactly (36 bits); <code>{12'b0, b, 18'b0}</code> is 2<sup>18</sup>&middot;u<sub>b</sub>, subtracted when <code>a</code> is negative, and <code>{12'b0, a, 18'b0}</code> is 2<sup>18</sup>&middot;u<sub>a</sub>, subtracted when <code>b</code> is; <code>48'sh001000000000</code> is 2<sup>36</sup>, added when both are. So <code>p</code> is a&middot;b modulo 2<sup>48</sup>. Both operands lie in [&minus;2<sup>17</sup>, 2<sup>17</sup>), so |a&middot;b| &le; 2<sup>34</sup> &lt; 2<sup>47</sup>, and a 48-bit two's-complement value in that range is the integer itself: <code>p</code> equals fip's <code>a * b</code> for every one of the 2<sup>36</sup> operand pairs, and so do the low SW = 33 + LGE bits the cell adds into its sum chain. The check's simulations agree (every result right at the four check points, the gate netlist at LGE = 2, the scored job twice); the argument is what covers every input.</p>
+
+<h2>What did not work</h2>
+
+<p>The player's first version had the corner term at 2<sup>32</sup> instead of 2<sup>36</sup>; the check refused it with wrong results (the player's notes).</p>
+
+<h2>The proof</h2>
+
+<p>None: like every entry of this task, it is checked by simulation, and the composed score is not a routed one (the task page says what the check does not show).</p>
+
+<p>Writeup by the maintainers, from the player's notes and the numbers of the check on the rating machine.</p>

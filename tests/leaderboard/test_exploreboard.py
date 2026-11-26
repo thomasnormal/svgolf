@@ -111,6 +111,40 @@ class Board(unittest.TestCase):
         self.assertTrue(any("not the measured count of the scored job" in p
                             for p in xb.problems("gemm", self.boards, self.root)))
 
+    def test_a_players_entry_names_its_player_and_has_a_writeup(self):
+        xb.add("gemm", self.entry("a", par=True), self.boards)
+        self.assertNotIn("player", self.entry("a"))                   # the maintainers' entries: no player field
+        e = xb.entry_from_result("gemm", "p", "a.sv", "a.json", self.result, "A design", "short", root=self.root,
+                                 player="some-handle", assisted_by=["a tool"])
+        self.assertEqual((e["player"], e["assisted_by"], e["par"]), ("some-handle", ["a tool"], False))
+        with self.assertRaises(xb.BoardError):                       # assisted-by without a player
+            xb.entry_from_result("gemm", "p", "a.sv", "a.json", self.result, "t", "n", root=self.root,
+                                 assisted_by=["a tool"])
+        with self.assertRaises(xb.BoardError):                       # a player's entry is never par
+            xb.entry_from_result("gemm", "p", "a.sv", "a.json", self.result, "t", "n", True, root=self.root,
+                                 player="some-handle")
+        xb.add("gemm", e, self.boards)
+        self.assertTrue(any("needs its writeup" in p for p in xb.problems("gemm", self.boards, self.root)))
+        path = xb.writeup_path("gemm", "p", self.boards)
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w") as fh:
+            fh.write("<h1>A short title</h1>\n\n<p>What it is.</p>\n")
+        self.assertEqual(xb.problems("gemm", self.boards, self.root), [])
+        with open(path, "w") as fh:
+            fh.write("A first line that is no title\n<p>x</p>\n")
+        self.assertTrue(any("title line" in p for p in xb.problems("gemm", self.boards, self.root)))
+        with open(path, "w") as fh:
+            fh.write("<h1>A short title</h1>\n")
+        e["note"] = "x" * (xb.NOTES_MAX + 1)                          # the records' rule: the story in the writeup
+        xb.add("gemm", e, self.boards)
+        self.assertTrue(any("over the cap of 300" in p for p in xb.problems("gemm", self.boards, self.root)))
+        e["note"] = "short"
+        xb.add("gemm", e, self.boards)
+        with open(xb.writeup_path("gemm", "a", self.boards), "w") as fh:     # par is the maintainers': no writeup
+            fh.write("<h1>A short title</h1>\n")
+        self.assertEqual([p for p in xb.problems("gemm", self.boards, self.root)],
+                         ["gemm: writeups/gemm/a.html is the writeup of no player's entry"])
+
     def test_an_empty_board(self):
         self.assertEqual(xb.load("gemm", self.boards)["entries"], [])
         self.assertEqual(xb.problems("gemm", self.boards, self.root), [])
@@ -144,6 +178,11 @@ class Repository(unittest.TestCase):
                     self.assertTrue(e["checked"]["flow"]["rating_build"])
                     self.assertTrue(e["checked"]["netlist_points"])
                     self.assertEqual(e["score"]["cycles_measured"], e["score"]["cycles"])
+                    # a player's entry is marked so in task.json too (gen.py leaves its files alone)
+                    mine = next(x for x in task["entries"] if f"tasks/{t}/{x['sv']}" == e["sv"])
+                    self.assertEqual(mine.get("player"), e.get("player"))
+                    if "player" in e:
+                        self.assertTrue(os.path.isfile(xb.writeup_path(t, e["name"])))
 
 
 if __name__ == "__main__":
