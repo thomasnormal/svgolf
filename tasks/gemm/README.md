@@ -56,7 +56,15 @@ written the same way, and the row's 48-bit accumulator add becomes six 8-bit car
 
 Its third, `fip_row_csa4`, is the same idea at a finer granularity: twelve 4-bit carry-select slices instead of six
 8-bit ones (eight 6-bit slices measured slower in the player's own run). The row's own period drops to 1,704 ps, only
-5 ps above the cell's 1,699: 0.645 x par, the board's best.
+5 ps above the cell's 1,699: 0.645 x par.
+
+The fourth, `fip_row_csa4_off17`, changes the cell's product instead. Each pre-added operand, a signed 16-bit weight
+plus an unsigned 16-bit activation, lies in [-2^15, 2^15 + 2^16 - 2]; offset by 2^15 it fits 17 unsigned bits, so one
+unsigned 17 x 17 product, two shifted subtractions and a constant give the signed product exactly. The cell shrinks
+6.7 % and its own period drops to 1,652 ps, but the row's 1,704 ps still sets the clock: 0.614 x par. The fifth,
+`fip_row_off17_csa3`, cuts that design's row adder into sixteen 3-bit carry-select slices (which bought little with
+the old cell, the cell then setting the clock): the row drops to 1,664 ps, 12 ps above the cell: 0.600 x par, the
+board's best.
 
 ## The interface
 

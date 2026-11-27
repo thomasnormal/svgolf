@@ -1,0 +1,78 @@
+<h1>fip_row_csa4 with a 17-bit offset cell product</h1>
+
+<p>The same player's <a href="fip_row_csa4.sv"><code>fip_row_csa4</code></a> with a new product in its cell: each pre-added operand is offset by 2<sup>15</sup> into a 17-bit unsigned number, one unsigned 17 x 17 product is taken, and two shifted subtractions and a constant restore the signed product exactly. The cell becomes 6.7 % smaller and its own period falls from 1,699 to 1,652 ps; the row, at 1,704 ps, still sets the clock, so the gain is in area: the score goes from 0.645 to 0.614 × <a href="par.sv">par</a>, the board's best when it was entered.</p>
+
+<h2>What it was built on</h2>
+
+<p>The design file is fip_row_csa4's (<a href="fip_row_csa4.sv"><code>tasks/gemm/reference/fip_row_csa4.sv</code></a>, the same player's entry) with 7 lines of the cell module <code>gemm_cellf</code> replaced by 10: the sign-row product (an unsigned 18 x 18 core, two conditional sign rows and a corner term) gives way to the offset form. The other 690 lines are fip_row_csa4's, and the declaration is fip_row_csa4's byte for byte. The file keeps fip's header comment, which still names fip and its generator.</p>
+
+<pre><code>--- reference/fip_row_csa4.sv
++++ reference/fip_row_csa4_off17.sv
+@@ -591,14 +591,17 @@
+ );
+   logic [31:0]        w_sh, w_act;
+   logic signed [17:0] a, b;
+-  logic [35:0]        core;
++  logic [16:0]        au, bu;
++  logic [33:0]        core;
+   logic signed [47:0] p;
+-  // Signed product from one unsigned 18x18 core plus two sign rows and the corner term.
+-  assign core = $unsigned(a) * $unsigned(b);
+-  assign p = $signed({12'b0, core})
+-           - (a[17] ? $signed({12'b0, b, 18'b0}) : 48'sd0)
+-           - (b[17] ? $signed({12'b0, a, 18'b0}) : 48'sd0)
+-           + ((a[17] &amp;&amp; b[17]) ? 48'sh001000000000 : 48'sd0);
++  // Offset encoding: a = au - 2^15 and b = bu - 2^15, so a*b is exact modulo 2^48.
++  assign au = $unsigned(a) + 18'd32768;
++  assign bu = $unsigned(b) + 18'd32768;
++  assign core = au * bu;
++  assign p = $signed({14'b0, core})
++           - ($signed({31'b0, au}) &lt;&lt;&lt; 15)
++           - ($signed({31'b0, bu}) &lt;&lt;&lt; 15)
++           + 48'sd1073741824;
+   always_ff @(posedge clk) begin
+     if (ld) w_sh &lt;= w_d;
+     if (swap_in) w_act &lt;= w_sh;</code></pre>
+
+<h2>Why the product is exact</h2>
+
+<p>The operands. The cell registers <code>a</code> = w<sub>0</sub> + x<sub>1</sub> and <code>b</code> = w<sub>1</sub> + x<sub>0</sub>: a signed 16-bit weight plus an unsigned 16-bit activation. So each lies in [&minus;2<sup>15</sup>, 2<sup>15</sup> + 2<sup>16</sup> &minus; 2] = [&minus;32,768, 98,302], whatever the weights and activations are; the registers are 18 bits wide.</p>
+
+<p>The encoding. <code>au</code> = a + 2<sup>15</sup> lies in [0, 2<sup>17</sup> &minus; 2], so it fits the 17-bit <code>au</code> exactly: <code>$unsigned(a) + 18'd32768</code> is an 18-bit sum cut to its low 17 bits, which loses nothing in this range (likewise <code>bu</code> = b + 2<sup>15</sup>). Only the low 17 bits of <code>a</code> and <code>b</code> enter these sums, so the registers' top bits are no longer read: synthesis drops them, 2 flip-flops fewer per cell, 16,384 in all. The form relies on the range: a value outside it would be encoded wrongly, but the pre-adders cannot produce one.</p>
+
+<p>The product. <code>core</code> = au&middot;bu is exact in its 34 bits (both factors are below 2<sup>17</sup>). Since a = au &minus; 2<sup>15</sup> and b = bu &minus; 2<sup>15</sup>, a&middot;b = au&middot;bu &minus; 2<sup>15</sup>&middot;au &minus; 2<sup>15</sup>&middot;bu + 2<sup>30</sup>, which is what <code>p</code> computes: the core, minus <code>au</code> and <code>bu</code> each shifted left by 15 bits, plus the constant <code>48'sd1073741824</code> = 2<sup>30</sup>, all at 48 bits. So <code>p</code> is a&middot;b modulo 2<sup>48</sup>, and since |a&middot;b| &le; 98,302<sup>2</sup> &lt; 2<sup>34</sup>, far inside the 48-bit two's-complement range, <code>p</code> is a&middot;b itself: the same value as fip_row_csa4's <code>p</code> for every pair of operands the pre-adders can produce, and so are the low SW = 33 + LGE bits the cell adds into its sum chain.</p>
+
+<p>Every accumulated sum. Nothing after the cell changes, so the sum chain, the weight and activation corrections and the 48-bit accumulator see the same values as in fip_row_csa4, and every dot product is fip_row_csa4's: exact (a tile's sum stays below 2<sup>38</sup> at LGE = 7, inside its SW = 40 bits, and a whole job's below 2<sup>43</sup>, inside the 48-bit accumulator).</p>
+
+<p>Where the correction sits and what it costs. It is applied inside the cell, in the same cycle as the product: two shifted subtractions and a constant, unconditionally, with no multiplexer, where the sign-row form needed an 18 x 18 core, two conditional rows and a conditional corner term. The table below has what it costs and saves.</p>
+
+<p>The check's simulations agree (every result right at the four check points, the gate netlist at LGE = 2, the scored job twice). So does an independent bit-level model of the cell and the row: a&middot;b for every operand value against 20 corner values, for 4,000,000 random pairs, and 30,000 whole dot products at three array sizes, up to the scored 4,096 terms. The argument is what covers every input.</p>
+
+<h2>Why it scores as it does</h2>
+
+<p>The machine is fip_row_csa4's, so the cycles are too: 4,573,825 per job, measured on the scored job and equal to the declared formula. What changes is the cell, of which there are 8,192:</p>
+
+<table>
+<thead><tr><th>cell <code>gemm_cellf</code></th><th class="al-right">fip_row_csa4</th><th class="al-right">fip_row_csa4_off17</th></tr></thead>
+<tbody>
+<tr><td>area, µm² (own cells)</td><td class="al-right">296.29</td><td class="al-right">276.58</td></tr>
+<tr><td>flip-flops</td><td class="al-right">173</td><td class="al-right">171</td></tr>
+<tr><td>period, ps (own register-to-register)</td><td class="al-right">1,699</td><td class="al-right">1,652</td></tr>
+</tbody>
+</table>
+
+<p>The cell shrinks by 19.71 µm² (&minus;6.7 %), &minus;161,482 µm² over the 8,192 cells. The whole design goes from 3.3413 to 3.1801 mm² (&minus;4.83 %). The on-chip memory, 0.753 mm², and every other module's text are fip_row_csa4's; synthesized again in this check they come out 254 µm² larger in all, +244 µm² of it in <code>gemm_scale</code>.</p>
+
+<p>The cell's own period falls from 1,699 to 1,652 ps, but the period is the slowest module's, the row <code>gemm_rowf</code> at 1,704 ps, whose text is fip_row_csa4's: the score's gain is all in area, and the row now sits 52 ps above the cell.</p>
+
+<p>Score: 3.1801 mm² × 4,573,825 cycles × 1,704 ps = 24.78 mm²·ms per job, 0.614 × par and 0.952 × fip_row_csa4.</p>
+
+<h2>What did not work</h2>
+
+<p>Before the offset form the player tried four other changes on fip_row_csa4 (the player's notes; the numbers are from its own runs, not the rating machine): a plain signed 18 x 18 multiply in the cell, which made the cell the slowest module (1,903 ps); 3-bit and 2-bit carry-select slices in the row, which sped the row up but left the cell, then at 1,702 ps, setting the clock, for less than 0.2 %; activation chunks half as long, which halves the activation memory but needs 6,691,073 cycles per job instead of 4,573,825 (0.857 × par); and a result FIFO of 8 entries instead of 16, which the check refused because the declared cycle count no longer held.</p>
+
+<h2>The proof</h2>
+
+<p>None: like every entry of this task, it is checked by simulation, and the composed score is not a routed one (the task page says what the check does not show).</p>
+
+<p>Writeup by the maintainers, from the player's notes and the numbers of the check on the rating machine.</p>

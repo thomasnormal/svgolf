@@ -1,0 +1,74 @@
+<h1>fip_row_csa4_off17 with 3-bit carry-select slices</h1>
+
+<p>The same player's <a href="fip_row_csa4_off17.sv"><code>fip_row_csa4_off17</code></a> with its row's accumulator adder cut finer again: sixteen 3-bit carry-select slices instead of twelve 4-bit ones, the step <a href="fip_row_csa4.sv"><code>fip_row_csa4</code></a> took from <a href="fip_row_csa.sv"><code>fip_row_csa</code></a>, at the next granularity. With the offset cell the cell is no longer the limit, so the faster row pays: the row's period falls from 1,704 to 1,664 ps, the row still the slowest module, and the score goes from 0.614 to 0.600 × <a href="par.sv">par</a>, the board's best when it was entered.</p>
+
+<h2>What it was built on</h2>
+
+<p>The design file is fip_row_csa4_off17's (<a href="fip_row_csa4_off17.sv"><code>tasks/gemm/reference/fip_row_csa4_off17.sv</code></a>, the same player's entry) with 8 lines of the row module <code>gemm_rowf</code> replaced by 8 and one blank line added: the carry vector widens from 13 to 17 bits, and the slices go from twelve of 4 bits to sixteen of 3. The other 692 lines are fip_row_csa4_off17's, and the declaration is fip_row_csa4_off17's byte for byte. The file keeps fip's header comment, which still names fip and its generator.</p>
+
+<pre><code>--- reference/fip_row_csa4_off17.sv
++++ reference/fip_row_off17_csa3.sv
+@@ -537,7 +537,7 @@
+   logic        r_sel;
+   logic [SW-1:0] ip;                                  // the slice's inner product modulo 2^SW
+   logic [47:0] d0, d1, wd, add_a, add_b, csa_sum;
+-  logic [12:0] csa_c;
++  logic [16:0] csa_c;
+   logic        rd0, rd1, wr0, wr1;
+   logic [7:0]  ad0, ad1;
+   assign ip  = s[SW*H +: SW] - cx_in;
+@@ -549,14 +549,15 @@
+   assign ad1 = wr1 ? 8'(a_v_o[LGE:1]) : a_rd ? 8'(a_v[LGE:1]) : 8'(r_v[LGE:1]);
+   assign add_a = a_first_o ? 48'd0 : (a_v_o[0] ? d1 : d0);
+   assign add_b = {{(48-SW){ip[SW-1]}}, ip};
+-  assign {csa_c[1], csa_sum[3:0]} = add_a[3:0] + add_b[3:0];
+-  for (genvar g = 1; g &lt; 12; g++) begin : g_csa
+-    logic [4:0] s0, s1;
+-    assign s0 = add_a[4*g +: 4] + add_b[4*g +: 4];
+-    assign s1 = add_a[4*g +: 4] + add_b[4*g +: 4] + 5'd1;
+-    assign csa_sum[4*g +: 4] = csa_c[g] ? s1[3:0] : s0[3:0];
+-    assign csa_c[g+1] = csa_c[g] ? s1[4] : s0[4];
++  assign {csa_c[1], csa_sum[2:0]} = add_a[2:0] + add_b[2:0];
++  for (genvar g = 1; g &lt; 16; g++) begin : g_csa
++    logic [3:0] s0, s1;
++    assign s0 = add_a[3*g +: 3] + add_b[3*g +: 3];
++    assign s1 = add_a[3*g +: 3] + add_b[3*g +: 3] + 1'b1;
++    assign csa_sum[3*g +: 3] = csa_c[g] ? s1[2:0] : s0[2:0];
++    assign csa_c[g+1] = csa_c[g] ? s1[3] : s0[3];
+   end
++
+   assign wd = csa_sum;
+   srambank_64x4x48_6t122 m0 (.clk(clk), .ADDRESS(ad0), .wd(wd), .banksel(rd0 | wr0), .read(rd0 &amp; ~wr0),
+                              .write(wr0), .dataout(d0));</code></pre>
+
+<h2>Why it scores as it does</h2>
+
+<p>The machine is fip_row_csa4_off17's, so the cycles are too: 4,573,825 per job, measured on the scored job and equal to the declared formula. What changes is the row, of which there are 128:</p>
+
+<table>
+<thead><tr><th>row <code>gemm_rowf</code></th><th class="al-right">fip_row_csa4_off17</th><th class="al-right">fip_row_off17_csa3</th></tr></thead>
+<tbody>
+<tr><td>area, µm² (own cells)</td><td class="al-right">123.26</td><td class="al-right">122.31</td></tr>
+<tr><td>period, ps (own register-to-register)</td><td class="al-right">1,704</td><td class="al-right">1,664</td></tr>
+</tbody>
+</table>
+
+<p>The finer slices cost less area: each row is 0.95 µm² smaller (&minus;0.8 %), &minus;121 µm² over the 128 rows. The whole design goes from 3.1801 to 3.1800 mm² (&minus;0.0039 %). The on-chip memory, 0.753 mm², and every other module's text are fip_row_csa4_off17's; synthesized again in this check they come out 4.0 µm² smaller in all (<code>gemm_wcorr</code> &minus;4.3, <code>gemm</code> +0.3).</p>
+
+<p>The period is the row module's own register-to-register path: 1,704 ps in fip_row_csa4_off17, 1,664 ps with the 3-bit slices (the slicing is the design's only change), 2.3 % less. The row is still the slowest module, 12 ps above the next, <code>gemm_cellf</code> at 1,652 ps (the offset cell).</p>
+
+<p>Score: 3.1800 mm² × 4,573,825 cycles × 1,664 ps = 24.20 mm²·ms per job, 0.600 × par and 0.976 × fip_row_csa4_off17.</p>
+
+<h2>Why the sum is exact</h2>
+
+<p>As in fip_row_csa and fip_row_csa4, with slices of 3 bits. The low slice adds bits 2:0 into four bits, its fourth bit the carry into the next slice; each further slice g (bits 3g + 2 to 3g) computes both a<sub>g</sub> + b<sub>g</sub> and a<sub>g</sub> + b<sub>g</sub> + 1 in four bits, which cannot overflow (7 + 7 + 1 = 15), and takes the one its incoming carry selects, the low three bits as its part of the sum and the fourth as the next carry. So slice g's bits are (a<sub>g</sub> + b<sub>g</sub> + c<sub>g</sub>) mod 2<sup>3</sup> and its carry out is the quotient, schoolbook addition in base 2<sup>3</sup>; by induction over the sixteen slices the 48 bits are the same sum as the plain 48-bit add's, for every input. The carry out of bit 47 is computed and not read. The cell, and why its product is exact, are fip_row_csa4_off17's (<a href="fip_row_csa4_off17.html">its page</a>). The check's simulations agree (every result right at the four check points, the gate netlist at LGE = 2, the scored job twice), and so does an independent bit-level model of the slices (every input of one slice) and of the whole row (30,000 dot products); the argument is what covers every input.</p>
+
+<h2>What did not work</h2>
+
+<p>On fip_row_csa4, with the old cell, the same 3-bit slices bought little: the cell then set the clock (the player's notes). Afterwards the player tried folding the cell's offset correction into one term, adding <code>au</code> and <code>bu</code> first and shifting once; in its own run the cell slowed to 1,804 ps and became the slowest module, so it was set aside.</p>
+
+<h2>The proof</h2>
+
+<p>None: like every entry of this task, it is checked by simulation, and the composed score is not a routed one (the task page says what the check does not show).</p>
+
+<p>Writeup by the maintainers, from the player's notes and the numbers of the check on the rating machine.</p>

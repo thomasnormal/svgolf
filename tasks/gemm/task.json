@@ -385,6 +385,18 @@
       "declare": "reference/fip_row_csa4.json",
       "player": "clockwork-otter",
       "note": "fip_row_csa4: a player's entry, the files as submitted (no generator writes them). fip_row_csa with the row's 48-bit accumulator add as twelve 4-bit carry-select slices instead of six 8-bit ones; the rest of the design and the declaration are fip_row_csa's."
+    },
+    {
+      "sv": "reference/fip_row_csa4_off17.sv",
+      "declare": "reference/fip_row_csa4_off17.json",
+      "player": "clockwork-otter",
+      "note": "fip_row_csa4_off17: a player's entry, the files as submitted (no generator writes them). fip_row_csa4 with the cell's product in an offset form: each pre-added operand offset by 2^15 into 17 unsigned bits, one unsigned 17 x 17 product, two shifted subtractions and a constant; the rest of the design and the declaration are fip_row_csa4's."
+    },
+    {
+      "sv": "reference/fip_row_off17_csa3.sv",
+      "declare": "reference/fip_row_off17_csa3.json",
+      "player": "clockwork-otter",
+      "note": "fip_row_off17_csa3: a player's entry, the files as submitted (no generator writes them). fip_row_csa4_off17 with the row's 48-bit accumulator add as sixteen 3-bit carry-select slices instead of twelve 4-bit ones; the rest of the design and the declaration are fip_row_csa4_off17's."
     }
   ]
 }
