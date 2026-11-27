@@ -9,7 +9,8 @@ derived again from the job's own files, the area with score/ppa.py's own liberty
   import     what `leaderboard.py asap7pnr --import` refuses (written form, shape and arithmetic, each picture's bytes,
              sha256 and pixel size), an entry for a design the task does not show, a design that would not be bound
              (`asap7pnr_status`: failed, stale, unbound) under the tree's ASAP7 view, scoring point and pins
-  one run    an entry the tree already has with a scoring run must come back unchanged (one run per design); the
+  one run    an entry the tree already has with a scoring run, or one that shares another design's run (`shares`: one
+             run per netlist, decided 2026-11-27), must come back unchanged (one run per design); the
              request of a design the tree has is the tree's (a request is never changed by a collection), and a new
              entry needs a request the tree stores (leaderboard.py asap7pnr --request). When the tree's table is of the
              schema before the reference-against-routed check (svgolf-asap7pnr/2; `collect.py add-lec`), "unchanged"
@@ -339,6 +340,8 @@ def check(out_dir, task_name, job_dirs, *, area_of, pins=None, tree=None):
             P(f"{w}: the tree's entry has a scoring run and this one is not it (one run per design)")
         if old is not None and e["request"] != old["request"]:
             P(f"{w}: the request is not the one the tree stores")
+        if old is not None and "shares" in old and e != old:
+            P(f"{w}: the tree's entry shares another design's run (one run per netlist): it comes back unchanged")
         if old is None:
             P(f"{w}: the tree stores no request for this design (make one with leaderboard.py asap7pnr --request)")
         for i, run in enumerate(e["runs"]):

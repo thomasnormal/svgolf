@@ -2528,6 +2528,19 @@ PNR_REQUEST_KEYS = {"source", "seed", "settings", "settings_sha256"}
 # queued, without a date.
 PNR_QUEUED_KEY = "queued"
 PNR_QUEUED_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+PNR_QUEUE_WARN_DAYS = 2          # `asap7pnr` and `verify` warn about a design queued longer than this (2026-11-27)
+# ONE RUN PER NETLIST (decided 2026-11-27): the routed course measures a NETLIST, so design files whose ASAP7 netlists
+# are one file (the same `netlist_sha256`, the same cycles) are one physical object with ONE routed result: the run of
+# the netlist's FIRST stored request (the earliest, by the repository's history). A later design file with that netlist
+# is bound to that run and shows its numbers and picture; its entry keeps its own stored request, unchanged, and is
+# marked as not run: `shares`, the sv_sha256 of the design whose entry holds the run, status "shared", no run, no
+# scores, no picture. Nobody chooses among runs: the first request decides. `asap7pnr --request` for a design whose
+# netlist already has a request replays that request (the same seed and source) and stores the entry as sharing it;
+# `asap7pnr --share` marks an entry stored before the rule (its own seed, never run) as sharing the netlist's first
+# request. Before the rule two entries of one netlist each carried the same request and run (the same seed, the same
+# files: `_example`'s band and band_tactics); that form is still read.
+PNR_SHARES_KEY = "shares"
+PNR_SHARED = "shared"
 PNR_REQUEST_SOURCES = ("default", "record", "drawn")     # seed 1 for the designs measured before seeds were named
 PNR_RUN_KEYS = {"seed", "role", "status", "settings_sha256", "config_mk_sha256", "sdc_sha256", "io_tcl_sha256", "host",
                 "measured_at", "seconds", "peak_mb"}
@@ -2713,6 +2726,14 @@ def _pnr_entry_problems(e, task):
                                     and isinstance(e[PNR_QUEUED_KEY], str)
                                     and PNR_QUEUED_RE.fullmatch(e[PNR_QUEUED_KEY])):
         p.append(f"`{PNR_QUEUED_KEY}` is a date (YYYY-MM-DD) on a pending entry only (one with no run)")
+    shares = e.get(PNR_SHARES_KEY)
+    if PNR_SHARES_KEY in e:
+        if not (isinstance(shares, str) and SHA_RE.fullmatch(shares)) or shares == e["sv_sha256"]:
+            p.append(f"`{PNR_SHARES_KEY}` is the sv_sha256 of another design's entry")
+        if (e["runs"], e["scores"], e["status"], e["layout"]) != ([], {"v_owner": None, "v_median": None}, PNR_SHARED,
+                                                                 None) or PNR_QUEUED_KEY in e:
+            p.append(f"an entry that shares another design's run has status {PNR_SHARED!r}, no run, no scores, no "
+                     f"layout and no `{PNR_QUEUED_KEY}`")
     rq, seed = e["request"], None
     if not (isinstance(rq, dict) and set(rq) == PNR_REQUEST_KEYS):
         p.append("request must be exactly {source, seed, settings, settings_sha256}")
@@ -2740,6 +2761,8 @@ def _pnr_entry_problems(e, task):
         if r.get("role") == "scoring" and seed is not None and r.get("seed") != seed:
             p.append(f"runs[{i}]: the scoring run is not at the request's seed")
     if p:
+        return p
+    if PNR_SHARES_KEY in e:
         return p
     scores, status = _pnr_scores(e)
     if e["status"] != status:
@@ -2812,18 +2835,41 @@ def asap7pnr_file_problems(data, task_name=None):
     shas = [e.get("sv_sha256") for e in designs if isinstance(e, dict)]
     if shas != sorted(x for x in shas if isinstance(x, str)) or len(set(shas)) != len(shas):
         p.append("designs are not in sv_sha256 order, or a design file is listed twice")
-    picture = {}
+    picture, firsts, by_sha = {}, {}, {}
     for k, e in enumerate(designs):
-        if not isinstance(e, dict) or set(e) - {PNR_QUEUED_KEY} != PNR_ENTRY_KEYS:
+        if not isinstance(e, dict) or set(e) - {PNR_QUEUED_KEY, PNR_SHARES_KEY} != PNR_ENTRY_KEYS:
             p.append(f"designs[{k}]: keys must be exactly {', '.join(sorted(PNR_ENTRY_KEYS))} (and, on a pending entry, "
-                     f"{PNR_QUEUED_KEY})")
+                     f"{PNR_QUEUED_KEY}; on one that shares another design's run, {PNR_SHARES_KEY})")
             continue
         where = f"designs[{k}] ({str(e['sv_sha256'])[:12]})"
+        by_sha[e["sv_sha256"]] = e
         p += [f"{where}: {x}" for x in _pnr_entry_problems(e, data.get("task"))]
         if isinstance(e["layout"], dict) and isinstance(e["netlist_sha256"], str):
             if picture.setdefault(e["netlist_sha256"], e["layout"].get("render_png_sha256")) \
                     != e["layout"].get("render_png_sha256"):
                 p.append(f"{where}: two pictures for one netlist")
+        if PNR_SHARES_KEY not in e and isinstance(e["netlist_sha256"], str):
+            firsts.setdefault(e["netlist_sha256"], []).append(e)
+    # one run per netlist: each entry that shares names the entry of its netlist that holds the run
+    for k, e in enumerate(designs):
+        if not isinstance(e, dict) or not isinstance(e.get(PNR_SHARES_KEY), str):
+            continue
+        first = by_sha.get(e[PNR_SHARES_KEY])
+        if first is None or PNR_SHARES_KEY in first or (first.get("netlist_sha256"), first.get("cycles")) != (
+                e.get("netlist_sha256"), e.get("cycles")):
+            p.append(f"designs[{k}] ({str(e['sv_sha256'])[:12]}): `{PNR_SHARES_KEY}` names no entry of this table "
+                     "that holds the run of the same netlist (the same netlist_sha256 and cycles, no `shares` itself)")
+    for netlist, es in firsts.items():       # the form before the rule: one request, one run, recorded in each entry
+        if len(es) < 2:
+            continue
+        seeds = {(e.get("request") or {}).get("seed") for e in es}
+        runs = {(r.get("seed"), json.dumps(r.get("artifacts"), sort_keys=True)) for e in es for r in e["runs"]
+                if isinstance(r, dict) and r.get("role") == "scoring" and r.get("status") == "ok"}
+        if len(seeds) != 1 or len(runs) > 1:
+            p.append(f"netlist {netlist[:12]}: {len(es)} entries hold runs or requests of it ("
+                     + ", ".join(e["sv_sha256"][:12] for e in es) + ") at different seeds or with different runs: one "
+                     f"run per netlist, the first request's; a later design file shares it (`{PNR_SHARES_KEY}`, "
+                     "`asap7pnr --share`)")
     return p
 
 
@@ -2886,13 +2932,15 @@ def asap7pnr_rebind(table, a7_table, *, today=None):
     from is named anew (`scored_netlist_sha256`: Yosys's file, whose first line names the build). An entry whose ASAP7
     netlist changed is no run of the design any more: it becomes PENDING again, with its stored request (the seed is
     never changed) and the view's new netlist, until the course host routes it again (its old run stays in the
-    repository's history). An entry of a design the view does not weigh is left as it is. The table's `asap7_view`
+    repository's history). An entry that shares another design's run (`shares`) still shares it while the two have one
+    netlist; otherwise it is pending, at its own stored request. An entry of a design the view does not weigh is left
+    as it is. The table's `asap7_view`
     becomes the view's. Returns (the new table, the sv_sha256 of the entries named anew, the sv_sha256 of the entries
     made pending again). Pure."""
     new = copy.deepcopy(table)
     new["asap7_view"] = {"identity": (a7_table or {}).get("identity"),
                          "ppa_script_sha256": (a7_table or {}).get("ppa_script_sha256")}
-    rebound, pending = [], []
+    rebound, pending, was_shared = [], [], {}
     for i, e in enumerate(new.get("designs") or []):
         a7 = asap7_entry(a7_table, e.get("sv_sha256"))
         if a7 is None:
@@ -2909,12 +2957,49 @@ def asap7pnr_rebind(table, a7_table, *, today=None):
                              "cycles": a7.get("cycles"), "a0_asap7": a0, "request": copy.deepcopy(e.get("request")),
                              "runs": [], "scores": {"v_owner": None, "v_median": None}, "status": "pending",
                              "layout": None, PNR_QUEUED_KEY: today or pnr_today()}
+        if PNR_SHARES_KEY in e:
+            was_shared[e.get("sv_sha256")] = e[PNR_SHARES_KEY]
         pending.append(e.get("sv_sha256"))
+    # one run per netlist: an entry that shared a run still shares it when it and the run's entry have one netlist
+    # again; one whose netlist is no longer that entry's waits for a run of its own, at its own stored request
+    for i, e in enumerate(new.get("designs") or []):
+        sv = e.get("sv_sha256")
+        target = e.get(PNR_SHARES_KEY) or was_shared.get(sv)
+        if target is None:
+            continue
+        first = asap7pnr_entry(new, target)
+        same = first is not None and PNR_SHARES_KEY not in first and (first.get("netlist_sha256"), first.get("cycles")) \
+            == (e.get("netlist_sha256"), e.get("cycles"))
+        if same:
+            e.pop(PNR_QUEUED_KEY, None)
+            e.update({"status": PNR_SHARED, PNR_SHARES_KEY: target})
+            if sv in pending:
+                pending.remove(sv)
+        elif PNR_SHARES_KEY in e:
+            e.pop(PNR_SHARES_KEY)
+            e.update(status="pending", **{PNR_QUEUED_KEY: today or pnr_today()})
+            pending.append(sv)
     return new, rebound, pending
+
+
+def asap7pnr_run_entry(table, sv_sha256):
+    """The entry that holds the run of a design file's netlist: its own, or, for an entry that shares another design's
+    run (`shares`, decided 2026-11-27: one run per netlist), that design's entry when it is of the same netlist and
+    cycles and shares nothing itself; None without an entry, or when the one it names is not such an entry. Pure."""
+    e = asap7pnr_entry(table, sv_sha256)
+    if e is None or PNR_SHARES_KEY not in e:
+        return e
+    first = asap7pnr_entry(table, e[PNR_SHARES_KEY])
+    if first is None or PNR_SHARES_KEY in first or (first.get("netlist_sha256"), first.get("cycles")) != (
+            e.get("netlist_sha256"), e.get("cycles")):
+        return None
+    return first
 
 
 def asap7pnr_status(table, a7_table, sv_sha256, *, task=None, pins=None):
     """(status, reason, entry) of one design file on the routed course. "bound" (reason None): its entry is shown.
+    A design whose entry shares another design's run (`shares`: one run per netlist) is given that run's status, and
+    the entry returned is the one that holds the run (its numbers, its picture), after its own binding is checked.
     Else no routed number is shown: "pending" (no routed table or no entry for the file: PNR_PENDING; or an entry whose
     scoring run is not made yet), "failed" (its scoring run did not pass, or, whatever its status says, it has no
     reference-against-routed check IDENTICAL against the entry's netlist: `lec_reference`), "stale"
@@ -2934,6 +3019,12 @@ def asap7pnr_status(table, a7_table, sv_sha256, *, task=None, pins=None):
     if (e.get("netlist_sha256"), e.get("scored_netlist_sha256"), e.get("cycles")) != (
             a7.get("repaired_sha256"), a7.get("netlist_sha256"), a7.get("cycles")):
         return "unbound", "unbound: its routed netlist is not this design's ASAP7 netlist", e
+    if PNR_SHARES_KEY in e:                 # one run per netlist: the run of the netlist's first request is its result
+        first = asap7pnr_run_entry(table, sv_sha256)
+        if first is None:
+            return "unbound", ("unbound: it shares the run of a design whose entry does not hold a run of this "
+                               "netlist"), e
+        e = first
     if (e.get("request") or {}).get("settings") != {}:
         return "stale", "stale: routed with layout settings the course does not take yet", e
     if e.get("status") == "pending":
@@ -3016,6 +3107,9 @@ def asap7pnr_check(task, a7_table, table, designs, *, pins=None, root=SVGOLF):
         who = ", ".join(designs[sha]["of"])
         status, why, e = asap7pnr_status(table, a7_table, sha, task=task, pins=pins)
         by.setdefault(status, []).append(who)
+        own = asap7pnr_entry(table, sha) if table else None
+        if own is not None and PNR_SHARES_KEY in own and e is not own:
+            notes.append(f"{who}: shares the run of {', '.join(e['of'])} ({e['sv_sha256'][:12]}): one run per netlist")
         if status == "pending":
             q = asap7pnr_queued(table, sha)
             notes.append(f"{who}: {why}" + (f" (queued since {q})" if q else ""))
@@ -3042,12 +3136,27 @@ def pnr_today():
 
 
 def asap7pnr_queued(table, sv_sha256):
-    """Since when a design file waits for its run (its pending entry's `queued` date), or None: no entry, a routed one,
-    or a pending one made before the key. Pure."""
-    e = asap7pnr_entry(table, sv_sha256) if table else None
+    """Since when a design file waits for its run (its pending entry's `queued` date; for one that shares another
+    design's run, that design's), or None: no entry, a routed one, or a pending one made before the key. Pure."""
+    e = asap7pnr_run_entry(table, sv_sha256) if table else None
     if e is None or e.get("status") != "pending":
         return None
     return e.get(PNR_QUEUED_KEY)
+
+
+def asap7pnr_late(table, today=None, days=PNR_QUEUE_WARN_DAYS):
+    """[(sv_sha256, queued date, days waited)] of the pending entries of a routed table queued more than `days` days
+    before `today` (default: today's UTC date): what `asap7pnr` and `verify` warn about (decided 2026-11-27: a round
+    routes its designs, CONTRIBUTING.md section 11). Pure but for the default date."""
+    now = datetime.date.fromisoformat(today or pnr_today())
+    late = []
+    for e in (table or {}).get("designs") or []:
+        q = e.get(PNR_QUEUED_KEY) if e.get("status") == "pending" else None
+        if isinstance(q, str) and PNR_QUEUED_RE.fullmatch(q):
+            waited = (now - datetime.date.fromisoformat(q)).days
+            if waited > days:
+                late.append((e["sv_sha256"], q, waited))
+    return late
 
 
 def pnr_request(seed=None, *, draw=None):
@@ -3083,6 +3192,12 @@ def asap7pnr_request(table, a7_table, designs, sv_sha256, seed=None, *, draw=Non
     if old is not None:
         rq = old.get("request") or {}
         routed = any(r.get("role") == "scoring" for r in old.get("runs") or [])
+        if PNR_SHARES_KEY in old:
+            if seed is None or (rq.get("source") == "record" and rq.get("seed") == seed):
+                return None, copy.deepcopy(rq), (f"shared: its stored request; it shares the run of "
+                                                 f"{old[PNR_SHARES_KEY][:12]} (one run per netlist)"), None
+            return None, copy.deepcopy(rq), None, (f"it shares the run of {old[PNR_SHARES_KEY][:12]} (one run per "
+                                                   "netlist): its stored request is not changed and makes no run")
         if seed is None or (rq.get("source") == "record" and rq.get("seed") == seed):
             what = "routed: its stored request" if routed else "pending: its stored request"
             return None, copy.deepcopy(rq), what, None
@@ -3091,20 +3206,73 @@ def asap7pnr_request(table, a7_table, designs, sv_sha256, seed=None, *, draw=Non
                                                    f"({rq.get('source')}): its request is not changed")
         return None, copy.deepcopy(rq), None, (f"its request is stored (seed {rq.get('seed')}, {rq.get('source')}): a "
                                                "stored request is never changed")
-    request = pnr_request(seed, draw=draw)
+    first = next((e for e in table.get("designs") or [] if PNR_SHARES_KEY not in e
+                  and (e.get("netlist_sha256"), e.get("cycles")) == (a7["repaired_sha256"], a7["cycles"])), None)
+    if first is not None:                 # one run per netlist: the netlist's first request is replayed, not drawn again
+        frq = first["request"]
+        if seed is not None and seed != frq.get("seed"):
+            return None, copy.deepcopy(frq), None, (
+                f"its netlist already has a request (seed {frq.get('seed')}, {frq.get('source')}, of "
+                f"{first['sv_sha256'][:12]}): a design with the same netlist shares that run, at that seed")
+        request = copy.deepcopy(frq)
+    else:
+        request = pnr_request(seed, draw=draw)
     recs = [x[len("record:"):] for x in designs[sv_sha256]["of"] if x.startswith("record:")]
     entry = {"sv_sha256": sv_sha256, "of": list(designs[sv_sha256]["of"]), "record": recs[0] if recs else None,
              "netlist_sha256": a7["repaired_sha256"], "scored_netlist_sha256": a7["netlist_sha256"],
              "cycles": a7["cycles"], "a0_asap7": {"area_e5um2": a7["area_e5um2"], "delay_ps": a7["delay_ps"],
                                                   "time_ps": a7["time_ps"]},
              "request": request, "runs": [], "scores": {"v_owner": None, "v_median": None}, "status": "pending",
-             "layout": None, PNR_QUEUED_KEY: today or pnr_today()}
+             "layout": None}
+    if first is not None:
+        entry.update({"status": PNR_SHARED, PNR_SHARES_KEY: first["sv_sha256"]})
+    else:
+        entry[PNR_QUEUED_KEY] = today or pnr_today()
     new = copy.deepcopy(table)
     new["designs"] = sorted(new["designs"] + [entry], key=lambda e: e["sv_sha256"])
     bad = asap7pnr_file_problems(new, table.get("task"))
     if bad:
-        return None, request, None, "the pending entry would not be well-formed: " + "; ".join(bad[:3])
+        return None, request, None, "the new entry would not be well-formed: " + "; ".join(bad[:3])
+    if first is not None:
+        return new, request, (f"new: its netlist's first request, replayed (the entry shares the run of "
+                              f"{first['sv_sha256'][:12]}: one run per netlist)"), None
     return new, request, "new: a pending entry", None
+
+
+def asap7pnr_share(table, sv_sha256):
+    """The table with the PENDING entry of `sv_sha256` marked as sharing the run of its netlist's first request
+    (`asap7pnr --share`, decided 2026-11-27: one run per netlist), for an entry stored before the rule with a seed of
+    its own: its request is kept, unchanged, and makes no run. The first request is the other entry of the same netlist
+    and cycles that shares nothing (it must be the only one; which request came first is the repository's history);
+    refused when that entry is pending and queued after this one, or when the entry has a run, shares already or is
+    not there.
+    Returns (new table or None, what happened, refusal or None). Pure."""
+    e = asap7pnr_entry(table, sv_sha256)
+    if e is None:
+        return None, None, "the table has no entry for this design file"
+    if PNR_SHARES_KEY in e:
+        return None, f"shared already: it shares the run of {e[PNR_SHARES_KEY][:12]}", None
+    if e.get("runs") or e.get("status") != "pending":
+        return None, None, "it has a run: an entry with a run is its netlist's run, it shares nothing"
+    firsts = [x for x in table.get("designs") or [] if x is not e and PNR_SHARES_KEY not in x
+              and (x.get("netlist_sha256"), x.get("cycles")) == (e.get("netlist_sha256"), e.get("cycles"))]
+    if len(firsts) != 1:
+        return None, None, (f"{len(firsts)} other entries hold a request of its netlist: one is the first request, "
+                            "whose run it shares")
+    first = firsts[0]
+    when = first.get(PNR_QUEUED_KEY) if first.get("status") == "pending" else None   # a routed one's request is older
+    mine = e.get(PNR_QUEUED_KEY)                                                      # than its run: no date to compare
+    if isinstance(when, str) and isinstance(mine, str) and when > mine:
+        return None, None, (f"the other entry's request ({first['sv_sha256'][:12]}, queued {when}) is later than this "
+                            f"one's ({mine}): the first request decides")
+    new = copy.deepcopy(table)
+    ne = asap7pnr_entry(new, sv_sha256)
+    ne.pop(PNR_QUEUED_KEY, None)
+    ne.update({"status": PNR_SHARED, PNR_SHARES_KEY: first["sv_sha256"]})
+    bad = asap7pnr_file_problems(new, table.get("task"))
+    if bad:
+        return None, None, "the table would not be well-formed: " + "; ".join(bad[:3])
+    return new, f"shares the run of {', '.join(first['of'])} ({first['sv_sha256'][:12]}): its request kept, not run", None
 
 
 def build_axes_view(task, records, axes, *, flow=None, identity=None, mapped_identity=None, unassisted=False,
@@ -5175,6 +5343,7 @@ def verify_routed(args):
         else:
             k = len(table["designs"])
             lines.append(f"[ok] asap7pnr/{name}: {k} entr{'y' if k == 1 else 'ies'} well-formed, every picture its file")
+            lines += asap7pnr_late_lines(name, table)          # a warning, never a failure (2026-11-27)
     return lines, n, bad
 
 
@@ -5553,6 +5722,46 @@ def cmd_asap7pnr_request(args):
     return 0
 
 
+def asap7pnr_late_lines(name, table, today=None):
+    """The WARNING lines `asap7pnr` and `verify` print for a task's designs queued more than PNR_QUEUE_WARN_DAYS days
+    (`asap7pnr_late`); a warning, not a failure: the round that adds a design routes it (CONTRIBUTING.md, section 11)."""
+    return [f"[WARNING] asap7pnr/{name}: {sv[:12]} queued for place and route since {q} ({n} days): the round that "
+            "adds a design routes it (CONTRIBUTING.md, section 11; score/pnr/campaign/)"
+            for sv, q, n in asap7pnr_late(table, today)]
+
+
+def cmd_asap7pnr_share(args):
+    """`asap7pnr --share --task T --design FILE [--write]`: a pending entry stored before the rule of one run per
+    netlist (decided 2026-11-27) marked as sharing the run of its netlist's first request (`asap7pnr_share`); printed,
+    written with --write (every other entry byte for byte as it was). The table is read as stored, since a table with
+    two requests of one netlist is what this mends. Exit 0: shared (or shared already); 1: refused; 2: usage or
+    infrastructure."""
+    path = asap7pnr_path(args.task, args.asap7pnr_dir)
+    try:
+        load_task(args.tasks_dir, args.task)
+        sv = sha256_file(args.design)
+        with open(path, encoding="utf-8") as fh:
+            table = json.load(fh)
+    except (OSError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    tag = f"{args.task}/{sv[:12]}"
+    new, what, refusal = asap7pnr_share(table, sv)
+    if refusal:
+        print(f"[refused] {tag}: {refusal}")
+        return 1
+    print(f"[ok] {tag}: {what}")
+    if new is None:
+        return 0
+    if not args.write:
+        print("       not written: --write stores it")
+        return 0
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(new, indent=1, sort_keys=True) + "\n")
+    print(f"       wrote {os.path.relpath(path)}")
+    return 0
+
+
 def cmd_asap7pnr_rebind(args, names):
     """`asap7pnr --rebind [--task T] [--write]`: every routed table bound again to the current ASAP7 view
     (`asap7pnr_rebind`); prints what was named anew and what stays unbound; writes with --write. Exit 0, 2 on a table
@@ -5592,13 +5801,21 @@ def cmd_asap7pnr(args):
     routed yet. --import DIR [--write]: take a course host's collected site data into the tree. --request: a design's
     request (`cmd_asap7pnr_request`). Exit 0 all good, 1 a check failed, 2 usage or infrastructure."""
     names = [args.task] if args.task else all_task_names(args.tasks_dir)
+    if args.request and getattr(args, "share", False):
+        print("error: --request and --share are two commands", file=sys.stderr)
+        return 2
     if args.request:
         if args.import_dir or not args.task or not args.design:
             print("error: --request takes --task T and --design FILE (and not --import)", file=sys.stderr)
             return 2
         return cmd_asap7pnr_request(args)
+    if getattr(args, "share", False):
+        if args.import_dir or not args.task or not args.design or args.seed is not None:
+            print("error: --share takes --task T and --design FILE (and not --import or --seed)", file=sys.stderr)
+            return 2
+        return cmd_asap7pnr_share(args)
     if args.design or args.seed is not None:
-        print("error: --design and --seed go with --request", file=sys.stderr)
+        print("error: --design and --seed go with --request (--design also with --share)", file=sys.stderr)
         return 2
     if getattr(args, "rebind", False):
         if args.import_dir:
@@ -5672,6 +5889,8 @@ def cmd_asap7pnr(args):
         tag = "FAIL" if fails else "ok"
         counts = ", ".join(f"{len(by[k])} {k}" for k in ("bound", "pending", "failed", "stale", "unbound") if by.get(k))
         print(f"[{tag}] {name}: {len(designs)} designs: {counts}" + "".join(f"\n       {x}" for x in fails + notes))
+        for line in asap7pnr_late_lines(name, table):
+            print(line)
         status = status or (1 if fails else 0)
     if totals:
         print("total: " + ", ".join(f"{totals[k]} {k}" for k in ("bound", "pending", "failed", "stale", "unbound")
@@ -6187,6 +6406,10 @@ def make_parser():
                    help="after a change of the rating build: bind every routed entry whose placed ASAP7 netlist, "
                    "cycles and ASAP7 columns are still the ASAP7 view's to the view's new scored netlist (and the "
                    "table to the view); the others become pending again at their stored seed; writes with --write")
+    y.add_argument("--share", action="store_true",
+                   help="one run per netlist (with --task and --design): mark the design's pending entry, stored "
+                   "before the rule with a seed of its own, as sharing the run of its netlist's first request; its "
+                   "request is kept and makes no run; writes with --write")
     y.set_defaults(fn=cmd_asap7pnr)
 
     r = sub.add_parser("remake", parents=[common],

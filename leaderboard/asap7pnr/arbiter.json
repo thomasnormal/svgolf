@@ -72,7 +72,6 @@
    "of": [
     "record:767c523bfebf00c44632506d6b2bb9c298b3b6a46fc4dfa2b69bfb3b78271efb"
    ],
-   "queued": "2026-11-23",
    "record": "767c523bfebf00c44632506d6b2bb9c298b3b6a46fc4dfa2b69bfb3b78271efb",
    "request": {
     "seed": 1161061878,
@@ -86,7 +85,8 @@
     "v_median": null,
     "v_owner": null
    },
-   "status": "pending",
+   "shares": "f8b02272b7f264d935673b0fa5522fbfb877bdf2985b5c1ad27b861b3a5de784",
+   "status": "shared",
    "sv_sha256": "0075575da0198859ffcca258d96260334c7b4bb30bb58f106adafcc438c4cb9e"
   },
   {

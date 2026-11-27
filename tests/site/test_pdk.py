@@ -9,6 +9,7 @@ leaderboard.py's own functions, called here independently of the generator.
 """
 
 import contextlib
+import copy
 import html
 import importlib.util
 import io
@@ -723,11 +724,34 @@ class PdkTest(unittest.TestCase):
         # until 2026-11-27 a routed board had one record (arbiter, fdivp), and this test required one; since the routed
         # round of that day every routed board has more than one, and the one-record case ("best" alone) is checked
         # above whenever a board has it
-        self.assertGreater(seen["pending"], 0)
+        # since 2026-11-27 (one run per netlist) no design waits on the routed course, so no row is pending; a waiting
+        # row's words are checked above whenever one is, and by test_a_waiting_design_says_since_when on a table made so
         self.assertGreater(seen["rows"], 140)
-        # the task page's "not ranked" table gives the reason and the date (seen on the data: the arbiter record whose
-        # netlist is par's and whose request names another seed, queued since 2026-11-23; this changes when it is routed)
-        self.assertIn(f"{lb.PNR_PENDING} (queued since 2026-11-23)", text_of(self.view("tasks/arbiter/index.html", R)))
+        # the arbiter record whose netlist is par rr_mask's shares par's run: its row has par's routed score, and its
+        # page shows par's layout and says why
+        arb = text_of(self.view("tasks/arbiter/index.html", R))
+        self.assertNotIn(lb.PNR_PENDING, arb)
+        rec = self.view("tasks/arbiter/records/767c523bfebf00c44632506d6b2bb9c298b3b6a46fc4dfa2b69bfb3b78271efb.html", R)
+        self.assertIn("so it shows that design's run: one run per netlist, its first request's", text_of(rec))
+        self.assertIn("reference rr_mask", text_of(rec))
+
+    def test_a_waiting_design_says_since_when(self):
+        """Decided 2026-11-27: a design waiting for its run says since when, under the dash (on two lines, so the score
+        column stays narrow on a phone) and in the "not ranked" row; one with no request stored says it is not placed
+        and routed yet; one that shares a waiting run waits for that run. On a routed table made so (the arbiter's,
+        par's run taken away and dated)."""
+        table = copy.deepcopy(lb.load_asap7pnr("arbiter"))
+        shared = next(e for e in table["designs"] if "shares" in e)
+        first = lb.asap7pnr_entry(table, shared["shares"])
+        first.update(runs=[], scores={"v_owner": None, "v_median": None}, status="pending", layout=None,
+                     queued="2026-11-23")
+        t = type("T", (), {"pnr_table": table})()
+        self.assertEqual(build.pnr_waiting(t, first["sv_sha256"]), "queued for place and route since 2026-11-23")
+        self.assertEqual(build.pnr_waiting(t, shared["sv_sha256"]), "queued for place and route since 2026-11-23")
+        self.assertEqual(build.pnr_waiting(t, "0" * 64), "not placed and routed yet")
+        cell = build.score_cell({"m": {}, "why": lb.PNR_PENDING, "sha": first["sv_sha256"]}, t)
+        self.assertEqual(text_of(cell), "– queued for place and route since 2026-11-23")
+        self.assertIn("queued for place and route<br>since 2026-11-23", cell)
 
     def test_a_reference_players_record_says_par_only_where_it_is_par(self):
         """A record of the reference player calls itself par in a view only when its reference is that view's par;

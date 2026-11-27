@@ -3598,8 +3598,8 @@ def pnr_waiting(t, sha):
     2026-11-27, after designs had waited two weeks with only "not placed and routed yet" to show for it): "queued for
     place and route since DATE" (its pending entry's `queued`, leaderboard.py PNR_QUEUED_KEY), "queued for place and
     route" (a pending entry made before the date was kept), or "not placed and routed yet" (no request stored: not in
-    the queue)."""
-    e = lb.asap7pnr_entry(t.pnr_table, sha) if getattr(t, "pnr_table", None) else None
+    the queue). A design that shares another design's run (one run per netlist) waits for that run."""
+    e = lb.asap7pnr_run_entry(t.pnr_table, sha) if getattr(t, "pnr_table", None) else None
     if e is None or e.get("status") != "pending":
         return "not placed and routed yet"
     q = lb.asap7pnr_queued(t.pnr_table, sha)
@@ -6142,12 +6142,18 @@ def layout_html(site, s):
     (w, h), (tw, th) = L["image_px"], L["thumb_px"]
     name = (f"record {s.rec['record_hash'][:12]}" if s.rec is not None and s.ref is None else
             (s.ref or {}).get("stem") or "this design")
+    own = lb.asap7pnr_entry(t.pnr_table, s.sv_sha)
+    shared = ""
+    if own is not None and lb.PNR_SHARES_KEY in own and e is not own:     # one run per netlist (decided 2026-11-27)
+        first = ", ".join(f"record {x[7:19]}" if x.startswith("record:") else x.replace(":", " ", 1) for x in e["of"])
+        shared = (f"Its placed netlist is the same file as {first}'s, so it shows that design's run: one run per "
+                  "netlist, its first request's. ")
     return (f'<figure class="layout-fig">'
             f'<a class="layout-link" href="{esc(files[0])}"><img src="{esc(files[1])}" '
             f'srcset="{esc(files[1])} {tw}w, {esc(files[0])} {w}w" sizes="(min-width: 48rem) 40rem, 92vw" '
             f'width="{tw}" height="{th}" loading="lazy" decoding="async" '
             f'alt="Placed and routed layout of {esc(name)} on ASAP7"></a>'
-            f'<figcaption class="fine">{esc(L["caption"])} '
+            f'<figcaption class="fine">{esc(shared)}{esc(L["caption"])} '
             + page.link(files[0], f"Full size ({w} × {h} px, {kb_text(L['image_bytes'])})") + ".</figcaption></figure>")
 
 

@@ -2102,7 +2102,11 @@ ran at seed 1. A design's request can name a seed before its run:
 `leaderboard.py asap7pnr --request --task <name> --design FILE --seed N --write` stores it with the design (without
 `--seed`, a seed is drawn from the operating system's random source and stored); a stored request is never changed,
 and the run itself is still made by the maintainers on the course host. Another seed moves a score by about one per
-cent (measured on the first records: 0 to 2.8% between seeds 1, 2 and 3).
+cent (measured on the first records: 0 to 2.8% between seeds 1, 2 and 3). **One run per netlist** (decided
+2026-11-27): the course measures a netlist, so designs whose ASAP7 netlists are the same file are one physical object
+with one routed result, the run of the netlist's first request. A later design with that netlist shows that run's
+numbers and picture, and its own request is kept but not run; a request for it replays the first one's seed instead of
+drawing one. Nobody chooses among runs: the first request decides.
 
 **What a run must pass.** The flow finishes; the router reports no design-rule violation; the flow's equivalence check
 prints that the routed netlist is identical to the one it read (the course requires that line, not merely the absence

@@ -385,14 +385,32 @@ run at the request's seed; on the 2026-11-11 records two more seeds, `spread`, n
 with ORFS's raw texts, the sha256 of the files it wrote and the config.mk and SDC it ran, its reference-against-routed
 check (`lec_reference`, below), the scores (`v_owner`, THE
 score: the request's run; `v_median`, an unranked extra) and the layout picture (`site/layouts/<task>/<sv16>.webp` and a
-640 px `.thumb.webp`, their sha256, sizes and caption). The file names the ASAP7 view it was routed from
+640 px `.thumb.webp`, their sha256, sizes and caption); or, for a design file that shares another design's run,
+`shares` (below). The file names the ASAP7 view it was routed from
 (`asap7_view`: identity and ppa.py hash) and its course (`course`: the pinned part must equal `score/pnr/pins.json`).
+
+**One run per netlist** (decided 2026-11-27). The course measures a netlist: design files whose ASAP7 netlists are one
+file (the same `netlist_sha256` and cycles) are one physical object and have ONE routed result, the run of the
+netlist's first stored request (the earliest, by the repository's history). A later design file with that netlist is
+bound to that run and shows its numbers and its picture; its entry keeps its own stored request, unchanged, and is
+marked as not run: `shares` (the sv_sha256 of the design whose entry holds the run), status `shared`, no run, no
+scores, no picture. This changes no seed and chooses none: nobody chooses among runs, the first request decides.
+`asap7pnr --request` for a design whose netlist already has a request replays that request (the same seed and source)
+and stores the new entry as sharing it, instead of drawing a seed; `asap7pnr --share` marks an entry stored before the
+rule as sharing. It was applied on 2026-11-27 to clockwork-otter's arbiter record 767c523bfebf, whose netlist is par
+rr_mask's (routed at seed 1 since 2026-11-11), and to its matmul cube record 4f458ed4f2cb, whose netlist is its cube
+record a06f2ff0e1f5's (requested five hours earlier, on 2026-11-23); the two runs made at their own seeds are not
+ranked and are not in the tree. `asap7pnr_file_problems` refuses a `shares` that names no entry of the same netlist
+that holds the run, and two entries that hold requests or runs of one netlist at different seeds or with different
+runs (the form before the rule, one request and its run recorded in each entry, is read: `_example`'s band and
+band_tactics).
 
 **An entry is shown only when bound** (`asap7pnr_status`): its design file is the design's, its placed and scored
 netlists and cycles are its ASAP7 view entry's (and that entry is the record's, `asap7_binding_problems`), the file's
 scoring point is the task's, its view and pins are the current ones, its settings are none, and its scoring run passed
 (exit 0, DRC 0, the flow's equivalence check IDENTICAL, and the reference-against-routed check IDENTICAL against the
-entry's netlist). Otherwise the design is `pending` (no run yet: "not routed yet:
+entry's netlist); a design that shares a run has that run's status, after its own binding. Otherwise the design is
+`pending` (no run yet: "not routed yet:
 place and route pending"), `failed`, `stale` or `unbound`, with the reason, and carries no routed number anywhere (the
 board rows take theirs from `asap7pnr_columns`, which applies the same rule with the task): never a stale one, never a
 cells-only one in its place. The site's build notes a pending design (the page says so) and warns, fatally under
@@ -412,7 +430,8 @@ changed) and its record added with `score/pnr/collect.py add-lec`.
 | command | what | cost |
 |---|---|---|
 | `asap7pnr [--task T]` | the files against the repository, offline: the shape and every number the file determines (the delay from ORFS's raw texts, half-even; the area within ORFS's printed precision; time, exact, the scores from the runs; the picture of the scoring run), the binding of every design the task's pages show (pending ones listed: the work list of the next run), every picture's sha256, size and pixel size | milliseconds; no tools |
-| `asap7pnr --request --task T --design FILE [--seed N] [--write]` | the request of a design file the task shows that is not routed yet (the seed rule, decided 2026-11-11): source `record` with the seed `--seed` names, else source `drawn` with a seed drawn from the operating system's random source (1..2^31-1); printed, and with `--write` stored as the design's pending entry (no run; every other entry byte for byte as it was), from which the course host's run takes its seed and the collector its request. A stored request is printed and never changed: asked again it is replayed, and another seed is refused, for a pending design as for a routed one. Records and `add` are unchanged: the request lives in this file, outside every record hash | milliseconds; no tools |
+| `asap7pnr --request --task T --design FILE [--seed N] [--write]` | the request of a design file the task shows that is not routed yet (the seed rule, decided 2026-11-11): source `record` with the seed `--seed` names, else source `drawn` with a seed drawn from the operating system's random source (1..2^31-1); printed, and with `--write` stored as the design's pending entry (no run; every other entry byte for byte as it was), from which the course host's run takes its seed and the collector its request. A stored request is printed and never changed: asked again it is replayed, and another seed is refused, for a pending design as for a routed one. A design whose netlist already has a request gets that request, replayed, and an entry that shares its run (one run per netlist, above); another seed is refused. Records and `add` are unchanged: the request lives in this file, outside every record hash | milliseconds; no tools |
+| `asap7pnr --share --task T --design FILE [--write]` | one run per netlist (decided 2026-11-27): the pending entry of a design file, stored before the rule with a seed of its own, marked as sharing the run of its netlist's first request (the other entry of that netlist, which must be the only one, and whose request is not dated later); its request is kept and makes no run | milliseconds; no tools |
 | `asap7pnr --rebind [--task T] [--write]` | after a change of the rating build (decided 2026-11-24): every routed entry whose placed ASAP7 netlist, cycles and ASAP7 columns are still the (re-weighed) ASAP7 view's names the view's new scored netlist (`scored_netlist_sha256`, the file Yosys wrote, whose first line names the build), and the table the view's identity; an entry whose ASAP7 netlist changed is no run of the design any more and becomes pending again, with its stored request (the seed never changes) and the view's new netlist, until the course host routes it again (listed; its old run stays in the history) | milliseconds; no tools |
 | `asap7pnr --import DIR [--task T] --write` | a course host's collected site data (`DIR/sitedata/<task>.json`, pictures under `DIR/images/`) into the tree: only the design files the task shows now, `of` as the ASAP7 view names it, the pictures moved under `site/layouts/<task>/` and checked against their sha256; refused on any problem | seconds |
 
@@ -424,7 +443,9 @@ routed, or named as queued with their date). **A pending entry says since when i
 `queued`, the UTC date its request was stored (`--request --write`) or `--rebind --write` made it pending again, on a
 pending entry only (`asap7pnr_file_problems`); `asap7pnr` notes it ("queued since DATE"), and the site says "queued for
 place and route since DATE" where the routed number would be. An entry made before the key reads as queued without a
-date; a routed entry has none, since the import replaces the pending one.
+date; a routed entry has none, since the import replaces the pending one. `asap7pnr` and `verify` print a WARNING for
+every design queued more than two days (PNR_QUEUE_WARN_DAYS), a warning and not a failure; the three steps of
+score/pnr/campaign/ route whatever waits (score/pnr/README.md, "A round's runs, in one sequence").
 
 ## Other sizes (2026-11-13; measured, not ranked)
 

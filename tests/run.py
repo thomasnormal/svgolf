@@ -1066,6 +1066,9 @@ def step_unit():
                        # condition since 2026-11-13): its configuration, record and log reader, and the rule on the
                        # negative control's stored logs
                        ("tests/pnr/test_lec.py", [PY, "tests/pnr/test_lec.py"]),
+                       # a round's place and route in three commands (score/pnr/campaign/, 2026-11-27): what waits,
+                       # the chroot form of the in-tree commands, what is packed back and what counts as a valid run
+                       ("tests/pnr/test_campaign.py", [PY, "tests/pnr/test_campaign.py"]),
                        # check.py's `--ppa` modes, the absent-liberty path, the byte-identity of the
                        # default result and the tripwire (no Lean: a fake Lean for the design stage)
                        ("tests/checker/test_ppa_wiring.py",

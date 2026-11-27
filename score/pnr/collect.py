@@ -33,7 +33,8 @@ JOBDIR/logs/JOB.host.json, JOBDIR/logs/JOB.render.out (the die and core boxes) a
 
 `sitedata`: OUTDIR/sitedata/T.json for `leaderboard.py asap7pnr --import OUTDIR --write`: the tree's routed table of T
 with the given entries added (an entry for a design that already has a scoring run is refused unless it is that entry,
-byte for byte: one run per design), every picture under OUTDIR/images/T/ (the new ones are encode.py's output there;
+byte for byte: one run per design; one for a design whose entry shares another design's run, `shares`, is refused:
+one run per netlist), every picture under OUTDIR/images/T/ (the new ones are encode.py's output there;
 the carried ones are copied from site/layouts/T/). Check it with score/pnr/check_sitedata.py before importing.
 
     python3.12 score/pnr/collect.py add-lec  --task T --records RECORDS.json --out OUTDIR
@@ -379,6 +380,10 @@ def cmd_entry(args):
     if request is None:
         raise CollectError(f"leaderboard/asap7pnr/{args.task}.json stores no request for this design file: make one "
                            "first (`leaderboard.py asap7pnr --request --task T --design FILE [--seed N] --write`)")
+    shared = (lb.asap7pnr_entry(table, args.sv) or {}).get(lb.PNR_SHARES_KEY)
+    if shared:
+        raise CollectError(f"{args.sv[:16]}... shares the run of {shared[:16]}... (one run per netlist, decided "
+                           "2026-11-27): it has no run of its own; that design's run is collected")
     nick, _v, _s = pnr.parse_job(args.job)
     j = args.job_dir
     row = json.loads(_read(args.row or os.path.join(j, "rows", args.job + ".json")))
@@ -409,6 +414,9 @@ def sitedata(task_name, out_dir, new_entries, *, table, view, svgolf=pnr.SVGOLF,
     new_shas = set()
     for ne in new_entries:
         old = by_sha.get(ne["sv_sha256"])
+        if old is not None and lb.PNR_SHARES_KEY in old:
+            raise CollectError(f"{ne['sv_sha256'][:16]}... shares the run of {old[lb.PNR_SHARES_KEY][:16]}... (one run "
+                               "per netlist): it takes no run of its own")
         if old is not None and any(r.get("role") == "scoring" for r in old["runs"]):
             back = copy.deepcopy(old)
             if isinstance(back.get("layout"), dict):

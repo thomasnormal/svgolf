@@ -4194,6 +4194,173 @@ class Asap7PnrRequestTest(Tmp):
         self.assertEqual(lb.pnr_request(5)["source"], "record")
 
 
+class OneRunPerNetlistTest(Tmp):
+    """Decided 2026-11-27: the routed course measures a netlist, so design files with one ASAP7 netlist share ONE routed
+    result, the run of the netlist's first request; a later design's entry keeps its own request, unchanged, and
+    `shares` the first's run. On copies of the committed tables (arbiter: clockwork-otter's record 767c523bfebf has par
+    rr_mask's netlist; matmul: its cube records 4f458ed4f2cb and a06f2ff0e1f5 have one netlist)."""
+
+    REC_767C = "767c523bfebf00c44632506d6b2bb9c298b3b6a46fc4dfa2b69bfb3b78271efb"
+    REC_1F87 = "1f8734567650d631f3cdb480698663c3d7df41b40c99ba1bfa322e2239ee4d99"     # par rr_mask's record
+
+    def setUp(self):
+        super().setUp()
+        self.dir = os.path.join(self.tmp, "asap7pnr")
+        shutil.copytree(lb.ASAP7PNR_DIR, self.dir)
+        self.arbiter = json.loads(read_bytes(os.path.join(self.dir, "arbiter.json")))
+        self.shared = next(e for e in self.arbiter["designs"] if e["record"] == self.REC_767C)
+        self.first = lb.asap7pnr_entry(self.arbiter, self.shared["shares"])
+        self.sv = os.path.join(lb.DEFAULT_DATA, "arbiter", self.REC_767C + ".sv")
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        self.records = lb.good_records(lb.load_records(lb.DEFAULT_DATA))
+        self.task = lb.load_task(lb.DEFAULT_TASKS, "arbiter")
+        self.designs = lb.asap7_designs(self.task, self.records, expected)
+        self.a7 = lb.load_asap7("arbiter")
+
+    def write(self, data, name="arbiter"):
+        with open(os.path.join(self.dir, name + ".json"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+
+    def pre_rule(self):
+        """The arbiter table as it was before the rule: the record's own pending entry, its own seed, queued."""
+        old = copy.deepcopy(self.arbiter)
+        e = lb.asap7pnr_entry(old, self.shared["sv_sha256"])
+        del e["shares"]
+        e.update(status="pending", queued="2026-11-23")
+        return old
+
+    def test_the_committed_tables(self):
+        """The two shared entries: their own request kept (drawn seeds of 2026-11-23), no run; each design bound, with
+        the numbers and the picture of the run it shares, so its board row is that design's."""
+        self.assertEqual((self.shared["status"], self.shared["runs"], self.shared["layout"], self.shared["request"]["seed"],
+                          self.shared["request"]["source"]), ("shared", [], None, 1161061878, "drawn"))
+        self.assertIn("reference:rr_mask", self.first["of"])
+        self.assertEqual(self.first["netlist_sha256"], self.shared["netlist_sha256"])
+        pins = lb.asap7pnr_identity()
+        status, why, e = lb.asap7pnr_status(self.arbiter, self.a7, self.shared["sv_sha256"], task=self.task, pins=pins)
+        self.assertEqual((status, why), ("bound", None))
+        self.assertIs(e, self.first)
+        recs = {r["record_hash"]: r for r in self.records}
+        cols = [lb.asap7pnr_columns(recs[h], self.a7, self.arbiter, pins=pins, task=self.task)
+                for h in (self.REC_767C, self.REC_1F87)]
+        self.assertIsNotNone(cols[0])
+        self.assertEqual(cols[0], cols[1])
+        matmul = lb.load_asap7pnr("matmul")
+        cube = next(x for x in matmul["designs"] if x["record"].startswith("4f458ed4f2cb"))
+        self.assertEqual((cube["status"], cube["request"]["seed"]), ("shared", 1955280495))
+        self.assertTrue(lb.asap7pnr_entry(matmul, cube["shares"])["record"].startswith("a06f2ff0e1f5"))
+        self.assertEqual(lb.asap7pnr_status(matmul, lb.load_asap7("matmul"), cube["sv_sha256"],
+                                            task=lb.load_task(lb.DEFAULT_TASKS, "matmul"), pins=pins)[0], "bound")
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "arbiter"])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn(f"shares the run of record:{self.REC_1F87}, reference:rr_mask (f8b02272b7f2): one run per netlist",
+                      out)
+
+    def test_the_file_check(self):
+        """Two entries holding runs or requests of one netlist are refused (the table before the rule), as is a
+        `shares` that names no entry of the netlist holding its run, and a shared entry with a run or a date."""
+        msgs = lb.asap7pnr_file_problems(self.pre_rule(), "arbiter")
+        self.assertTrue(any("one run per netlist" in m and "2 entries" in m for m in msgs), msgs)
+        for name, change in (("no such entry", lambda e: e.update(shares="0" * 64)),
+                             ("itself", lambda e: e.update(shares=e["sv_sha256"])),
+                             ("a date", lambda e: e.update(queued="2026-11-23")),
+                             ("pending", lambda e: e.update(status="pending"))):
+            with self.subTest(name):
+                bad = copy.deepcopy(self.arbiter)
+                change(lb.asap7pnr_entry(bad, self.shared["sv_sha256"]))
+                self.assertNotEqual(lb.asap7pnr_file_problems(bad, "arbiter"), [])
+        other = copy.deepcopy(self.arbiter)              # an entry of another netlist named as the run's
+        dab = next(e for e in other["designs"] if e["sv_sha256"] not in (self.shared["sv_sha256"],
+                                                                          self.first["sv_sha256"]))
+        lb.asap7pnr_entry(other, self.shared["sv_sha256"])["shares"] = dab["sv_sha256"]
+        self.assertTrue(any("`shares` names no entry" in m for m in lb.asap7pnr_file_problems(other, "arbiter")))
+        # the form before the rule that is still read: one run recorded in two entries (`_example`'s band pair)
+        self.assertEqual(lb.asap7pnr_file_problems(lb.load_asap7pnr("_example"), "_example"), [])
+
+    def test_a_request_replays_the_netlists_first_request(self):
+        """A design whose netlist already has a request gets that request, replayed (the same seed and source), and an
+        entry that shares the run; another seed is refused; asked again, the stored request is printed."""
+        short = copy.deepcopy(self.arbiter)
+        short["designs"] = [e for e in short["designs"] if e is not lb.asap7pnr_entry(short, self.shared["sv_sha256"])]
+        self.write(short)
+        argv = ["asap7pnr", "--request", "--task", "arbiter", "--design", self.sv, "--asap7pnr-dir", self.dir]
+        rc, out, _ = quiet(lb.main, argv + ["--seed", "5"])
+        self.assertEqual(rc, 1, out)
+        self.assertIn("its netlist already has a request (seed 1, default", out)
+        rc, out, err = quiet(lb.main, argv + ["--write"])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("its netlist's first request, replayed", out)
+        data, why = lb.read_asap7pnr("arbiter", self.dir)
+        self.assertIsNone(why)
+        e = lb.asap7pnr_entry(data, self.shared["sv_sha256"])
+        self.assertEqual((e["request"], e["shares"], e["status"], e["runs"]),
+                         (self.first["request"], self.first["sv_sha256"], "shared", []))
+        self.assertNotIn("queued", e)
+        rc, out, err = quiet(lb.main, argv)
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("shared: its stored request", out)
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "arbiter", "--asap7pnr-dir", self.dir])
+        self.assertEqual(rc, 0, out + err)
+
+    def test_share_mends_a_table_made_before_the_rule(self):
+        """`asap7pnr --share` makes the committed arbiter table, byte for byte, from the one before the rule (the
+        record's own seed kept); it refuses an entry with a run, and a first request queued later than this one."""
+        self.write(self.pre_rule())
+        argv = ["asap7pnr", "--share", "--task", "arbiter", "--asap7pnr-dir", self.dir]
+        rc, out, _ = quiet(lb.main, argv + ["--design", self.sv])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("not written", out)
+        rc, out, err = quiet(lb.main, argv + ["--design", self.sv, "--write"])
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(read_bytes(os.path.join(self.dir, "arbiter.json")),
+                         read_bytes(os.path.join(lb.ASAP7PNR_DIR, "arbiter.json")))
+        rc, out, _ = quiet(lb.main, argv + ["--design", os.path.join(lb.DEFAULT_DATA, "arbiter", self.REC_1F87 + ".sv")])
+        self.assertEqual(rc, 1, out)
+        self.assertIn("it has a run", out)
+        both = self.pre_rule()                      # two pending requests of one netlist, the other queued later
+        f = lb.asap7pnr_entry(both, self.first["sv_sha256"])
+        f.update(runs=[], scores={"v_owner": None, "v_median": None}, status="pending", layout=None, queued="2026-11-24")
+        _new, _what, refusal = lb.asap7pnr_share(both, self.shared["sv_sha256"])
+        self.assertIn("the first request decides", refusal)
+        new, _what, refusal = lb.asap7pnr_share(both, self.first["sv_sha256"])
+        self.assertIsNone(refusal)
+        self.assertEqual(lb.asap7pnr_entry(new, self.first["sv_sha256"])["shares"], self.shared["sv_sha256"])
+
+    def test_a_rebind(self):
+        """A rebind keeps a shared entry shared while it and the run's entry have one netlist; one whose netlist is
+        another now waits for a run of its own, at its own stored request."""
+        same, _rebound, pending = lb.asap7pnr_rebind(self.arbiter, self.a7, today="2026-12-01")
+        self.assertEqual(same, self.arbiter)
+        self.assertEqual(pending, [])
+        a7 = copy.deepcopy(self.a7)
+        lb.asap7_entry(a7, self.shared["sv_sha256"])["repaired_sha256"] = "f" * 64
+        new, _rebound, pending = lb.asap7pnr_rebind(self.arbiter, a7, today="2026-12-01")
+        e = lb.asap7pnr_entry(new, self.shared["sv_sha256"])
+        self.assertEqual(pending, [self.shared["sv_sha256"]])
+        self.assertEqual((e["status"], e["queued"], e["request"], "shares" in e),
+                         ("pending", "2026-12-01", self.shared["request"], False))
+        self.assertEqual(lb.asap7pnr_file_problems(new, "arbiter"), [])
+
+    def test_a_queue_older_than_two_days_is_warned_about(self):
+        """`asap7pnr` and `verify` print a WARNING (not a failure) for a design queued more than two days."""
+        old = copy.deepcopy(self.arbiter)
+        e = lb.asap7pnr_entry(old, self.shared["sv_sha256"])
+        old["designs"].remove(e)
+        e2 = lb.asap7pnr_entry(old, self.first["sv_sha256"])
+        e2.update(runs=[], scores={"v_owner": None, "v_median": None}, status="pending", layout=None, queued="2026-01-01")
+        self.assertEqual(lb.asap7pnr_late(old, today="2026-01-03"), [])
+        self.assertEqual(lb.asap7pnr_late(old, today="2026-01-04"), [(e2["sv_sha256"], "2026-01-01", 3)])
+        self.write(old)
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "arbiter", "--asap7pnr-dir", self.dir])
+        self.assertEqual(rc, 0, out + err)
+        self.assertRegex(out, rf"\[WARNING\] asap7pnr/arbiter: {e2['sv_sha256'][:12]} queued for place and route since "
+                              r"2026-01-01 \(\d+ days\)")
+        rc, out, err = quiet(lb.main, ["verify", "--offline", "--task", "arbiter", "--asap7pnr-dir", self.dir])
+        self.assertIn(f"[WARNING] asap7pnr/arbiter: {e2['sv_sha256'][:12]} queued", out)
+        self.assertIn("1 routed tables, 0 failed", out)
+
+
 class VerifyRoutedTest(Tmp):
     """`verify` (every level; here --offline) covers the routed course's data too: each routed table must be well-formed
     (its written form, shape and arithmetic) and every picture it records its file, or verify FAILS; on a copy of the
@@ -4324,7 +4491,9 @@ class CommittedAsap7PnrTest(unittest.TestCase):
         # stored request names another seed (one picture per netlist): it stays pending; and 11 of the 13 matmul ones,
         # all but clockwork-otter's two cube records 4f458ed4f2cb and a06f2ff0e1f5, which share one netlist under two
         # stored seeds and stay pending for the same reason
-        self.assertEqual(totals, {"bound": 73, "pending": 3})
+        # 2026-11-27, later: one run per netlist (decided that day): the arbiter record shares par rr_mask's run, the
+        # cube record 4f458ed4f2cb the run of a06f2ff0e1f5 (the netlist's first request, routed and imported): all bound
+        self.assertEqual(totals, {"bound": 76})
 
 
 def git(cwd, *args):

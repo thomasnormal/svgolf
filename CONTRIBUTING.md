@@ -494,18 +494,22 @@ export and the push.
 
 **A round is not finished until its designs are placed and routed** (decided 2026-11-27, after records had waited
 two weeks with no routed number). Every design file a round adds or makes pending again (a new record, a re-made one,
-`asap7pnr --rebind --write`) is routed in the same round on the course host at its stored request's seed
-(score/pnr/README.md, "The commands, for one design"; leaderboard/README.md, "The routed course") and imported with
-`asap7pnr --import` before the push, so that `python3.12 leaderboard/leaderboard.py asap7pnr` lists none of the
-round's designs as pending. Only when the course host cannot run in that round may a design stay pending, and then
-the round's report and commit message name it as queued, with its date: the pending entry's `queued` (set by
-`--request --write` and `--rebind --write`), which the site shows as "queued for place and route since DATE". A run
-that fails (DRC, timing, an equivalence check, a limit) is reported with the flow's reason and the design stays
-unranked: no design, seed or setting is changed to make it pass. Once the record is public, merge or close the pull request with a link to the commit that
-published it; the record in the pull request is replaced by the one made here (a merge brings the pull request's
-files into the public history, and the next export, made from the source tree, removes them), so a record is on the
-board once. A rule the check refused is the contributor's to fix in the pull request: ask for it
-there (a reply can quote the summary's "What to fix").
+`asap7pnr --rebind --write`) is routed in the same round on the course host at its stored request's seed and imported
+with `asap7pnr --import` before the push, so that `python3.12 leaderboard/leaderboard.py asap7pnr` lists none of the
+round's designs as pending. The round ends with the three commands of score/pnr/README.md, "A round's runs, in one
+sequence" (`score/pnr/campaign/prepare.py`, `host.py` on the course host, `finish.py`), then the imports they print. A
+design whose netlist is one another design already has needs no run: it shares that design's run (one run per
+netlist; leaderboard/README.md, "The routed course"). Only when the course host cannot run in that round may a design
+stay pending, and then the round's report and commit message name it as queued, with its date: the pending entry's
+`queued` (set by `--request --write` and `--rebind --write`), which the site shows as "queued for place and route
+since DATE"; `asap7pnr` and `verify` warn about a design queued more than two days. A run that fails (DRC, timing, an
+equivalence check, a limit) is reported with the flow's reason and the design stays unranked: no design, seed or
+setting is changed to make it pass.
+
+Once the record is public, merge or close the pull request with a link to the commit that published it; the record in
+the pull request is replaced by the one made here (a merge brings the pull request's files into the public history, and
+the next export, made from the source tree, removes them), so a record is on the board once. A rule the check refused is
+the contributor's to fix in the pull request: ask for it there (a reply can quote the summary's "What to fix").
 
 After a change of the checker, the library pin or a task's statement that leaves the scoring flow as it is, the
 records are re-made without measuring them again (decided 2026-11-16): check each record's stored design with its

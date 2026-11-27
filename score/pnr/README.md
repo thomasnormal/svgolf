@@ -16,6 +16,7 @@ only, but for `encode.py` (Pillow).
 | `check_sitedata.py` | the check of collected data before it is imported; shares no code with `collect.py` |
 | `lec.py` | the reference-against-routed equivalence check, its log reader and its record: a step of every run and a validity condition (below) |
 | `pnr.py` | what they share: the pins, a job directory's layout, the container command |
+| `campaign/prepare.py`, `campaign/host.py`, `campaign/finish.py` | a round's runs in three commands: every design that waits for its run prepared, run on the course host, collected (below, "A round's runs, in one sequence") |
 | `gen_course.py`, `gen_course2.py` | the two campaign scripts that wrote the committed runs' `config.mk` and SDC, kept byte for byte because `pins.json` pins their sha256; they read a campaign's work list, which is not in the tree, and are not needed to make a job |
 
 ## What a run needs
@@ -58,9 +59,49 @@ python3.12 leaderboard/leaderboard.py asap7pnr --task T
 ```
 
 `SV_SHA256` is the design file's sha256 and `SV16` its first 16 hex digits: the names its entry and its picture take.
-Designs that share a netlist share a job and its run: each gets its own entry (step 3 once per design file). `collect.py
-entry` takes the request the tree stores for the design, and refuses a job at another seed; `collect.py sitedata` keeps
-every other entry of the tree's table and refuses to replace a design's scoring run by another (one run per design).
+Designs that share a netlist share its run (one run per netlist, decided 2026-11-27; leaderboard/README.md, "The routed
+course"): the netlist's first request is routed once and its entry holds the run; a later design file with that
+netlist has an entry that `shares` it (`asap7pnr --request` writes it so, with the first request replayed), takes no
+job and gets no step 3. `collect.py entry` takes the request the tree stores for the design, refuses a job at another
+seed and refuses a design whose entry shares a run; `collect.py sitedata` keeps every other entry of the tree's table
+and refuses to replace a design's scoring run by another (one run per design) or to give a run to an entry that
+shares one.
+
+## A round's runs, in one sequence (score/pnr/campaign/)
+
+A maintainers' round is not finished until its designs are routed (CONTRIBUTING.md, section 11). The steps above, for
+every design that waits for its run, are three commands; the tree is the round's source tree (svgolf/), ROUND a new
+directory:
+
+```bash
+# 1. on the maintainers' machine (the rating build, the ASAP7 liberty): every waiting design's netlist (checked against
+#    its entry), its job at the stored seed and the pins check; ROUND/jobs.txt, ROUND/job/, ROUND/tree.tar
+python3.12 score/pnr/campaign/prepare.py --out ROUND
+# 2. on the course host (x86-64 Linux, the pinned image): copy ROUND there, then every job (flow, the
+#    reference-against-routed check, the picture, the row) at most four at a time under the shared-machine rules,
+#    and the files step 3 reads packed into ROUND/back.tar; copy that back
+tar -xf ROUND/tree.tar -C ROUND
+python3.12 ROUND/svgolf/score/pnr/campaign/host.py run ROUND [--runtime chroot --rootfs IMAGE_ROOT]
+python3.12 ROUND/svgolf/score/pnr/campaign/host.py pack ROUND
+# 3. back on the maintainers' machine: pictures, entries, site data and check_sitedata per task; it prints the imports
+python3.12 score/pnr/campaign/finish.py ROUND
+python3.12 leaderboard/leaderboard.py asap7pnr --import ROUND/out/T --task T --write       # per task, as printed
+python3.12 leaderboard/leaderboard.py asap7pnr                                             # none of the round's pending
+```
+
+`prepare.py` refuses a design with no stored request (`asap7pnr --request ... --write` first: the request is the
+maintainers' step) and one whose netlist is not its entry's, and prepares the rest. `host.py run` is a foreground
+scheduler for a shared machine: it starts a job only with at least 150 GB of memory available and the other users'
+CPU at most a quarter of the cores (at most two jobs while another user works interactively), kills its own jobs below
+100 GB or when the load passes 64 (or half the cores, if more), and resumes (a job with its row is done); with `--runtime docker` or
+`podman` it runs run_job.py's commands, with `--runtime chroot` the same mounts, environment and command under a
+rootless user namespace and chroot of the image unpacked at `--rootfs`. `finish.py` reports a run that is not valid
+with the row's reason (the design stays pending; nothing is changed to make it pass) and writes ROUND/finish.json.
+Measured: on 2026-11-27 `host.py` with `--runtime chroot` made the add record 185c226912f6's run again (job
+add_4d0eb807d02e__min_s443456994, 82 s): the eleven files its row hashes (the placed netlist, seven databases, the
+DEF, the SPEF, the routed netlist), the check's routed netlist and verdict, and the render are byte for byte that
+round's run (the check's log differs: it prints the time); and `finish.py` on that round's add and arbiter runs gave
+site data equal to the committed tables, and refused the arbiter record that shares par's run.
 
 ## What is and is not reproducible
 

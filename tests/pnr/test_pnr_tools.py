@@ -111,6 +111,17 @@ def pending_tree(table, sv):
     return t
 
 
+def shared_tree(table, sv):
+    """The table with the design's entry sharing the run of the other entry of its netlist (one run per netlist,
+    decided 2026-11-27): no run, no picture, `shares`."""
+    t = copy.deepcopy(table)
+    e = lb.asap7pnr_entry(t, sv)
+    first = next(x for x in t["designs"] if x is not e and x["netlist_sha256"] == e["netlist_sha256"])
+    e.update(runs=[], scores={"v_owner": None, "v_median": None}, status="shared", layout=None,
+             shares=first["sv_sha256"])
+    return t
+
+
 def picture_record(out_dir, committed_entry):
     """encode.py's record of the stored render, its files written to out_dir/images/_example/; without the committed
     Pillow and libwebp the committed picture files stand in (their quality read from the committed entry)."""
@@ -364,6 +375,17 @@ class CollectorTest(TempDir):
         with self.assertRaises(collect.CollectError):
             collect.sitedata("_example", out, [e2], table=table, view=view)
 
+    def test_a_design_that_shares_a_run_takes_none(self):
+        """One run per netlist: a run collected for a design whose entry shares another design's run is refused by
+        `collect.py sitedata` (and by `check_sitedata.py`, SitedataCheckTest)."""
+        text, table = committed("_example")
+        out = os.path.join(self.tmp, "out")
+        e, view = collected_entry(out, table)
+        shared = shared_tree(table, BAND_LP)
+        self.assertEqual(lb.asap7pnr_file_problems(shared, "_example"), [])
+        with self.assertRaisesRegex(collect.CollectError, "shares the run"):
+            collect.sitedata("_example", out, [e], table=shared, view=view)
+
     def test_the_entry_refuses_what_is_not_the_design_s_scoring_run(self):
         table = committed("_example")[1]
         out = os.path.join(self.tmp, "out")
@@ -565,6 +587,10 @@ class SitedataCheckTest(TempDir):
         fn(data, lb.asap7pnr_entry(data, BAND_LP))
         with open(self.path, "w") as fh:
             fh.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+
+    def test_a_run_for_a_design_that_shares_one(self):
+        problems, _notes = self.check(tree=shared_tree(self.table, BAND_LP))
+        self.assertTrue(any("shares another design's run" in p for p in problems), problems)
 
     def test_clean(self):
         problems, notes = self.check()
