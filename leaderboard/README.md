@@ -419,7 +419,12 @@ changed) and its record added with `score/pnr/collect.py add-lec`.
 The run itself (place and route, the picture, the collection) happens on an x86-64 Linux host with the pinned image,
 with the tools of `score/pnr/` ([../score/pnr/README.md](../score/pnr/README.md): `job.py`, `run_job.py`, `encode.py`,
 `collect.py`, then `check_sitedata.py` before the import): a design added since the last run is pending until the next
-one.
+one, which the round that added it makes (CONTRIBUTING.md, section 11: a round is not finished until its designs are
+routed, or named as queued with their date). **A pending entry says since when it waits** (decided 2026-11-27):
+`queued`, the UTC date its request was stored (`--request --write`) or `--rebind --write` made it pending again, on a
+pending entry only (`asap7pnr_file_problems`); `asap7pnr` notes it ("queued since DATE"), and the site says "queued for
+place and route since DATE" where the routed number would be. An entry made before the key reads as queued without a
+date; a routed entry has none, since the import replaces the pending one.
 
 ## Other sizes (2026-11-13; measured, not ranked)
 

@@ -30,7 +30,9 @@ only, but for `encode.py` (Pillow).
   ASAP7 liberty files (`python3.12 score/ppa.py --pdk asap7 --fetch-liberty` fetches them into `score/lib/asap7/`).
 - **The request's seed** (`leaderboard/asap7pnr/<task>.json`, `request.seed`): a design not routed yet gets its request
   first, `python3.12 leaderboard/leaderboard.py asap7pnr --request --task T --design DESIGN.sv [--seed N] --write`
-  (the seed named, else one drawn from the operating system's random source; stored, never changed).
+  (the seed named, else one drawn from the operating system's random source; stored, never changed). The pending entry
+  also says since when it is queued (`queued`, the date it was stored): the round that adds the design routes it
+  (CONTRIBUTING.md, section 11).
 - For `collect.py` and `check_sitedata.py`: the five liberty files (the area); for `encode.py`: Pillow (the committed
   pictures were encoded with Pillow 11.1.0 and libwebp 1.5.0).
 

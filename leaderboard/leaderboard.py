@@ -2521,6 +2521,13 @@ PNR_COURSE_KEYS = set(PNR_PINNED) | {"scoring_host", "ranked", "variants", "pict
 PNR_ENTRY_KEYS = {"sv_sha256", "of", "record", "netlist_sha256", "scored_netlist_sha256", "cycles", "a0_asap7",
                   "request", "runs", "scores", "status", "layout"}
 PNR_REQUEST_KEYS = {"source", "seed", "settings", "settings_sha256"}
+# A PENDING entry may also say since when it waits (decided 2026-11-27, after designs had waited two weeks unnoticed):
+# `queued`, the UTC date (YYYY-MM-DD) its request was stored (`asap7pnr --request --write`) or `asap7pnr --rebind
+# --write` made it pending again. The site says "queued for place and route since DATE" for it; a routed entry has none
+# (the course host's import replaces the pending entry). An entry without one (made before the key) still reads as
+# queued, without a date.
+PNR_QUEUED_KEY = "queued"
+PNR_QUEUED_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 PNR_REQUEST_SOURCES = ("default", "record", "drawn")     # seed 1 for the designs measured before seeds were named
 PNR_RUN_KEYS = {"seed", "role", "status", "settings_sha256", "config_mk_sha256", "sdc_sha256", "io_tcl_sha256", "host",
                 "measured_at", "seconds", "peak_mb"}
@@ -2702,6 +2709,10 @@ def _pnr_entry_problems(e, task):
         p.append("a0_asap7 must be {area_e5um2, delay_ps, time_ps}, non-negative integers")
     elif a0["time_ps"] != a0["delay_ps"] * (cycles or 1):
         p.append("a0_asap7.time_ps is not cycles x delay_ps")
+    if PNR_QUEUED_KEY in e and not (e.get("status") == "pending" and e.get("runs") == []
+                                    and isinstance(e[PNR_QUEUED_KEY], str)
+                                    and PNR_QUEUED_RE.fullmatch(e[PNR_QUEUED_KEY])):
+        p.append(f"`{PNR_QUEUED_KEY}` is a date (YYYY-MM-DD) on a pending entry only (one with no run)")
     rq, seed = e["request"], None
     if not (isinstance(rq, dict) and set(rq) == PNR_REQUEST_KEYS):
         p.append("request must be exactly {source, seed, settings, settings_sha256}")
@@ -2803,8 +2814,9 @@ def asap7pnr_file_problems(data, task_name=None):
         p.append("designs are not in sv_sha256 order, or a design file is listed twice")
     picture = {}
     for k, e in enumerate(designs):
-        if not isinstance(e, dict) or set(e) != PNR_ENTRY_KEYS:
-            p.append(f"designs[{k}]: keys must be exactly {', '.join(sorted(PNR_ENTRY_KEYS))}")
+        if not isinstance(e, dict) or set(e) - {PNR_QUEUED_KEY} != PNR_ENTRY_KEYS:
+            p.append(f"designs[{k}]: keys must be exactly {', '.join(sorted(PNR_ENTRY_KEYS))} (and, on a pending entry, "
+                     f"{PNR_QUEUED_KEY})")
             continue
         where = f"designs[{k}] ({str(e['sv_sha256'])[:12]})"
         p += [f"{where}: {x}" for x in _pnr_entry_problems(e, data.get("task"))]
@@ -2866,7 +2878,7 @@ def asap7pnr_table_mismatch(table, a7_table, *, task=None, pins=None):
     return None
 
 
-def asap7pnr_rebind(table, a7_table):
+def asap7pnr_rebind(table, a7_table, *, today=None):
     """A routed table bound again to the current ASAP7 view `a7_table` (`asap7pnr --rebind`, decided 2026-11-24, when
     the rating build changed): a run places the design's ASAP7 netlist (the entry's `netlist_sha256`, the view's
     `repaired_sha256`, which ppa.py writes itself), so an entry whose placed netlist, cycles and ASAP7 A0' columns are
@@ -2896,7 +2908,7 @@ def asap7pnr_rebind(table, a7_table):
                              "netlist_sha256": a7.get("repaired_sha256"), "scored_netlist_sha256": a7.get("netlist_sha256"),
                              "cycles": a7.get("cycles"), "a0_asap7": a0, "request": copy.deepcopy(e.get("request")),
                              "runs": [], "scores": {"v_owner": None, "v_median": None}, "status": "pending",
-                             "layout": None}
+                             "layout": None, PNR_QUEUED_KEY: today or pnr_today()}
         pending.append(e.get("sv_sha256"))
     return new, rebound, pending
 
@@ -3005,7 +3017,8 @@ def asap7pnr_check(task, a7_table, table, designs, *, pins=None, root=SVGOLF):
         status, why, e = asap7pnr_status(table, a7_table, sha, task=task, pins=pins)
         by.setdefault(status, []).append(who)
         if status == "pending":
-            notes.append(f"{who}: {why}")
+            q = asap7pnr_queued(table, sha)
+            notes.append(f"{who}: {why}" + (f" (queued since {q})" if q else ""))
         elif status != "bound":
             fails.append(f"{who}: {why}")
         if status == "bound":
@@ -3023,6 +3036,20 @@ def _draw_seed():
     return secrets.randbelow(PNR_SEED_MAX) + 1
 
 
+def pnr_today():
+    """Today's UTC date, YYYY-MM-DD: what a pending entry's `queued` says when it is written."""
+    return datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+
+
+def asap7pnr_queued(table, sv_sha256):
+    """Since when a design file waits for its run (its pending entry's `queued` date), or None: no entry, a routed one,
+    or a pending one made before the key. Pure."""
+    e = asap7pnr_entry(table, sv_sha256) if table else None
+    if e is None or e.get("status") != "pending":
+        return None
+    return e.get(PNR_QUEUED_KEY)
+
+
 def pnr_request(seed=None, *, draw=None):
     """The request of a design not routed yet (schema svgolf-asap7pnr/3 `request`): source "record" with the seed it
     names, or, without one, source "drawn" with a seed drawn once (`draw`, default the operating system's random source:
@@ -3035,7 +3062,7 @@ def pnr_request(seed=None, *, draw=None):
     return {"source": source, "seed": seed, "settings": {}, "settings_sha256": pnr_settings_sha256({})}
 
 
-def asap7pnr_request(table, a7_table, designs, sv_sha256, seed=None, *, draw=None):
+def asap7pnr_request(table, a7_table, designs, sv_sha256, seed=None, *, draw=None, today=None):
     """The request of a design file on the routed course, made or read (`asap7pnr --request`). Returns (new table or
     None, request, what happened, refusal or None); pure but for the draw. A design file with an entry keeps its
     request: asked without a seed, or with the seed its `record` request names, the stored request is returned
@@ -3071,7 +3098,7 @@ def asap7pnr_request(table, a7_table, designs, sv_sha256, seed=None, *, draw=Non
              "cycles": a7["cycles"], "a0_asap7": {"area_e5um2": a7["area_e5um2"], "delay_ps": a7["delay_ps"],
                                                   "time_ps": a7["time_ps"]},
              "request": request, "runs": [], "scores": {"v_owner": None, "v_median": None}, "status": "pending",
-             "layout": None}
+             "layout": None, PNR_QUEUED_KEY: today or pnr_today()}
     new = copy.deepcopy(table)
     new["designs"] = sorted(new["designs"] + [entry], key=lambda e: e["sv_sha256"])
     bad = asap7pnr_file_problems(new, table.get("task"))
@@ -5520,7 +5547,9 @@ def cmd_asap7pnr_request(args):
     out = asap7pnr_path(args.task, args.asap7pnr_dir)
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(new, indent=1, sort_keys=True) + "\n")
-    print(f"       wrote {os.path.relpath(out)}: its pending entry (the run is made on the course host, at this seed)")
+    q = asap7pnr_queued(new, sv)
+    print(f"       wrote {os.path.relpath(out)}: its pending entry, queued since {q} (the run is made on the course host, "
+          "at this seed, in the same round: CONTRIBUTING.md, section 11)")
     return 0
 
 

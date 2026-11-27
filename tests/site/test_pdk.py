@@ -680,6 +680,8 @@ class PdkTest(unittest.TestCase):
                             if players[x] != ref_player:
                                 self.assertIn("–", text_of(cell))
                                 seen["pending"] += pdk == R
+                                if pdk == R:    # decided 2026-11-27: waiting for its run, since when (leaderboard.py `queued`)
+                                    self.assertRegex(text_of(cell), r"queued for place and route since \d{4}-\d{2}-\d{2}")
                             continue
                         good, title, text = bool(best.group(1)), html.unescape(best.group(2)), best.group(3)
                         first = ranking[0]
@@ -723,6 +725,9 @@ class PdkTest(unittest.TestCase):
         # above whenever a board has it
         self.assertGreater(seen["pending"], 0)
         self.assertGreater(seen["rows"], 140)
+        # the task page's "not ranked" table gives the reason and the date (seen on the data: the arbiter record whose
+        # netlist is par's and whose request names another seed, queued since 2026-11-23; this changes when it is routed)
+        self.assertIn(f"{lb.PNR_PENDING} (queued since 2026-11-23)", text_of(self.view("tasks/arbiter/index.html", R)))
 
     def test_a_reference_players_record_says_par_only_where_it_is_par(self):
         """A record of the reference player calls itself par in a view only when its reference is that view's par;

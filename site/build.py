@@ -2893,7 +2893,8 @@ def score_terms_html(tasks):
               "par's; it is 0% while par is the record.</p>"
               "<p>A design without a weighing on the chosen course has no "
               "score: the tables list it after the scored designs, by its GE columns, and on the routed course a "
-              "design not placed and routed yet says so. A dash in place of par, record or under par means that par's "
+              "design waiting for its run says so, and since when it is queued for place and route. A dash in place "
+              "of par, record or under par means that par's "
               "design has no score on that course yet. Each course (sky130, ASAP7 placed and routed) has its own par, "
               "record and board, and a score on one is never compared with a score on the other.</p>"
             + anchored_heading(3, "clock-period", "The time, and the clock period")
@@ -2963,7 +2964,8 @@ def courses_html():
             + "<li><strong>ASAP7 · placed and routed</strong>: a predictive 7 nm library, never fabricated; each design "
               "placed and routed by OpenROAD, wires included (" + page.link(f"#{ASAP7PNR_ANCHOR}", "How the routed "
                                                                              "course is scored")
-            + "). A design not routed yet shows a dash where its number would be, and the reason.</li></ul>"
+            + "). A design not routed yet shows a dash where its number would be, and the reason: one waiting for "
+              "its run says \"queued for place and route since\" the date it joined the queue.</li></ul>"
             + "<p>Each course has its own par, record and board, and a score on one is never compared with a score on "
               "the other. A link to the cells-only ASAP7 view that the routed course replaced (" + code("?pdk=asap7")
             + ") opens the routed course, and the page says so: " + esc(PNR_MOVED) + "</p></section>")
@@ -3562,7 +3564,7 @@ def board_table_html(site, t, here):
         urows = [[esc(r["player"]), esc(lb.fmt_area(r)) if lb.row_area(r) is not None else muted,
                   esc(str(r["time_ps"])) if r["time_ps"] is not None else muted,
                   esc(lb.fmt_ge(r["area_mge"])), str(r["depth"]),
-                  record_link(t, here, r["record_hash"]), esc(r["reason"])] for r in t.board["unranked"]]
+                  record_link(t, here, r["record_hash"]), esc(unranked_why(t, r))] for r in t.board["unranked"]]
         lib = PDK_AXIS[t.pdk]
         parts.append(page.details(f"not ranked: no {lib} score, or not comparable", (
             f"<p>A record ranks on its {lib} area and time, weighed under the pinned flow, the current {lib} "
@@ -3591,15 +3593,51 @@ def vs_par_text(t, d, area_mge):
     return vs_par(area_mge, t.par["score"]["area_mge"]) if t.par and area_mge is not None else "–"
 
 
-def score_cell(d):
+def pnr_waiting(t, sha):
+    """What a page says for a design the routed course has no number for because it waits for its run (decided
+    2026-11-27, after designs had waited two weeks with only "not placed and routed yet" to show for it): "queued for
+    place and route since DATE" (its pending entry's `queued`, leaderboard.py PNR_QUEUED_KEY), "queued for place and
+    route" (a pending entry made before the date was kept), or "not placed and routed yet" (no request stored: not in
+    the queue)."""
+    e = lb.asap7pnr_entry(t.pnr_table, sha) if getattr(t, "pnr_table", None) else None
+    if e is None or e.get("status") != "pending":
+        return "not placed and routed yet"
+    q = lb.asap7pnr_queued(t.pnr_table, sha)
+    return f"queued for place and route since {q}" if q else "queued for place and route"
+
+
+def unranked_why(t, r):
+    """The "why" of a row the board does not rank (`board["unranked"]`): its reason, and for a record waiting for its run
+    on the routed course whose pending entry says since when, that date: "not routed yet: place and route pending
+    (queued since DATE)" (decided 2026-11-27; leaderboard.py `asap7pnr_queued`, as `asap7pnr` notes it)."""
+    if r["reason"] != lb.PNR_PENDING:
+        return r["reason"]
+    rec = next((x for x in getattr(t, "records", ()) if x["record_hash"] == r["record_hash"]), None)
+    q = lb.asap7pnr_queued(t.pnr_table, rec["files"]["sv"]["sha256"]) \
+        if rec is not None and getattr(t, "pnr_table", None) else None
+    return f"{r['reason']} (queued since {q})" if q else r["reason"]
+
+
+def waiting_html(short):
+    """`short` (a reason under a dash) as HTML: "queued for place and route since DATE" on two lines, the date on the
+    second, so that the score column stays as narrow as before on a phone (the latest list's score column does not
+    wrap, style.css `.board-score`)."""
+    head = "queued for place and route since "
+    if short.startswith(head):
+        return f"{esc(head[:-len('since ')].rstrip())}<br>{esc('since ' + short[len(head):])}"
+    return esc(short)
+
+
+def score_cell(d, t=None):
     """A design's score, or a dash; on the routed course a design without a bound routed result says why under the
-    dash ("not placed and routed yet")."""
+    dash (a design waiting for its run: `pnr_waiting`, "queued for place and route since DATE")."""
     if d and "adp" in d["m"]:
         return esc(combined.fmt(d["m"]["adp"]))
     why = (d or {}).get("why")
     if why:
-        short = "not placed and routed yet" if why == lb.PNR_PENDING else why.split(":")[0]
-        return f'<span class="muted">–</span><span class="cell-meta">{esc(short)}</span>'
+        short = (pnr_waiting(t, d["sha"]) if t is not None and d.get("sha") else "not placed and routed yet") \
+            if why == lb.PNR_PENDING else why.split(":")[0]
+        return f'<span class="muted">–</span><span class="cell-meta">{waiting_html(short)}</span>'
     return '<span class="muted">–</span>'
 
 
@@ -3640,7 +3678,7 @@ def baselines_html(t, here):
                                               else "not scored") + "</span>"
         def cells(b=b, s=s):
             d = design_of(t, "baseline", b["stem"])
-            return [score_cell(d), *sky_cells(t, d), esc(vs_par_text(t, d, s["area_mge"])) if s and t.par else "–"]
+            return [score_cell(d, t), *sky_cells(t, d), esc(vs_par_text(t, d, s["area_mge"])) if s and t.par else "–"]
         sky = cells()
         with t.view(COURSE2):
             a7 = cells()
@@ -6833,8 +6871,10 @@ def latest_score(site, t, rec):
     over it; best, ahead and under par in the good colour (class `good`), behind and over par neutral; nothing under
     par's own records. The parts are joined by " · " (class `sep`); on a phone each stands on a line of its own
     (style.css), so that the score column stays narrow beside the player's name. A record with no score on the course:
-    a dash, and why (on the routed course, "not placed and routed yet")."""
+    a dash, and why (on the routed course a record waiting for its run, `pnr_waiting`: "queued for place and route
+    since DATE")."""
     h = rec["record_hash"]
+    h_sv = rec["files"]["sv"]["sha256"]
     if rec["player"] == site.config["reference_player"]:
         ref = t.ref_of_record.get(h)
         d = design_of(t, "reference", ref["stem"]) if ref else None
@@ -6842,8 +6882,8 @@ def latest_score(site, t, rec):
         d = next((x for x in t.designs if x["kind"] == "record" and x["id"] == h), None)
     if d is None or d["exact"] is None or "adp" not in d["m"]:
         why = (d or {}).get("why") or next((r["reason"] for r in t.board["unranked"] if r["record_hash"] == h), None)
-        short = "not placed and routed yet" if why == lb.PNR_PENDING else why.split(":")[0] if why else "not ranked"
-        return f'<span class="muted">–</span><small>{esc(short)}</small>'
+        short = pnr_waiting(t, h_sv) if why == lb.PNR_PENDING else why.split(":")[0] if why else "not ranked"
+        return f'<span class="muted">–</span><small>{waiting_html(short)}</small>'
     p = par_design(t)
     if d["kind"] == "reference" or p is None or p["exact"] is None:
         share = ""                                  # par's own record: its badge says so (`latest_item`)

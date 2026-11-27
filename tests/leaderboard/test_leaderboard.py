@@ -4077,6 +4077,49 @@ class Asap7PnrRequestTest(Tmp):
         self.assertIn("[ok] sorter: 4 designs: 3 bound, 1 pending", out)
         self.assertIn(lb.PNR_PENDING, out)
 
+    def test_a_pending_entry_says_since_when_it_is_queued(self):
+        """Decided 2026-11-27: a pending entry carries `queued`, the date it joined the queue. The request stores
+        today's UTC date (or a given one), the CLI says it, the file check takes it on a pending entry only and only as
+        a date, `asap7pnr_queued` reads it (None for a routed entry), and a rebind that makes an entry pending again
+        dates it too."""
+        rc, out, err = self.request("--seed", "42", "--write")
+        self.assertEqual(rc, 0, out + err)
+        e = self.stored()
+        self.assertRegex(e["queued"], r"^\d{4}-\d{2}-\d{2}$")
+        self.assertIn(f"queued since {e['queued']}", out)
+        table, why = lb.read_asap7pnr("sorter", self.dir)
+        self.assertIsNone(why)
+        self.assertEqual(lb.asap7pnr_file_problems(table, "sorter"), [])
+        self.assertEqual(lb.asap7pnr_queued(table, e["sv_sha256"]), e["queued"])
+        rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "sorter", "--asap7pnr-dir", self.dir])
+        self.assertIn(f"{lb.PNR_PENDING} (queued since {e['queued']})", out)
+        bad = copy.deepcopy(table)
+        lb.asap7pnr_entry(bad, e["sv_sha256"])["queued"] = "27.11.2026"
+        self.assertTrue(any("`queued`" in m for m in lb.asap7pnr_file_problems(bad, "sorter")))
+        routed = copy.deepcopy(table)
+        r = next(x for x in routed["designs"] if x["status"] == "measured")
+        r["queued"] = "2026-11-27"
+        self.assertTrue(any("`queued`" in m for m in lb.asap7pnr_file_problems(routed, "sorter")))
+        self.assertIsNone(lb.asap7pnr_queued(routed, r["sv_sha256"]))
+        self.assertIsNone(lb.asap7pnr_queued(table, "0" * 64))
+        # a given day, through the pure function, on the table without the entry
+        short = json.loads(self.short)
+        with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        designs = lb.asap7_designs(lb.load_task(lb.DEFAULT_TASKS, "sorter"),
+                                   lb.good_records(lb.load_records(lb.DEFAULT_DATA)), expected)
+        new, _rq, _what, refusal = lb.asap7pnr_request(short, lb.load_asap7("sorter"), designs, self.gone["sv_sha256"],
+                                                       seed=9, today="2026-01-02")
+        self.assertIsNone(refusal)
+        self.assertEqual(lb.asap7pnr_entry(new, self.gone["sv_sha256"])["queued"], "2026-01-02")
+        # a rebind whose view names another netlist for a routed design: pending again, dated
+        a7 = copy.deepcopy(lb.load_asap7("sorter"))
+        lb.asap7_entry(a7, r["sv_sha256"])["repaired_sha256"] = "f" * 64
+        again, _rebound, pending = lb.asap7pnr_rebind(json.loads(self.short), a7, today="2026-01-03")
+        self.assertIn(r["sv_sha256"], pending)
+        self.assertEqual(lb.asap7pnr_entry(again, r["sv_sha256"])["queued"], "2026-01-03")
+        self.assertEqual(lb.asap7pnr_queued(again, r["sv_sha256"]), "2026-01-03")
+
     def test_a_drawn_seed(self):
         table, _ = lb.read_asap7pnr("sorter", self.dir)
         with open(lb.EXPECTED_JSON, encoding="utf-8") as fh:
