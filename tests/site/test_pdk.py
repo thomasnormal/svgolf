@@ -77,7 +77,8 @@ R = "asap7pnr"                    # the routed course's value (the selector's se
 
 # the tasks whose par design waits for a routed run (2026-11-24: fdivp's, whose ASAP7 netlist the new rating build
 # changed); test_site.py holds the same set and checks it against the data
-PNR_PAR_PENDING = {"fdivp"}
+# 2026-11-24 to 2026-11-27 fdivp's par waited for its run (`asap7pnr --rebind`); routed 2026-11-27: none waits
+PNR_PAR_PENDING = set()
 
 class PdkTest(unittest.TestCase):
     @classmethod
@@ -410,8 +411,8 @@ class PdkTest(unittest.TestCase):
             sky, a7 = self.boards(t)
             with self.subTest(task=t):
                 head = text_of(section(self.view(f"tasks/{t}/index.html", R), "numbers"))
-                # every par design was routed on 2026-11-13; since 2026-11-24 fdivp's is pending again (the new rating
-                # build changed its ASAP7 netlist, `asap7pnr --rebind`) until its run is made
+                # every par design was routed on 2026-11-13; from 2026-11-24 fdivp's was pending again (the new rating
+                # build changed its ASAP7 netlist, `asap7pnr --rebind`) until its run was made on 2026-11-27
                 if t in PNR_PAR_PENDING:
                     self.assertIsNone(stem)
                     continue
@@ -432,14 +433,16 @@ class PdkTest(unittest.TestCase):
                 self.assertNotIn(flat(f"{combined.fmt(combined.um2ns(exact, R))} µm²·ns {stem}"),
                                  text_of(section(self.view(f"tasks/{t}/index.html", "sky130"), "numbers")))
         # add: the two courses name different records. On sky130 it is casper-hansen's ee7c8f05d406 (since 2026-11-25;
-        # select-six's before); on the routed course (its two add records wait for their runs) fernladder's Sklansky
-        # adder, 2% under par add_n (select-six is 1.6% over it)
+        # select-six's before); on the routed course, since its two outside records were routed (2026-11-27),
+        # casper-hansen's 185c226912f6, 9.287 um^2 x 0.327 ns, 23% under par add_n (fernladder's Sklansky adder, 2% under
+        # par, led it until then; select-six is 1.6% over it)
         h7 = text_of(section(self.view("tasks/add/index.html", R), "numbers"))
         h1 = text_of(section(self.view("tasks/add/index.html", "sky130"), "numbers"))
-        self.assertIn("fernladder", h7)
-        self.assertIn("Under par 2%", h7)
+        self.assertIn("casper-hansen", h7)
+        self.assertIn("9.287 µm² × 0.327 ns", h7)
+        self.assertIn("Under par 23%", h7)
         self.assertNotIn("select-six", h7)
-        self.assertNotIn("casper-hansen", h7)
+        self.assertNotIn("fernladder", h7)
         self.assertEqual(h7.count("add_n"), 1)            # par only
         self.assertIn("casper-hansen", h1)
         self.assertIn("Under par 6%", h1)
@@ -618,8 +621,9 @@ class PdkTest(unittest.TestCase):
         lst = section(self.view("tasks/add/index.html", R), "leaderboard")
         ol = lst.split('<ol class="board">', 1)[1].split("</ol>", 1)[0]
         rows = re.findall(r'<li(?: class="(lead|par)")?>(.*?)</li>', ol, re.S)
-        self.assertEqual([k for k, _ in rows], ["lead", "", "", "par", "", "", ""])
-        self.assertIn("fernladder", text_of(rows[0][1]))
+        # since 2026-11-27 (the two outside add records routed) five records rank under par, casper-hansen's first
+        self.assertEqual([k for k, _ in rows], ["lead", "", "", "", "", "par", "", "", ""])
+        self.assertIn("casper-hansen", text_of(rows[0][1]))
         self.assertIn("select-six", text_of(rows[-1][1]))
         lst = section(self.view("tasks/_example/index.html", R), "leaderboard")
         ol = lst.split('<ol class="board">', 1)[1].split("</ol>", 1)[0]
@@ -637,7 +641,7 @@ class PdkTest(unittest.TestCase):
         under that course's par (in the good colour) or over it. A record the course does not rank (not placed and
         routed yet) says why and
         neither; par's own records say neither. Seen on the data: casper-hansen's records both best and behind on
-        sky130, and a task whose routed board has one record."""
+        sky130 (and, until the routed round of 2026-11-27, a task whose routed board had one record)."""
         def pct(share):
             p = share * 100
             return f"{p:.2g}%" if p > 0 and round(p) == 0 else f"{round(p)}%"
@@ -714,7 +718,9 @@ class PdkTest(unittest.TestCase):
         phone = phone[:phone.index("\n}")]
         self.assertIn("ol.latest .vs-next, ol.latest .vs-par { display: block; }", phone)
         self.assertIn("ol.latest .board-score .sep { display: none; }", phone)
-        self.assertTrue(any(pdk == R for pdk, _ in seen["one"]), seen["one"])
+        # until 2026-11-27 a routed board had one record (arbiter, fdivp), and this test required one; since the routed
+        # round of that day every routed board has more than one, and the one-record case ("best" alone) is checked
+        # above whenever a board has it
         self.assertGreater(seen["pending"], 0)
         self.assertGreater(seen["rows"], 140)
 

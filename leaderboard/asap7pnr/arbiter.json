@@ -95,7 +95,40 @@
     "time_ps": 282
    },
    "cycles": 1,
-   "layout": null,
+   "layout": {
+    "caption": "The scored layout: placed and routed by OpenROAD-flow-scripts on ASAP7, placement seed 1692919007; die 6.0 \u00d7 6.0 \u00b5m (power and ground wires not drawn).",
+    "core_um": [
+     "3.996",
+     "3.78"
+    ],
+    "die_um": [
+     "6.031",
+     "6.031"
+    ],
+    "image": "site/layouts/arbiter/c66e248d8d06b628.webp",
+    "image_bytes": 104544,
+    "image_px": [
+     1600,
+     1600
+    ],
+    "image_sha256": "5b191a66914f4aae669deaf35b9b7871b88e3363966fc298ca4a777ffc09371d",
+    "odb_sha256": "ddd413429253f2f0e1d0adb63b9e524242c2cdaaf0f23dd5bb6302a8f08bad69",
+    "render_png_px": [
+     1600,
+     1600
+    ],
+    "render_png_sha256": "1173b7647771175ab1dead28e2dc40e4f0e0b96e16e158a386471e975ade2c8a",
+    "run_seed": 1692919007,
+    "thumb": "site/layouts/arbiter/c66e248d8d06b628.thumb.webp",
+    "thumb_bytes": 35264,
+    "thumb_px": [
+     640,
+     640
+    ],
+    "thumb_sha256": "0a4b0136da6dcd77c23f01b436310db75fc194927abcd8900a331553c7dded7e",
+    "view": "the flow's routing view (the settings of its scripts/save_images.tcl): every layer, net and instance; power and ground nets hidden",
+    "webp_quality": 80
+   },
    "netlist_sha256": "ec3a10f3d0af75a6154e84f9a77dfd49bf2b89bf38453c83e8169fa365fc893a",
    "of": [
     "record:dab1abfecf51076af71d9ce1dc8c0eab7470004911a403a7c8c917809492d312"
@@ -107,13 +140,80 @@
     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     "source": "drawn"
    },
-   "runs": [],
+   "runs": [
+    {
+     "area_e5um2": 672138,
+     "artifacts": {
+      "1_2_yosys.v": "ec3a10f3d0af75a6154e84f9a77dfd49bf2b89bf38453c83e8169fa365fc893a",
+      "2_floorplan.odb": "0de972e25bd0ebfa338ae8c1d8136d2d7d7bef47423eea65d9044fef1572e8c4",
+      "3_place.odb": "b9a89d69c89e27a8904d2fda4e4416196b07577f7be95f04a6a0bf94bc009113",
+      "4_cts.odb": "eb25b07709abc37f395b07bf3a81870e1a293a0457e629a7ba5246d25e7a00b2",
+      "5_route.odb": "65ded1d676af7d76986b5f32407d407a52aaa066e30554bbd654a60ae89fc238",
+      "6_final.def": "0418b9d6770a8782a851664e1a37fe605695bb08aced94c707e49e2f542bb69f",
+      "6_final.odb": "ddd413429253f2f0e1d0adb63b9e524242c2cdaaf0f23dd5bb6302a8f08bad69",
+      "6_final.spef(normalized)": "9b8ae8d59bfffe9490aefffad0cea40bbdb67bf2c3795a8b26e01852de362b8d",
+      "6_final.v": "bab17c7cf68e1b57b57f67b0f153d8aa2616068d5f5634561d094b462975a5b5"
+     },
+     "cells_in": 76,
+     "cells_out": 79,
+     "config_mk_sha256": "7a33da3153523b7ff957acfd159a2cd9872d4f657dec6ece1eec6961f28bc0c7",
+     "delay_ps": 283,
+     "drc": 0,
+     "drv": {
+      "max_cap": 0,
+      "max_fanout": 0,
+      "max_slew": 0
+     },
+     "exact": 190215054,
+     "hold_violations": 8,
+     "host": {
+      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
+      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
+      "os": "Rocky Linux 9.8 (Blue Onyx)",
+      "runtime": "rootless userns+chroot"
+     },
+     "io_tcl_sha256": null,
+     "lec": [
+      "6_final:IDENTICAL"
+     ],
+     "lec_reference": {
+      "config_sha256": "97496fcbd19b5e0af67406bfc77fc98fef8a5cfb4613701b0020a87f1fba3e9a",
+      "log_sha256": "6a2ac03c0d17d6c5d2d2968ffa7af88476fdc93ecd45ce22d647635882cbbb93",
+      "reference_sha256": "ec3a10f3d0af75a6154e84f9a77dfd49bf2b89bf38453c83e8169fa365fc893a",
+      "routed_lec_sha256": "bab17c7cf68e1b57b57f67b0f153d8aa2616068d5f5634561d094b462975a5b5",
+      "verdict": "IDENTICAL"
+     },
+     "measured_at": "2026-11-27",
+     "orfs": {
+      "area_stdcell": "7.53786",
+      "area_tap_cell": "0.81648",
+      "period_min": "282.75",
+      "sdc_period": "282.0",
+      "setup_ws": "-0.745959"
+     },
+     "peak_mb": 718,
+     "role": "scoring",
+     "sdc_sha256": "d1fa05ecd7ba545154f223824fab2dd427ab9fe5f4e53b46512bebc7b020abba",
+     "seconds": 65.6,
+     "seed": 1692919007,
+     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+     "status": "ok",
+     "time_ps": 283,
+     "wire_um": "96"
+    }
+   ],
    "scored_netlist_sha256": "ce6c92aecbbb27fb49cbe6e884794a791fed42a498d44e8bd75ca7ad49da8397",
    "scores": {
     "v_median": null,
-    "v_owner": null
+    "v_owner": {
+     "area_e5um2": 672138,
+     "exact": 190215054,
+     "seed": 1692919007,
+     "time_ps": 283,
+     "um2ns": 1.90215054
+    }
    },
-   "status": "pending",
+   "status": "measured",
    "sv_sha256": "c66e248d8d06b628d52d46edbb969ddfb6e406248d9755f980da975659e91e88"
   },
   {
@@ -123,7 +223,40 @@
     "time_ps": 233
    },
    "cycles": 1,
-   "layout": null,
+   "layout": {
+    "caption": "The scored layout: placed and routed by OpenROAD-flow-scripts on ASAP7, placement seed 104822545; die 5.9 \u00d7 5.9 \u00b5m (power and ground wires not drawn).",
+    "core_um": [
+     "3.834",
+     "3.78"
+    ],
+    "die_um": [
+     "5.861",
+     "5.861"
+    ],
+    "image": "site/layouts/arbiter/e52398455005b8f2.webp",
+    "image_bytes": 103152,
+    "image_px": [
+     1600,
+     1600
+    ],
+    "image_sha256": "f51842b62cd7c043b6427d70c3faf5462c4f1c1bc3cc426733ae94abf02cbeab",
+    "odb_sha256": "cf1561fc37611851eaf1af98c42d4a2e9e624a0efddbc30082f473233ef2623b",
+    "render_png_px": [
+     1600,
+     1600
+    ],
+    "render_png_sha256": "b5537e98dadcf6bace225cf1e3db5c3553a9793191f166520c2f152f1d27046d",
+    "run_seed": 104822545,
+    "thumb": "site/layouts/arbiter/e52398455005b8f2.thumb.webp",
+    "thumb_bytes": 35112,
+    "thumb_px": [
+     640,
+     640
+    ],
+    "thumb_sha256": "8e1366de2795a9b20f1c503e3e0d2937fed435e3b32c9d66dada726494a89788",
+    "view": "the flow's routing view (the settings of its scripts/save_images.tcl): every layer, net and instance; power and ground nets hidden",
+    "webp_quality": 80
+   },
    "netlist_sha256": "b114160efacc3151dc220433640cb5febb0bd0f8bac620f945b45c50de79a0e0",
    "of": [
     "record:bda2aaeda86e6e26ee7242305f1bf5d2557ccff3c8e4f4265367a418062f36fc"
@@ -135,13 +268,80 @@
     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     "source": "drawn"
    },
-   "runs": [],
+   "runs": [
+    {
+     "area_e5um2": 618192,
+     "artifacts": {
+      "1_2_yosys.v": "b114160efacc3151dc220433640cb5febb0bd0f8bac620f945b45c50de79a0e0",
+      "2_floorplan.odb": "2856a9091536d27f01391dff5080d6c21fcdc8931f14ab7f2eba012556c2cc03",
+      "3_place.odb": "6932a8fe7cdb36b530ddae258c7400cbc3c7449489eb3e91b511dda6bbc0fd44",
+      "4_cts.odb": "aceecc8bc18b05934ad77b63d12f20ef612aa7ce5b43d36ee8f56e0a03b42ac3",
+      "5_route.odb": "262e8d737551dd87467ef020c385fd4895eafe569162cd9c9ff8ebc4a2e607f0",
+      "6_final.def": "a941e56c29b58fe0531e0ee2779772fa5579079b9070636079250792a67da155",
+      "6_final.odb": "cf1561fc37611851eaf1af98c42d4a2e9e624a0efddbc30082f473233ef2623b",
+      "6_final.spef(normalized)": "eceb4760a4a3148d8b1efd40a7498987bb1050943787b3672f4be9e41640f7e0",
+      "6_final.v": "28f7ffbf9e48f5952df6c1cceeec57ce616016a22c35a8308536912b509f70a7"
+     },
+     "cells_in": 75,
+     "cells_out": 78,
+     "config_mk_sha256": "64870a3378b2c012010982a142c691b0555e10d7649f50923429db05ec528fc1",
+     "delay_ps": 235,
+     "drc": 0,
+     "drv": {
+      "max_cap": 0,
+      "max_fanout": 0,
+      "max_slew": 0
+     },
+     "exact": 145275120,
+     "hold_violations": 3,
+     "host": {
+      "cpu": "Intel(R) Xeon(R) Platinum 8488C",
+      "kernel": "5.14.0-687.54.1.el9_8.x86_64",
+      "os": "Rocky Linux 9.8 (Blue Onyx)",
+      "runtime": "rootless userns+chroot"
+     },
+     "io_tcl_sha256": null,
+     "lec": [
+      "6_final:IDENTICAL"
+     ],
+     "lec_reference": {
+      "config_sha256": "98bf86c20533dbcf583c91b3ae5a96c8050bb40c559bb14c36bbc916c2bc8e4e",
+      "log_sha256": "b75ed29738e8f9cc8a2c9325af4580ca2546cdda0b191a4014c70a30f544426f",
+      "reference_sha256": "b114160efacc3151dc220433640cb5febb0bd0f8bac620f945b45c50de79a0e0",
+      "routed_lec_sha256": "28f7ffbf9e48f5952df6c1cceeec57ce616016a22c35a8308536912b509f70a7",
+      "verdict": "IDENTICAL"
+     },
+     "measured_at": "2026-11-27",
+     "orfs": {
+      "area_stdcell": "6.9984",
+      "area_tap_cell": "0.81648",
+      "period_min": "234.60",
+      "sdc_period": "233.0",
+      "setup_ws": "-1.59753"
+     },
+     "peak_mb": 718,
+     "role": "scoring",
+     "sdc_sha256": "8eb6344cecfcf5b209383e7536284c85531b7d25b2446130ab0868786a168196",
+     "seconds": 76.6,
+     "seed": 104822545,
+     "settings_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+     "status": "ok",
+     "time_ps": 235,
+     "wire_um": "98"
+    }
+   ],
    "scored_netlist_sha256": "5fb00e55281bb69a1a10de1b3e955b3a28205737a61256aa5633080019d4079e",
    "scores": {
     "v_median": null,
-    "v_owner": null
+    "v_owner": {
+     "area_e5um2": 618192,
+     "exact": 145275120,
+     "seed": 104822545,
+     "time_ps": 235,
+     "um2ns": 1.4527512
+    }
    },
-   "status": "pending",
+   "status": "measured",
    "sv_sha256": "e52398455005b8f20298e0394145500a600b8879187e33e4b86f5faa3845fc01"
   },
   {

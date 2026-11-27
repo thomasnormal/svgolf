@@ -3992,15 +3992,16 @@ class Asap7PnrTest(Tmp):
             fh.write(json.dumps(short, indent=1, sort_keys=True) + "\n")
         rc, out, err = quiet(lb.main, ["asap7pnr", "--asap7pnr-dir", tdir])
         self.assertEqual(rc, 0, out + err)
-        # 2026-11-24: e23da644c53e pending too; 2026-11-25: and casper-hansen's 88399a512bf7
-        self.assertIn("[ok] sorter: 4 designs: 1 bound, 3 pending", out)
+        # 2026-11-24: e23da644c53e pending too; 2026-11-25: and casper-hansen's 88399a512bf7; 2026-11-27: both routed
+        self.assertIn("[ok] sorter: 4 designs: 3 bound, 1 pending", out)
         self.assertIn(f"{', '.join(gone['of'])}: {lb.PNR_PENDING}", out)
         self.assertRegex(out, rf"(?m)^total: {bound - 1} bound, {waiting + 1} pending$")
         rc, out, err = quiet(lb.main, ["board", "--task", "sorter", "--pdk", "asap7pnr", "--format", "json"])
         self.assertEqual(rc, 0, err)
         board = json.loads(out)
         self.assertEqual(board["pdk"], "asap7pnr")
-        self.assertEqual(board["ranking"][0]["player"], "kestrel-golf")
+        # 2026-11-27: casper-hansen's 88399a512bf7, routed that day, ranks first (kestrel-golf's did before)
+        self.assertEqual(board["ranking"][0]["player"], "casper-hansen")
         rc, out, err = quiet(lb.main, ["asap7pnr", "--write"])
         self.assertEqual(rc, 2)
 
@@ -4072,8 +4073,8 @@ class Asap7PnrRequestTest(Tmp):
             self.assertEqual(e[k], self.gone[k], k)
         rc, out, err = quiet(lb.main, ["asap7pnr", "--task", "sorter", "--asap7pnr-dir", self.dir])
         self.assertEqual(rc, 0, out + err)
-        # 2026-11-24: e23da644c53e pending too; 2026-11-25: and casper-hansen's 88399a512bf7
-        self.assertIn("[ok] sorter: 4 designs: 1 bound, 3 pending", out)
+        # 2026-11-24: e23da644c53e pending too; 2026-11-25: and casper-hansen's 88399a512bf7; 2026-11-27: both routed
+        self.assertIn("[ok] sorter: 4 designs: 3 bound, 1 pending", out)
         self.assertIn(lb.PNR_PENDING, out)
 
     def test_a_drawn_seed(self):
@@ -4113,12 +4114,14 @@ class Asap7PnrRequestTest(Tmp):
                     self.assertIn('"seed": 42', out)
 
     def test_a_routed_design_keeps_its_request(self):
+        rq = self.routed["request"]          # the routed design's stored request (since 2026-11-27 a drawn seed)
         rc, out, _ = self.request("--seed", "5", "--write", design=self.routed_sv)
         self.assertEqual(rc, 1)
-        self.assertIn("already routed at the request's seed 1 (default): its request is not changed", out)
+        self.assertIn(f"already routed at the request's seed {rq['seed']} ({rq['source']}): its request is not changed",
+                      out)
         rc, out, _ = self.request("--write", design=self.routed_sv)
         self.assertEqual(rc, 0)
-        self.assertIn("routed: its stored request: seed 1 (default)", out)
+        self.assertIn(f"routed: its stored request: seed {rq['seed']} ({rq['source']})", out)
         self.assertEqual(self.text(), self.short)
         rc, out, _ = quiet(lb.main, ["asap7pnr", "--request", "--task", "sorter", "--design", self.routed_sv,
                                      "--seed", "1"])                         # the committed tables: refused, untouched
@@ -4273,7 +4276,12 @@ class CommittedAsap7PnrTest(unittest.TestCase):
         # 2026-11-25: and casper-hansen's eight records from the outside pull requests (add ee7c8f05d406 and
         # 185c226912f6, aes_sbox 14a3b0ab13a9, clmul 3e6635e1b9df, arbiter bda2aaeda86e, sorter 88399a512bf7, fdivp
         # 0f04df325a62, mul 5ac6c27f98fb)
-        self.assertEqual(totals, {"bound": 49, "pending": 27})
+        # 2026-11-27: the 27 routed on the course host; imported, the 14 of add, aes_sbox, arbiter, clmul, fdivp, mul and
+        # sorter but clockwork-otter's arbiter record 767c523bfebf, whose netlist is par's (routed at seed 1) and whose
+        # stored request names another seed (one picture per netlist): it stays pending; and 11 of the 13 matmul ones,
+        # all but clockwork-otter's two cube records 4f458ed4f2cb and a06f2ff0e1f5, which share one netlist under two
+        # stored seeds and stay pending for the same reason
+        self.assertEqual(totals, {"bound": 73, "pending": 3})
 
 
 def git(cwd, *args):

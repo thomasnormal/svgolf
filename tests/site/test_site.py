@@ -64,7 +64,8 @@ def read_tree(top):
 # the tasks whose par design waits for a routed run: every par was routed on 2026-11-13; since 2026-11-24 fdivp's is
 # pending again (the new rating build changed its ASAP7 netlist; `asap7pnr --rebind`), until the course host routes it
 # at its stored seed. SiteTest.test_the_routed_pars_that_wait_are_the_data_s checks this set against the data.
-PNR_PAR_PENDING = {"fdivp"}
+# 2026-11-24 to 2026-11-27 fdivp's par waited for its run (`asap7pnr --rebind`); routed 2026-11-27: none waits
+PNR_PAR_PENDING = set()
 
 class Page(html.parser.HTMLParser):
     """The ids, links, tags and `<pre data-src>` texts of one page."""
